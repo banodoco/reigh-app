@@ -27,4 +27,6 @@ export interface PersistedGenerationRow {
   pair_shot_generation_id?: string | null;
   primary_variant_id?: string | null;
   source_task_id?: string | null;
+  /** Runtime managed object identity for generation-backed media. */
+  media_id?: string | null;
 }

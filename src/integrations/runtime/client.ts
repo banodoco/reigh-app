@@ -188,6 +188,10 @@ export class ReighRuntimeClient {
     return this.withSession(() => this.client.listGenerations(projectId, cursor, limit));
   }
 
+  async getGeneration(generationId: string): Promise<Generation> {
+    return this.withSession(() => this.client.getGeneration(generationId));
+  }
+
   /** Canonical Runtime variant page; the opaque cursor is caller-owned. */
   async listVariants(generationId: string, cursor?: string, limit = 50): Promise<Page<GenerationVariant>> {
     return this.withSession(() => this.client.listVariants(generationId, cursor, limit));

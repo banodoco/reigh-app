@@ -92,7 +92,7 @@ function GenerationsPaneTab({ controller }: { controller: GenerationsPaneControl
 }
 
 function GenerationsPaneSurface({ controller }: { controller: GenerationsPaneController }) {
-  const { pane, filters, gallery, layout } = controller;
+  const { pane, filters, gallery, layout, navigation } = controller;
   const effectiveGenerationsPaneHeight = usePanesStore((state) => state.effectiveGenerationsPaneHeight);
 
   // The Image Generation tool owns the full-page gallery. Keep the app-shell
@@ -186,6 +186,7 @@ function GenerationsPaneSurface({ controller }: { controller: GenerationsPaneCon
             generationFilters: filters.generationFilters,
             currentViewingShotId: filters.currentShotId || undefined,
             onCreateShot: gallery.handleCreateShot,
+            onAddGenerationToTimeline: navigation.handleAddGenerationToTimeline,
             config: gallery.config,
             readOnly: gallery.readOnly,
           }}

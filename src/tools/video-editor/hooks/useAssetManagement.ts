@@ -75,7 +75,7 @@ export interface UseAssetManagementResult {
       original_filename: string;
     };
   }>;
-  handleAssetDrop: (assetKey: string, trackId: string | undefined, time: number, forceNewTrack?: boolean, insertAtTop?: boolean) => void;
+  handleAssetDrop: (assetKey: string, trackId: string | undefined, time: number, forceNewTrack?: boolean, insertAtTop?: boolean) => boolean;
 }
 
 export interface AssetDropTargetResolution {
@@ -314,7 +314,7 @@ export function useAssetManagement({
     const playableKind = getPlayableAssetKind(assetEntry);
     if (!assetEntry || !playableKind) {
       runtime.toast.error('Only image, video, and audio assets can be added to the timeline');
-      return;
+      return false;
     }
     const assetKind = playableKind === 'audio' ? 'audio' : 'visual';
     const duration = estimateAssetDuration(assetEntry, assetKind);
@@ -329,7 +329,7 @@ export function useAssetManagement({
       duration,
     });
     if (!targetPlan.ok) {
-      return;
+      return false;
     }
     const resolvedTarget = {
       current: targetPlan.preparedCurrent,
@@ -343,7 +343,7 @@ export function useAssetManagement({
       time: resolvedTarget.snappedTime ?? time,
     });
     if (!nextEdit) {
-      return;
+      return false;
     }
     latestDataRef.current = resolvedTarget.current;
     getApplyEdit()({
@@ -354,6 +354,7 @@ export function useAssetManagement({
     });
     getSelectClip()(nextEdit.clipId);
     getSetSelectedTrackId()(resolvedTarget.trackId);
+    return true;
   }, [getApplyEdit, getDataRef, getSelectedTrackId, getSelectClip, getSetSelectedTrackId, runtime.toast]);
 
   return {

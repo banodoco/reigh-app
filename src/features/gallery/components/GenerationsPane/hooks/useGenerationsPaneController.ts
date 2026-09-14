@@ -33,6 +33,7 @@ import { SHOT_FILTER, isSpecialFilter } from '@/shared/constants/filterConstants
 import { useAppEventListener } from '@/shared/lib/typedEvents';
 import { withLocalModeParams } from '@/shared/dev/localModeUrl';
 import { isRuntimeDocumentMode } from '@/app/runtime/runtimeDocument';
+import { ADD_GENERATION_QUERY_PARAM } from '@/domains/media-lightbox/hooks/addToVideoEditorConstants';
 
 // Fallback rows for pane (smaller than full page galleries)
 const PANE_ROWS = 2;
@@ -357,6 +358,12 @@ export const useGenerationsPaneController = () => {
     navigate(withLocalModeParams(TOOL_ROUTES.IMAGE_GENERATION, location.search));
   }, [location.search, navigate, setIsGenerationsPaneLocked]);
 
+  const handleAddGenerationToTimeline = useCallback((generationId: string) => {
+    const nextSearch = new URLSearchParams(location.search);
+    nextSearch.set(ADD_GENERATION_QUERY_PARAM, generationId);
+    navigate({ pathname: location.pathname, search: `?${nextSearch.toString()}` });
+  }, [location.pathname, location.search, navigate]);
+
   useRenderLogger('GenerationsPane', {
     page: generationData.page,
     totalItems: generationData.totalCount,
@@ -415,6 +422,7 @@ export const useGenerationsPaneController = () => {
     },
     navigation: {
       handleNavigateToImageGeneration,
+      handleAddGenerationToTimeline,
     },
   };
 };

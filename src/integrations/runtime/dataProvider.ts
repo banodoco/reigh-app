@@ -20,6 +20,7 @@ import type {
   AssetRegistryEntry,
   TimelineConfig,
 } from '@/tools/video-editor/types/index.ts';
+import type { GenerationRow } from '@/domains/generation/types/index.ts';
 import type { Transport } from './generated.ts';
 import type {
   AssetResolveRequest,
@@ -140,6 +141,39 @@ export class RuntimeDataProvider implements DataProvider {
     if (!candidate) throw new Error('Cannot resolve a Runtime asset URL for an empty file path');
     if (/^https?:\/\//i.test(candidate)) return candidate;
     return this.client.objectContentUrl(this.findManagedAsset(candidate).objectId);
+  }
+
+  /** Resolve a Runtime generation into the editor's existing lightbox row shape. */
+  async loadGenerationForLightbox(generationId: string): Promise<GenerationRow | null> {
+    try {
+      const generation = await this.client.getGeneration(generationId);
+      const variants = await this.client.listVariants(generationId, undefined, 200);
+      const primary = variants.items.find((variant) => variant.metadata.is_primary === true)
+        ?? variants.items[0];
+      if (!primary?.object_id) return null;
+      const mediaType = typeof primary.metadata.media_type === 'string'
+        ? primary.metadata.media_type
+        : (typeof primary.metadata.content_type === 'string' ? primary.metadata.content_type : 'image/png');
+      const url = this.client.objectContentUrl(primary.object_id);
+      return {
+        id: generation.generation_id,
+        generation_id: generation.generation_id,
+        location: url,
+        imageUrl: url,
+        thumbUrl: url,
+        type: mediaType,
+        contentType: mediaType,
+        createdAt: generation.created_at,
+        metadata: generation.metadata,
+        name: typeof generation.metadata.name === 'string' ? generation.metadata.name : null,
+        primary_variant_id: primary.variant_id,
+        source_task_id: generation.source_task_id ?? null,
+        media_id: primary.object_id,
+      };
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 404) return null;
+      throw error;
+    }
   }
 
   /** Read managed bytes through the generated Range/ETag Runtime contract. */

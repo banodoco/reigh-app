@@ -50,6 +50,7 @@ interface GenerationsPaneGalleryModel {
   generationFilters: MediaGalleryProps['generationFilters'];
   currentViewingShotId?: string;
   onCreateShot: NonNullable<MediaGalleryProps['onCreateShot']>;
+  onAddGenerationToTimeline?: (generationId: string) => void;
   config?: Partial<GalleryConfig>;
   readOnly?: boolean;
 }
@@ -114,6 +115,7 @@ export function GenerationsPaneGallery({
   ), [gallerySelectionMap]);
 
   const selectedGenerationIds = React.useMemo(() => resolveSelectedGenerationIds(), [resolveSelectedGenerationIds]);
+  const selectedGenerationId = selectedGenerationIds[0];
 
   const existingShotsForSelection = React.useMemo(() => {
     if (selectedGenerationIds.length === 0 || !shots?.length) {
@@ -202,6 +204,18 @@ export function GenerationsPaneGallery({
 
         {gallery.items.length > 0 && (
           <div className={loading.isLoading ? 'opacity-60 pointer-events-none transition-opacity duration-200' : ''}>
+            {gallery.onAddGenerationToTimeline && selectedGenerationId && (
+              <div className="flex justify-end px-1 pt-2">
+                <button
+                  type="button"
+                  className="rounded border border-sky-400/60 px-2 py-1 text-[11px] text-sky-100 hover:bg-sky-500/15"
+                  onClick={() => gallery.onAddGenerationToTimeline?.(selectedGenerationId)}
+                  data-testid="add-selected-generation-to-timeline"
+                >
+                  Add selected to timeline
+                </button>
+              </div>
+            )}
             <div
               ref={gallerySurfaceRef}
               className="relative"
