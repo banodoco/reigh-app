@@ -77,13 +77,14 @@ function incomingPath(request: IncomingMessage): string {
 }
 
 export class PairedRelay {
-  readonly registry = new PairingRegistry();
+  readonly registry: PairingRegistry;
   private readonly connectors = new Map<string, ConnectorSocket>();
   private readonly pending = new Map<string, RelayRequest>();
   private readonly redemptionAttempts = new Map<string, { windowStarted: number; count: number }>();
   private readonly ws = new WebSocketServer({ noServer: true, maxPayload: PAIRED_MAX_FRAME_BYTES });
 
-  constructor(readonly config: PairedRelayConfig) {
+  constructor(readonly config: PairedRelayConfig, now: () => number = Date.now) {
+    this.registry = new PairingRegistry(now);
     this.ws.on('connection', (socket: ConnectorSocket) => this.onConnector(socket));
   }
 
@@ -242,21 +243,40 @@ export class PairedRelay {
     this.pending.set(id, item);
     const declared = request.headers['content-length'];
     const max = route.service === 'runtime' && route.stream ? PAIRED_MAX_UPLOAD_BYTES : PAIRED_MAX_JSON_BYTES;
-    if (declared && Number(declared) > max) { this.pending.delete(id); json(response, 413, { error: 'payload_too_large', detail: 'paired request exceeds its bounded body limit' }); return; }
+    const method = (request.method ?? 'GET').toUpperCase();
+    const declaredLength = declared === undefined ? undefined : Number(declared);
+    const requiresKnownLength = route.service === 'runtime' && route.stream && !['GET', 'HEAD'].includes(method);
+    if (requiresKnownLength && declaredLength === undefined) { this.pending.delete(id); json(response, 411, { error: 'length_required', detail: 'paired media mutations require an explicit Content-Length' }); return; }
+    if (declaredLength !== undefined && declaredLength > max) { this.pending.delete(id); json(response, 413, { error: 'payload_too_large', detail: 'paired request exceeds its bounded body limit' }); return; }
     send(socket, { type: 'request_start', id, method: request.method ?? 'GET', path: route.upstreamPath, service: route.service, headers: forwardHeaders(request.headers) });
     const timer = setTimeout(() => { if (!item.done) { item.done = true; this.pending.delete(id); send(socket, { type: 'request_cancel', id }); json(response, 504, { error: 'paired_request_timeout' }); } }, PAIRED_REQUEST_TIMEOUT_MS);
     const cleanup = () => clearTimeout(timer);
     response.on('close', () => { if (!item.done) { send(socket, { type: 'request_cancel', id }); this.pending.delete(id); cleanup(); } });
     response.on('drain', () => send(socket, { type: 'response_resume', id }));
+    const rejectBody = (error: 'truncated_request_body' | 'payload_too_large', detail: string, status: 400 | 413) => {
+      if (item.done) return;
+      item.done = true;
+      this.pending.delete(id);
+      send(socket, { type: 'request_cancel', id });
+      json(response, status, { error, detail });
+    };
     request.on('data', (chunk: Buffer | string) => {
       if (item.done) return;
       const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
       item.bytes += buffer.byteLength;
-      if (item.bytes > max) { item.done = true; this.pending.delete(id); send(socket, { type: 'request_cancel', id }); json(response, 413, { error: 'payload_too_large', detail: 'paired request exceeds its bounded body limit' }); return; }
+      if (item.bytes > max) { rejectBody('payload_too_large', 'paired request exceeds its bounded body limit', 413); return; }
       for (let offset = 0; offset < buffer.byteLength; offset += CHUNK_BYTES) send(socket, { type: 'request_chunk', id, data: buffer.subarray(offset, Math.min(offset + CHUNK_BYTES, buffer.byteLength)).toString('base64') });
     });
-    request.on('end', () => { if (!item.done) send(socket, { type: 'request_end', id }); });
-    request.on('error', () => { if (!item.done) send(socket, { type: 'request_cancel', id }); });
+    request.on('end', () => {
+      if (item.done) return;
+      if (declaredLength !== undefined && item.bytes !== declaredLength) {
+        rejectBody('truncated_request_body', `paired request ended at ${item.bytes} bytes; declared ${declaredLength}`, 400);
+        return;
+      }
+      send(socket, { type: 'request_end', id });
+    });
+    request.on('aborted', () => rejectBody('truncated_request_body', 'paired request was aborted before its declared body completed', 400));
+    request.on('error', () => rejectBody('truncated_request_body', 'paired request body failed before completion', 400));
   }
 
   private sendPairingError(response: ServerResponse, error: unknown): void {

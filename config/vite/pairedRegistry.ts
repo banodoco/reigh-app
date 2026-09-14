@@ -130,17 +130,20 @@ export class PairingRegistry {
   }
 
   authorizeSession(sessionToken: string): PairRecord {
-    this.prune();
     const verifier = digest(sessionToken);
     for (const pair of this.pairs.values()) {
       if (pair.sessionVerifier === verifier) {
         if (pair.revoked) throw new PairingError('revoked');
-        if (pair.expiresAt <= this.now()) throw new PairingError('expired_session');
+        if (pair.expiresAt <= this.now()) {
+          this.pairs.delete(pair.pairId);
+          throw new PairingError('expired_session');
+        }
         const connector = this.connectors.get(pair.connectorId);
         if (!connector || connector.expiresAt <= this.now() || connector.generation !== pair.generation) throw new PairingError('invalid_connector');
         return pair;
       }
     }
+    this.prune();
     throw new PairingError('unknown_session');
   }
 
@@ -169,7 +172,9 @@ export class PairingRegistry {
 
   private prune(): void {
     const now = this.now();
-    for (const [key, value] of this.invitations) if (value.expiresAt <= now) this.invitations.delete(key);
+    // Keep expired invitations until a redemption attempt so the caller gets
+    // the explicit expired_invitation error rather than an indistinguishable
+    // invalid_invitation after pruning.
     for (const [key, value] of this.connectors) if (value.expiresAt <= now) this.connectors.delete(key);
     for (const [key, value] of this.pairs) if (value.expiresAt <= now || value.revoked) this.pairs.delete(key);
   }

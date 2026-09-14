@@ -79,7 +79,7 @@ export function classifyPairedRoute(
   if (requestPath.startsWith('/api/runtime')) {
     const upstreamPath = requestPath.replace(/^\/api\/runtime/, '') || '/';
     if (!runtimeRoutes.some((route) => route.test(upstreamPath)) || denied.some((route) => route.test(upstreamPath))) return null;
-    const stream = /^\/(?:v1\/objects|v1\/managed-outputs\/[^/]+\/export)/.test(upstreamPath);
+    const stream = /^\/(?:v1\/objects|v1\/projects\/[^/]+\/objects|v1\/managed-outputs\/[^/]+\/export)/.test(upstreamPath);
     return { service: 'runtime', upstreamPath, stream };
   }
   if (requestPath.startsWith('/api/astrid')) {
