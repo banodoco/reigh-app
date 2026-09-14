@@ -14,6 +14,7 @@ import { PairingError, PairingRegistry } from './pairedRegistry';
 
 const CONNECTOR_PATH = '/api/pairing/connector';
 const SESSION_COOKIE = '__Host-reigh_pair';
+const LOOPBACK_SESSION_COOKIE = 'reigh_pair';
 const CHUNK_BYTES = 40 * 1024;
 
 export interface PairedRelayConfig {
@@ -43,11 +44,11 @@ function json(response: ServerResponse, status: number, body: Record<string, unk
   response.setHeader('Content-Length', Buffer.byteLength(text));
   response.end(text);
 }
-function parseCookie(request: IncomingMessage): string | null {
+function parseCookie(request: IncomingMessage, cookieName: string): string | null {
   const raw = request.headers.cookie;
   if (!raw) return null;
-  const item = raw.split(';').map((part) => part.trim()).find((part) => part.startsWith(`${SESSION_COOKIE}=`));
-  return item ? decodeURIComponent(item.slice(SESSION_COOKIE.length + 1)) : null;
+  const item = raw.split(';').map((part) => part.trim()).find((part) => part.startsWith(`${cookieName}=`));
+  return item ? decodeURIComponent(item.slice(cookieName.length + 1)) : null;
 }
 function sameOrigin(request: IncomingMessage, origin: string): boolean {
   const supplied = request.headers.origin;
@@ -116,7 +117,7 @@ export class PairedRelay {
     if (!sameOrigin(request, this.config.origin)) { json(response, 403, { error: 'same_origin_required', detail: 'the configured relay origin is required' }); return; }
     const route = classifyPairedRoute(path, request.method ?? 'GET', request.headers);
     if (!route) { json(response, 404, { error: 'paired_route_not_allowed', detail: 'route is outside the paired product surface' }); return; }
-    const session = parseCookie(request);
+    const session = parseCookie(request, this.cookieName);
     if (!session) { json(response, 401, { error: 'paired_session_required', detail: 'pair this browser with an explicitly started local connector' }); return; }
     let pair;
     try { pair = this.registry.authorizeSession(session); } catch (error) { this.sendPairingError(response, error); return; }
@@ -129,7 +130,7 @@ export class PairedRelay {
   }
 
   private async handlePairing(request: IncomingMessage, response: ServerResponse): Promise<void> {
-    if (!sameOrigin(request, this.config.origin) && request.method !== 'GET') { json(response, 403, { error: 'same_origin_required' }); return; }
+    if (!sameOrigin(request, this.config.origin)) { json(response, 403, { error: 'same_origin_required' }); return; }
     const path = incomingPath(request).split('?', 1)[0];
     if (path === '/api/pairing/redeem' && request.method === 'POST') {
       if (!this.allowRedemption(request)) { json(response, 429, { error: 'pairing_rate_limited', detail: 'too many pairing attempts; wait before trying again' }); return; }
@@ -140,12 +141,12 @@ export class PairedRelay {
         const connector = this.connectors.get(pair.connectorId);
         if (connector) send(connector, { type: 'paired', pair_id: pair.pairId, realm_id: pair.realmId, generation: pair.generation });
         const secure = !this.config.loopbackTest;
-        response.setHeader('Set-Cookie', `${SESSION_COOKIE}=${encodeURIComponent(sessionToken)}; Path=/; HttpOnly; SameSite=Strict; Max-Age=28800${secure ? '; Secure' : ''}`);
+        response.setHeader('Set-Cookie', `${this.cookieName}=${encodeURIComponent(sessionToken)}; Path=/; HttpOnly; SameSite=Strict; Max-Age=28800${secure ? '; Secure' : ''}`);
         json(response, 200, { pair_id: pair.pairId, realm_id: pair.realmId, expires_at: pair.expiresAt });
       } catch (error) { this.sendPairingError(response, error); }
       return;
     }
-    const session = parseCookie(request);
+    const session = parseCookie(request, this.cookieName);
     if (path === '/api/pairing/status' && request.method === 'GET') {
       if (!session) { json(response, 401, { error: 'paired_session_required' }); return; }
       try { const pair = this.registry.authorizeSession(session); json(response, 200, { pair_id: pair.pairId, realm_id: pair.realmId, expires_at: pair.expiresAt }); }
@@ -159,13 +160,15 @@ export class PairedRelay {
         const connector = this.registry.revoke(pair.pairId);
         if (connector?.activeConnection && typeof (connector.activeConnection as ConnectorSocket).close === 'function') (connector.activeConnection as ConnectorSocket).close(1000, 'pair revoked');
         this.connectors.delete(pair.connectorId);
-        response.setHeader('Set-Cookie', `${SESSION_COOKIE}=; Path=/; Max-Age=0; HttpOnly; SameSite=Strict${this.config.loopbackTest ? '' : '; Secure'}`);
+        response.setHeader('Set-Cookie', `${this.cookieName}=; Path=/; Max-Age=0; HttpOnly; SameSite=Strict${this.config.loopbackTest ? '' : '; Secure'}`);
         json(response, 200, { revoked: true, pair_id: pair.pairId });
       } catch (error) { this.sendPairingError(response, error); }
       return;
     }
     json(response, 404, { error: 'pairing_route_not_found' });
   }
+
+  private get cookieName(): string { return this.config.loopbackTest ? LOOPBACK_SESSION_COOKIE : SESSION_COOKIE; }
 
   private allowRedemption(request: IncomingMessage): boolean {
     const key = request.socket.remoteAddress ?? 'unknown';

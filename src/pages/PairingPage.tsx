@@ -12,6 +12,7 @@ async function pairingRequest(path: string, init?: RequestInit): Promise<Record<
 export default function PairingPage() {
   const [status, setStatus] = useState<PairStatus | null>(null);
   const [message, setMessage] = useState('Waiting for an explicitly started local connector.');
+  const [runtimeCheck, setRuntimeCheck] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const refresh = useCallback(async () => {
     try { setStatus(await pairingRequest('/api/pairing/status') as unknown as PairStatus); setMessage('This browser is paired with the local workspace.'); }
@@ -33,6 +34,15 @@ export default function PairingPage() {
     catch (error) { setMessage(error instanceof Error ? error.message : 'Revoke failed.'); }
     finally { setBusy(false); }
   };
+  const checkRuntime = async () => {
+    setBusy(true);
+    try {
+      const response = await fetch('/api/runtime/v1/health', { headers: { Accept: 'application/json' } });
+      const value = await response.json().catch(() => ({})) as { protocol?: unknown; status?: unknown; error?: unknown };
+      setRuntimeCheck(response.ok ? `${String(value.protocol)} / ${String(value.status)}` : `HTTP ${response.status}: ${String(value.error ?? 'request rejected')}`);
+    } catch (error) { setRuntimeCheck(error instanceof Error ? error.message : 'Runtime request failed.'); }
+    finally { setBusy(false); }
+  };
   return (
     <main style={{ maxWidth: 640, margin: '4rem auto', padding: '0 1.5rem' }}>
       <h1>Pair local workspace</h1>
@@ -41,7 +51,9 @@ export default function PairingPage() {
         <section aria-label="paired workspace">
           <p>Realm: <strong>{status.realm_id}</strong></p>
           <p>Session expires: <time dateTime={new Date(status.expires_at).toISOString()}>{new Date(status.expires_at).toLocaleString()}</time></p>
+          <button type="button" disabled={busy} onClick={() => void checkRuntime()}>Check local workspace</button>{' '}
           <button type="button" disabled={busy} onClick={() => void revoke()}>Revoke pairing</button>
+          {runtimeCheck ? <p role="status">Runtime: {runtimeCheck}</p> : null}
         </section>
       ) : <p>Run <code>npm run dev:local -- --paired</code> with the configured relay origin, then open its invitation link.</p>}
     </main>

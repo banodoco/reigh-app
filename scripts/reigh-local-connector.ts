@@ -38,24 +38,37 @@ function routePath(service: string, path: string): string {
 
 const discovery = readJson(discoveryPath, 'runtime discovery');
 const endpoint = runtimeEndpoint(discovery.endpoint);
-const credentialPath = typeof discovery.credential_file === 'string' ? resolve(discovery.credential_file) : fail('discovery has no credential_file');
-function readProductToken(): string { const credential = readJson(credentialPath, 'runtime credential'); return typeof credential.token === 'string' && credential.token.trim() ? credential.token.trim() : fail('runtime credential has no token'); }
+const credentialPath = resolve(process.env.ASTRID_PRODUCT_TOKEN_FILE || (typeof discovery.credential_file === 'string' ? discovery.credential_file : fail('discovery has no credential_file')));
+function readProductToken(): string {
+  let raw: string;
+  try { raw = readFileSync(credentialPath, 'utf8').trim(); } catch (error) { return fail(`cannot read runtime credential: ${error instanceof Error ? error.message : String(error)}`); }
+  if (!raw) return fail('runtime credential is empty');
+  if (raw.startsWith('{')) {
+    let credential: Record<string, unknown>;
+    try { credential = JSON.parse(raw) as Record<string, unknown>; } catch { return fail('runtime credential JSON is malformed'); }
+    return typeof credential.token === 'string' && credential.token.trim() ? credential.token.trim() : fail('runtime credential has no token');
+  }
+  const metadataName = credentialPath.split('/').pop()?.replace(/\.token$/, '') || 'product';
+  const metadataPath = resolve(dirname(credentialPath), `${metadataName}.json`);
+  if (!process.env.ASTRID_PRODUCT_TOKEN_FILE && credentialPath.endsWith('/owner.token') && existsSync(metadataPath)) {
+    const metadata = readJson(metadataPath, 'runtime credential metadata');
+    if (metadata.actor === 'owner' || (Array.isArray(metadata.scopes) && metadata.scopes.includes('admin'))) return fail('owner/admin Runtime credential cannot be used by the paired connector; configure ASTRID_PRODUCT_TOKEN_FILE with the product-scoped actor');
+  }
+  return raw;
+}
 let token = readProductToken();
 const health = await fetch(new URL('/v1/health', endpoint), { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(3000) });
 if (!health.ok) fail(`Runtime health returned HTTP ${health.status}`);
-const realmResponse = await fetch(new URL('/v1/realm', endpoint), { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(3000) });
-if (!realmResponse.ok) fail(`Runtime realm check returned HTTP ${realmResponse.status}`);
-const realm = await realmResponse.json() as { realm_id?: unknown };
-if (typeof realm.realm_id !== 'string' || (expectedRealm && realm.realm_id !== expectedRealm)) fail('Runtime realm does not match the explicitly expected realm');
 const handshakeResponse = await fetch(new URL('/v1/handshake', endpoint), {
   method: 'POST',
   headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', Accept: 'application/json' },
-  body: JSON.stringify({ protocol: 'workspace.v1', client_name: 'reigh-paired-connector', client_version: '1', requested_scopes: ['workspace.read', 'workspace.write'] }),
+  body: JSON.stringify({ protocol: 'workspace.v1', client_name: 'reigh-paired-connector', client_version: '1', requested_scopes: ['handshake'] }),
   signal: AbortSignal.timeout(3000),
 });
 if (!handshakeResponse.ok) fail(`Runtime handshake returned HTTP ${handshakeResponse.status}`);
 const handshake = await handshakeResponse.json() as { realm_id?: unknown; protocol?: unknown };
-if (handshake.protocol !== 'workspace.v1' || handshake.realm_id !== realm.realm_id) fail('Runtime handshake identity did not match the checked realm');
+if (handshake.protocol !== 'workspace.v1' || typeof handshake.realm_id !== 'string' || (expectedRealm && handshake.realm_id !== expectedRealm)) fail('Runtime handshake identity did not match the explicitly expected realm');
+const realm = { realm_id: handshake.realm_id };
 
 let state: { connectorId: string; connectorSecret: string };
 if (existsSync(statePath)) state = readJson(statePath, 'connector state') as typeof state;
@@ -79,7 +92,7 @@ function connect(): void {
   socket.on('open', async () => {
     try {
       token = readProductToken();
-      const check = await fetch(new URL('/v1/realm', endpoint), { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(3000) });
+      const check = await fetch(new URL('/v1/handshake', endpoint), { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ protocol: 'workspace.v1', client_name: 'reigh-paired-connector', client_version: '1', requested_scopes: ['handshake'] }), signal: AbortSignal.timeout(3000) });
       const current = await check.json() as { realm_id?: unknown };
       if (!check.ok || current.realm_id !== realm.realm_id) { socket.close(1008, 'local Runtime realm changed'); return; }
     } catch { socket.close(1008, 'local Runtime unavailable'); return; }
