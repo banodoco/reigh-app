@@ -24,6 +24,8 @@ describe('clip-type registry', () => {
     expect([...TRUSTED_CLIP_TYPES].sort()).toEqual([
       'art-card',
       'cta-card',
+      'end-spanning-layer',
+      'frame-overlay',
       'image-jump',
       'resource-card',
       'section-hook',
@@ -35,7 +37,7 @@ describe('clip-type registry', () => {
       'section-hook',
       'title-card',
     ]);
-    expect(TRUSTED_CLIP_TYPE_METADATA).toHaveLength(6);
+    expect(TRUSTED_CLIP_TYPE_METADATA).toHaveLength(8);
     expect(availableView.metadata).toHaveLength(4);
   });
 

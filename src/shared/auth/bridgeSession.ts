@@ -2,7 +2,7 @@
  * The boot/auth seam — one probe, one authority.
  *
  * `AuthProvider` resolves the fixed local user by asking the Astrid local
- * bridge whether it is alive (`GET /v1/health`, same-origin `/api/astrid` —
+ * bridge whether it is alive (`GET /health`, same-origin `/api/astrid` —
  * the development vite proxy). There is no login: a healthy bridge IS the
  * session. The resolved user id is a fixed local identity (doc 27 §4.7:
  * the per-boot request token is a request capability delivered out of band
@@ -16,6 +16,7 @@
  */
 
 import { BRIDGE_REQUEST_TIMEOUT_MS } from '@/tools/video-editor/data/bridgeContract.ts';
+import { isAstridWorkspaceV1 } from '@/integrations/astrid/workspaceV1.ts';
 
 /** Same-origin base of the development bridge proxy (see vite.config). */
 export const BRIDGE_PROBE_BASE_URL = '/api/astrid';
@@ -31,7 +32,7 @@ export type BridgeSessionProbeResult =
   | { ok: false; reason: string };
 
 /**
- * Probe `/api/astrid/v1/health` and resolve the fixed local user from it.
+ * Probe `/api/astrid/health` and resolve the fixed local user from it.
  * Never throws — every failure comes back as `{ ok: false }`.
  */
 export async function probeBridgeSession(
@@ -39,7 +40,7 @@ export async function probeBridgeSession(
 ): Promise<BridgeSessionProbeResult> {
   let response: Response;
   try {
-    response = await fetch(`${baseUrl.replace(/\/+$/, '')}/v1/health`, {
+    response = await fetch(`${baseUrl.replace(/\/+$/, '')}${isAstridWorkspaceV1 ? '/v1/health' : '/health'}`, {
       signal: AbortSignal.timeout(BRIDGE_REQUEST_TIMEOUT_MS),
     });
   } catch (cause) {
@@ -72,6 +73,6 @@ export async function probeBridgeSession(
 function isHealthyStatus(payload: unknown): boolean {
   return typeof payload === 'object'
     && payload !== null
-    && 'status' in payload
-    && payload.status === 'ok';
+    && (('ok' in payload && payload.ok === true)
+      || (isAstridWorkspaceV1 && 'status' in payload && payload.status === 'ok'));
 }

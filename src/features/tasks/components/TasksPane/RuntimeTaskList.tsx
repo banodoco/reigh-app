@@ -3,6 +3,7 @@ import { Button } from '@/shared/components/ui/button';
 import type { Task as RuntimeTask } from '@/integrations/runtime/generated.ts';
 import {
   runtimeTaskIsCancellable,
+  runtimeTaskIsSelectedTimelineRender,
   runtimeTaskIsRetryable,
   runtimeTaskType,
   type RuntimeTaskAction,
@@ -16,6 +17,9 @@ interface RuntimeTaskListProps {
   onCancelTask: (taskId: string) => void;
   onRetryTask: (taskId: string) => void;
   isTaskActionPending: (taskId: string, action: RuntimeTaskAction) => boolean;
+  timelineId: string | null;
+  onExportManagedOutput: (taskId: string, timelineId: string) => void;
+  isExportTaskPending: (taskId: string) => boolean;
 }
 
 function RuntimeTaskItem({
@@ -23,9 +27,14 @@ function RuntimeTaskItem({
   onCancelTask,
   onRetryTask,
   isTaskActionPending,
+  timelineId,
+  onExportManagedOutput,
+  isExportTaskPending,
 }: Omit<RuntimeTaskListProps, 'tasks' | 'isLoading' | 'error' | 'actionError'> & { task: RuntimeTask }) {
   const cancelPending = isTaskActionPending(task.task_id, 'cancel');
   const retryPending = isTaskActionPending(task.task_id, 'retry');
+  const exportPending = isExportTaskPending(task.task_id);
+  const canExport = runtimeTaskIsSelectedTimelineRender(task, timelineId);
 
   return (
     <article
@@ -49,6 +58,18 @@ function RuntimeTaskItem({
           )}
         </div>
         <div className="flex shrink-0 items-center gap-1">
+          {canExport && timelineId && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => onExportManagedOutput(task.task_id, timelineId)}
+              disabled={cancelPending || retryPending || exportPending}
+              aria-label={`Export Runtime managed output for task ${task.task_id}`}
+              className="px-2 py-0.5 text-emerald-400 hover:bg-emerald-900/20 hover:text-emerald-300"
+            >
+              {exportPending ? 'Exporting…' : 'Export managed output'}
+            </Button>
+          )}
           {runtimeTaskIsCancellable(task) && (
             <Button
               variant="ghost"
@@ -87,6 +108,9 @@ export function RuntimeTaskList({
   onCancelTask,
   onRetryTask,
   isTaskActionPending,
+  timelineId,
+  onExportManagedOutput,
+  isExportTaskPending,
 }: RuntimeTaskListProps) {
   if (error) {
     return (
@@ -117,6 +141,9 @@ export function RuntimeTaskList({
             onCancelTask={onCancelTask}
             onRetryTask={onRetryTask}
             isTaskActionPending={isTaskActionPending}
+            timelineId={timelineId}
+            onExportManagedOutput={onExportManagedOutput}
+            isExportTaskPending={isExportTaskPending}
           />
         ))
       )}

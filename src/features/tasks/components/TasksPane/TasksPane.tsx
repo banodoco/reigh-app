@@ -48,6 +48,7 @@ const TasksPaneComponent: React.FC<TasksPaneProps> = ({ onOpenSettings }) => {
     && runtimeParams.get('runtimeTimeline')
     ? runtimeParams.get('runtimeProject')?.trim() || null
     : null;
+  const runtimeTimelineId = runtimeProjectId ? runtimeParams.get('runtimeTimeline')?.trim() || null : null;
   const {
     isTasksPaneLocked,
     setIsTasksPaneLocked,
@@ -465,6 +466,9 @@ const TasksPaneComponent: React.FC<TasksPaneProps> = ({ onOpenSettings }) => {
                     onCancelTask={runtimeTaskActions.cancelTask}
                     onRetryTask={runtimeTaskActions.retryTask}
                     isTaskActionPending={runtimeTaskActions.isTaskActionPending}
+                    timelineId={runtimeTimelineId}
+                    onExportManagedOutput={runtimeTaskActions.exportManagedOutput}
+                    isExportTaskPending={runtimeTaskActions.isExportTaskPending}
                   />
                 ) : (
                 <TaskList

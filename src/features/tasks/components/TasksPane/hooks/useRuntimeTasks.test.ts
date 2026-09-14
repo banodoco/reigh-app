@@ -1,10 +1,16 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { Task as RuntimeTask } from '@/integrations/runtime/generated.ts';
+import type {
+  ManagedOutput,
+  Task as RuntimeTask,
+} from '@/integrations/runtime/generated.ts';
 import {
+  exportSelectedRuntimeTaskOutput,
   listAllRuntimeTasks,
   runtimeTaskIsCancellable,
+  runtimeTaskIsSelectedTimelineRender,
   runtimeTaskIsRetryable,
   runtimeTaskStatusGroup,
+  runtimeTaskTimelineRef,
   runtimeTaskType,
   transitionRuntimeTask,
 } from './useRuntimeTasks';
@@ -54,6 +60,77 @@ describe('Runtime TasksPane adapter', () => {
     expect(runtimeTaskIsCancellable(task('running'))).toBe(true);
     expect(runtimeTaskIsRetryable(task('cancelled'))).toBe(true);
     expect(runtimeTaskType(task('queued'))).toBe('generation.generate_image');
+  });
+
+  it('selects a succeeded timeline render and exports its canonical video output', async () => {
+    const renderTask = task('succeeded', 'render-task');
+    renderTask.capability_id = 'rendering.render';
+    renderTask.spec = {
+      spec: {
+        family: 'rendering.render',
+        params: { timeline_ref: 'timeline-1' },
+      },
+    };
+    expect(runtimeTaskTimelineRef(renderTask)).toBe('timeline-1');
+    expect(runtimeTaskIsSelectedTimelineRender(renderTask, 'timeline-1')).toBe(true);
+    expect(runtimeTaskIsSelectedTimelineRender(renderTask, 'other-timeline')).toBe(false);
+
+    const output: ManagedOutput = {
+      association_id: 'managed-output-1',
+      project_id: 'runtime-project',
+      run_id: renderTask.run_id,
+      task_id: renderTask.task_id,
+      attempt_id: 'attempt-1',
+      output_port: 'video',
+      group_key: 'default',
+      variant_key: '0',
+      selector: { group_key: 'default', variant_key: '0' },
+      object_id: 'sha256:object-1',
+      digest: 'sha256:object-1',
+      manifest_ref: null,
+      size: 127059,
+      filename: 'timeline-1.mp4',
+      media_type: 'video/mp4',
+      ordinal: 0,
+      role: 'output',
+      producer: { capability_id: 'rendering.render' },
+      provenance: {
+        executor_id: 'astrid-pack-host',
+        lease_id: 'lease-1',
+        fence: 1,
+        runtime_epoch: 10,
+      },
+      durability: 'durable',
+      regeneration: null,
+      coverage: null,
+      state: 'available',
+      version: 1,
+      lifecycle: {},
+    };
+    const client = {
+      getTask: vi.fn().mockResolvedValue(renderTask),
+      listManagedOutputs: vi.fn().mockResolvedValue({ items: [output], next_cursor: null }),
+      exportManagedOutput: vi.fn().mockResolvedValue({ receipt: { receipt_id: 'receipt-1' } }),
+    };
+
+    await exportSelectedRuntimeTaskOutput(client, 'runtime-project', renderTask.task_id, 'timeline-1');
+
+    expect(client.listManagedOutputs).toHaveBeenCalledWith(renderTask.task_id, undefined, 50);
+    expect(client.exportManagedOutput).toHaveBeenCalledWith(
+      'managed-output-1',
+      'timeline-1.mp4',
+      expect.objectContaining({
+        project_id: 'runtime-project',
+        task_id: renderTask.task_id,
+        association_id: 'managed-output-1',
+        object_id: 'sha256:object-1',
+        size: 127059,
+        executor_id: 'astrid-pack-host',
+        lease_id: 'lease-1',
+        fence: 1,
+        runtime_epoch: 10,
+      }),
+    );
   });
 
   it('gets the canonical version before cancel/retry and sends an idempotency key', async () => {

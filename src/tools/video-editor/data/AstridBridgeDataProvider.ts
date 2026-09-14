@@ -35,6 +35,11 @@ import { extractAssetRegistryEntry } from '@/tools/video-editor/lib/mediaMetadat
 import { resolveGenerationAsset } from '@/tools/video-editor/data/generationAssetResolver.ts';
 import { enrichRegistryEntryWithParsers } from '@/tools/video-editor/lib/mediaMetadata';
 import {
+  astridObjectContentPath,
+  astridTimelineReadPath,
+  isAstridWorkspaceV1,
+} from '@/integrations/astrid/workspaceV1.ts';
+import {
   getAssetFileLocator,
   getAssetMediaId,
   validateAssetRegistryMediaIds,
@@ -276,6 +281,7 @@ export class AstridBridgeDataProvider implements DataProvider {
   private assetKeyToFile = new Map<string, string>();
   private fileToAssetKey = new Map<string, string>();
   private mediaIdToAssetKey = new Map<string, string>();
+  private assetKeyToMediaId = new Map<string, string>();
   private assetKeys = new Set<string>();
   private localObjectUrls = new Map<string, string>();
   private materializationStates = new Map<string, AssetMaterializationState>();
@@ -387,13 +393,20 @@ export class AstridBridgeDataProvider implements DataProvider {
     if (!resolvedAssetKey) {
       return candidate;
     }
+    if (isAstridWorkspaceV1 && this.mediaIdToAssetKey.has(candidate)) {
+      return `${this.assetBaseUrl}${astridObjectContentPath(this.projectSlug, candidate)}`;
+    }
     const url = this.buildAssetUrl(resolvedAssetKey);
     return url;
   }
 
   async onResolve(request: AssetResolveRequest): Promise<string> {
     const assetKey = this.getPreferredAssetKey(request);
-    if (getAssetMediaId(request.entry) && assetKey) {
+    const mediaId = getAssetMediaId(request.entry);
+    if (isAstridWorkspaceV1 && mediaId && assetKey) {
+      return `${this.assetBaseUrl}${astridObjectContentPath(this.projectSlug, mediaId)}`;
+    }
+    if (mediaId && assetKey) {
       return this.buildAssetUrl(assetKey);
     }
     if (this.localAssetHandles !== null) {
@@ -434,6 +447,9 @@ export class AstridBridgeDataProvider implements DataProvider {
     registry?: AssetRegistry,
     bundle?: TimelineBundleEnvelope | null,
   ): Promise<number> {
+    if (isAstridWorkspaceV1) {
+      throw new Error('This live Astrid workspace preview is read-only; timeline saving is not enabled.');
+    }
     // Validate before the pre-read, materialization, or any network/FSA IO.
     if (bundle !== undefined && bundle !== null) {
       parseTimelineBundle(bundle);
@@ -617,7 +633,7 @@ export class AstridBridgeDataProvider implements DataProvider {
     const bridgeStartedAt = performance.now();
     try {
       response = await this.transport.requestJson(
-        `/projects/${encodeURIComponent(this.projectSlug)}/timelines/${encodeURIComponent(this.getTimelineRequestRef(timelineId))}`,
+        astridTimelineReadPath(this.projectSlug, this.getTimelineRequestRef(timelineId)),
         {},
         bridgeTimelinePayloadSchema,
         'timeline payload',
@@ -767,6 +783,7 @@ export class AstridBridgeDataProvider implements DataProvider {
     this.assetKeyToFile.clear();
     this.fileToAssetKey.clear();
     this.mediaIdToAssetKey.clear();
+    this.assetKeyToMediaId.clear();
     this.assetKeys.clear();
     for (const [assetKey, entry] of Object.entries(registry.assets ?? {})) {
       if (!entry) {
@@ -783,6 +800,7 @@ export class AstridBridgeDataProvider implements DataProvider {
       const mediaId = getAssetMediaId(entry);
       if (mediaId) {
         this.mediaIdToAssetKey.set(mediaId, assetKey);
+        this.assetKeyToMediaId.set(assetKey, mediaId);
       }
     }
   }
@@ -863,6 +881,10 @@ export class AstridBridgeDataProvider implements DataProvider {
         throw new Error(`Unknown managed media_id '${mediaId}'`);
       }
       if (request.assetId && request.assetId !== assetKey) {
+        // Canonical registries may intentionally alias one immutable object
+        // under multiple asset keys. Validation above guarantees those alias
+        // entries carry identical metadata, so the explicit clip asset wins.
+        if (this.assetKeys.has(request.assetId)) return request.assetId;
         throw new Error(
           `Asset identity mismatch: assetId '${request.assetId}' does not own media_id '${mediaId}'`,
         );
@@ -888,6 +910,10 @@ export class AstridBridgeDataProvider implements DataProvider {
   }
 
   private buildAssetUrl(assetKey: string): string {
+    const mediaId = this.assetKeyToMediaId.get(assetKey);
+    if (isAstridWorkspaceV1 && mediaId) {
+      return `${this.assetBaseUrl}${astridObjectContentPath(this.projectSlug, mediaId)}`;
+    }
     return `${this.assetBaseUrl}/projects/${encodeURIComponent(this.projectSlug)}/timelines/${encodeURIComponent(this.getTimelineRequestRef())}/assets/${encodeURIComponent(assetKey)}`;
   }
 

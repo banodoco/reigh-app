@@ -14,6 +14,8 @@ import {
 } from '@/tools/video-editor/sequences/metadata.ts';
 import { ImageJumpSequence } from '@/tools/video-editor/sequences/components/ImageJumpSequence.tsx';
 import { TitleCardSequence } from '@/tools/video-editor/sequences/components/TitleCardSequence.tsx';
+import { FrameOverlaySequence } from '@/tools/video-editor/sequences/components/FrameOverlaySequence.tsx';
+import { EndSpanningLayerSequence } from '@/tools/video-editor/sequences/components/EndSpanningLayerSequence.tsx';
 import { createAvailableClipTypeRegistry } from '@/tools/video-editor/clip-types/index.ts';
 
 export type SequenceComponentRegistryEntry = {
@@ -102,6 +104,16 @@ export const LOCAL_SEQUENCE_REGISTRY = {
     component: TitleCardSequence,
     themeId: '2rp',
     source: 'local:reigh',
+  },
+  'frame-overlay': {
+    component: FrameOverlaySequence,
+    themeId: '2rp',
+    source: 'local:astrid',
+  },
+  'end-spanning-layer': {
+    component: EndSpanningLayerSequence,
+    themeId: '2rp',
+    source: 'local:astrid',
   },
 } as const satisfies SequenceComponentRegistryShape;
 

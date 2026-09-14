@@ -1,6 +1,6 @@
 # Stage 2 — REIGH on the Local Workspace Runtime
 
-**Status:** Canonical Stage 2 delivery plan; implementation has not started
+**Status:** Canonical Stage 2 delivery plan; partial Phase-C bridge/client work exists, but the Stage 2 acceptance gates remain open
 **Date:** 2026-08-28
 **Scope revision:** 2026-08-29
 **Stage 1 dependency:** [Astrid-First Single-User Beta Trunk](./01-astrid-beta.md)
@@ -23,9 +23,11 @@ The beta slice must open the already selected realm and let the user:
 7. play the managed result; and
 8. export it explicitly.
 
-That journey uses the generated TypeScript client and makes zero Supabase, Turso, hosted REIGH, Edge Function, or cloud-worker requests. Stage 2 does not create a REIGH database, copy the Stage 1 realm, or make Astrid a server dependency.
+That journey uses the generated TypeScript client and makes zero Supabase, Turso, hosted REIGH, Edge Function, or cloud-worker requests. The first useful shared proof is explicitly: project → Astrid task admission → Reigh gallery/state observation → timeline → render/export → independent restart and reload. Stage 2 does not create a REIGH database, copy the Stage 1 realm, or make Astrid's conversational agent a server dependency.
 
-After the beta gate, Stage 2 expands the same boundary to the fuller local REIGH product and adapts Reigh Worker to the already proven worker protocol. It does not introduce a second authority or a compatibility mode.
+After the beta gate, Stage 2 expands the same boundary to the fuller local REIGH product and adds bounded local GPU profiles. The accepted GPU shape is one Astrid `GenericPackHost` claiming and settling through the runtime; Reigh Worker supplies process/environment/telemetry substrate, while Wan2GP and VibeComfy remain engine libraries behind typed Astrid pack adapters. It does not introduce a second authority, Worker executor, or compatibility mode.
+
+> **Execution posture—maximize useful subagent concurrency, not subagent count:** R0–R7 are integration gates, not sequential implementation phases. The root/coordinator agent owns dispatch and convergence. One worker subagent can traverse the packet DAG alone; larger subagent capacity claims all ready packets with pinned inputs, disjoint ownership, isolated realms, deterministic acceptance, and an available integration subagent. Scaling is optional. If contracts, UI-core ownership, scarce hardware, review, or integration become the bottleneck, reduce active lanes rather than manufacture speculative work.
 
 ## 2. Fixed dependency direction
 
@@ -61,6 +63,10 @@ The dependency rules are blocking:
 4. The generated clients are the only product wire clients. REIGH does not maintain handwritten route DTOs or translate a legacy payload into the canonical protocol.
 5. A new REIGH requirement changes the neutral DDL/OpenAPI first. Both clients are regenerated, runtime conformance passes, and Astrid conformance is rerun before REIGH consumes the change.
 6. The neutral bootstrap owns runtime discovery, realm selection, credentials, process startup, and compatibility checks. REIGH may invoke that bootstrap but may not duplicate it.
+7. One contract lane owns canonical DDL/OpenAPI/JSON Schema and generated-client publication at any moment. Product cells consume pinned snapshots and never hand-edit generated wire types.
+8. Every active packet owns a separate worktree, disposable realm/SQLite/CAS/staging/log root, ports, actors, credentials, fixtures, and evidence directory. The selected user realm is reserved for serialized migration and final acceptance.
+9. Incomplete parallel work stays outside the supported entry graph in its branch/worktree. Feature flags, backend selectors, compatibility routes, or fallback authorities are not introduced merely to let partial branches coexist.
+10. One integration subagent serves no more than roughly four to six active code-changing lanes; larger subagent pools scale through multiple vertical cells and hierarchical fan-in, not one global review queue.
 
 ## 3. Stage 1 entry gate
 
@@ -77,6 +83,8 @@ Stage 2 begins only from one hash-recorded, Stage 1-compatible composition conta
 - one activated realm containing the verified one-time migration of the user's Astrid state.
 
 Stage 2 does not accept a partial Stage 1 handoff. In particular, it may not compensate for a missing runtime operation by reading the migrated database, calling an Astrid route, scanning the old project tree, or restoring a Supabase path.
+
+This entry gate blocks Stage 2 integration and acceptance, not read-only preparation. Before Stage 1 ships, isolated threads may complete the REIGH authority/dependency census, deletion ledger, browser-journey inventory, baseline fixture capture, proxy/session threat model and harness, Worker task-family classification, legacy migration mapping, and UI decomposition against draft generated-client interfaces. None may merge a new authority path or claim Stage 2 evidence until the Stage 1 contract snapshot is frozen.
 
 **Entry gate:** REIGH's generated TypeScript client and scoped fake product actor pass `second-client-core-v1.yaml`: actor/handshake, project, media ingest/read including `GET`/`HEAD`/`Range`/`ETag`, minimal timeline/shot/reference state, task/run/event observation, fake settlement, and render invocation. Protocol/schema compatibility gates the connection; the render task pins its capability/source digest; the recorded Astrid checkout state remains diagnostic provenance. The runtime-only and Astrid editable-checkout suites remain green before REIGH application code is connected.
 
@@ -100,10 +108,10 @@ Stage 2 does not accept a partial Stage 1 handoff. In particular, it may not com
 
 ### 4.2 Omitted from the beta slice
 
-- Reigh Worker and local GPU image/video generation;
+- the fuller GPU producer set, beyond the bounded producer proofs explicitly accepted for the current stage;
 - gallery generation and variant creation UX beyond displaying already managed media needed by the basic journey;
 - advanced shot-scoped editing, project composition, travel-between-images, advanced audio editing, and extension authoring/composition UI; the minimum shot/reference placement needed to make the beta timeline renderable is included;
-- hosted authentication, credits, billing, Supabase Storage, Edge Functions, hosted REIGH, relay, remote collaboration, Turso, RunPod, and cloud GPUs;
+- hosted authentication, credits, billing, Supabase Storage, Edge Functions, hosted REIGH, relay, remote collaboration, Turso, RunPod fleet orchestration, and cloud GPUs;
 - existing REIGH/Supabase account migration;
 - multi-user behavior, sharing, permissions UI, and collaborative conflict resolution;
 - third-party extension installation or untrusted capability execution;
@@ -118,8 +126,8 @@ The fuller local REIGH follow-on adds, in order:
 1. gallery, generations, variants, provenance, and promotion into shots;
 2. shot-scoped and project timelines, references, composition, audio, and richer export;
 3. runtime-backed settings, preferences, and release-pinned extension state/composition;
-4. Reigh Worker registration, readiness, claim, materialization, heartbeat, cancellation, staged output, settlement, failure, and recovery;
-5. the minimum audited local image and travel/video generation capability set;
+4. `GenericPackHost` registration/readiness/claim/materialization/heartbeat/cancellation/staged output/settlement/recovery on the Worker GPU substrate;
+5. the minimum audited local image and travel/video set, implemented through typed Astrid pack adapters rather than Worker plugins;
 6. explicit one-time import of selected legacy REIGH-only state where required; and
 7. a clean handoff to Stage 3 containing packaged-component evidence where applicable and Astrid editable-checkout composition evidence.
 
@@ -169,6 +177,38 @@ Deletion is part of each tranche, not a final cleanup sweep. Once a replacement 
 
 ## 7. Delivery tranches and hard gates
 
+### Elastic workstream topology
+
+After the Stage 1 snapshot, R0 fans into four independent lanes:
+
+| Lane | Owns | Blocks |
+|---|---|---|
+| R0-A beta contract spine | Stage 1 core fixture adoption, browser session/proxy contract, minimum render journey and any required neutral delta | R1–R3 implementation integration |
+| R0-B authority/deletion census | every old reader/writer/dependency and its deletion owner | R4 evidence gate |
+| R0-C browser/evidence harness | baseline journey, media-range/export/security fixtures, network/static capture, backup/restore assembler | R4 evidence gate |
+| R0-D full-product discovery | gallery/generation/extension/composition domain proposals and Reigh Worker classification | feeds R5/R6; never delays the beta |
+| R0-E Astrid Sessions handoff discovery | identify the supported on-machine Astrid Sessions launcher/agent host, session resume/discovery contract, scoped context handoff, readiness/error states, and browser callback/reconnect shape | planned agent-assisted UX packet; no custom hosted chat or invented protocol |
+
+Once R0-A is frozen, the beta implementation opens these vertical cells concurrently:
+
+| Cell | Work packet shard | Integration dependency |
+|---|---|---|
+| launch boundary | bootstrap, discovery, REIGH actor/session, proxy, origin/security | R0-A; integrates at R1 |
+| projects | project create/list/select/current plus displaced-path deletion | generated client; integrates behind R1 |
+| media | ingest, identity, reads, `HEAD`/`Range`/`ETag`, playback/export plus storage-path deletion | generated client and media fixture |
+| timeline/composition | timeline/revision plus minimum shot/reference placement and conflicts | generated client and render fixture |
+| task/run/event | observation, cursor reconnect, cancel, retry | fake worker/event fixture |
+| render | admission, digest pinning, settlement, playback verification | generic pack-host fixture plus minimum composition |
+| proof/deletion | scanners, network capture, backup/restore, evidence aggregation, deletion-ledger verification | begins at R0-B/C; finalizes after all beta cells merge |
+
+The gates still integrate in the order R1 → R2 → R3 → R4, but implementation does not. R2 cells may build against fixtures while R1 finishes; R3 cells may build against fake task/render fixtures while R2 finishes; R4 proof tooling runs from day one. The cell that replaces a legacy path deletes it in the same packet, and the proof cell independently verifies that deletion.
+
+R5 and R6 are separate factories and may overlap the beta behind non-production fixtures. R5 shards into gallery/generation/variant/provenance; richer shot/timeline/composition/audio; settings/preferences/extension state; and a single contract/client/conformance integration lane. R6 freezes the common worker protocol once, then fans out across lifecycle/claim, input materialization, staged output, settlement/effect/resource, child-admission/recovery, and distinct adapter/task families. Domain-specific settlement waits for its R5 schema, but generic Worker conformance need not wait for R5 completion.
+
+R7 also starts early as three lanes: bootstrap/profile composition, legacy mapping/migrator fixtures, and full-stack evidence/deletion tooling. Only the real writer freeze, authoritative backup, import, semantic conflict decisions, activation, rollback declaration, and final selected-realm acceptance serialize under one activation owner.
+
+Useful Stage 2 concurrency is elastic. The basic beta normally exposes about seven to ten vertical subagent cells; R5 and R6 expose many more domain and adapter packets and can absorb dozens of worker subagents once contracts are stable. A 100-subagent ceiling is credible only across the full R5/R6/R7 frontier—not by placing 100 subagents on the beta UI or contract spine. Surplus capacity prepares fixtures, proofs, later-stage cells, or remains unused.
+
 ### R0 — Lock the Stage 1 handoff and REIGH census
 
 Deliver:
@@ -176,13 +216,15 @@ Deliver:
 - accepted protocol/schema versions, Stage 1 core conformance fixture, capability-digest rules, and diagnostic source/composition manifest;
 - a machine-readable census of every REIGH project, media, timeline, task, event, render, playback, and export reader/writer;
 - a second census of every Supabase, storage, auth, credits, Edge Function, Astrid bridge, local stub, absolute-path, and backend-selection dependency reachable from the local entry graph;
-- the richer generated TypeScript contract and conformance additions now owned by Stage 2: gallery/generation/variant queries, extension state and pinning, richer shot/composition semantics, and any browser media operations beyond the Stage 1 core fixture;
+- R0-D discovery proposals and fixtures for the richer TypeScript contract now owned by Stage 2: gallery/generation/variant queries, extension state and pinning, richer shot/composition semantics, and any browser media operations beyond the Stage 1 core fixture; implementation belongs to R5 unless the beta journey proves a narrower operation is required;
 - browser-session, credential-translation/transport-proxy, media-range, render-input, and export contracts;
 - a route-by-route mapping from the beta UX to generated TypeScript client calls;
 - a deletion ledger naming every old local authority module, route, environment variable, provider, fixture, and document; and
 - recorded baseline fixtures for the minimum browser journey.
 
-**Gate R0:** Every beta-path read, mutation, byte transfer, task control, and minimum shot/reference placement has exactly one neutral runtime operation and one deletion disposition. The regenerated client still passes `second-client-core-v1.yaml`; new REIGH operations have their own closed schemas, authorization rules, and conformance fixtures. The R3 render fixture is the same minimum valid timeline→shot/reference→managed-media shape already proven by Astrid's render pack capability. Any contract change regenerates both clients and reruns Astrid core conformance, but does not require Astrid to adopt REIGH-only UX.
+**Gate R0:** R0-A through R0-C are accepted: every beta-path read, mutation, byte transfer, task control, and minimum shot/reference placement has exactly one neutral runtime operation and one deletion disposition; the regenerated client still passes `second-client-core-v1.yaml`; and the R3 render fixture is the same minimum valid timeline→shot/reference→managed-media shape already proven by Astrid's render pack capability. Any beta contract change regenerates both clients and reruns Astrid core conformance. R0-D must be complete enough to form the R5/R6 packet graph, but its richer contracts do not delay R1–R4. R0-E is accepted only when the actual local Astrid Sessions launcher/host-agent contract is identified and its handoff/error/reconnect fixture is recorded; discovery alone does not claim the integration is delivered.
+
+R0-E is a discovery and interface-definition packet, not a product implementation gate. It must inspect the actual supported Astrid Sessions launcher and host-agent mechanism available on the user's machine before naming an integration. It records launcher discovery, version/readiness/error behavior, session create/resume/close semantics, correlation IDs, and the browser callback/reconnect path. The handoff carries only a realm/project-scoped context, selected artifact/task identifiers, and explicit actor permissions; secrets never travel in URL query parameters. Session metadata is diagnostic/non-authoritative: durable tasks, outputs, and workspace mutations remain neutral-runtime records, and the session may not create a second task authority. No installer or agent launch is performed by this roadmap edit.
 
 ### R1 — Establish the local REIGH application boundary
 
@@ -235,9 +277,9 @@ Extension executable code remains outside the runtime. A timeline revision pins 
 
 **Gate R5:** Browser acceptance covers project/gallery/variant/shot/main-timeline workflows, extension composition, audio playback, stale writes, restart persistence, backup/restore, and export. All additions remain visible to Astrid or a neutral client by shared identity; no REIGH-only hidden authority is introduced.
 
-### R6 — Adapt Reigh Worker to the neutral worker protocol
+### R6 — Prove GPU producers behind the sole GenericPackHost
 
-Classify every Reigh Worker task family as reusable compute, control-plane-entangled, orchestrator-owned, or retired. Preserve model loading, workflow construction, inference, progress translation, and output discovery where reusable. Replace Supabase claim/status/completion/storage and worker-owned child insertion with the generated Python client and runtime operations for:
+Classify every historical Reigh Worker task family as reusable GPU substrate, control-plane-entangled, orchestrator-owned, or retired. Preserve model loading, workflow construction, inference, progress translation, and output discovery where reusable behind typed Astrid pack adapters. Replace Supabase claim/status/completion/storage and worker-owned child insertion with the generated Python client and runtime operations for:
 
 - registration, capability/resource advertisement, readiness, heartbeat, drain, and shutdown;
 - claim, start, attempt heartbeat/control, cancellation, failure, and fenced settlement;
@@ -245,15 +287,15 @@ Classify every Reigh Worker task family as reusable compute, control-plane-entan
 - staged output upload, hash verification, publication, media/generation/provenance settlement; and
 - parent-attempt child admission with allowlist, depth, fan-out, dependency, epoch, lease, version, and idempotency checks.
 
-Reigh Worker receives endpoint, realm, and scoped expiring credential only. It receives no SQLite path, Supabase credential, broad object-store access, or authority to insert task rows.
+The Worker substrate receives endpoint, realm, and scoped expiring credential only. It receives no SQLite path, Supabase credential, broad object-store access, or authority to insert task rows. It does not claim or settle independently; `GenericPackHost` is the only claimant/settler and there is no Worker plugin registry.
 
-R6 must preserve the Stage 1 worker fence: immutable typed outputs, client-applied proposals or predeclared runtime-validated settlement effects, no general mutation credential, lease-bound resource reservations, and exact blocked reasons. Reigh Worker may advertise richer resource requirements but may not introduce a second scheduler.
+R6 must preserve the Stage 1 worker fence: immutable typed outputs, client-applied proposals or predeclared runtime-validated settlement effects, no general mutation credential, lease-bound resource reservations, and exact blocked reasons. The substrate may advertise GPU/environment requirements but may not introduce a second scheduler, queue, router, or settlement path.
 
-**Gate R6:** A dependency-light worker source/build suite passes without Supabase/PostgREST present. Two workers prove unique sessions, exactly-one claim, stale-epoch/lease rejection, cancel/retry, kill/restart recovery, child-admission fencing, declared-effect enforcement, reservation release/expiry, digest-verified settlement, and orphan accounting. Every manifest validates/registers/preflights; real end-to-end evidence covers each distinct adapter plus unique/high-risk/high-use behavior, while explicitly equivalent variants may use declared fixtures.
+**Gate R6:** A dependency-light host/substrate suite passes without Supabase/PostgREST present. Host lifecycle proves exactly-one claim/settlement, stale-epoch/lease rejection, cancel/retry, kill/restart recovery, declared-effect enforcement, reservation release/expiry, digest-verified settlement, and orphan accounting. Every typed pack adapter validates/registers/preflights its engine profile; real end-to-end evidence covers accepted Wan2GP/VibeComfy behavior plus unique/high-risk/high-use paths, while explicitly equivalent variants may use declared fixtures.
 
 ### R7 — Compose the full local stack and migrate REIGH-only state
 
-Extend the neutral bootstrap with the full REIGH/Reigh Worker profile. Prove both installation orders reuse one compatible runtime and realm. If selected legacy REIGH-only data is required, migrate it with the separate offline migrator: freeze writers, create a verified source backup, import only facts absent from the activated realm, fail on semantic disagreement, ingest required bytes, validate, and activate atomically.
+Extend the neutral bootstrap with the full REIGH plus `GenericPackHost`/Worker-substrate profile. Prove both installation orders reuse one compatible runtime and realm. If selected legacy REIGH-only data is required, migrate it with the separate offline migrator: freeze writers, create a verified source backup, import only facts absent from the activated realm, fail on semantic disagreement, ingest required bytes, validate, and activate atomically.
 
 The normal runtime and products never read the legacy source. After validation, delete every remaining local Supabase queue/storage/Edge Function authority and exclude the migration code from normal dependency and startup graphs. Preserve the source only as an explicitly named rollback archive until its retention gate.
 
@@ -262,37 +304,28 @@ The normal runtime and products never read the legacy source. After validation, 
 ## 8. Critical path
 
 ```text
-Stage 1 exact release + activated realm
-                    |
-                    v
-          R0 contract/census lock
-                    |
-                    v
-       R1 server/session boundary
-                    |
-                    v
-       R2 projects/media/timeline
-                    |
-                    v
-  R3 tasks/events/render/play/export
-                    |
-                    v
-       R4 BASIC REIGH BETA GATE
-                    |
-                    v
-       R5 full creative model
-                    |
-                    v
-       R6 neutral Reigh Worker
-                    |
-                    v
-   R7 composition/migration/deletion
-                    |
-                    v
-       STAGE 3 HARDENING HANDOFF
+             Stage 1 contract snapshot
+                       |
+               R0-A/B/C beta lock
+             /      |       \          \
+           R1      R2       R3      R4 proof tooling
+             \      |       /          /
+               beta integration ------+
+                       |
+                  R4 BETA GATE
+
+R0-D discovery -------------------------------+
+       |                                       |
+ R5 domain cells                       R6 Worker cells
+       |                                       |
+       +----------- R7 composition ------------+
+                       |
+              FULL STAGE 2 GATE
+                       |
+              Stage 3 hardening
 ```
 
-R5 discovery work and R6 compute-path classification may begin after R0, but neither may alter the beta entry graph or bypass the R1–R4 gates. Runtime contract changes are serialized through neutral review and regenerate both clients.
+The critical path is the sequence of contract and integration decisions, not the sum of implementation packets. R1–R3 build concurrently and join at R4. R5 discovery, R6 producer proofs, and the planned agent-UX workstream may overlap R1–R4 behind fixtures, but none may alter the beta entry graph or bypass its gates. Runtime contract changes and generated-client publication serialize through neutral review.
 
 ## 9. Acceptance
 
@@ -307,7 +340,7 @@ R5 discovery work and R6 compute-path classification may begin after R0, but nei
 - render through the registered Astrid pack capability to verified managed output, authenticated `HEAD`/`Range`/`ETag` playback, and explicit export with provenance;
 - runtime-down, incompatible release, invalid realm, expired credential, missing renderer, and insufficient-storage states produce precise recovery actions;
 - browser session origin/CSRF policy, owner-only credential storage, authorization on all non-health routes, and no secret leakage;
-- network capture proving zero Supabase, Turso, hosted REIGH, Edge Function, RunPod, cloud-GPU, and uninvoked provider requests;
+- network capture proving zero Supabase, Turso, hosted REIGH, Edge Function, RunPod, cloud-GPU, and uninvoked provider requests in the bounded local journey;
 - static import, bundle, route, environment, and dependency scans proving no old local authority or compatibility shim;
 - realm filesystem shape remains SQLite, CAS objects, and active staging only; and
 - backup after the REIGH journey restores into a new realm and verifies SQLite/foreign keys/schema, reachable CAS hashes, event heads, cross-product identities, render output, and export provenance;
@@ -318,7 +351,7 @@ R5 discovery work and R6 compute-path classification may begin after R0, but nei
 - galleries, generations, variants, provenance, shots/references, shot/project timelines, audio, settings, and extension state persist across restart and backup/restore;
 - project creation/edit/save/reload, image generation/variants, shot composition, travel/video generation, rendering, media range fetch, audio playback, and export pass in the supported browser matrix;
 - every registered worker capability advertises an immutable definition/source digest and becomes ready only after dependency/model preflight;
-- two-worker claim/drain/restart races, lease expiry, stale completion, cancellation, retry, child admission, runtime restart/epoch change, and duplicate settlement have exactly one transactional winner;
+- host/substrate claim/drain/restart races, lease expiry, stale completion, cancellation, retry, child admission, runtime restart/epoch change, and duplicate settlement have exactly one transactional winner;
 - real supported local GPU outputs pass golden/semantic checks; deterministic fake execution covers non-GPU platforms;
 - FFprobe verifies expected duration, streams, codecs, and A/V sync for rendered/exported media;
 - backup/restore contains every reachable object; storage accounting identifies reachable, staged, and published-but-unreferenced objects, while physical CAS collection remains disabled until Stage 3;
@@ -332,15 +365,15 @@ R5 discovery work and R6 compute-path classification may begin after R0, but nei
 
 The combined single-user beta is complete when a user can launch REIGH through the neutral bootstrap, reuse the migrated Astrid realm, create/select a project, import media, make the minimum renderable shot/reference composition, edit and save a timeline, observe/cancel/retry work, render through the generic pack host, play, export, restart, restore the post-journey backup into a new realm, and see the same verified state from Astrid—with zero Supabase traffic and no old local authority in the supported composition graph.
 
-The beta is not described as full local REIGH. Reigh Worker, GPU generation, advanced creative surfaces, existing REIGH data migration, public installer polish, and exhaustive production hardening remain explicitly unavailable until their gates pass.
+The beta is not described as full local REIGH. Fuller creative workflows, any producer not covered by the accepted bounded GPU receipts, existing REIGH data migration, public installer polish, and exhaustive production hardening remain explicitly unavailable until their gates pass. The Reigh → local Astrid Sessions trigger/resume handoff is a separate planned workstream with its own host-contract and reconnect gate; it is not delivered by this visual beta.
 
 ### 10.2 Full local REIGH
 
-Full local REIGH is complete when the supported gallery-to-generation-to-variant-to-shot-to-project-timeline journey, audio/extension composition, local image/travel/video execution, render/play/export, restart, backup/restore, migration, and recovery all run through the neutral runtime and registered executors. No local build path imports, contacts, or falls back to Supabase, Astrid bridge code, legacy storage, or a worker-owned queue.
+Full local REIGH is complete when the supported gallery-to-generation-to-variant-to-shot-to-project-timeline journey, audio/extension composition, local image/travel/video execution, render/play/export, restart, backup/restore, migration, and recovery all run through the neutral runtime, registered Astrid packs, and the sole `GenericPackHost` (with Worker only as substrate). No local build path imports, contacts, or falls back to Supabase, Astrid bridge code, legacy storage, or a worker-owned queue.
 
 ### 10.3 Stage 3 handoff
 
-Stage 2 is ready for hardening when one independently owned runtime and realm serves Astrid, fuller REIGH, the generic Astrid pack host, and the accepted Reigh Worker profile; protocol/schema compatibility, per-task capability digest pinning, recorded source diagnostics, and clean authority deletion are proven; and Stage 3 receives reproducible manifests, authority/network evidence, backup/restore fixtures, storage accounting, known risks, and fault-injection hooks. Only [Stage 3](./03-hardening.md) may make the production-readiness claim.
+Stage 2 is ready for hardening when one independently owned runtime and realm serves Astrid, fuller REIGH, the sole `GenericPackHost`, and the accepted Worker GPU substrate profile; protocol/schema compatibility, per-task capability digest pinning, recorded source diagnostics, and clean authority deletion are proven; and Stage 3 receives reproducible manifests, authority/network evidence, backup/restore fixtures, storage accounting, known risks, and fault-injection hooks. Only [Stage 3](./03-hardening.md) may make the production-readiness claim.
 
 ## 11. Explicitly deferred beyond Stage 2
 
@@ -356,8 +389,10 @@ These require later placement, identity, security, or product plans. They may re
 
 ## 12. Estimate
 
-- R0–R4, the basic REIGH slice required for the overall single-user beta: **5–9 engineer-weeks**. This includes the richer TypeScript contract work deliberately moved out of Stage 1.
-- R5–R7, the fuller local creative model, Reigh Worker adaptation, composition, and any selected one-time REIGH-only import: **15–25 additional engineer-weeks**.
-- Total Stage 2 from the Stage 1 handoff through the fuller local handoff: **20–34 engineer-weeks**.
+- R0–R4, the basic REIGH slice required for the overall single-user beta: **5–9 engineering-equivalent weeks**. This includes beta-contract finalisation and richer-domain discovery deliberately moved out of Stage 1.
+- R5–R7, the fuller local creative model, bounded GPU producer/host composition, and any selected one-time REIGH-only import: **15–25 additional engineering-equivalent weeks** (historical planning volume; remaining work must be reforecast after the state audit).
+- Total Stage 2 from the Stage 1 handoff through the fuller local handoff: **20–34 engineering-equivalent weeks**.
 
-The largest uncertainty is how much current editor state and worker behavior is entangled with Supabase semantics rather than merely transported through Supabase. Stage 3 hardening and any cloud/collaboration product work are excluded from these numbers.
+With three productive worker-subagent lanes plus a protected integration/review subagent, provisional elapsed targets are **3–6 calendar weeks** for R0–R4 and **7–12 additional weeks** for R5–R7, or roughly **10–18 weeks** for all of Stage 2. Larger subagent capacity can reduce breadth-heavy R5/R6 elapsed time only after their contract factories exist; it is unlikely to improve the beta once its seven to ten vertical cells and integration queue are saturated. One worker subagent follows the same packet graph sequentially.
+
+The largest uncertainty is the remaining producer/UI cutover and how much current editor state and historical worker behavior is entangled with Supabase semantics rather than merely transported through it. Reforecast remaining work only after the 2026-09-09 state audit reconciles merged and unmerged receipts. Subagent count follows useful ready work; the plan never creates extra schemas, branches, or optional product scope merely to consume available capacity. Stage 3 hardening, hosted/cloud GPU, and any cloud/collaboration product work are excluded from these numbers.
