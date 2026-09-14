@@ -18,6 +18,7 @@ const discoveryPath = resolve(
 const port = process.env.PORT ?? '2222';
 const checkOnly = process.argv.includes('--check');
 const paired = process.argv.includes('--paired');
+const resetPairing = process.argv.includes('--reset-pairing');
 const pairedRelayOrigin = process.env.REIGH_PAIRED_RELAY_ORIGIN?.trim();
 
 function fail(message) {
@@ -94,7 +95,7 @@ if (checkOnly) process.exit(0);
 
 let connector;
 if (paired) {
-  connector = spawn('npx', ['tsx', 'scripts/reigh-local-connector.ts', '--discovery', discoveryPath, '--relay-origin', pairedRelayOrigin], {
+  connector = spawn('npx', ['tsx', 'scripts/reigh-local-connector.ts', '--discovery', discoveryPath, '--relay-origin', pairedRelayOrigin, ...(resetPairing ? ['--reset-pairing'] : [])], {
     stdio: 'inherit',
     env,
   });

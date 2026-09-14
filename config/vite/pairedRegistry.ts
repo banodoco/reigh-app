@@ -58,6 +58,7 @@ export class PairingRegistry {
   private readonly connectors = new Map<string, ConnectorRecord>();
   private readonly invitations = new Map<string, InvitationRecord>();
   private readonly pairs = new Map<string, PairRecord>();
+  private readonly revokedConnectors = new Set<string>();
   private readonly now: () => number;
 
   constructor(now: () => number = Date.now) {
@@ -67,6 +68,8 @@ export class PairingRegistry {
   connectConnector(input: { connectorId: string; realmId: string; connectorSecret: string; connection?: unknown }): { connector: ConnectorRecord; invitation?: { code: string; realmId: string; expiresAt: number } } {
     this.prune();
     const verifier = digest(input.connectorSecret);
+    const credentialKey = `${input.connectorId}:${verifier}`;
+    if (this.revokedConnectors.has(credentialKey)) throw new PairingError('revoked');
     const existing = this.connectors.get(input.connectorId);
     if (existing && existing.verifier !== verifier) throw new PairingError('invalid_connector');
     const connector = existing ?? {
@@ -153,13 +156,16 @@ export class PairingRegistry {
     if (!pair) return undefined;
     pair.revoked = true;
     const connector = this.connectors.get(pair.connectorId);
+    this.revokedConnectors.add(`${pair.connectorId}:${pair.connectorVerifier}`);
+    for (const [key, invitation] of this.invitations) if (invitation.connectorId === pair.connectorId) this.invitations.delete(key);
+    this.connectors.delete(pair.connectorId);
     if (connector?.pairId === pairId) connector.pairId = undefined;
     return connector;
   }
 
   getPair(pairId: string): PairRecord | undefined { this.prune(); return this.pairs.get(pairId); }
   getConnector(connectorId: string): ConnectorRecord | undefined { this.prune(); return this.connectors.get(connectorId); }
-  clear(): void { this.connectors.clear(); this.invitations.clear(); this.pairs.clear(); }
+  clear(): void { this.connectors.clear(); this.invitations.clear(); this.pairs.clear(); this.revokedConnectors.clear(); }
 
   private prune(): void {
     const now = this.now();

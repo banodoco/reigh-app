@@ -158,6 +158,13 @@ export class PairedRelay {
       try {
         const pair = this.registry.authorizeSession(session);
         const connector = this.registry.revoke(pair.pairId);
+        for (const [requestId, pending] of this.pending) {
+          if (connector?.activeConnection === pending.connector) {
+            pending.done = true;
+            this.pending.delete(requestId);
+            pending.response.destroy(new Error('pair revoked'));
+          }
+        }
         if (connector?.activeConnection && typeof (connector.activeConnection as ConnectorSocket).close === 'function') (connector.activeConnection as ConnectorSocket).close(1000, 'pair revoked');
         this.connectors.delete(pair.connectorId);
         response.setHeader('Set-Cookie', `${this.cookieName}=; Path=/; Max-Age=0; HttpOnly; SameSite=Strict${this.config.loopbackTest ? '' : '; Secure'}`);

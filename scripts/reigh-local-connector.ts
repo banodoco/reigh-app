@@ -20,6 +20,7 @@ const discoveryPath = resolve(args.get('discovery') || process.env.ASTRID_WORKSP
 const relayOrigin = args.get('relay-origin') || process.env.REIGH_PAIRED_RELAY_ORIGIN;
 const expectedRealm = args.get('realm') || process.env.REIGH_PAIRED_REALM_ID;
 const statePath = resolve(args.get('state') || process.env.REIGH_PAIRED_CONNECTOR_STATE || `${homedir()}/.config/reigh/paired-connector.json`);
+const resetPairing = args.has('reset-pairing');
 if (!relayOrigin) throw new Error('paired connector requires --relay-origin or REIGH_PAIRED_RELAY_ORIGIN');
 
 function fail(message: string): never { throw new Error(`reigh-local-connector: ${message}`); }
@@ -43,18 +44,21 @@ function readProductToken(): string {
   let raw: string;
   try { raw = readFileSync(credentialPath, 'utf8').trim(); } catch (error) { return fail(`cannot read runtime credential: ${error instanceof Error ? error.message : String(error)}`); }
   if (!raw) return fail('runtime credential is empty');
+  let metadata: Record<string, unknown> | undefined;
   if (raw.startsWith('{')) {
     let credential: Record<string, unknown>;
     try { credential = JSON.parse(raw) as Record<string, unknown>; } catch { return fail('runtime credential JSON is malformed'); }
-    return typeof credential.token === 'string' && credential.token.trim() ? credential.token.trim() : fail('runtime credential has no token');
+    metadata = credential;
+    raw = typeof credential.token === 'string' ? credential.token.trim() : '';
   }
   const metadataName = credentialPath.split('/').pop()?.replace(/\.token$/, '') || 'product';
   const metadataPath = resolve(dirname(credentialPath), `${metadataName}.json`);
-  if (!process.env.ASTRID_PRODUCT_TOKEN_FILE && credentialPath.endsWith('/owner.token') && existsSync(metadataPath)) {
-    const metadata = readJson(metadataPath, 'runtime credential metadata');
-    if (metadata.actor === 'owner' || (Array.isArray(metadata.scopes) && metadata.scopes.includes('admin'))) return fail('owner/admin Runtime credential cannot be used by the paired connector; configure ASTRID_PRODUCT_TOKEN_FILE with the product-scoped actor');
-  }
-  return raw;
+  if (!metadata && existsSync(metadataPath)) metadata = readJson(metadataPath, 'runtime credential metadata');
+  const requiredScopes = ['handshake', 'projects:read', 'projects:write', 'tasks:read', 'tasks:write', 'objects:read', 'objects:write'];
+  const scopes = Array.isArray(metadata?.scopes) ? metadata.scopes.filter((value): value is string => typeof value === 'string') : [];
+  if (!metadata || typeof metadata.actor !== 'string' || metadata.actor === 'owner' || scopes.includes('admin')) return fail('paired connector requires credential metadata for a separate product actor; owner/admin credentials are forbidden');
+  if (!requiredScopes.every((scope) => scopes.includes(scope))) return fail(`paired connector product actor is missing required scopes: ${requiredScopes.filter((scope) => !scopes.includes(scope)).join(', ')}`);
+  return raw || fail('runtime credential has no token');
 }
 let token = readProductToken();
 const health = await fetch(new URL('/v1/health', endpoint), { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(3000) });
@@ -62,7 +66,7 @@ if (!health.ok) fail(`Runtime health returned HTTP ${health.status}`);
 const handshakeResponse = await fetch(new URL('/v1/handshake', endpoint), {
   method: 'POST',
   headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', Accept: 'application/json' },
-  body: JSON.stringify({ protocol: 'workspace.v1', client_name: 'reigh-paired-connector', client_version: '1', requested_scopes: ['handshake'] }),
+  body: JSON.stringify({ protocol: 'workspace.v1', client_name: 'reigh-paired-connector', client_version: '1', requested_scopes: ['handshake', 'projects:read', 'projects:write', 'tasks:read', 'tasks:write', 'objects:read', 'objects:write'] }),
   signal: AbortSignal.timeout(3000),
 });
 if (!handshakeResponse.ok) fail(`Runtime handshake returned HTTP ${handshakeResponse.status}`);
@@ -71,7 +75,7 @@ if (handshake.protocol !== 'workspace.v1' || typeof handshake.realm_id !== 'stri
 const realm = { realm_id: handshake.realm_id };
 
 let state: { connectorId: string; connectorSecret: string };
-if (existsSync(statePath)) state = readJson(statePath, 'connector state') as typeof state;
+if (existsSync(statePath) && !resetPairing) state = readJson(statePath, 'connector state') as typeof state;
 else { state = { connectorId: `reigh-${randomBytes(16).toString('hex')}`, connectorSecret: randomBytes(32).toString('base64url') }; mkdirSync(dirname(statePath), { recursive: true, mode: 0o700 }); writeFileSync(statePath, `${JSON.stringify(state)}\n`, { mode: 0o600 }); chmodSync(statePath, 0o600); }
 if (!state.connectorId || !state.connectorSecret) fail('connector state is malformed');
 
@@ -92,7 +96,7 @@ function connect(): void {
   socket.on('open', async () => {
     try {
       token = readProductToken();
-      const check = await fetch(new URL('/v1/handshake', endpoint), { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ protocol: 'workspace.v1', client_name: 'reigh-paired-connector', client_version: '1', requested_scopes: ['handshake'] }), signal: AbortSignal.timeout(3000) });
+      const check = await fetch(new URL('/v1/handshake', endpoint), { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ protocol: 'workspace.v1', client_name: 'reigh-paired-connector', client_version: '1', requested_scopes: ['handshake', 'projects:read', 'projects:write', 'tasks:read', 'tasks:write', 'objects:read', 'objects:write'] }), signal: AbortSignal.timeout(3000) });
       const current = await check.json() as { realm_id?: unknown };
       if (!check.ok || current.realm_id !== realm.realm_id) { socket.close(1008, 'local Runtime realm changed'); return; }
     } catch { socket.close(1008, 'local Runtime unavailable'); return; }
@@ -122,7 +126,7 @@ function connect(): void {
   if (message.type === 'response_pause' && typeof message.id === 'string' && !pausedResponses.has(message.id)) pausedResponses.set(message.id, new Promise((resolve) => resumeResponses.set(message.id as string, resolve)));
   if (message.type === 'response_resume' && typeof message.id === 'string') { resumeResponses.get(message.id)?.(); resumeResponses.delete(message.id); pausedResponses.delete(message.id); }
   });
-  socket.on('close', () => { if (!stopping) setTimeout(connect, 1000); });
+  socket.on('close', (_code, reason) => { if (!stopping && !reason.toString().includes('pair revoked')) setTimeout(connect, 1000); });
   socket.on('error', () => { /* close schedules the bounded reconnect */ });
 }
 connect();

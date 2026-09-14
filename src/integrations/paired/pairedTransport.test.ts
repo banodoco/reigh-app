@@ -39,4 +39,14 @@ describe('paired transport boundary', () => {
     expect(registry.authorizeSession(redemption.sessionToken).generation).toBe(second.connector.generation);
     expect(() => registry.authorizeConnector(pair.pairId, 'wrong-secret', second.connector.generation)).toThrow();
   });
+
+  it('invalidates every invitation and the connector credential on revoke', () => {
+    const registry = new PairingRegistry(() => 1_000);
+    const first = registry.connectConnector({ connectorId: 'connector-1', realmId: 'realm-1', connectorSecret: 'secret-1' });
+    const secondInvitation = registry.createInvitation('connector-1');
+    const redemption = registry.redeemInvitation(first.invitation!.code);
+    registry.revoke(redemption.pair.pairId);
+    expect(() => registry.redeemInvitation(secondInvitation.code)).toThrowError(PairingError);
+    expect(() => registry.connectConnector({ connectorId: 'connector-1', realmId: 'realm-1', connectorSecret: 'secret-1' })).toThrowError(PairingError);
+  });
 });
