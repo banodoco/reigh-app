@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { TOOL_IDS } from '@/shared/lib/tooling/toolIds';
-import { useSearchParams } from 'react-router-dom';
+import { useLocation, useSearchParams } from 'react-router-dom';
 
 import { ImageGenerationForm } from "@/shared/components/ImageGenerationForm";
 import { MediaGallery } from "@/shared/components/MediaGallery";
@@ -15,6 +15,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/shared/co
 import { ChevronDown, ChevronLeft, Sparkles, Settings2 } from 'lucide-react';
 import { DeleteGenerationConfirmDialog } from '@/shared/components/dialogs/DeleteGenerationConfirmDialog';
 import { getProjectSelectionFallbackId } from '@/shared/contexts/projectSelectionStore';
+import { getRuntimeDocumentProjectId } from '@/app/runtime/runtimeDocument';
 
 import { useImageGenGallery } from "../hooks/useImageGenGallery";
 import { useImageGenActions } from "../hooks/useImageGenActions";
@@ -63,6 +64,7 @@ const ImageGenerationToolPage: React.FC = React.memo(() => {
 
   const { selectedProjectId } = useProjectSelectionContext();
   const { projects } = useProjectCrudContext();
+  const { pathname } = useLocation();
 
   const effectiveProjectId = useMemo(() => {
     if (selectedProjectId) return selectedProjectId;
@@ -76,10 +78,12 @@ const ImageGenerationToolPage: React.FC = React.memo(() => {
   const formContainerRef = useRef<HTMLDivElement>(null);
   const collapsibleContainerRef = useRef<HTMLDivElement>(null);
   const [searchParams] = useSearchParams();
+  const runtimeProjectId = getRuntimeDocumentProjectId(searchParams.toString(), pathname);
 
   const gallery = useImageGenGallery({
-    projectId: selectedProjectId,
+    projectId: selectedProjectId ?? runtimeProjectId,
     effectiveProjectId,
+    runtimeProjectId,
     projectAspectRatio,
     formAssociatedShotId,
     isFormExpanded,
@@ -91,7 +95,7 @@ const ImageGenerationToolPage: React.FC = React.memo(() => {
   });
 
   const actions = useImageGenActions({
-    projectId: selectedProjectId,
+    projectId: selectedProjectId ?? runtimeProjectId,
     effectiveProjectId,
     selectedShotFilter: gallery.galleryFilters.shotFilter,
     excludePositioned: gallery.galleryFilters.excludePositioned,
@@ -101,7 +105,7 @@ const ImageGenerationToolPage: React.FC = React.memo(() => {
   });
 
   const form = useImageGenSubmit({
-    projectId: selectedProjectId,
+    projectId: selectedProjectId ?? runtimeProjectId,
     effectiveProjectId,
   });
 

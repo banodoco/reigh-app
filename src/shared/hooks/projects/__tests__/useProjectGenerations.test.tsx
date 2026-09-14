@@ -156,7 +156,7 @@ describe('useProjectGenerations (bridge gallery reads R12)', () => {
           generation_id: 'generation-typed-image',
           object_id: 'sha256:typed-original',
           variant_type: 'original',
-          metadata: { media_type: 'image/png', group_key: 'main', ordinal: 0 },
+          metadata: { media_type: 'image', group_key: 'main', ordinal: 0 },
           created_at: '2026-09-11T00:00:30Z',
         },
         {
@@ -164,7 +164,7 @@ describe('useProjectGenerations (bridge gallery reads R12)', () => {
           generation_id: 'generation-typed-image',
           object_id: 'sha256:typed-alternate',
           variant_type: 'alternate',
-          metadata: { media_type: 'image/png', group_key: 'main', ordinal: 1 },
+          metadata: { media_type: 'image', group_key: 'main', ordinal: 1 },
           created_at: '2026-09-11T00:00:31Z',
         },
       ],

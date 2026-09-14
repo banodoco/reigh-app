@@ -6,6 +6,7 @@ import { UserPreferences } from '@/shared/settings/userPreferences';
 import { determineProjectIdToSelect } from './useProjectCRUD';
 import { setProjectSelectionFallbackId } from '@/shared/contexts/projectSelectionStore';
 import { getLocalProjectSlug, hasLocalModeUrlParams } from '@/shared/dev/devSession';
+import { getRuntimeDocumentProjectId } from '@/app/runtime/runtimeDocument';
 
 interface UseProjectSelectionOptions {
   userId: string | null;
@@ -32,6 +33,10 @@ export function useProjectSelection({
   const isLocalMode = hasLocalModeUrlParams(
     typeof window === 'undefined' ? '' : window.location.search,
   );
+  const runtimeProjectId = getRuntimeDocumentProjectId();
+  const isRuntimeMode = runtimeProjectId !== null;
+  const isUrlOwnedMode = isLocalMode || isRuntimeMode;
+  const urlProjectId = localProjectSlug ?? runtimeProjectId;
   // CROSS-DEVICE SYNC: Track if we had a localStorage value at startup
   const hadLocalStorageValueRef = useRef<boolean>(false);
   const hasAppliedServerPreferencesRef = useRef<boolean>(false);
@@ -42,11 +47,11 @@ export function useProjectSelection({
   // stale project id would re-enable the project-scoped Supabase queries
   // (shots, generations) against a backend local mode must never touch.
   const [selectedProjectId, setSelectedProjectIdState] = useState<string | null>(() => {
-    if (localProjectSlug) {
+    if (urlProjectId) {
       hadLocalStorageValueRef.current = false;
-      return localProjectSlug;
+      return urlProjectId;
     }
-    if (!userId || isLocalMode) {
+    if (!userId || isUrlOwnedMode) {
       hadLocalStorageValueRef.current = false;
       return null;
     }
@@ -82,11 +87,11 @@ export function useProjectSelection({
   // A localProject URL owns selection for every tool. This also handles
   // client-side navigation between local projects without consulting cloud
   // preferences or stale lastSelectedProjectId storage.
-  const previousLocalModeRef = useRef(isLocalMode);
+  const previousUrlOwnedModeRef = useRef(isUrlOwnedMode);
   useEffect(() => {
-    if (isLocalMode) {
-      previousLocalModeRef.current = true;
-      const nextProjectId = localProjectSlug;
+    if (isUrlOwnedMode) {
+      previousUrlOwnedModeRef.current = true;
+      const nextProjectId = urlProjectId;
       if (selectedProjectIdRef.current !== nextProjectId) {
         selectedProjectIdRef.current = nextProjectId;
         setSelectedProjectIdState(nextProjectId);
@@ -95,20 +100,20 @@ export function useProjectSelection({
       return;
     }
 
-    if (previousLocalModeRef.current) {
-      previousLocalModeRef.current = false;
+    if (previousUrlOwnedModeRef.current) {
+      previousUrlOwnedModeRef.current = false;
       selectedProjectIdRef.current = null;
       setSelectedProjectIdState(null);
       setProjectSelectionFallbackId(null);
     }
-  }, [isLocalMode, localProjectSlug]);
+  }, [isUrlOwnedMode, urlProjectId]);
 
   // CROSS-DEVICE SYNC: Reset sync flag when user logs out
   useEffect(() => {
     const previousUserId = previousUserIdRef.current;
     previousUserIdRef.current = userId;
 
-    if (previousUserId && !userId && !isLocalMode) {
+    if (previousUserId && !userId && !isUrlOwnedMode) {
       // Auth/local-mode transitions must not retain a cloud project identity:
       // otherwise project-scoped Supabase queries can briefly outlive the
       // session. Clear local resume state without writing a logout preference.
@@ -122,7 +127,7 @@ export function useProjectSelection({
       }
       preloadingService.onProjectChange(null);
     }
-  }, [isLocalMode, userId]);
+  }, [isUrlOwnedMode, userId]);
 
   // CROSS-DEVICE SYNC: When preferences load on a new device (no localStorage),
   // update the selected project to match the server's lastOpenedProjectId
@@ -156,7 +161,7 @@ export function useProjectSelection({
 
     // Local project identity is URL-owned and must never be persisted as a
     // cloud resume preference.
-    if (isLocalMode) {
+    if (isUrlOwnedMode) {
       setProjectSelectionFallbackId(projectId);
       return;
     }
@@ -176,7 +181,7 @@ export function useProjectSelection({
       }
       updateUserSettings('user', { lastOpenedProjectId: undefined });
     }
-  }, [isLocalMode, updateUserSettings]);
+  }, [isUrlOwnedMode, updateUserSettings]);
 
   /** Called when projects are loaded — decides which project to select. */
   const handleProjectsLoaded = useCallback((projects: Project[], isNewDefault: boolean) => {

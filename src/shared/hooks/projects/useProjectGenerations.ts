@@ -118,6 +118,15 @@ function toRuntimeGalleryItem(
     && primaryVariantMetadata.media_type.trim().length > 0
     ? primaryVariantMetadata.media_type.trim()
     : undefined;
+  // Runtime's variant contract permits the coarse `image`/`video` media
+  // values. The existing gallery predicates consume MIME prefixes, so map
+  // those canonical coarse values to stable display MIME types at this
+  // boundary without changing the Runtime wire data.
+  const galleryMediaType = primaryVariantMediaType === 'image'
+    ? 'image/png'
+    : primaryVariantMediaType === 'video'
+      ? 'video/mp4'
+      : primaryVariantMediaType;
   const type = generation.type || (contentType === 'video' ? 'video' : 'image');
 
   const item = transformGeneration({
@@ -134,13 +143,13 @@ function toRuntimeGalleryItem(
     tasks: generation.source_task_id ?? null,
     derivedCount: variants.length,
     storage_mode: 'remote',
-    local_file_mime: primaryVariantMediaType ?? null,
+    local_file_mime: galleryMediaType ?? null,
   });
   return {
     ...item,
     // Runtime's canonical variant metadata is the authoritative MIME signal
     // when a generation row intentionally carries neutral metadata.
-    contentType: primaryVariantMediaType ?? item.contentType,
+    contentType: galleryMediaType ?? item.contentType,
     generation_id: generation.generation_id,
   };
 }

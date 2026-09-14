@@ -12,6 +12,14 @@ function readLocalProjectFromUrl(): string | null {
   return slug || null;
 }
 
+function readRuntimeProjectFromUrl(): string | null {
+  if (typeof window === 'undefined') return null;
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('runtime') !== '1' || !params.get('runtimeTimeline')?.trim()) return null;
+  const project = params.get('runtimeProject')?.trim();
+  return project || null;
+}
+
 function isLocalModeUrl(): boolean {
   if (typeof window === 'undefined') return false;
   const params = new URLSearchParams(window.location.search);
@@ -48,7 +56,7 @@ const listeners = new Set<ProjectSelectionListener>();
 export function initializeProjectSelectionStore(
   initialSelectedProjectId: string | null = isLocalModeUrl()
     ? readLocalProjectFromUrl()
-    : readPersistedProjectSelection(),
+    : (readRuntimeProjectFromUrl() ?? readPersistedProjectSelection()),
 ): ProjectSelectionSnapshot {
   const normalized: ProjectSelectionSnapshot = {
     selectedProjectId: normalizeSelectedProjectId(initialSelectedProjectId),
@@ -82,7 +90,9 @@ export function getProjectSelectionSnapshot(): ProjectSelectionSnapshot {
 export function getProjectSelectionFallbackId(): string | null {
   // The URL remains authoritative during local navigation, including for
   // consumers that render before ProjectProvider's synchronization effect.
-  return isLocalModeUrl() ? readLocalProjectFromUrl() : snapshot.selectedProjectId;
+  return isLocalModeUrl()
+    ? readLocalProjectFromUrl()
+    : (readRuntimeProjectFromUrl() ?? snapshot.selectedProjectId);
 }
 
 /** @internal Only for test isolation — do not call in production code. */

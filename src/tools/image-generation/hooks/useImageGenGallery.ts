@@ -27,6 +27,8 @@ interface UseImageGenGalleryParams {
   searchParams: URLSearchParams;
   collapsibleContainerRef: RefObject<HTMLDivElement | null>;
   formContainerRef: RefObject<HTMLDivElement | null>;
+  /** Explicit Runtime authority carried from the editor's document URL. */
+  runtimeProjectId?: string | null;
 }
 
 export function useImageGenGallery({
@@ -40,6 +42,7 @@ export function useImageGenGallery({
   searchParams,
   collapsibleContainerRef,
   formContainerRef,
+  runtimeProjectId = null,
 }: UseImageGenGalleryParams) {
   const [galleryFilters, setGalleryFilters] = useState<GalleryFilterState>({
     ...DEFAULT_GALLERY_FILTERS,
@@ -115,7 +118,8 @@ export function useImageGenGallery({
     currentPage,
     itemsPerPage,
     !!effectiveProjectId,
-    generationsFilters
+    generationsFilters,
+    { runtimeProjectId },
   );
 
   const imagesToShow = useMemo(() => {
