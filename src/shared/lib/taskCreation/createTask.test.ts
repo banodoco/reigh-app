@@ -374,6 +374,31 @@ describe('createTask R1 admission over the fake bridge router', () => {
     expect(router.state.admissions).toBe(1);
   });
 
+  it('uses a distinct receipt key for each deliberate new admission', async () => {
+    await createTask(admissionParams({
+      spec: {
+        family: 'image_generation',
+        params: { prompt: 'first deliberate generation' },
+        output_policy: {},
+      },
+    }));
+    const firstKey = (lastAdmitCall().init.headers as Record<string, string>)['Idempotency-Key'];
+
+    await createTask(admissionParams({
+      spec: {
+        family: 'image_generation',
+        params: { prompt: 'second deliberate generation' },
+        output_policy: {},
+      },
+    }));
+    const secondKey = (lastAdmitCall().init.headers as Record<string, string>)['Idempotency-Key'];
+
+    expect(firstKey).toEqual(expect.any(String));
+    expect(secondKey).toEqual(expect.any(String));
+    expect(secondKey).not.toBe(firstKey);
+    expect(router.state.admissions).toBe(2);
+  });
+
   it('serializes the canonical ordered CAS admission without legacy fields', async () => {
     const request = admissionParams({
       input_object_ids: [`sha256:${'1'.repeat(64)}`, `sha256:${'2'.repeat(64)}`],
