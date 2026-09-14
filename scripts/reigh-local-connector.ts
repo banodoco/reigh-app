@@ -19,9 +19,13 @@ for (let index = 2; index < process.argv.length; index += 1) {
 const discoveryPath = resolve(args.get('discovery') || process.env.ASTRID_WORKSPACE_DISCOVERY || `${homedir()}/Library/Application Support/Banodoco/runtime/discovery.json`);
 const relayOrigin = args.get('relay-origin') || process.env.REIGH_PAIRED_RELAY_ORIGIN;
 const expectedRealm = args.get('realm') || process.env.REIGH_PAIRED_REALM_ID;
+const expectedActor = process.env.REIGH_PAIRED_PRODUCT_ACTOR?.trim();
 const statePath = resolve(args.get('state') || process.env.REIGH_PAIRED_CONNECTOR_STATE || `${homedir()}/.config/reigh/paired-connector.json`);
 const resetPairing = args.has('reset-pairing');
 if (!relayOrigin) throw new Error('paired connector requires --relay-origin or REIGH_PAIRED_RELAY_ORIGIN');
+if (!expectedActor) throw new Error('paired connector requires REIGH_PAIRED_PRODUCT_ACTOR');
+
+const PRODUCT_SCOPES = Object.freeze(['handshake', 'projects:read', 'projects:write', 'tasks:read', 'tasks:write', 'objects:read', 'objects:write']);
 
 function fail(message: string): never { throw new Error(`reigh-local-connector: ${message}`); }
 function readJson(path: string, label: string): Record<string, unknown> { try { return JSON.parse(readFileSync(path, 'utf8')) as Record<string, unknown>; } catch (error) { return fail(`cannot read ${label}: ${error instanceof Error ? error.message : String(error)}`); } }
@@ -54,11 +58,23 @@ function readProductToken(): string {
   const metadataName = credentialPath.split('/').pop()?.replace(/\.token$/, '') || 'product';
   const metadataPath = resolve(dirname(credentialPath), `${metadataName}.json`);
   if (!metadata && existsSync(metadataPath)) metadata = readJson(metadataPath, 'runtime credential metadata');
-  const requiredScopes = ['handshake', 'projects:read', 'projects:write', 'tasks:read', 'tasks:write', 'objects:read', 'objects:write'];
+  const requiredScopes = PRODUCT_SCOPES;
   const scopes = Array.isArray(metadata?.scopes) ? metadata.scopes.filter((value): value is string => typeof value === 'string') : [];
-  if (!metadata || typeof metadata.actor !== 'string' || metadata.actor === 'owner' || scopes.includes('admin')) return fail('paired connector requires credential metadata for a separate product actor; owner/admin credentials are forbidden');
-  if (!requiredScopes.every((scope) => scopes.includes(scope))) return fail(`paired connector product actor is missing required scopes: ${requiredScopes.filter((scope) => !scopes.includes(scope)).join(', ')}`);
+  // Metadata is supplementary. Runtime's authenticated handshake below is the
+  // authority, so explicit token files may omit a sibling metadata file.
+  if (metadata && (typeof metadata.actor !== 'string' || metadata.actor === 'owner' || metadata.actor === 'astrid-pack-host' || scopes.includes('admin'))) return fail('paired connector owner/admin/worker credentials are forbidden');
+  if (metadata && !requiredScopes.every((scope) => scopes.includes(scope))) return fail(`paired connector product actor is missing required scopes: ${requiredScopes.filter((scope) => !scopes.includes(scope)).join(', ')}`);
   return raw || fail('runtime credential has no token');
+}
+function validateHandshake(value: unknown): { realmId: string } {
+  if (!value || typeof value !== 'object') return fail('Runtime handshake response is malformed');
+  const handshake = value as { realm_id?: unknown; protocol?: unknown; actor_id?: unknown; scopes?: unknown };
+  const scopes = Array.isArray(handshake.scopes) ? handshake.scopes.filter((scope): scope is string => typeof scope === 'string') : [];
+  const expectedScopes = [...PRODUCT_SCOPES].sort();
+  if (handshake.protocol !== 'workspace.v1' || typeof handshake.realm_id !== 'string' || (expectedRealm && handshake.realm_id !== expectedRealm) || handshake.actor_id !== expectedActor || JSON.stringify([...scopes].sort()) !== JSON.stringify(expectedScopes)) {
+    return fail('Runtime handshake actor, realm, protocol, or product scopes did not match the explicitly expected contract');
+  }
+  return { realmId: handshake.realm_id };
 }
 let token = readProductToken();
 const health = await fetch(new URL('/v1/health', endpoint), { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(3000) });
@@ -66,13 +82,11 @@ if (!health.ok) fail(`Runtime health returned HTTP ${health.status}`);
 const handshakeResponse = await fetch(new URL('/v1/handshake', endpoint), {
   method: 'POST',
   headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', Accept: 'application/json' },
-  body: JSON.stringify({ protocol: 'workspace.v1', client_name: 'reigh-paired-connector', client_version: '1', requested_scopes: ['handshake', 'projects:read', 'projects:write', 'tasks:read', 'tasks:write', 'objects:read', 'objects:write'] }),
+  body: JSON.stringify({ protocol: 'workspace.v1', client_name: 'reigh-paired-connector', client_version: '1', requested_scopes: PRODUCT_SCOPES }),
   signal: AbortSignal.timeout(3000),
 });
 if (!handshakeResponse.ok) fail(`Runtime handshake returned HTTP ${handshakeResponse.status}`);
-const handshake = await handshakeResponse.json() as { realm_id?: unknown; protocol?: unknown };
-if (handshake.protocol !== 'workspace.v1' || typeof handshake.realm_id !== 'string' || (expectedRealm && handshake.realm_id !== expectedRealm)) fail('Runtime handshake identity did not match the explicitly expected realm');
-const realm = { realm_id: handshake.realm_id };
+const realm = { realm_id: validateHandshake(await handshakeResponse.json()).realmId };
 
 let state: { connectorId: string; connectorSecret: string };
 if (existsSync(statePath) && !resetPairing) state = readJson(statePath, 'connector state') as typeof state;
@@ -96,9 +110,9 @@ function connect(): void {
   socket.on('open', async () => {
     try {
       token = readProductToken();
-      const check = await fetch(new URL('/v1/handshake', endpoint), { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ protocol: 'workspace.v1', client_name: 'reigh-paired-connector', client_version: '1', requested_scopes: ['handshake', 'projects:read', 'projects:write', 'tasks:read', 'tasks:write', 'objects:read', 'objects:write'] }), signal: AbortSignal.timeout(3000) });
-      const current = await check.json() as { realm_id?: unknown };
-      if (!check.ok || current.realm_id !== realm.realm_id) { socket.close(1008, 'local Runtime realm changed'); return; }
+      const check = await fetch(new URL('/v1/handshake', endpoint), { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ protocol: 'workspace.v1', client_name: 'reigh-paired-connector', client_version: '1', requested_scopes: PRODUCT_SCOPES }), signal: AbortSignal.timeout(3000) });
+      const current = check.ok ? validateHandshake(await check.json()) : undefined;
+      if (!current || current.realmId !== realm.realm_id) { socket.close(1008, 'local Runtime identity changed'); return; }
     } catch { socket.close(1008, 'local Runtime unavailable'); return; }
     send({ type: 'connector_hello', connector_id: state.connectorId, connector_secret: state.connectorSecret, realm_id: realm.realm_id });
   });
