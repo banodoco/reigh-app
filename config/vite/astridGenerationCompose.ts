@@ -1,5 +1,4 @@
 import { spawn } from 'node:child_process';
-import { realpathSync } from 'node:fs';
 import { isAbsolute, resolve } from 'node:path';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { Connect } from 'vite';
@@ -70,7 +69,10 @@ export function resolveAstridGenerationComposer(
   const python = env.ASTRID_PYTHON?.trim();
   if (!python || !sourceRoot) return null;
   if (!isAbsolute(python)) throw new Error('ASTRID_PYTHON must be an absolute executable path');
-  return { python: realpathSync(python), sourceRoot: resolve(sourceRoot) };
+  // Keep the configured entrypoint so a virtualenv's site packages remain available.
+  // Canonicalizing its symlink here resolves it to the system interpreter and drops
+  // dependencies that are intentionally installed only in the prepared runtime.
+  return { python: resolve(python), sourceRoot: resolve(sourceRoot) };
 }
 
 export function createAstridGenerationComposer(config: AstridGenerationComposerConfig): AstridGenerationComposer {
