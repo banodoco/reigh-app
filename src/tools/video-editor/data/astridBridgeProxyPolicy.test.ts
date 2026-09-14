@@ -16,6 +16,10 @@ import {
   resolveAstridBridgePort,
   resolveAstridBridgeProxyPolicy,
 } from '../../../../config/vite/astridBridgeProxy';
+import {
+  ASTRID_GENERATION_COMPOSE_ROUTE,
+  createAstridGenerationComposeHandler,
+} from '../../../../config/vite/astridGenerationCompose';
 import { ASTRID_BRIDGE_REQUEST_TIMEOUT_MS } from './astridBridgeWire';
 
 function responseDouble(): ServerResponse {
@@ -24,6 +28,16 @@ function responseDouble(): ServerResponse {
     setHeader: vi.fn(),
     end: vi.fn(),
   } as unknown as ServerResponse;
+}
+
+function requestDouble(body: string, headers: Record<string, string> = {}): IncomingMessage {
+  const request = new EventEmitter() as IncomingMessage;
+  Object.assign(request, { method: 'POST', headers });
+  queueMicrotask(() => {
+    request.emit('data', Buffer.from(body));
+    request.emit('end');
+  });
+  return request;
 }
 
 describe('Astrid bridge server-side auth boundary', () => {
@@ -140,6 +154,63 @@ describe('Astrid bridge server-side auth boundary', () => {
       expect(response.statusCode).toBe(503);
     },
   );
+
+  it('registers the bounded generation compose route after the auth guard', () => {
+    const composer = vi.fn().mockResolvedValue({ ok: true });
+    const plugin = createAstridBridgeAuthPlugin(
+      resolveAstridBridgeProxyPolicy({ ASTRID_BRIDGE_TOKEN: 'secret' }),
+      composer,
+    );
+    const use = vi.fn();
+    const hook = plugin.configureServer;
+    if (typeof hook !== 'function') throw new Error('configureServer is not callable');
+
+    hook({ middlewares: { use } } as never);
+
+    expect(use).toHaveBeenCalledTimes(2);
+    expect(use.mock.calls[1]?.[0]).toBe(ASTRID_GENERATION_COMPOSE_ROUTE);
+  });
+
+  it('accepts only same-origin closed compose requests and invokes the configured composer once', async () => {
+    const composer = vi.fn().mockResolvedValue({ ok: true });
+    const handler = createAstridGenerationComposeHandler(composer);
+    const requestBody = JSON.stringify({
+      project: 'project-1',
+      capability_digest: `sha256:${'a'.repeat(64)}`,
+      params: {
+        model: 'z-image', mode: 't2i', execution: 'cloud', prompt: 'one', count: 1, size: '1024x1024',
+      },
+    });
+    const response = responseDouble();
+    await handler(requestDouble(requestBody, {
+      origin: 'http://127.0.0.1:4181',
+      host: '127.0.0.1:4181',
+      'content-length': String(Buffer.byteLength(requestBody)),
+    }), response, vi.fn());
+
+    expect(composer).toHaveBeenCalledOnce();
+    expect(response.statusCode).toBe(200);
+    expect(response.end).toHaveBeenCalledWith('{"ok":true}');
+  });
+
+  it('rejects cross-origin and malformed compose bodies before helper execution', async () => {
+    const composer = vi.fn().mockResolvedValue({ ok: true });
+    const handler = createAstridGenerationComposeHandler(composer);
+    const crossOriginResponse = responseDouble();
+    await handler(requestDouble('{}', {
+      origin: 'https://attacker.invalid',
+      host: '127.0.0.1:4181',
+    }), crossOriginResponse, vi.fn());
+    expect(crossOriginResponse.statusCode).toBe(403);
+
+    const malformedResponse = responseDouble();
+    await handler(requestDouble(JSON.stringify({ project: 'project-1' }), {
+      origin: 'http://127.0.0.1:4181',
+      host: '127.0.0.1:4181',
+    }), malformedResponse, vi.fn());
+    expect(malformedResponse.statusCode).toBe(400);
+    expect(composer).not.toHaveBeenCalled();
+  });
 
   it('fails closed in a spawned Vite preview before contacting upstream', async () => {
     const root = await mkdtemp(join(tmpdir(), 'reigh-astrid-preview-'));

@@ -6,6 +6,11 @@ import {
   ASTRID_BRIDGE_REQUEST_TIMEOUT_MS,
 } from '../../src/tools/video-editor/data/astridBridgeWire';
 import { isSameOriginLoopbackRequest } from './astridProxySecurity';
+import {
+  ASTRID_GENERATION_COMPOSE_ROUTE,
+  createAstridGenerationComposeHandler,
+  type AstridGenerationComposer,
+} from './astridGenerationCompose';
 
 export const ASTRID_BRIDGE_STUB_OPT_IN_ENV = 'ASTRID_BRIDGE_ALLOW_UNAUTHENTICATED_STUB';
 export const ASTRID_BRIDGE_TOKEN_ENV = 'ASTRID_BRIDGE_TOKEN';
@@ -144,9 +149,16 @@ export function createAstridBridgeAuthGuard(
 /** Install the same fail-closed boundary in Vite dev and production preview. */
 export function createAstridBridgeAuthPlugin(
   policy: AstridBridgeProxyPolicy,
+  generationComposer?: AstridGenerationComposer | null,
 ): Plugin {
   const register = (server: { middlewares: Connect.Server }) => {
     server.middlewares.use('/api/astrid', createAstridBridgeAuthGuard(policy));
+    if (generationComposer !== undefined) {
+      server.middlewares.use(
+        ASTRID_GENERATION_COMPOSE_ROUTE,
+        createAstridGenerationComposeHandler(generationComposer),
+      );
+    }
   };
   return {
     name: 'astrid-bridge-auth-boundary',

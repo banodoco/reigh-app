@@ -5,6 +5,10 @@ import {
   ingestProjectInputFromUrl,
   resolveTaskCapability,
 } from './createTask';
+import {
+  bridgeTaskAdmissionRequestSchema,
+} from '@/tools/video-editor/data/bridgeContract.ts';
+import type { TaskCreationRequest } from './types';
 
 export const IMAGE_GENERATION_CAPABILITY_ID = 'generation.generate_image';
 export const IMAGE_I2I_CAPABILITY_ID = 'generation.generate_image_cloud_i2i';
@@ -20,6 +24,8 @@ const MAX_SEED = 2_147_483_647;
 const MAX_STEPS = 1_000;
 const MAX_CLOUD_I2I_SOURCE_BYTES = 512_000;
 const BOUNDED_CLOUD_I2I_SIZE = '1024x1024';
+const IMAGE_COMPOSE_ROUTE = '/api/astrid/generation/compose';
+const MAX_COMPOSE_RESPONSE_BYTES = 256 * 1024;
 
 export interface ImageToImageTaskOptions {
   sourceUrl: string;
@@ -46,6 +52,82 @@ export interface CompiledImageGenerationParams {
   seed?: number;
   steps?: number;
   size?: string;
+}
+
+async function composeCreativeImageAdmission(
+  project: string,
+  capabilityDigest: string,
+  spec: CompiledImageGenerationParams,
+): Promise<TaskCreationRequest> {
+  let response: Response;
+  try {
+    response = await fetch(IMAGE_COMPOSE_ROUTE, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        project,
+        capability_digest: capabilityDigest,
+        params: spec,
+      }),
+    });
+  } catch (error) {
+    throw new TaskValidationError(
+      `Image generation composer is unavailable: ${error instanceof Error ? error.message : String(error)}`,
+      'generation_intent',
+    );
+  }
+
+  const contentLength = response.headers.get('content-length');
+  if (contentLength !== null) {
+    const declaredLength = Number(contentLength);
+    if (Number.isSafeInteger(declaredLength) && declaredLength > MAX_COMPOSE_RESPONSE_BYTES) {
+      throw new TaskValidationError('Image generation composer response exceeds its bounded size', 'generation_intent');
+    }
+  }
+  const raw = await response.text();
+  if (new TextEncoder().encode(raw).byteLength > MAX_COMPOSE_RESPONSE_BYTES) {
+    throw new TaskValidationError('Image generation composer response exceeds its bounded size', 'generation_intent');
+  }
+  let payload: unknown;
+  try {
+    payload = JSON.parse(raw);
+  } catch {
+    throw new TaskValidationError('Image generation composer returned malformed JSON', 'generation_intent');
+  }
+  if (!response.ok) {
+    const detail = payload && typeof payload === 'object' && 'detail' in payload
+      ? String((payload as { detail?: unknown }).detail ?? '')
+      : '';
+    throw new TaskValidationError(
+      `Image generation composer refused the request${detail ? `: ${detail}` : ''}`,
+      'generation_intent',
+    );
+  }
+  const parsed = bridgeTaskAdmissionRequestSchema.safeParse(payload);
+  if (!parsed.success) {
+    throw new TaskValidationError('Image generation composer returned an invalid HC-04 request', 'generation_intent');
+  }
+  const request = parsed.data as TaskCreationRequest;
+  const returnedParams = request.spec.params;
+  const expectedParamKeys = Object.keys(spec);
+  const paramsMatch = expectedParamKeys.every(
+    (key) => JSON.stringify(returnedParams[key]) === JSON.stringify(spec[key as keyof CompiledImageGenerationParams]),
+  ) && Object.keys(returnedParams).every((key) => expectedParamKeys.includes(key));
+  if (
+    request.project !== project
+    || request.capability_id !== IMAGE_GENERATION_CAPABILITY_ID
+    || request.capability_digest !== capabilityDigest
+    || request.spec.family !== IMAGE_GENERATION_CAPABILITY_ID
+    || !paramsMatch
+    || request.settlement_effect.effect_type !== 'generation.publish_v1'
+    || request.settlement_effect.target_id !== project
+    || request.settlement_effect.payload.modality !== 'image'
+    || request.generation_intent === undefined
+  ) {
+    throw new TaskValidationError('Image generation composer returned a mismatched creative admission', 'generation_intent');
+  }
+  return request;
 }
 
 function requireInteger(value: unknown, field: string, min: number, max: number): number {
@@ -186,23 +268,8 @@ export async function createImageGenerationTasks(
   }
   const spec = compiled[0];
   if (!spec) throw new TaskValidationError('Image generation request compiled to no task', 'prompts');
-  const result = await createTask({
-    project,
-    capability_id: IMAGE_GENERATION_CAPABILITY_ID,
-    capability_digest: capability.definition_digest,
-    schema_version: '1',
-    input_object_ids: [],
-    spec: {
-      family: IMAGE_GENERATION_CAPABILITY_ID,
-      params: { ...spec },
-      output_policy: {},
-    },
-    storage_estimate: {
-      scratch_bytes: capability.estimated_scratch_bytes,
-      output_bytes: capability.estimated_output_bytes * spec.count,
-    },
-    settlement_effect: {},
-  });
+  const request = await composeCreativeImageAdmission(project, capability.definition_digest, spec);
+  const result = await createTask(request);
   const taskIds = result.task_ids ?? [result.task_id];
   return {
     task_id: taskIds[0] ?? '',

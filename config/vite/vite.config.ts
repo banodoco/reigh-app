@@ -17,6 +17,10 @@ import {
 } from "./astridBridgeProxy";
 import { createWorkspaceRuntimeProxyOptions, RUNTIME_TOKEN_FILE_ENV } from "./runtimeProxy";
 import { resolveAstridSource } from "./astridSource";
+import {
+  createAstridGenerationComposer,
+  resolveAstridGenerationComposer,
+} from "./astridGenerationCompose";
 import { createBundleBudgetPlugin } from "./bundleBudget";
 import { createRemoteFontModePlugin } from "./remoteFonts";
 
@@ -34,7 +38,12 @@ export default defineConfig(() => {
   const astridBridgePort = resolveAstridBridgePort(process.env.VITE_ASTRID_BRIDGE_PORT);
   const astridAcpBridgePort = resolveAstridAcpBridgePort(process.env.VITE_ASTRID_ACP_BRIDGE_PORT);
   const astridBridgeProxyPolicy = resolveAstridBridgeProxyPolicy(process.env);
-  const astridBridgeAuthPlugin = createAstridBridgeAuthPlugin(astridBridgeProxyPolicy);
+  const astridSource = resolveAstridSource();
+  const generationComposerConfig = resolveAstridGenerationComposer(process.env, astridSource?.sourceRoot);
+  const generationComposer = generationComposerConfig
+    ? createAstridGenerationComposer(generationComposerConfig)
+    : null;
+  const astridBridgeAuthPlugin = createAstridBridgeAuthPlugin(astridBridgeProxyPolicy, generationComposer);
   const astridBridgeProxy = {
     "/api/astrid": createAstridBridgeProxyOptions(
       astridBridgeProxyPolicy,
@@ -48,7 +57,6 @@ export default defineConfig(() => {
     ),
   };
   const runtimeTarget = process.env.VITE_WORKSPACE_RUNTIME_URL?.trim() || null;
-  const astridSource = resolveAstridSource();
   const runtimeTokenFile = process.env[RUNTIME_TOKEN_FILE_ENV]?.trim() || null;
   const runtimeToken = runtimeTokenFile && fs.existsSync(runtimeTokenFile)
     ? fs.readFileSync(runtimeTokenFile, 'utf8').trim()

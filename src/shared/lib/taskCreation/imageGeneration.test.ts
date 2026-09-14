@@ -29,11 +29,70 @@ function params(overrides: Partial<BatchImageGenerationTaskParams> = {}): BatchI
   };
 }
 
+function composedImageRequest(overrides: Record<string, unknown> = {}) {
+  const digest = `sha256:${'a'.repeat(64)}`;
+  return {
+    project: 'project-1',
+    capability_id: IMAGE_GENERATION_CAPABILITY_ID,
+    capability_digest: digest,
+    schema_version: '1',
+    input_object_ids: [],
+    spec: {
+      family: IMAGE_GENERATION_CAPABILITY_ID,
+      params: {
+        model: 'z-image',
+        mode: 't2i',
+        execution: 'cloud',
+        prompt: 'one',
+        count: 2,
+        size: '1536x1024',
+      },
+      output_policy: {},
+    },
+    storage_estimate: { scratch_bytes: 8 * 1024 * 1024 * 1024, output_bytes: 128 * 1024 * 1024 },
+    generation_intent: {
+      version: 1,
+      modality: 'image',
+      partial_success_policy: 'reject',
+      groups: [{
+        group_key: 'main',
+        selectors: [
+          { selector: 'main-0', ordinal: 0, variant_key: 'original' },
+          { selector: 'main-1', ordinal: 1, variant_key: 'variant-1' },
+        ],
+      }],
+    },
+    settlement_effect: {
+      effect_type: 'generation.publish_v1',
+      target_id: 'project-1',
+      payload: {
+        version: 1,
+        modality: 'image',
+        generation_type: IMAGE_GENERATION_CAPABILITY_ID,
+        metadata: {},
+        partial_success_policy: 'reject',
+        groups: [{
+          group_key: 'main',
+          selectors: [
+            { selector: 'main-0', ordinal: 0, variant_key: 'original', output_port: 'generated_images' },
+            { selector: 'main-1', ordinal: 1, variant_key: 'variant-1', output_port: 'generated_images' },
+          ],
+        }],
+      },
+    },
+    ...overrides,
+  };
+}
+
 describe('typed image-generation admission', () => {
   beforeEach(() => {
     mocks.createTask.mockReset();
     mocks.ingestProjectInputFromUrl.mockReset();
     mocks.resolveTaskCapability.mockReset();
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(composedImageRequest()), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    })));
   });
 
   it('rejects multi-prompt fan-out until admission is atomic', () => {
@@ -79,7 +138,39 @@ describe('typed image-generation admission', () => {
         family: IMAGE_GENERATION_CAPABILITY_ID,
         params: expect.objectContaining({ prompt: 'one', count: 2, mode: 't2i' }),
       }),
+      generation_intent: expect.objectContaining({ modality: 'image' }),
+      settlement_effect: expect.objectContaining({ effect_type: 'generation.publish_v1' }),
     }));
+    expect(fetch).toHaveBeenCalledWith('/api/astrid/generation/compose', expect.objectContaining({
+      method: 'POST',
+      credentials: 'same-origin',
+    }));
+  });
+
+  it('refuses an unavailable or malformed composer before any Runtime admission', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('helper unavailable')));
+    mocks.resolveTaskCapability.mockResolvedValue({
+      capability_id: IMAGE_GENERATION_CAPABILITY_ID,
+      definition_digest: `sha256:${'a'.repeat(64)}`,
+      status: 'ready',
+      required_resource_keys: [],
+      estimated_scratch_bytes: 1,
+      estimated_output_bytes: 1,
+    });
+
+    await expect(createImageGenerationTasks('project-1', params({
+      prompts: [{ id: 'p-1', fullPrompt: 'one' }],
+    }))).rejects.toThrow('composer is unavailable');
+    expect(mocks.createTask).not.toHaveBeenCalled();
+
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ nope: true }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    })));
+    await expect(createImageGenerationTasks('project-1', params({
+      prompts: [{ id: 'p-1', fullPrompt: 'one' }],
+    }))).rejects.toThrow('invalid HC-04 request');
+    expect(mocks.createTask).not.toHaveBeenCalled();
   });
 
   it('blocks admission when the registered capability has no storage estimate', async () => {
