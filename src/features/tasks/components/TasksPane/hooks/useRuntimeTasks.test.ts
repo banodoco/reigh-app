@@ -149,7 +149,7 @@ describe('Runtime TasksPane adapter', () => {
     expect(client.getTask).toHaveBeenCalledWith('task-canonical');
     expect(client.cancelTask).toHaveBeenCalledWith(
       'task-canonical',
-      'reigh.runtime.task.cancel:runtime-project:task-canonical:v9',
+      'reigh.runtime.task.cancel.runtime-project.task-canonical.v9.2026-09-11T00-01-00Z',
       9,
     );
 
@@ -159,7 +159,7 @@ describe('Runtime TasksPane adapter', () => {
     });
     expect(client.retryTask).toHaveBeenCalledWith(
       'task-canonical',
-      'reigh.runtime.task.retry:runtime-project:task-canonical:v9',
+      'reigh.runtime.task.retry.runtime-project.task-canonical.v9.2026-09-11T00-01-00Z',
       9,
     );
   });

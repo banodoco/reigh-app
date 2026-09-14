@@ -99,8 +99,10 @@ function idempotencyKey(
   taskId: string,
   action: RuntimeTaskAction,
   version: number,
+  updatedAt: string,
 ): string {
-  return `reigh.runtime.task.${action}:${projectId}:${taskId}:v${version}`;
+  const revision = updatedAt.replace(/[^A-Za-z0-9._~-]/g, '-');
+  return `reigh.runtime.task.${action}.${projectId}.${taskId}.v${version}.${revision}`;
 }
 
 export async function transitionRuntimeTask(
@@ -118,7 +120,13 @@ export async function transitionRuntimeTask(
     throw new Error(`Workspace Runtime task ${input.taskId} has no positive version`);
   }
 
-  const key = idempotencyKey(projectId, current.task_id, input.action, current.version);
+  const key = idempotencyKey(
+    projectId,
+    current.task_id,
+    input.action,
+    current.version,
+    current.updated_at,
+  );
   return input.action === 'cancel'
     ? client.cancelTask(current.task_id, key, current.version)
     : client.retryTask(current.task_id, key, current.version);
