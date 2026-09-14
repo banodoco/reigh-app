@@ -53,6 +53,18 @@ describe('Astrid bridge server-side auth boundary', () => {
     });
   });
 
+  it('uses a separate server-only bearer for the ACP hop when configured', () => {
+    const policy = resolveAstridBridgeProxyPolicy({
+      ASTRID_BRIDGE_TOKEN: 'runtime-or-astrid-secret',
+      ASTRID_ACP_BRIDGE_TOKEN: 'acp-local-secret',
+    });
+
+    expect(astridBridgeUpstreamHeaders(policy, policy.acpToken)).toEqual({
+      'X-Astrid-Bridge-Version': 'v1',
+      Authorization: 'Bearer acp-local-secret',
+    });
+  });
+
   it('fails closed without auth instead of proxying a real bridge request', () => {
     const guard = createAstridBridgeAuthGuard(resolveAstridBridgeProxyPolicy({}));
     const response = responseDouble();

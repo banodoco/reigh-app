@@ -14,11 +14,13 @@ import {
 
 export const ASTRID_BRIDGE_STUB_OPT_IN_ENV = 'ASTRID_BRIDGE_ALLOW_UNAUTHENTICATED_STUB';
 export const ASTRID_BRIDGE_TOKEN_ENV = 'ASTRID_BRIDGE_TOKEN';
+export const ASTRID_ACP_BRIDGE_TOKEN_ENV = 'ASTRID_ACP_BRIDGE_TOKEN';
 export const ASTRID_ACP_BRIDGE_PORT_ENV = 'VITE_ASTRID_ACP_BRIDGE_PORT';
 
 export interface AstridBridgeProxyPolicy {
   readonly allowUnauthenticatedStub: boolean;
   readonly token: string | null;
+  readonly acpToken: string | null;
 }
 
 export function resolveAstridBridgePort(value: string | undefined): number {
@@ -52,16 +54,18 @@ export function resolveAstridBridgeProxyPolicy(
   return Object.freeze({
     allowUnauthenticatedStub: env[ASTRID_BRIDGE_STUB_OPT_IN_ENV] === '1',
     token,
+    acpToken: env[ASTRID_ACP_BRIDGE_TOKEN_ENV]?.trim() || token,
   });
 }
 
 /** Headers injected by Vite's server-side proxy; the token never reaches browser code. */
 export function astridBridgeUpstreamHeaders(
   policy: AstridBridgeProxyPolicy,
+  token: string | null = policy.token,
 ): Readonly<Record<string, string>> {
   return Object.freeze({
     [ASTRID_BRIDGE_PROTOCOL_HEADER]: ASTRID_BRIDGE_PROTOCOL_VERSION,
-    ...(policy.token ? { Authorization: `Bearer ${policy.token}` } : {}),
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
   });
 }
 
@@ -103,7 +107,7 @@ export function createAstridAcpBridgeProxyOptions(
   return {
     target: `http://127.0.0.1:${port}`,
     changeOrigin: true,
-    headers: astridBridgeUpstreamHeaders(policy),
+    headers: astridBridgeUpstreamHeaders(policy, policy.acpToken),
     timeout: ASTRID_BRIDGE_REQUEST_TIMEOUT_MS,
     proxyTimeout: ASTRID_BRIDGE_REQUEST_TIMEOUT_MS,
     rewrite: (incomingPath) => incomingPath.replace(/^\/api\/astrid\/acp/, ''),
