@@ -339,6 +339,7 @@ function renderCanvas(params?: {
   onShotGroupDuplicate?: React.ComponentProps<typeof TimelineCanvas>['onShotGroupDuplicate'];
   onShotGroupPromotePrimary?: React.ComponentProps<typeof TimelineCanvas>['onShotGroupPromotePrimary'];
   onShotGroupSwitchToFinalVideo?: React.ComponentProps<typeof TimelineCanvas>['onShotGroupSwitchToFinalVideo'];
+  onShotGroupExportManagedOutput?: React.ComponentProps<typeof TimelineCanvas>['onShotGroupExportManagedOutput'];
   onShotGroupSwitchToImages?: React.ComponentProps<typeof TimelineCanvas>['onShotGroupSwitchToImages'];
   allowMissingHandles?: boolean;
   deviceClass?: React.ComponentProps<typeof TimelineCanvas>['deviceClass'];
@@ -428,6 +429,7 @@ function renderCanvas(params?: {
       onShotGroupDuplicate={params?.onShotGroupDuplicate}
       onShotGroupPromotePrimary={params?.onShotGroupPromotePrimary}
       onShotGroupSwitchToFinalVideo={params?.onShotGroupSwitchToFinalVideo}
+      onShotGroupExportManagedOutput={params?.onShotGroupExportManagedOutput}
       onShotGroupSwitchToImages={params?.onShotGroupSwitchToImages}
       interactionStateRef={params?.interactionStateRef}
       onAddTextAt={params?.onAddTextAt}
@@ -1730,6 +1732,41 @@ describe('TimelineCanvas resize pending ops', () => {
       clipIds: ['clip-1'],
       rowId: 'V1',
     });
+  });
+
+  it('exposes export only for a Runtime-managed selected output and preserves its group identity', () => {
+    const onShotGroupExportManagedOutput = vi.fn();
+    const { getByTitle } = renderCanvas({
+      shotGroups: [pinnedShotGroup],
+      finalVideoMap: new Map([['shot-1', { id: 'object-1', managedOutput: { association_id: 'managed-output-1' } }]]),
+      onShotGroupExportManagedOutput,
+      allowMissingHandles: true,
+    });
+
+    fireEvent.contextMenu(getByTitle('Pinned Shot'));
+
+    expect(screen.getByText('Export managed output')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Export managed output'));
+
+    expect(onShotGroupExportManagedOutput).toHaveBeenCalledWith({
+      shotId: 'shot-1',
+      clipIds: ['clip-1', 'clip-2', 'clip-3'],
+      rowId: 'V1',
+    });
+  });
+
+  it('does not offer Runtime export for a legacy final-video identity', () => {
+    const onShotGroupExportManagedOutput = vi.fn();
+    const { getByTitle } = renderCanvas({
+      shotGroups: [pinnedShotGroup],
+      finalVideoMap: new Map([['shot-1', { id: 'legacy-final-video' }]]),
+      onShotGroupExportManagedOutput,
+      allowMissingHandles: true,
+    });
+
+    fireEvent.contextMenu(getByTitle('Pinned Shot'));
+
+    expect(screen.queryByText('Export managed output')).toBeNull();
   });
 
   it('exposes document-native duplicate and promote controls with the exact group locator', () => {

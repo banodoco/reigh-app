@@ -1,11 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// Mock taskCreation before importing the module under test
-const mockCreateTask = vi.fn();
+const mockCreateCharacterAnimationTask = vi.fn();
 const mockValidateRequiredFields = vi.fn();
 
 vi.mock('@/shared/lib/taskCreation', () => ({
-  createTask: (...args: unknown[]) => mockCreateTask(...args),
+  createCharacterAnimationTask: (...args: unknown[]) => mockCreateCharacterAnimationTask(...args),
   validateRequiredFields: (...args: unknown[]) => mockValidateRequiredFields(...args),
   TaskValidationError: class TaskValidationError extends Error {
     field: string;
@@ -21,7 +20,7 @@ vi.mock('@/shared/lib/errorHandling/runtimeError', () => ({
   normalizeAndPresentError: vi.fn(),
 }));
 
-import { createCharacterAnimateTask, CharacterAnimateTaskParams } from '../characterAnimate';
+import { createCharacterAnimateTask, type CharacterAnimateTaskParams } from '../characterAnimate';
 
 describe('createCharacterAnimateTask', () => {
   const validParams: CharacterAnimateTaskParams = {
@@ -37,163 +36,64 @@ describe('createCharacterAnimateTask', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockCreateTask.mockResolvedValue({ task_id: 'created-task-id' });
+    mockCreateCharacterAnimationTask.mockResolvedValue({ task_id: 'created-task-id' });
   });
 
-  it('creates a task with valid params', async () => {
+  it('creates a typed task with both media URLs handed to CAS admission', async () => {
     const result = await createCharacterAnimateTask(validParams);
-
     expect(result).toEqual({ task_id: 'created-task-id' });
-    expect(mockCreateTask).toHaveBeenCalledWith({
-      project_id: 'proj-123',
-      family: 'character_animate',
-      input: {
-        character_image_url: 'https://example.com/character.png',
-        motion_video_url: 'https://example.com/motion.mp4',
-        prompt: 'dancing character',
-        mode: 'animate',
-        resolution: '480p',
-        seed: 42,
-        random_seed: false,
-      },
+    expect(mockCreateCharacterAnimationTask).toHaveBeenCalledWith('proj-123', {
+      characterImageUrl: 'https://example.com/character.png',
+      motionVideoUrl: 'https://example.com/motion.mp4',
+      prompt: 'dancing character', mode: 'animate', resolution: '480p', seed: 42, randomSeed: false,
     });
   });
 
-  it('uses default prompt when prompt is not provided', async () => {
-    const paramsNoPrompt = { ...validParams, prompt: undefined };
-
-    await createCharacterAnimateTask(paramsNoPrompt);
-
-    expect(mockCreateTask).toHaveBeenCalledWith(
-      expect.objectContaining({
-        input: expect.objectContaining({
-          prompt: 'natural expression; preserve outfit details',
-        }),
-      }),
+  it('uses the default prompt when prompt is not provided', async () => {
+    await createCharacterAnimateTask({ ...validParams, prompt: undefined });
+    expect(mockCreateCharacterAnimationTask).toHaveBeenCalledWith(
+      'proj-123', expect.objectContaining({ prompt: 'natural expression; preserve outfit details' }),
     );
   });
 
-  it('uses random seed when random_seed is true', async () => {
-    const paramsRandomSeed = { ...validParams, random_seed: true, seed: 42 };
-
-    await createCharacterAnimateTask(paramsRandomSeed);
-
-    const calledParams = mockCreateTask.mock.calls[0][0].input;
-    // When random_seed is true, the seed should be a random number (not 42)
-    expect(typeof calledParams.seed).toBe('number');
-    // The seed COULD randomly equal 42, but the important thing is the function ran
-    expect(calledParams.seed).toBeGreaterThanOrEqual(0);
+  it('resolves random seed once before typed admission', async () => {
+    await createCharacterAnimateTask({ ...validParams, random_seed: true, seed: 42 });
+    const options = mockCreateCharacterAnimationTask.mock.calls[0]?.[1];
+    expect(options.seed).toBeGreaterThanOrEqual(0);
+    expect(options.seed).toBeLessThanOrEqual(2_147_483_647);
   });
 
-  it('uses provided seed when random_seed is false', async () => {
-    const paramsFixedSeed = { ...validParams, random_seed: false, seed: 12345 };
-
-    await createCharacterAnimateTask(paramsFixedSeed);
-
-    expect(mockCreateTask).toHaveBeenCalledWith(
-      expect.objectContaining({
-        input: expect.objectContaining({
-          seed: 12345,
-        }),
-      }),
-    );
+  it('preserves an explicit seed when random_seed is false', async () => {
+    await createCharacterAnimateTask({ ...validParams, random_seed: false, seed: 12345 });
+    expect(mockCreateCharacterAnimationTask.mock.calls[0]?.[1].seed).toBe(12345);
   });
 
-  it('validates required fields', async () => {
+  it('validates required fields before admission', async () => {
     await createCharacterAnimateTask(validParams);
-
     expect(mockValidateRequiredFields).toHaveBeenCalledWith(validParams, [
-      'project_id',
-      'character_image_url',
-      'motion_video_url',
-      'mode',
-      'resolution',
+      'project_id', 'character_image_url', 'motion_video_url', 'mode', 'resolution',
     ]);
   });
 
-  it('throws on invalid mode', async () => {
-    const invalidParams = { ...validParams, mode: 'invalid' as 'animate' | 'replace' };
-
-    await expect(createCharacterAnimateTask(invalidParams)).rejects.toThrow(
-      "mode must be 'replace' or 'animate'",
-    );
+  it.each([
+    ['invalid mode', { mode: 'invalid' as 'animate' | 'replace' }, "mode must be 'replace' or 'animate'"],
+    ['invalid resolution', { resolution: '1080p' as '480p' | '720p' }, "resolution must be '480p' or '720p'"],
+    ['empty character image', { character_image_url: '' }, 'character_image_url is required'],
+    ['empty motion video', { motion_video_url: '' }, 'motion_video_url is required'],
+  ] as const)('rejects %s', async (_label, override, message) => {
+    await expect(createCharacterAnimateTask({ ...validParams, ...override })).rejects.toThrow(message);
+    expect(mockCreateCharacterAnimationTask).not.toHaveBeenCalled();
   });
 
-  it('throws on invalid resolution', async () => {
-    const invalidParams = { ...validParams, resolution: '1080p' as '480p' | '720p' };
-
-    await expect(createCharacterAnimateTask(invalidParams)).rejects.toThrow(
-      "resolution must be '480p' or '720p'",
-    );
-  });
-
-  it('throws on empty character_image_url', async () => {
-    const invalidParams = { ...validParams, character_image_url: '' };
-
-    await expect(createCharacterAnimateTask(invalidParams)).rejects.toThrow(
-      'character_image_url is required',
-    );
-  });
-
-  it('throws on empty motion_video_url', async () => {
-    const invalidParams = { ...validParams, motion_video_url: '' };
-
-    await expect(createCharacterAnimateTask(invalidParams)).rejects.toThrow(
-      'motion_video_url is required',
-    );
-  });
-
-  it('propagates createTask errors', async () => {
-    mockCreateTask.mockRejectedValue(new Error('Network error'));
-
+  it('propagates typed admission errors', async () => {
+    mockCreateCharacterAnimationTask.mockRejectedValue(new Error('Network error'));
     await expect(createCharacterAnimateTask(validParams)).rejects.toThrow('Network error');
   });
 
-  it('sets family to character_animate', async () => {
-    await createCharacterAnimateTask(validParams);
-
-    expect(mockCreateTask).toHaveBeenCalledWith(
-      expect.objectContaining({
-        family: 'character_animate',
-      }),
-    );
-  });
-
-  it('builds payload with both mode types', async () => {
-    // Test 'replace' mode
-    await createCharacterAnimateTask({ ...validParams, mode: 'replace' });
-
-    expect(mockCreateTask).toHaveBeenCalledWith(
-      expect.objectContaining({
-        input: expect.objectContaining({
-          mode: 'replace',
-        }),
-      }),
-    );
-
-    // Test 'animate' mode
-    vi.clearAllMocks();
-    mockCreateTask.mockResolvedValue({ task_id: 'created-task-id' });
-    await createCharacterAnimateTask({ ...validParams, mode: 'animate' });
-
-    expect(mockCreateTask).toHaveBeenCalledWith(
-      expect.objectContaining({
-        input: expect.objectContaining({
-          mode: 'animate',
-        }),
-      }),
-    );
-  });
-
-  it('builds payload with both resolution types', async () => {
-    await createCharacterAnimateTask({ ...validParams, resolution: '720p' });
-
-    expect(mockCreateTask).toHaveBeenCalledWith(
-      expect.objectContaining({
-        input: expect.objectContaining({
-          resolution: '720p',
-        }),
-      }),
-    );
+  it('preserves replace and 720p controls in the typed request', async () => {
+    await createCharacterAnimateTask({ ...validParams, mode: 'replace', resolution: '720p' });
+    expect(mockCreateCharacterAnimationTask.mock.calls[0]?.[1]).toMatchObject({
+      mode: 'replace', resolution: '720p',
+    });
   });
 });

@@ -16,22 +16,90 @@ export interface RuntimeTaskSpec {
 
 /** Runtime's explicit storage reservation estimate for one admission. */
 export interface RuntimeStorageEstimate {
-  estimated_scratch_bytes: number;
-  estimated_output_bytes: number;
+  scratch_bytes: number;
+  output_bytes: number;
 }
 
-/** Runtime's explicit terminal publication/lineage effect. */
-export type RuntimeSettlementEffect = Record<string, unknown>;
+/** Producer-validated GEN intent carried alongside the admitted task. */
+export type RuntimeGenerationIntent = Record<string, unknown>;
+
+/** Runtime's explicit terminal publication effect. */
+export type RuntimeSettlementEffect =
+  | Record<string, never>
+  | {
+      effect_type: 'project.update';
+      target_id: string;
+      expected_version: number;
+      payload?: {
+        name?: string;
+        metadata?: unknown;
+      };
+    }
+  | {
+      effect_type: 'generation.variant.append';
+      target_id: string;
+      expected_version: number;
+      payload: {
+        source_variant_id: string;
+        source_object_id: string;
+        variant_type: string;
+        output_name: string;
+        output_ordinal: 0;
+        primary_policy: 'preserve';
+      };
+    }
+  | {
+      /** Runtime creates the project generation and its first primary variant atomically. */
+      effect_type: 'generation.create_with_variant';
+      target_id: string;
+      payload: {
+        generation_type: string;
+        metadata: Record<string, unknown>;
+        variant_type: string;
+        output_name: string;
+        output_ordinal: 0;
+        primary_policy: 'preserve';
+      };
+    }
+  | {
+      /** GEN D1 publishes a generation from host-verified typed outputs. */
+      effect_type: 'generation.publish_v1';
+      target_id: string;
+      payload: {
+        version: 1;
+        modality: 'image' | 'video' | 'audio';
+        generation_type: string;
+        metadata: Record<string, unknown>;
+        partial_success_policy: 'reject' | 'allow';
+        groups: Array<{
+          group_key: string;
+          selectors: Array<{
+            selector: string;
+            ordinal: number;
+            variant_key: string;
+            output_port: string;
+          }>;
+        }>;
+      };
+    };
 
 export type RuntimeInput = Blob | Uint8Array | ArrayBuffer;
 
 export interface RuntimeInputIngestOptions {
   mediaType?: string;
   originalName?: string;
+  maxBytes?: number;
+  /** Field to associate with bounded local-input failures. */
+  field?: string;
+  /** Validate common image signatures before committing producer bytes. */
+  requireImage?: boolean;
 }
 
 export interface RuntimeObjectReceipt {
   object_id: string;
+  media_type: string;
+  size: number;
+  filename: string;
   receipt: Record<string, unknown>;
 }
 
@@ -45,6 +113,8 @@ export interface TaskCreationRequest {
   input_object_ids: string[];
   spec: RuntimeTaskSpec;
   storage_estimate: RuntimeStorageEstimate;
+  /** Composed and validated by the GEN/UE producer; Reigh does not rebuild it. */
+  generation_intent?: RuntimeGenerationIntent;
   settlement_effect: RuntimeSettlementEffect;
 }
 

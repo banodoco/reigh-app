@@ -1,7 +1,6 @@
 import { useCallback, useMemo } from 'react';
 import { VideoEditorAssetPanelSurface } from '@/tools/video-editor/components/PropertiesPanel/VideoEditorAssetPanelSurface.tsx';
 import {
-  useVideoEditorAssetPanels,
   useVideoEditorDialogDescriptors,
   useVideoEditorRenderContext,
   useVideoEditorSlotRenderers,
@@ -41,7 +40,6 @@ export function useVideoEditorShellSlots() {
     return all.filter((f) => f.requiresRender || f.disabled);
   }, [renderContext.extensions?.outputFormats]);
   const hasAnyExportFormat = compileOnlyExportFormats.length > 0 || renderDependentExportFormats.length > 0;
-  const contributedAssetPanels = useVideoEditorAssetPanels();
   const dialogDescriptors = useVideoEditorDialogDescriptors();
 
   const runtime = useOptionalVideoEditorRuntime();
@@ -144,7 +142,10 @@ export function useVideoEditorShellSlots() {
         {slotRenderers.assetPanel(renderContext)}
       </HostContributionErrorBoundary>
     )
-    : (contributedAssetPanels.length > 0 ? <VideoEditorAssetPanelSurface includeBuiltIn={false} /> : null);
+    // The built-in asset panel is part of the editor's normal upload surface.
+    // Extension panels are stacked after it; their presence must not decide
+    // whether Runtime-backed browser uploads are reachable at all.
+    : <VideoEditorAssetPanelSurface includeBuiltIn />;
   const inspectorPanelSlot = slotRenderers.inspectorPanel
     ? (
       <HostContributionErrorBoundary

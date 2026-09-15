@@ -1,6 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 
+const taskRepositoryMocks = vi.hoisted(() => ({
+  fetchTaskInProject: vi.fn(),
+}));
+
 const supabaseMocks = vi.hoisted(() => {
   const tableConfigs = new Map<string, {
     query?: unknown;
@@ -66,6 +70,10 @@ vi.mock('@/shared/lib/errorHandling/runtimeError', () => ({
   normalizeAndPresentError: (...args: unknown[]) => supabaseMocks.normalizeAndPresentError(...args),
 }));
 
+vi.mock('@/integrations/supabase/repositories/taskRepository', () => ({
+  fetchTaskInProject: (...args: unknown[]) => taskRepositoryMocks.fetchTaskInProject(...args),
+}));
+
 import { useShareGeneration } from '../useShareGeneration';
 
 describe('useShareGeneration', () => {
@@ -79,6 +87,14 @@ describe('useShareGeneration', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     supabaseMocks.resetTableConfigs();
+    taskRepositoryMocks.fetchTaskInProject.mockResolvedValue({
+      id: 'task-1',
+      taskType: 'travel_between_images',
+      params: { prompt: 'Prompt' },
+      status: 'Complete',
+      createdAt: '2026-04-14T10:00:00Z',
+      projectId: 'project-1',
+    });
     supabaseMocks.getSession.mockResolvedValue({
       data: {
         session: {
@@ -287,7 +303,7 @@ describe('useShareGeneration', () => {
     });
 
     const { result } = renderHook(() =>
-      useShareGeneration('gen-1', 'task-1', 'shot-1')
+      useShareGeneration('gen-1', 'task-1', 'shot-1', { projectId: 'project-1' })
     );
 
     const mockEvent = {
@@ -301,6 +317,8 @@ describe('useShareGeneration', () => {
 
     expect(supabaseMocks.from).toHaveBeenCalledWith('shot_final_videos');
     expect(supabaseMocks.from).not.toHaveBeenCalledWith('generations');
+    expect(supabaseMocks.from).not.toHaveBeenCalledWith('tasks');
+    expect(taskRepositoryMocks.fetchTaskInProject).toHaveBeenCalledWith('task-1', 'project-1');
     expect(result.current.shareSlug).toBe('new-slug');
   });
 });

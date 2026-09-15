@@ -22,22 +22,22 @@ describe('probeBridgeSession', () => {
     vi.restoreAllMocks();
   });
 
-  it('hits /api/astrid/health with the transport deadline', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ ok: true }));
+  it('hits /api/astrid/v1/health with the transport deadline', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ status: 'ok' }));
     vi.stubGlobal('fetch', fetchMock);
 
     const result = await probeBridgeSession();
 
     expect(result).toEqual({ ok: true, userId: LOCAL_USER_ID });
     expect(fetchMock).toHaveBeenCalledWith(
-      `${BRIDGE_PROBE_BASE_URL}/health`,
+      `${BRIDGE_PROBE_BASE_URL}/v1/health`,
       expect.objectContaining({ signal: expect.any(AbortSignal) }),
     );
   });
 
   it('resolves the fixed local user on a healthy payload', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(
-      jsonResponse({ ok: true, projects_root: '/somewhere' }),
+      jsonResponse({ status: 'ok', projects_root: '/somewhere' }),
     ));
 
     await expect(probeBridgeSession()).resolves.toEqual({

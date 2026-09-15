@@ -163,6 +163,36 @@ describe('Layout route access', () => {
     expect(screen.getByTestId('tools-pane')).toBeInTheDocument();
   });
 
+  it('keeps the ordinary Runtime editor route sessionless without redirecting to Home', () => {
+    locationPathname = '/tools/video-editor';
+    locationSearch = '?runtime=1&runtimeProject=project-1&runtimeTimeline=timeline-1';
+
+    renderLayout();
+
+    expect(screen.getByTestId('main-content')).toBeInTheDocument();
+    expect(screen.getByTestId('tools-pane')).toBeInTheDocument();
+  });
+
+  it('keeps the Runtime image-generation route sessionless without redirecting to Home', () => {
+    locationPathname = '/tools/image-generation';
+    locationSearch = '?runtime=1&runtimeProject=project-1&runtimeTimeline=timeline-1';
+
+    renderLayout();
+
+    expect(screen.getByTestId('main-content')).toBeInTheDocument();
+    expect(screen.getByTestId('tools-pane')).toBeInTheDocument();
+  });
+
+  it('keeps the deterministic local Travel document route sessionless without redirecting to Home', () => {
+    locationPathname = '/tools/travel-between-images';
+    locationSearch = '?localProject=demo-project&localTimeline=demo-timeline&localTest=1';
+
+    renderLayout();
+
+    expect(screen.getByTestId('main-content')).toBeInTheDocument();
+    expect(screen.getByTestId('tools-pane')).toBeInTheDocument();
+  });
+
   it('does not let localTest bypass auth on another protected route', () => {
     locationSearch = '?localTest=1';
 

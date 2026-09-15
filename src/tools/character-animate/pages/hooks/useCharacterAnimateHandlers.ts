@@ -13,6 +13,7 @@ export function useCharacterAnimateHandlers(state: CharacterAnimateBaseState) {
   const {
     toast,
     selectedProjectId,
+    localMode,
     updateField,
     updateFields,
     imageUpload,
@@ -86,6 +87,14 @@ export function useCharacterAnimateHandlers(state: CharacterAnimateBaseState) {
   }, [toast, processVideoUpload]);
 
   const handleGenerate = useCallback(() => {
+    if (localMode !== 'animate') {
+      toast({
+        title: 'Mode unavailable',
+        description: 'The current Astrid profile supports animate mode only.',
+        variant: 'destructive',
+      });
+      return;
+    }
     if (!characterImage) {
       toast({ title: 'Missing character image', description: 'Please upload a character image first', variant: 'destructive' });
       return;
@@ -95,7 +104,7 @@ export function useCharacterAnimateHandlers(state: CharacterAnimateBaseState) {
       return;
     }
     generateModel.handleGenerate();
-  }, [characterImage, motionVideo, toast, generateModel]);
+  }, [characterImage, localMode, motionVideo, toast, generateModel]);
 
   const clearCharacterImage = useCallback(() => {
     setCharacterImage(null);

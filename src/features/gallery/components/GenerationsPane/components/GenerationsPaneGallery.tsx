@@ -1,6 +1,7 @@
 import React from 'react';
 import type { Shot } from '@/domains/generation/types';
 import { MediaGallery, type GalleryFilterState } from '@/shared/components/MediaGallery';
+import type { GalleryConfig } from '@/shared/components/MediaGallery/types';
 import { useShots } from '@/shared/contexts/ShotsContext';
 import { SelectionContextMenu } from '@/shared/components/SelectionContextMenu';
 import { SkeletonGallery } from '@/shared/components/ui/composed/skeleton-gallery';
@@ -49,6 +50,9 @@ interface GenerationsPaneGalleryModel {
   generationFilters: MediaGalleryProps['generationFilters'];
   currentViewingShotId?: string;
   onCreateShot: NonNullable<MediaGalleryProps['onCreateShot']>;
+  onAddGenerationToTimeline?: (generationId: string) => void;
+  config?: Partial<GalleryConfig>;
+  readOnly?: boolean;
 }
 
 interface GenerationsPaneGalleryProps {
@@ -111,6 +115,7 @@ export function GenerationsPaneGallery({
   ), [gallerySelectionMap]);
 
   const selectedGenerationIds = React.useMemo(() => resolveSelectedGenerationIds(), [resolveSelectedGenerationIds]);
+  const selectedGenerationId = selectedGenerationIds[0];
 
   const existingShotsForSelection = React.useMemo(() => {
     if (selectedGenerationIds.length === 0 || !shots?.length) {
@@ -199,6 +204,18 @@ export function GenerationsPaneGallery({
 
         {gallery.items.length > 0 && (
           <div className={loading.isLoading ? 'opacity-60 pointer-events-none transition-opacity duration-200' : ''}>
+            {gallery.onAddGenerationToTimeline && selectedGenerationId && (
+              <div className="flex justify-end px-1 pt-2">
+                <button
+                  type="button"
+                  className="rounded border border-sky-400/60 px-2 py-1 text-[11px] text-sky-100 hover:bg-sky-500/15"
+                  onClick={() => gallery.onAddGenerationToTimeline?.(selectedGenerationId)}
+                  data-testid="add-selected-generation-to-timeline"
+                >
+                  Add selected to timeline
+                </button>
+              </div>
+            )}
             <div
               ref={gallerySurfaceRef}
               className="relative"
@@ -215,7 +232,7 @@ export function GenerationsPaneGallery({
                 onFiltersChange={gallery.onFiltersChange}
                 columnsPerRow={layout.columns}
                 onImageClick={handleImageClick}
-                onContextMenu={handleContextMenu}
+                onContextMenu={gallery.readOnly ? undefined : handleContextMenu}
                 onAddToLastShot={gallery.onAddToShot}
                 onAddToLastShotWithoutPosition={gallery.onAddToShotWithoutPosition}
                 className="space-y-0 pb-8"
@@ -227,6 +244,7 @@ export function GenerationsPaneGallery({
                   hideTopFilters: true,
                   showShare: false,
                   enableSingleClick: true,
+                  ...gallery.config,
                 }}
                 pagination={{
                   offset: (pagination.page - 1) * layout.itemsPerPage,
@@ -261,16 +279,18 @@ export function GenerationsPaneGallery({
         )}
       </div>
 
-      <SelectionContextMenu
-        position={contextMenuPosition}
-        onClose={() => setContextMenuPosition(null)}
-        onCreateShot={handleCreateShotFromMenu}
-        onGenerateVideo={handleGenerateVideoFromMenu}
-        onNavigateToShot={handleNavigateToShot}
-        onOpenGenerateVideo={handleOpenGenerateVideo}
-        existingShots={existingShotsForSelection}
-        isCreating={isCreating}
-      />
+      {!gallery.readOnly && (
+        <SelectionContextMenu
+          position={contextMenuPosition}
+          onClose={() => setContextMenuPosition(null)}
+          onCreateShot={handleCreateShotFromMenu}
+          onGenerateVideo={handleGenerateVideoFromMenu}
+          onNavigateToShot={handleNavigateToShot}
+          onOpenGenerateVideo={handleOpenGenerateVideo}
+          existingShots={existingShotsForSelection}
+          isCreating={isCreating}
+        />
+      )}
 
       {videoModalShot && (
         <>

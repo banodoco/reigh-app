@@ -23,6 +23,9 @@ export class AstridLocalMediaRoutes {
    * helper); here every id becomes a content-route address.
    */
   contentUrl(mediaId: string): string {
+    if (mediaId.startsWith('sha256:')) {
+      return `${this.transport.baseUrl.replace(/\/+$/, '')}/v1/objects/${encodeURIComponent(mediaId)}`;
+    }
     return bridgeMediaContentUrl(this.transport.baseUrl, this.projectSlug, mediaId);
   }
 }

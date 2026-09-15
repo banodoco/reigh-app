@@ -7,7 +7,7 @@ export interface TimelineAgentToolDefinition {
   };
 }
 
-export const TIMELINE_AGENT_TOOLS: TimelineAgentToolDefinition[] = [
+const ALL_TIMELINE_AGENT_TOOLS: TimelineAgentToolDefinition[] = [
   {
     type: "function",
     function: {
@@ -516,3 +516,16 @@ export const TIMELINE_AGENT_TOOLS: TimelineAgentToolDefinition[] = [
     },
   },
 ];
+
+// Retired task-authority tools remain in this historical schema block only so
+// old snapshot fixtures can be read during the migration. They are not
+// model-visible and cannot be selected by the live agent.
+const RETIRED_TASK_AUTHORITY_TOOLS = new Set([
+  "create_task",
+  "get_tasks",
+  "delegateToBanodocoAgent",
+]);
+
+export const TIMELINE_AGENT_TOOLS = ALL_TIMELINE_AGENT_TOOLS.filter(
+  (tool) => !RETIRED_TASK_AUTHORITY_TOOLS.has(tool.function.name),
+);

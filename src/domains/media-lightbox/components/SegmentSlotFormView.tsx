@@ -184,19 +184,23 @@ export const SegmentSlotFormView: React.FC<SegmentSlotFormViewProps> = ({
       task: {
         projectId: segmentSlotMode.projectId,
         shotId: segmentSlotMode.shotId,
-        generationId: segmentSlotMode.parentGenerationId,
-        childGenerationId: segmentSlotMode.activeChildGenerationId,
         segmentIndex: segmentSlotMode.currentIndex,
         pairShotGenerationId,
         projectResolution: segmentSlotMode.projectResolution,
         modelName: selectedModelName,
         generationTypeMode: formProps.shotDefaults?.generationTypeMode,
         structureInput: structureVideoForTask,
-        originalParams: segmentVideoParams,
       },
       run,
       queryClient,
       onGenerateStarted: () => segmentSlotMode.onGenerateStarted?.(pairShotGenerationId),
+      onNonFatalError: (_step, error) => {
+        toast({
+          title: 'Segment generation is not yet supported',
+          description: error instanceof Error ? error.message : 'The requested segment capability is unavailable.',
+          variant: 'destructive',
+        });
+      },
     });
   }, [
     segmentSlotMode,

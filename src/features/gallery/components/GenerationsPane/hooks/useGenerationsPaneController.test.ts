@@ -335,4 +335,25 @@ describe('useGenerationsPaneController', () => {
     }));
     expect(setIsGenerationsPaneLocked).toHaveBeenCalledWith(false);
   });
+
+  it('loads the Runtime gallery as soon as the pane is locked', () => {
+    mocks.useLocation.mockReturnValue({
+      pathname: '/tools/video-editor',
+      search: '?runtime=1&runtimeProject=project-1&runtimeTimeline=timeline-1',
+    });
+    mocks.panesState = buildPanesState({
+      isGenerationsPaneOpen: false,
+      isGenerationsPaneLocked: true,
+    });
+    mocks.useSlidingPane.mockReturnValue(buildSlidingPaneState({
+      isOpen: true,
+      isLocked: true,
+    }));
+
+    renderHook(() => useGenerationsPaneController());
+
+    expect(mocks.useGalleryPageState).toHaveBeenCalledWith(expect.objectContaining({
+      enableDataLoading: true,
+    }));
+  });
 });

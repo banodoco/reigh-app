@@ -5,6 +5,7 @@ import ArtPage from '@/pages/ArtPage';
 import PaymentSuccessPage from '@/pages/PaymentSuccessPage';
 import PaymentCancelPage from '@/pages/PaymentCancelPage';
 import SharePage from '@/pages/SharePage';
+import PairingPage from '@/pages/PairingPage';
 
 // Main tools: eagerly loaded because lazy() caused blank screens on Safari mobile
 // (dynamic import race with TanStack Query hydration — query cache not ready when component mounts)
@@ -66,6 +67,7 @@ export function AppRoutes() {
       <Route path="/payments/success" element={<PaymentSuccessPage />} />
       <Route path="/payments/cancel" element={<PaymentCancelPage />} />
       <Route path="/share/:shareId" element={<SharePage />} />
+      <Route path="/pairing" element={<PairingPage />} />
       <Route
         path="/blog"
         element={(

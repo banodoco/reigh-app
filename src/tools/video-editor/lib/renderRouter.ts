@@ -4,7 +4,7 @@
 //   * stay in the existing client-side WebCodecs path (`useClientRender`),
 //     which handles pure-media + Reigh-native clipTypes ("text",
 //     "effect-layer", "media", "hold").
-//   * admit an Astrid `render_export` task through the same R1 task route
+//   * admit a Runtime `rendering.render` task through the same HC-04 route
 //     used by every other local capability.
 //
 // Decision rule (per sprint brief):
@@ -25,6 +25,7 @@
 // dispatch, not theme presence.
 
 import type { TimelineRenderRequest } from '@/tools/video-editor/hooks/timeline-state-types.ts';
+import type { BridgeTaskAdmissionRequest } from '@/tools/video-editor/data/bridgeContract.ts';
 import { AstridLocalClient } from '@/integrations/astrid/client.ts';
 import { BridgeRouteError } from '@/integrations/astrid/transport.ts';
 import { getRegisteredClipTypeDescriptor } from '@/tools/video-editor/clip-types/runtime.ts';
@@ -79,7 +80,7 @@ export interface ContributedClipRecord {
  *
  *   * `browser-remotion`  — client-side WebCodecs / Remotion path
  *                          (`useClientRender`, native + media clips).
- *   * `worker-banodoco`   — Astrid `render_export` task admission
+ *   * `worker-banodoco`   — Runtime `rendering.render` task admission
  *                          (themed + generated-remotion-module clips).
  *   * `preview-only`      — generated remotion_module clips with invalid /
  *                          missing artifact metadata. Cannot be rendered;
@@ -628,8 +629,13 @@ export function decideRenderRoute(
 }
 
 // ---------------------------------------------------------------------------
-// Astrid render_export task admission
+// Astrid managed render task admission
 // ---------------------------------------------------------------------------
+
+const MANAGED_RENDER_CAPABILITY_ID = 'rendering.render';
+const MANAGED_RENDER_SELECTOR = 'rendering.remotion';
+const RUNTIME_SHA256_ID = /^sha256:[0-9a-f]{64}$/;
+const BARE_SHA256 = /^[0-9a-f]{64}$/;
 
 export interface BanodocoRenderTimelinePayload {
   timeline_id: string;
@@ -639,6 +645,8 @@ export interface BanodocoRenderTimelinePayload {
   output_filename: string;
   project_id: string;
   correlation_id: string;
+  /** Ordered managed CAS identities from the resolved Runtime registry. */
+  input_object_ids?: string[];
 }
 
 export interface BuildRenderPayloadInput {
@@ -666,6 +674,67 @@ function defaultOutputFilename(timelineId: string): string {
   return `timeline-${timelineId}.mp4`;
 }
 
+function runtimeObjectId(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  if (RUNTIME_SHA256_ID.test(value)) return value;
+  return BARE_SHA256.test(value) ? `sha256:${value}` : null;
+}
+
+/**
+ * Runtime admission authorizes only the managed objects actually referenced by
+ * the resolved timeline. Preserve registry order and de-duplicate aliases
+ * without treating a caller URL/path as an object identity. Required
+ * references fail closed: silently dropping one would admit a render with a
+ * different input set than the editor displayed.
+ */
+function managedInputObjectIds(config: unknown): { ids: string[]; error?: string } {
+  if (!config || typeof config !== 'object') return { ids: [] };
+  const record = config as { registry?: unknown; clips?: unknown };
+  const registry = record.registry;
+  if (!registry || typeof registry !== 'object' || Array.isArray(registry)) return { ids: [] };
+
+  const referenced = new Set<string>();
+  if (Array.isArray(record.clips)) {
+    for (const clip of record.clips) {
+      if (!clip || typeof clip !== 'object') continue;
+      const asset = (clip as { asset?: unknown }).asset;
+      if (typeof asset === 'string' && asset.trim()) referenced.add(asset);
+    }
+  }
+
+  const ids: string[] = [];
+  const seen = new Set<string>();
+  for (const assetId of referenced) {
+    const entry = (registry as Record<string, unknown>)[assetId];
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
+      return { ids: [], error: `managed render input ${assetId} is missing from the resolved Runtime registry` };
+    }
+    const value = entry as { media_id?: unknown; content_sha256?: unknown };
+    const mediaId = value.media_id;
+    const digest = value.content_sha256;
+    const normalizedMediaId = mediaId === undefined ? null : runtimeObjectId(mediaId);
+    const normalizedDigest = digest === undefined ? null : runtimeObjectId(digest);
+    if (mediaId !== undefined && normalizedMediaId === null) {
+      return { ids: [], error: `managed render input ${assetId} has an invalid media_id identity` };
+    }
+    if (digest !== undefined && normalizedDigest === null) {
+      return { ids: [], error: `managed render input ${assetId} has an invalid content_sha256 identity` };
+    }
+    if (normalizedMediaId && normalizedDigest && normalizedMediaId !== normalizedDigest) {
+      return { ids: [], error: `managed render input ${assetId} media_id and content_sha256 identities do not match` };
+    }
+    const id = normalizedMediaId ?? normalizedDigest;
+    if (!id) {
+      return { ids: [], error: `managed render input ${assetId} has no Runtime-managed object identity` };
+    }
+    if (!seen.has(id)) {
+      seen.add(id);
+      ids.push(id);
+    }
+  }
+  return { ids };
+}
+
 function newCorrelationId(): string {
   if (typeof globalThis.crypto?.randomUUID === 'function') {
     return globalThis.crypto.randomUUID();
@@ -683,6 +752,9 @@ export function buildRenderTimelinePayload(
   if (!request?.renderRuntime?.projectId) return { error: 'projectId is required' };
   if (!request.resolvedConfig) return { error: 'resolved timeline config is required' };
 
+  const managedInputs = managedInputObjectIds(request.resolvedConfig);
+  if (managedInputs.error) return { error: managedInputs.error };
+
   return {
     payload: {
       timeline_id: request.timelineId,
@@ -692,6 +764,7 @@ export function buildRenderTimelinePayload(
       output_filename: request.outputFilename ?? defaultOutputFilename(request.timelineId),
       project_id: request.renderRuntime.projectId,
       correlation_id: input.correlationId ?? newCorrelationId(),
+      input_object_ids: managedInputs.ids,
     },
   };
 }
@@ -709,6 +782,8 @@ export interface EnqueueRenderOptions {
   /** Injected in tests; production constructs the client from the payload. */
   client?: AstridLocalClient;
   bridgeBaseUrl?: string;
+  /** Stable identity for one explicit export intent; reuse it for transport retries. */
+  operationId?: string;
   idempotencyKey?: string;
   destination?: RenderExportDestination;
   expectedVersion?: number;
@@ -718,45 +793,74 @@ function renderAdmissionKey(payload: BanodocoRenderTimelinePayload, options: Enq
   if (options.idempotencyKey) return options.idempotencyKey;
   const version = options.expectedVersion ?? 'head';
   const destination = options.destination ?? 'download';
+  if (options.operationId) {
+    return `reigh.render:v2:${options.operationId}:${payload.timeline_id}:${version}:${destination}:${payload.output_filename}`;
+  }
   return `reigh.render:v1:${payload.timeline_id}:${version}:${destination}:${payload.output_filename}`;
 }
 
 /**
- * Admit a render through Astrid's common R1 task primitive.
+ * Admit a managed render through Runtime's common HC-04 task primitive.
  *
  * The deliberately retained function name keeps older render-pipeline callers
  * source-compatible; there is no Banodoco/orchestrator request behind it.
- * Astrid resolves and snapshots `timeline_ref` at admission, so the browser
+ * Runtime resolves and snapshots `timeline_ref` at admission, so the browser
  * sends neither timeline document bytes nor registry bytes as a second source
- * of truth.
+ * of truth. The capability digest and storage estimate are both read from
+ * Runtime's ready capability catalog; no browser-side identity is fabricated.
  */
 export async function enqueueBanodocoRenderTimeline(
   payload: BanodocoRenderTimelinePayload,
   options: EnqueueRenderOptions = {},
 ): Promise<EnqueueRenderResult> {
   try {
+    if (options.expectedVersion !== undefined
+      && (!Number.isSafeInteger(options.expectedVersion) || options.expectedVersion < 1)) {
+      throw new Error('render admission requires a positive acknowledged timeline version');
+    }
     const client = options.client ?? new AstridLocalClient({
       projectSlug: payload.project_id,
       baseUrl: options.bridgeBaseUrl,
     });
-    const result = await client.tasks.admit({
-      family: 'render_export',
-      input: {
-        timeline_ref: payload.timeline_id,
-        ...(options.expectedVersion !== undefined
-          ? { expected_version: options.expectedVersion }
-          : {}),
-        format: 'mp4',
-        output_filename: payload.output_filename,
-        destination: options.destination ?? 'download',
-        correlation_id: payload.correlation_id,
+    const capability = await client.catalog.get(MANAGED_RENDER_CAPABILITY_ID);
+    const destination = options.destination ?? 'download';
+    const request: BridgeTaskAdmissionRequest = {
+      project: payload.project_id,
+      capability_id: capability.capability_id,
+      capability_digest: capability.definition_digest,
+      schema_version: '1',
+      input_object_ids: [...(payload.input_object_ids ?? [])],
+      spec: {
+        family: MANAGED_RENDER_CAPABILITY_ID,
+        params: {
+          timeline_ref: payload.timeline_id,
+          ...(options.expectedVersion !== undefined
+            ? { expected_version: options.expectedVersion }
+            : {}),
+          selector: MANAGED_RENDER_SELECTOR,
+          output_name: payload.output_filename,
+        },
+        output_policy: {
+          format: 'mp4',
+          destination,
+          filename: payload.output_filename,
+        },
       },
-    }, renderAdmissionKey(payload, options));
+      storage_estimate: {
+        scratch_bytes: capability.estimated_scratch_bytes,
+        output_bytes: capability.estimated_output_bytes,
+      },
+      settlement_effect: {},
+    };
+    const result = await client.tasks.admit(
+      request,
+      renderAdmissionKey(payload, options),
+    );
     return {
       status: 'queued',
       task_id: result.task.id,
       correlation_id: payload.correlation_id,
-      message: 'Render queued in Astrid. Progress and output are read from the common task ledger.',
+      message: 'Render queued in Runtime. Progress and output are read from the common task ledger.',
     };
   } catch (error) {
     return {
@@ -782,7 +886,10 @@ export async function cancelAstridRenderTask(
   const detail = await client.tasks.get(taskId);
   const attempt = (detail.attempts ?? []).find((candidate) => candidate.status === 'running');
   if (!attempt) {
-    throw new Error(`Cannot cancel render ${taskId}: Astrid returned no live attempt fence.`);
+    // Neutral Runtime uses the task resource version for cancellation and
+    // deliberately does not expose the retired bridge lease projection.
+    await client.tasks.cancel(taskId, { status_version: 1 });
+    return;
   }
   await client.tasks.cancel(taskId, {
     attempt_id: attempt.attempt_id,

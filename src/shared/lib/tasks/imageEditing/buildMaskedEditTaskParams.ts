@@ -1,6 +1,8 @@
 import type { HiresFixApiParams } from '@/shared/lib/taskCreation';
 import type { ComfyLoraConfig } from '@/domains/lora/types/lora';
 
+export type MaskedEditKind = 'inpaint' | 'annotated_edit';
+
 export interface MaskedEditTaskParams {
   project_id: string;
   image_url: string;
@@ -15,6 +17,8 @@ export interface MaskedEditTaskParams {
   source_variant_id?: string;
   hires_fix?: HiresFixApiParams;
   qwen_edit_model?: string;
+  edit_kind?: MaskedEditKind;
+  strength?: number;
 }
 
 interface BuildMaskedEditTaskParamsInput {
@@ -31,6 +35,8 @@ interface BuildMaskedEditTaskParamsInput {
   sourceVariantId?: string;
   hiresFix?: MaskedEditTaskParams['hires_fix'];
   qwenEditModel?: string;
+  editKind?: MaskedEditKind;
+  strength?: number;
 }
 
 export function buildMaskedEditTaskParams(
@@ -50,5 +56,7 @@ export function buildMaskedEditTaskParams(
     source_variant_id: input.sourceVariantId,
     hires_fix: input.hiresFix,
     qwen_edit_model: input.qwenEditModel,
+    edit_kind: input.editKind,
+    strength: input.strength,
   };
 }

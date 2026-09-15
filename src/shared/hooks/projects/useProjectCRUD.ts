@@ -7,6 +7,7 @@ import { UserPreferences } from '@/shared/settings/userPreferences';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { ensureUserRecordExists } from '@/features/projects/services/projectSetupService';
 import { getLocalProjectSlug, hasLocalModeUrlParams } from '@/shared/dev/devSession';
+import { getRuntimeDocumentProjectId } from '@/app/runtime/runtimeDocument';
 
 // Type for updating projects
 interface ProjectUpdate {
@@ -71,8 +72,17 @@ export function useProjectCRUD({
       : null,
     [localProjectSlug],
   );
-  const [projects, setProjects] = useState<Project[]>(() => localProject ? [localProject] : []);
-  const [isLoadingProjects, setIsLoadingProjects] = useState(!localProject);
+  const runtimeProjectSlug = getRuntimeDocumentProjectId();
+  const runtimeProject = useMemo(
+    () => runtimeProjectSlug
+      ? { id: runtimeProjectSlug, name: runtimeProjectSlug, user_id: 'runtime-user' }
+      : null,
+    [runtimeProjectSlug],
+  );
+  const urlProject = localProject ?? runtimeProject;
+  const isUrlOwnedMode = urlProject !== null;
+  const [projects, setProjects] = useState<Project[]>(() => urlProject ? [urlProject] : []);
+  const [isLoadingProjects, setIsLoadingProjects] = useState(!urlProject);
   const [isCreatingProject, setIsCreatingProject] = useState(false);
   const [isUpdatingProject, setIsUpdatingProject] = useState(false);
   const [isDeletingProject, setIsDeletingProject] = useState(false);
@@ -81,18 +91,18 @@ export function useProjectCRUD({
   // between local tools/projects. No discovery or cloud setup is needed for
   // this entry: the slug itself is the bridge project identity.
   useEffect(() => {
-    if (localProject) {
-      setProjects([localProject]);
+    if (urlProject) {
+      setProjects([urlProject]);
       setIsLoadingProjects(false);
     } else if (!userId) {
       setProjects([]);
       setIsLoadingProjects(false);
     }
-  }, [localProject, userId]);
+  }, [urlProject, userId]);
 
   const fetchProjects = useCallback(async () => {
     try {
-      if (hasLocalModeUrlParams(typeof window === 'undefined' ? '' : window.location.search)) {
+      if (hasLocalModeUrlParams(typeof window === 'undefined' ? '' : window.location.search) || isUrlOwnedMode) {
         return;
       }
       if (!userId) throw new Error('Not authenticated');
@@ -114,7 +124,7 @@ export function useProjectCRUD({
     } finally {
       setIsLoadingProjects(false);
     }
-  }, [userId, onProjectsLoaded]);
+  }, [isUrlOwnedMode, userId, onProjectsLoaded]);
 
   const addNewProject = useCallback(async (projectData: { name: string; aspectRatio: string }) => {
     if (!projectData.name.trim()) {

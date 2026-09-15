@@ -22,10 +22,6 @@ vi.mock('@/integrations/supabase/client', () => ({
   }),
 }));
 
-const flushPromises = async (): Promise<void> => {
-  await new Promise((resolve) => setTimeout(resolve, 0));
-};
-
 const getSettings = () => ({
   prompt: 'A prompt',
   negativePrompt: '',
@@ -106,21 +102,12 @@ describe('submitSegmentTask', () => {
     });
   });
 
-  it('aborts task creation when settings persistence fails', async () => {
-    const createTaskMock = vi.mocked(createTask);
-    createTaskMock.mockResolvedValue({ task_id: 'task-1', status: 'queued' });
+  it('fails closed before settings persistence or task creation', () => {
     const saveSettings = vi.fn().mockResolvedValue(false);
+    const run = vi.fn<RunTaskPlaceholder>();
+    const onNonFatalError = vi.fn();
 
-    let createError: unknown;
-    const run: RunTaskPlaceholder = async ({ create }) => {
-      try {
-        await create();
-      } catch (error) {
-        createError = error;
-      }
-    };
-
-    submitSegmentTask({
+    expect(() => submitSegmentTask({
       taskLabel: 'Segment 1',
       errorContext: 'submitSegmentTask.test',
       getSettings,
@@ -138,27 +125,21 @@ describe('submitSegmentTask', () => {
       },
       run,
       queryClient: new QueryClient(),
-    });
+      onNonFatalError,
+    })).toThrow('Astrid capability generation.generate_video is unsupported');
 
-    await flushPromises();
-
-    expect(saveSettings).toHaveBeenCalledTimes(1);
-    expect(createTaskMock).not.toHaveBeenCalled();
-    expect(createError).toBeInstanceOf(Error);
-    expect((createError as Error).message).toContain('Failed to save segment settings');
+    expect(saveSettings).not.toHaveBeenCalled();
+    expect(run).not.toHaveBeenCalled();
+    expect(onNonFatalError).toHaveBeenCalledWith('unsupported_capability', expect.any(Error));
   });
 
-  it('creates a task when settings persistence succeeds', async () => {
+  it('does not create an individual travel task even when settings are writable', () => {
     const createTaskMock = vi.mocked(createTask);
     createTaskMock.mockResolvedValue({ task_id: 'task-2', status: 'queued' });
     const saveSettings = vi.fn().mockResolvedValue(true);
+    const run = vi.fn<RunTaskPlaceholder>();
 
-    let createdTaskId: string | undefined;
-    const run: RunTaskPlaceholder = async ({ create }) => {
-      createdTaskId = await create() as string;
-    };
-
-    submitSegmentTask({
+    expect(() => submitSegmentTask({
       taskLabel: 'Segment 2',
       errorContext: 'submitSegmentTask.test',
       getSettings,
@@ -177,18 +158,10 @@ describe('submitSegmentTask', () => {
       },
       run,
       queryClient: new QueryClient(),
-    });
+    })).toThrow('Astrid capability generation.generate_video is unsupported');
 
-    await flushPromises();
-
-    expect(saveSettings).toHaveBeenCalledTimes(1);
-    expect(createTaskMock).toHaveBeenCalledTimes(1);
-    expect(createTaskMock).toHaveBeenCalledWith(expect.objectContaining({
-      family: 'individual_travel_segment',
-      input: expect.objectContaining({
-        model_name: 'ltx2_22B_distilled',
-      }),
-    }));
-    expect(createdTaskId).toBe('task-2');
+    expect(saveSettings).not.toHaveBeenCalled();
+    expect(run).not.toHaveBeenCalled();
+    expect(createTaskMock).not.toHaveBeenCalled();
   });
 });

@@ -293,10 +293,29 @@ describe('RealtimeConnection — first-poll-then-connected (evidence b/c)', () =
     // snapshot containing exactly one row.
     await vi.advanceTimersByTimeAsync(1);
     const readModel = makeAdmittedTaskReadModel({ taskId: fixtureUlid('000777') });
-    resolveSlowRead(Response.json({
-      tasks: [taskSummaryFromReadModel(readModel)],
-      next_offset: null,
-    }));
+    const runtimeTask = {
+      task_id: readModel.id,
+      run_id: fixtureUlid('run000777'),
+      project_id: 'demo-project',
+      state: 'queued',
+      version: 1,
+      capability_id: readModel.capability,
+      capability_digest: `sha256:${'a'.repeat(64)}`,
+      schema_version: '1',
+      input_object_ids: [],
+      spec: {
+        input_object_ids: [],
+        schema_version: '1',
+        capability_digest: `sha256:${'a'.repeat(64)}`,
+        spec: readModel.spec,
+      },
+      idempotency_key: 'realtime-fixture',
+      created_at: readModel.created_at,
+      updated_at: readModel.updated_at,
+      attempt_id: null,
+      runtime_epoch: 1,
+    };
+    resolveSlowRead(Response.json({ items: [runtimeTask], next_cursor: null }));
     await vi.advanceTimersByTimeAsync(0);
     await settled;
     expect(connection.getState().status).toBe('connected');

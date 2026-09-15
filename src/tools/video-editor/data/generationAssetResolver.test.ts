@@ -6,7 +6,7 @@ import { createJourneyState, FIXTURE_PROJECT } from '@/test/bridgeFixtures.mjs';
 
 const FAKE_ORIGIN = 'http://bridge.fake';
 
-describe('resolveGenerationAsset (R13 detail read → R9 content route)', () => {
+describe('resolveGenerationAsset (neutral generation detail read → Runtime CAS object route)', () => {
   let router: FakeBridgeRouter;
 
   beforeEach(() => {
@@ -25,9 +25,8 @@ describe('resolveGenerationAsset (R13 detail read → R9 content route)', () => 
     vi.restoreAllMocks();
   });
 
-  it('resolves the primary variant to a same-origin R9 content-route address', async () => {
+  it('resolves the primary variant to a same-origin Runtime CAS object address', async () => {
     const detail = createJourneyState().galleryDetails[0];
-    const primary = detail.variants.find((variant) => variant.is_primary)!;
 
     const result = await resolveGenerationAsset({
       generationId: detail.generation_id,
@@ -36,13 +35,11 @@ describe('resolveGenerationAsset (R13 detail read → R9 content route)', () => 
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.asset.url).toBe(
-      `/api/astrid/projects/${FIXTURE_PROJECT.slug}/media/${primary.media_id}/content`,
-    );
+    expect(result.asset.url).toMatch(/^\/api\/astrid\/v1\/objects\/sha256%3A[a-f0-9]{64}$/);
     expect(result.asset.thumbnailUrl).toBe(result.asset.url);
     expect(result.asset.entry.url).toBe(result.asset.url);
     expect(result.asset.entry.generationId).toBe(detail.generation_id);
-    // R9 addresses are unexpired by construction — no signed-URL expiry.
+    // Runtime CAS addresses are immutable by construction — no signed-URL expiry.
     expect(result.asset.entry.url_expires_at).toBeUndefined();
   });
 

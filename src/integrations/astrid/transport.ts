@@ -114,7 +114,7 @@ export type AstridBridgeTransportOptions = {
 
 export type BridgeRequestInit =
   | {
-      method?: 'GET' | 'POST' | 'HEAD';
+      method?: 'GET' | 'POST' | 'HEAD' | 'DELETE';
       /** JSON body — serialized here so every caller gets identical encoding. */
       body?: unknown;
       /** Raw bodies are mutually exclusive with JSON bodies. */
@@ -124,7 +124,7 @@ export type BridgeRequestInit =
       signal?: AbortSignal;
     }
   | {
-      method?: 'GET' | 'POST' | 'HEAD';
+      method?: 'GET' | 'POST' | 'HEAD' | 'DELETE';
       body?: never;
       /** Explicit byte/body mode; the caller owns Content-Type. */
       rawBody: BodyInit;

@@ -75,4 +75,51 @@ describe('buildBatchTaskParams', () => {
     expect(result.subject_description).toBe('hero subject');
     expect(result.in_this_scene).toBe(false);
   });
+
+  it('compiles the displayed project dimensions into the canonical resolution field', () => {
+    const result = buildBatchTaskParams({
+      projectId: 'project-1',
+      prompts: [{ id: 'prompt-1', fullPrompt: 'Prompt', shortPrompt: 'Prompt' }],
+      imagesPerPrompt: 1,
+      loras: [],
+      shotId: null,
+      beforePromptText: '',
+      afterPromptText: '',
+      styleBoostTerms: '',
+      isLocalGenerationEnabled: false,
+      hiresFixConfig: { ...DEFAULT_HIRES_FIX_CONFIG, resolution_scale: 1.5 },
+      projectResolution: '1024x768',
+      modelName: 'z-image',
+      referenceParams: {},
+    });
+
+    expect(result.resolution).toBe('1536x1152');
+    expect(result.resolution_scale).toBeUndefined();
+    expect(result.resolution_mode).toBeUndefined();
+  });
+
+  it('compiles the selected custom aspect ratio before applying scale', () => {
+    const result = buildBatchTaskParams({
+      projectId: 'project-1',
+      prompts: [{ id: 'prompt-1', fullPrompt: 'Prompt', shortPrompt: 'Prompt' }],
+      imagesPerPrompt: 1,
+      loras: [],
+      shotId: null,
+      beforePromptText: '',
+      afterPromptText: '',
+      styleBoostTerms: '',
+      isLocalGenerationEnabled: false,
+      hiresFixConfig: {
+        ...DEFAULT_HIRES_FIX_CONFIG,
+        resolution_mode: 'custom',
+        custom_aspect_ratio: '16:9',
+        resolution_scale: 1,
+      },
+      projectResolution: '768x768',
+      modelName: 'z-image',
+      referenceParams: {},
+    });
+
+    expect(result.resolution).toBe('902x508');
+  });
 });

@@ -31,7 +31,12 @@ export function useMediaGalleryItemTaskShare({
     (!taskTypeInfo && image.metadata?.tool_type === TOOL_IDS.TRAVEL_BETWEEN_IMAGES);
   const isImageEditTask = isImageEditTaskType(taskType || undefined);
   const shouldShowTaskDetails = Boolean(taskData) && (isVideoTask || isImageEditTask);
-  const { handleShare, isCreatingShare, shareCopied, shareSlug } = useShareGeneration(image.id, taskId);
+  const { handleShare, isCreatingShare, shareCopied, shareSlug } = useShareGeneration(
+    image.id,
+    taskId,
+    undefined,
+    { projectId: selectedProjectId },
+  );
 
   return {
     taskId,

@@ -190,6 +190,7 @@ export interface TimelineEditorCoreProps {
   onShotGroupNavigate?: (shotId: string) => void;
   onShotGroupGenerateVideo?: (shotId: string) => void;
   onShotGroupSwitchToFinalVideo?: (group: { shotId: string; clipIds: string[]; rowId: string }) => void;
+  onShotGroupExportManagedOutput?: (group: { shotId: string; clipIds: string[]; rowId: string }) => void | Promise<void>;
   onShotGroupSwitchToImages?: (group: { shotId: string; rowId: string }) => void;
   onShotGroupUpdateToLatestVideo?: (group: { shotId: string; rowId: string }) => void;
   onShotGroupUnpin?: (group: { shotId: string; trackId: string }) => void;
@@ -220,6 +221,7 @@ function TimelineEditorCoreComponent({
   onShotGroupNavigate,
   onShotGroupGenerateVideo,
   onShotGroupSwitchToFinalVideo,
+  onShotGroupExportManagedOutput,
   onShotGroupSwitchToImages,
   onShotGroupUpdateToLatestVideo,
   onShotGroupUnpin,
@@ -822,6 +824,7 @@ function TimelineEditorCoreComponent({
           activeTaskClipIds={activeTaskClipIds}
           onShotGroupNavigate={onShotGroupNavigate}
           onShotGroupGenerateVideo={onShotGroupGenerateVideo}
+          onShotGroupExportManagedOutput={onShotGroupExportManagedOutput}
           onShotGroupUnpin={onShotGroupUnpin}
           onShotGroupDelete={onShotGroupDelete}
           onShotGroupDuplicate={onShotGroupDuplicate}

@@ -52,8 +52,8 @@ interface ApplySettingsHandlerInput {
   mutations: ApplySettingsHandlerMutations;
 }
 
-async function fetchTaskData(taskId: string) {
-  return ApplySettingsService.fetchTask(taskId);
+async function fetchTaskData(projectSlug: string, taskId: string) {
+  return ApplySettingsService.fetchTask(projectSlug, taskId);
 }
 
 async function applySettingsFromTask(
@@ -63,7 +63,7 @@ async function applySettingsFromTask(
   handlerState: ApplySettingsHandlerInput,
   queryClient: ReturnType<typeof useQueryClient>,
 ) {
-  const taskLookup = await fetchTaskData(taskId);
+  const taskLookup = await fetchTaskData(handlerState.core.projectId, taskId);
   if (taskLookup.status === 'missing') {
     normalizeAndPresentError(new Error('Task not found'), {
       context: 'useApplySettingsHandler',

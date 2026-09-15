@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   getTaskDisplayName: vi.fn(),
   useTasksPaneViewState: vi.fn(),
   useTasksPaneCancelPending: vi.fn(),
+  useRuntimeTasks: vi.fn(),
 }));
 
 vi.mock('@/shared/hooks/tasks/useTasks', () => ({
@@ -31,6 +32,17 @@ vi.mock('./useTasksPaneViewState', () => ({
 
 vi.mock('./useTasksPaneCancelPending', () => ({
   useTasksPaneCancelPending: (...args: unknown[]) => mocks.useTasksPaneCancelPending(...args),
+}));
+
+vi.mock('./useRuntimeTasks', () => ({
+  useRuntimeTasks: (...args: unknown[]) => mocks.useRuntimeTasks(...args),
+  runtimeTaskIsCancellable: (task: { state: string }) =>
+    ['queued', 'ready', 'running', 'cancel_requested', 'retrying'].includes(task.state),
+  runtimeTaskStatusGroup: (task: { state: string }) =>
+    ['queued', 'ready', 'running', 'cancel_requested', 'retrying'].includes(task.state)
+      ? 'Processing'
+      : task.state === 'succeeded' ? 'Succeeded' : 'Failed',
+  runtimeTaskType: (task: { capability_id: string }) => task.capability_id,
 }));
 
 function buildViewState(overrides: Record<string, unknown> = {}) {
@@ -73,6 +85,21 @@ describe('useTasksPaneController', () => {
     mocks.useTasksPaneCancelPending.mockReturnValue({
       handleCancelAllPending: vi.fn(),
       isCancelAllPending: false,
+    });
+    mocks.useRuntimeTasks.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      error: null,
+      actionError: null,
+      tasks: [],
+      cancelTask: vi.fn(),
+      retryTask: vi.fn(),
+      cancelAllPending: vi.fn(),
+      isCancelAllPending: false,
+      isTaskActionPending: vi.fn().mockReturnValue(false),
+      isActionPending: false,
+      canCancel: vi.fn(),
+      canRetry: vi.fn(),
     });
   });
 
@@ -256,5 +283,72 @@ describe('useTasksPaneController', () => {
     expect(result.current.taskTypeOptions).toEqual([]);
     expect(result.current.totalPages).toBe(0);
     expect(result.current.cancellableTaskCount).toBe(0);
+  });
+
+  it('uses only the explicit Runtime project for task reads and lifecycle actions', () => {
+    const runtimeCancelAll = vi.fn();
+    const runtimeCancel = vi.fn();
+    const runtimeRetry = vi.fn();
+    const runtimeTask = (taskId: string, state: string, version: number) => ({
+      task_id: taskId,
+      run_id: `run-${taskId}`,
+      project_id: 'runtime-project',
+      state,
+      version,
+      capability_id: 'generation.generate_image',
+      capability_digest: 'sha256:capability',
+      idempotency_key: `admit:${taskId}`,
+      created_at: '2026-09-11T00:00:00Z',
+      updated_at: '2026-09-11T00:01:00Z',
+      runtime_epoch: 4,
+      input_object_ids: ['sha256:input'],
+      spec: { family: 'generation.generate_image', params: { prompt: taskId } },
+    });
+    const runtimeTasks = [
+      runtimeTask('queued-1', 'queued', 2),
+      runtimeTask('failed-1', 'failed', 3),
+    ];
+    mocks.useRuntimeTasks.mockReturnValue({
+      data: runtimeTasks,
+      isLoading: false,
+      error: null,
+      actionError: null,
+      tasks: runtimeTasks,
+      cancelTask: runtimeCancel,
+      retryTask: runtimeRetry,
+      cancelAllPending: runtimeCancelAll,
+      isCancelAllPending: false,
+      isTaskActionPending: vi.fn().mockReturnValue(false),
+      isActionPending: false,
+      canCancel: vi.fn(),
+      canRetry: vi.fn(),
+    });
+
+    const { result } = renderHook(() => useTasksPaneController({
+      selectedProjectId: 'legacy-project',
+      runtimeProjectId: 'runtime-project',
+      projects: [{ id: 'legacy-project', name: 'Legacy' }],
+      incomingTasks: [{ expectedCount: 99 }],
+      cancelAllIncoming: vi.fn(),
+    }));
+
+    expect(mocks.useRuntimeTasks).toHaveBeenCalledWith('runtime-project');
+    expect(mocks.usePaginatedTasks).toHaveBeenCalledWith(expect.objectContaining({
+      projectId: null,
+      allProjects: false,
+    }));
+    expect(mocks.useTaskStatusCounts).toHaveBeenCalledWith(null, undefined);
+    expect(mocks.useTasksPaneCancelPending).toHaveBeenCalledWith(expect.objectContaining({
+      selectedProjectId: null,
+      cancelAllIncoming: expect.any(Function),
+    }));
+    expect(result.current.isRuntimeMode).toBe(true);
+    expect(result.current.effectiveProjectId).toBe('runtime-project');
+    expect(result.current.runtimeTaskData?.tasks.map((task) => task.task_id)).toEqual(['queued-1']);
+    expect(result.current.totalTasks).toBe(1);
+    expect(result.current.cancellableTaskCount).toBe(1);
+    expect(result.current.handleCancelAllPending).toBe(runtimeCancelAll);
+    expect(result.current.runtimeTaskActions.cancelTask).toBe(runtimeCancel);
+    expect(result.current.runtimeTaskActions.retryTask).toBe(runtimeRetry);
   });
 });

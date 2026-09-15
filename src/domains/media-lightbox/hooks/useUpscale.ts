@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useMemo } from 'react';
 import { GenerationRow } from '@/domains/generation/types';
-import { createTask } from '@/shared/lib/taskCreation';
-import { getGenerationId, getMediaUrl } from '@/shared/lib/media/mediaTypeHelpers';
+import { createImageUpscaleTask } from '@/shared/lib/taskCreation';
+import { getMediaUrl } from '@/shared/lib/media/mediaTypeHelpers';
 import type { ImageUpscaleSettings } from '../components/ImageUpscaleForm';
 import { useTaskPlaceholder } from '@/shared/hooks/tasks/useTaskPlaceholder';
 
@@ -37,7 +37,6 @@ export const useUpscale = ({
   media,
   selectedProjectId,
   isVideo,
-  shotId,
 }: UseUpscaleProps): UseUpscaleReturn => {
   const [isUpscaling, setIsUpscaling] = useState(false);
   const [upscaleSuccess, setUpscaleSuccess] = useState(false);
@@ -64,7 +63,6 @@ export const useUpscale = ({
 
     // Use active variant's location if viewing a variant, otherwise use base generation URL
     const activeVariantLocation = activeVariantLocationRef.current;
-    const activeVariantId = activeVariantIdRef.current;
     const effectiveImageUrl = activeVariantLocation || mediaUrl;
 
     setIsUpscaling(true);
@@ -79,19 +77,10 @@ export const useUpscale = ({
             throw new Error('No image URL available');
           }
 
-          const actualGenerationId = getGenerationId(media);
-
-          return createTask({
-            project_id: selectedProjectId,
-            family: 'image_upscale',
-            input: {
-              image_url: effectiveImageUrl,
-              generation_id: actualGenerationId,
-              source_variant_id: activeVariantId || undefined,
-              scale_factor: settings.scaleFactor,
-              noise_scale: settings.noiseScale,
-              shot_id: shotId,
-            },
+          return createImageUpscaleTask(selectedProjectId, {
+            sourceUrl: effectiveImageUrl,
+            scaleFactor: settings.scaleFactor,
+            noiseScale: settings.noiseScale,
           });
         },
         onSuccess: () => {
@@ -105,7 +94,7 @@ export const useUpscale = ({
     } finally {
       setIsUpscaling(false);
     }
-  }, [media, selectedProjectId, isVideo, mediaUrl, shotId, run]);
+  }, [media, selectedProjectId, isVideo, mediaUrl, run]);
 
   return useMemo(
     () => ({

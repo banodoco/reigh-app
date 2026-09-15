@@ -1,6 +1,6 @@
 import { useLayoutEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowRight, Clapperboard, Copy, RefreshCw, Scissors, Sparkles, Trash2, Video } from 'lucide-react';
+import { ArrowRight, Clapperboard, Copy, Download, RefreshCw, Scissors, Sparkles, Trash2, Video } from 'lucide-react';
 
 const VIEWPORT_MARGIN = 8;
 
@@ -13,6 +13,7 @@ export type ShotGroupMenuState = {
   rowId: string;
   trackId: string;
   hasFinalVideo: boolean;
+  hasManagedOutput?: boolean;
   hasStaleVideo: boolean;
   mode?: 'images' | 'video';
 } | null;
@@ -24,6 +25,7 @@ interface ShotGroupContextMenuProps {
   onNavigate?: (shotId: string) => void;
   onGenerateVideo?: (shotId: string) => void;
   onSwitchToFinalVideo?: (group: { shotId: string; clipIds: string[]; rowId: string }) => void;
+  onExportManagedOutput?: (group: { shotId: string; clipIds: string[]; rowId: string }) => void | Promise<void>;
   onSwitchToImages?: (group: { shotId: string; rowId: string }) => void;
   onUpdateToLatestVideo?: (group: { shotId: string; rowId: string }) => void;
   onUnpinGroup?: (group: { shotId: string; trackId: string }) => void;
@@ -39,6 +41,7 @@ export function ShotGroupContextMenu({
   onNavigate,
   onGenerateVideo,
   onSwitchToFinalVideo,
+  onExportManagedOutput,
   onSwitchToImages,
   onUpdateToLatestVideo,
   onUnpinGroup,
@@ -121,6 +124,14 @@ export function ShotGroupContextMenu({
         : null,
     ].filter((action): action is { key: string; label: string; icon: typeof Video; onClick: () => void } => Boolean(action))
     : [];
+  const managedOutputActions = menu.hasManagedOutput && onExportManagedOutput
+    ? [{
+        key: 'export-managed-output',
+        label: 'Export managed output',
+        icon: Download,
+        onClick: () => onExportManagedOutput({ shotId: menu.shotId, clipIds: menu.clipIds, rowId: menu.rowId }),
+      }]
+    : [];
   const staleVideoActions = menu.hasStaleVideo && menu.mode === 'video'
     ? [
       onUpdateToLatestVideo
@@ -173,7 +184,7 @@ export function ShotGroupContextMenu({
           </button>
         );
       })}
-      {pinActions.length > 0 && (finalVideoActions.length > 0 || imageActions.length > 0 || staleVideoActions.length > 0 || defaultActions.length > 0) && <div className="my-1 h-px bg-border" />}
+      {pinActions.length > 0 && (finalVideoActions.length > 0 || imageActions.length > 0 || staleVideoActions.length > 0 || managedOutputActions.length > 0 || defaultActions.length > 0) && <div className="my-1 h-px bg-border" />}
       {finalVideoActions.map((action) => {
         const Icon = action.icon;
         return (
@@ -216,7 +227,21 @@ export function ShotGroupContextMenu({
           </button>
         );
       })}
-      {(finalVideoActions.length > 0 || imageActions.length > 0 || staleVideoActions.length > 0) && defaultActions.length > 0 && <div className="my-1 h-px bg-border" />}
+      {managedOutputActions.map((action) => {
+        const Icon = action.icon;
+        return (
+          <button
+            key={action.key}
+            type="button"
+            className="relative flex w-full cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground"
+            onClick={() => { action.onClick(); closeMenu(); }}
+          >
+            <Icon className="h-4 w-4" />
+            {action.label}
+          </button>
+        );
+      })}
+      {(finalVideoActions.length > 0 || imageActions.length > 0 || staleVideoActions.length > 0 || managedOutputActions.length > 0) && defaultActions.length > 0 && <div className="my-1 h-px bg-border" />}
       {defaultActions.map((action) => {
         const Icon = action.icon;
         return (

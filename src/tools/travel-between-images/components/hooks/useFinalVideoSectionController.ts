@@ -190,7 +190,7 @@ export function useFinalVideoSectionController({
     isCreatingShare,
     shareCopied,
     shareSlug,
-  } = useShareGeneration(selectedParentId ?? undefined, taskMapping?.taskId, shotId);
+  } = useShareGeneration(selectedParentId ?? undefined, taskMapping?.taskId, shotId, { projectId });
 
   const parentGenerationIdsForQuery = useMemo(
     () => parentGenerations.map((parent) => parent.id),

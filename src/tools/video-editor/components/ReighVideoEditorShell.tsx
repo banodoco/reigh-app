@@ -17,6 +17,7 @@ function ReighVideoEditorShellComponent({ mode, timelineId, onCreateTimeline, na
   const { navigateHome } = useHomeNavigation();
   const isEditorPaneLocked = usePanesStore((state) => state.isEditorPaneLocked);
   const isGenerationsPaneLocked = usePanesStore((state) => state.isGenerationsPaneLocked);
+  const isGenerationsPaneOpen = usePanesStore((state) => state.isGenerationsPaneOpen);
   const setIsGenerationsPaneLocked = usePanesStore((state) => state.setIsGenerationsPaneLocked);
   const location = useLocation();
   const navigate = useNavigate();
@@ -39,6 +40,7 @@ function ReighVideoEditorShellComponent({ mode, timelineId, onCreateTimeline, na
       isOnEditorPage={isOnEditorPage}
       isEditorPaneLocked={isEditorPaneLocked}
       isGenerationsPaneLocked={isGenerationsPaneLocked}
+      isGenerationsPaneOpen={isGenerationsPaneOpen}
       onSetGenerationsPaneLocked={setIsGenerationsPaneLocked}
       onNavigateHome={navigateHome}
       onOpenEditorRoute={openEditorRoute}

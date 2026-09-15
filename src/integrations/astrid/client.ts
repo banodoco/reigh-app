@@ -19,6 +19,7 @@ import { AstridLocalGalleryRoutes } from './galleryRoutes.ts';
 import { AstridLocalMediaRoutes } from './mediaRoutes.ts';
 import { AstridLocalTimelineRoutes } from './timelineRoutes.ts';
 import { AstridLocalProjectRoutes } from './projectRoutes.ts';
+import { AstridLocalAcpRoutes } from './acpRoutes.ts';
 
 export type AstridLocalClientOptions = {
   projectSlug: string;
@@ -34,6 +35,7 @@ export class AstridLocalClient {
   readonly gallery: AstridLocalGalleryRoutes;
   readonly media: AstridLocalMediaRoutes;
   readonly timelines: AstridLocalTimelineRoutes;
+  readonly acp: AstridLocalAcpRoutes;
 
   private readonly transport: AstridBridgeTransport;
 
@@ -47,5 +49,6 @@ export class AstridLocalClient {
     this.gallery = new AstridLocalGalleryRoutes(this.transport, scope);
     this.media = new AstridLocalMediaRoutes(this.transport, scope);
     this.timelines = new AstridLocalTimelineRoutes(this.transport, scope);
+    this.acp = new AstridLocalAcpRoutes(this.transport);
   }
 }

@@ -63,8 +63,8 @@ const DEFAULT_ENHANCE_SETTINGS: EnhanceSettings = {
   enableUpscale: true,
   numFrames: 1,
   upscaleFactor: 2,
-  colorFix: true,
-  outputQuality: 'high',
+  colorFix: false,
+  outputQuality: 'maximum',
 };
 
 const EMPTY_VIDEO_EDIT: VideoEditState = {

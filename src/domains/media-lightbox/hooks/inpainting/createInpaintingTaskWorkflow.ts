@@ -1,31 +1,11 @@
 import type { GenerationRow } from '@/domains/generation/types';
-import { uploadImageToStorage } from '@/shared/lib/media/imageUploader';
-import { resolveTaskInputMedia } from '@/shared/lib/media/resolveTaskInputMedia';
-import { createTask } from '@/shared/lib/taskCreation';
-import { beginLocalWorkerSession, type LocalWorkerSession } from '@/shared/lib/taskCreation/localWorkerSession';
-import { createImageInpaintTask } from '@/shared/lib/tasks/imageEditing/imageInpaint';
-import { buildMaskedEditTaskParams, type MaskedEditTaskParams } from '@/shared/lib/tasks/imageEditing/buildMaskedEditTaskParams';
-import { convertToHiresFixApiParams } from '../useGenerationEditSettings';
 import type { StrokeOverlayHandle } from '../../components/StrokeOverlay';
 import type { EditAdvancedSettings, QwenEditModel } from './types';
+import { getGenerationId } from '@/shared/lib/media/mediaTypeHelpers';
+import { createImageInpaintTask } from '@/shared/lib/tasks/imageEditing/imageInpaint';
+import { buildMaskedEditTaskParams } from '@/shared/lib/tasks/imageEditing/buildMaskedEditTaskParams';
 
 type TaskType = 'inpaint' | 'annotate';
-
-interface TaskTypeConfig {
-  fileNamePrefix: string;
-  createTask: typeof createImageInpaintTask | typeof createAnnotatedImageEditTask;
-}
-
-const TASK_CONFIGS: Record<TaskType, TaskTypeConfig> = {
-  inpaint: {
-    fileNamePrefix: 'inpaint_mask',
-    createTask: createImageInpaintTask,
-  },
-  annotate: {
-    fileNamePrefix: 'annotated_edit_mask',
-    createTask: createAnnotatedImageEditTask,
-  },
-};
 
 interface CreateInpaintingTaskWorkflowParams {
   taskType: TaskType;
@@ -45,34 +25,6 @@ interface CreateInpaintingTaskWorkflowParams {
   strokeOverlay: StrokeOverlayHandle;
 }
 
-function createAnnotatedImageEditTask(
-  params: MaskedEditTaskParams,
-  session?: LocalWorkerSession,
-): Promise<string> {
-  return createTask(
-    {
-      project_id: params.project_id,
-      family: 'masked_edit',
-      input: {
-        task_type: 'annotated_image_edit',
-        image_url: params.image_url,
-        mask_url: params.mask_url,
-        prompt: params.prompt,
-        num_generations: params.num_generations,
-        generation_id: params.generation_id,
-        shot_id: params.shot_id,
-        tool_type: params.tool_type,
-        loras: params.loras,
-        create_as_generation: params.create_as_generation,
-        source_variant_id: params.source_variant_id,
-        hires_fix: params.hires_fix,
-        qwen_edit_model: params.qwen_edit_model,
-      },
-    },
-    session ? { localWorkerSession: session } : undefined,
-  ).then((result) => result.task_id);
-}
-
 export async function createInpaintingTaskWorkflow({
   taskType,
   media,
@@ -90,51 +42,45 @@ export async function createInpaintingTaskWorkflow({
   actualGenerationId,
   strokeOverlay,
 }: CreateInpaintingTaskWorkflowParams): Promise<string> {
-  const config = TASK_CONFIGS[taskType];
-  const maskImageData = strokeOverlay.exportMask({ pixelRatio: 1.5 });
-
-  if (!maskImageData) {
-    throw new Error('Failed to export mask from overlay');
+  if (!selectedProjectId) {
+    throw new Error('Missing project for masked edit task');
   }
-
-  const session = beginLocalWorkerSession();
-
-  const maskBlob = await fetch(maskImageData).then((res) => res.blob());
-  const maskFile = new File(
-    [maskBlob],
-    `${config.fileNamePrefix}_${media.id}_${Date.now()}.png`,
-    { type: 'image/png' },
-  );
-  const maskUrl = await uploadImageToStorage(maskFile);
-
-  let resolvedMediaUrl: string | undefined;
-  try {
-    const resolved = await resolveTaskInputMedia(media, session);
-    resolvedMediaUrl = resolved.url;
-  } catch {
-    resolvedMediaUrl = undefined;
-  }
-  const sourceUrl = activeVariantLocation || resolvedMediaUrl || media.imageUrl;
+  const sourceUrl = activeVariantLocation || media.imageUrl || media.location;
   if (!sourceUrl) {
-    throw new Error('Missing source media URL');
+    throw new Error('Masked edit source image is unavailable');
+  }
+  const maskUrl = strokeOverlay.exportMask();
+  if (!maskUrl) {
+    throw new Error('Masked edit overlay did not produce a mask');
+  }
+  if (createAsGeneration) {
+    throw new Error('The bounded mask edit capability only settles generation variants');
+  }
+  if (loras?.length) {
+    throw new Error('The bounded mask edit capability does not support LoRA routing');
+  }
+  if (advancedSettings?.enabled) {
+    throw new Error('The bounded mask edit capability does not support hires-fix routing');
+  }
+  const actualId = actualGenerationId || getGenerationId(media);
+  if (!actualId) {
+    throw new Error('Missing generation id for masked edit lineage');
   }
 
-  return config.createTask(
+  return createImageInpaintTask(
     buildMaskedEditTaskParams({
       projectId: selectedProjectId,
       imageUrl: sourceUrl,
       maskUrl,
-      prompt: inpaintPrompt,
+      prompt: inpaintPrompt.trim(),
       numGenerations: inpaintNumGenerations,
-      generationId: actualGenerationId,
+      generationId: actualId,
       shotId,
       toolType: toolTypeOverride,
-      loras,
-      createAsGeneration,
       sourceVariantId: activeVariantId || undefined,
-      hiresFix: convertToHiresFixApiParams(advancedSettings),
+      createAsGeneration: false,
+      editKind: taskType === 'annotate' ? 'annotated_edit' : 'inpaint',
       qwenEditModel,
     }),
-    session,
-  );
+  ).then(result => result.task_id);
 }

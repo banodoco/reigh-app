@@ -4,8 +4,8 @@ import { expect, test } from '@playwright/test';
  * The Tasks pane is mounted by the global shell, including on Travel. Keep a
  * browser-level guard here because a direct Supabase hook in that shell can
  * bypass the page's Astrid authority provider while all visible UI appears
- * healthy. This runs in the deterministic bridge-backed timeline project so
- * the protected route is authenticated without a real cloud account.
+ * healthy. This runs in the deterministic local Astrid timeline document so
+ * the protected route is exercised without a real cloud account or session.
  */
 test('Travel default Astrid authority has no deferred cloud shot or account traffic', async ({ page }) => {
   const forbidden: string[] = [];
@@ -29,11 +29,11 @@ test('Travel default Astrid authority has no deferred cloud shot or account traf
     }
   });
 
-  await page.goto('/tools/travel-between-images', {
+  await page.goto('/tools/travel-between-images?localProject=demo-project&localTimeline=demo-timeline&localTest=1', {
     waitUntil: 'domcontentloaded',
     timeout: 45_000,
   });
-  await expect(page.locator('body')).toContainText(/travel between images/i, { timeout: 20_000 });
+  await expect(page.getByText(/This timeline has no document shot groups yet\./i)).toBeVisible({ timeout: 20_000 });
   // Allow globally mounted providers and the Travel page to finish their
   // initial effects before taking the network snapshot.
   await page.waitForTimeout(1_000);

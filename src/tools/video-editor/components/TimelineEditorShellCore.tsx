@@ -69,6 +69,7 @@ export interface TimelineEditorShellCoreProps {
   isOnEditorPage?: boolean;
   isEditorPaneLocked?: boolean;
   isGenerationsPaneLocked?: boolean;
+  isGenerationsPaneOpen?: boolean;
   onSetGenerationsPaneLocked?: (locked: boolean) => void;
   onNavigateHome?: () => void;
   onOpenEditorRoute?: (timelineId: string) => void;
@@ -114,6 +115,7 @@ function TimelineEditorShellCoreComponent({
   isOnEditorPage = false,
   isEditorPaneLocked = false,
   isGenerationsPaneLocked = false,
+  isGenerationsPaneOpen = false,
   onSetGenerationsPaneLocked,
   onNavigateHome,
   onOpenEditorRoute,
@@ -259,7 +261,11 @@ function TimelineEditorShellCoreComponent({
   }, [forceCondensed, aspectRatio, isTimelineMaximized]);
 
   const mobileSinglePane = isPhone && !forceCondensed;
-  const condensed = forceCondensed || tooSmall || mobileSinglePane || (isOnEditorPage && isEditorPaneLocked);
+  // Keep the full editable timeline branch while the existing generations
+  // pane is open.  The pane consumes bottom height; switching to the
+  // condensed branch at that point collapses the timeline to zero height and
+  // prevents the supported gallery-to-timeline drag flow.
+  const condensed = forceCondensed || (tooSmall && !isGenerationsPaneOpen) || mobileSinglePane || (isOnEditorPage && isEditorPaneLocked);
   const hasClipSelection = selectedClipIdsList.length > 0;
   const mobilePropertiesTitle = hasClipSelection
     ? selectedClipIdsList.length > 1

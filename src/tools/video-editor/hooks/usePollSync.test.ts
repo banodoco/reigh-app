@@ -159,6 +159,46 @@ describe('usePollSync helpers', () => {
     })).toBeNull();
   });
 
+  it('uses configVersion as the reconnect cursor and suppresses a duplicate committed read', () => {
+    const base = {
+      editSeq: 2,
+      savedSeq: 2,
+      pendingOps: 0,
+      isSaving: false,
+      interactionActive: false,
+      polledStableSignature: 'remote-v2',
+      lastSavedStableSignature: 'local-v1',
+    };
+
+    expect(getTimelinePollRejectionReason({
+      ...base,
+      polledConfigVersion: 2,
+      currentConfigVersion: 1,
+    })).toBeNull();
+
+    expect(getTimelinePollRejectionReason({
+      ...base,
+      polledConfigVersion: 2,
+      currentConfigVersion: 2,
+      polledStableSignature: 'remote-v2',
+      lastSavedStableSignature: 'remote-v2',
+    })).toBe('own echo');
+
+    expect(getTimelinePollRejectionReason({
+      ...base,
+      polledConfigVersion: 1,
+      currentConfigVersion: 2,
+    })).toBe('stale version');
+
+    expect(getTimelinePollRejectionReason({
+      ...base,
+      editSeq: 3,
+      savedSeq: 2,
+      polledConfigVersion: 3,
+      currentConfigVersion: 2,
+    })).toBe('unsaved edits');
+  });
+
   it('keeps configVersionRef pinned to the accepted local base version while a remote payload is still deferred', async () => {
     const provider: DataProvider = {
       loadTimeline: vi.fn(),

@@ -506,6 +506,13 @@ describe('TimelineEditorShellCore surface slots', () => {
     expect(rightPanelSlot).toBeNull();
   });
 
+  it('keeps the built-in asset upload surface reachable without extension panels', () => {
+    render(<TimelineEditorShellCore timelineId="test-timeline" />);
+
+    expect(screen.getByTestId('asset-panel-surface')).toBeTruthy();
+    expect(screen.getByTestId('properties-panel')).toBeTruthy();
+  });
+
   // ---- Desktop containment is coherent ---------------------------------------
   it('renders the desktop layout grid with correct columns when no left panel', () => {
     const { container } = render(<TimelineEditorShellCore timelineId="test-timeline" />);

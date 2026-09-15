@@ -70,6 +70,7 @@ export function planGenerationAssetRegistration({
   generationId,
   variantId,
   variantType,
+  mediaId,
   imageUrl,
   thumbUrl,
   metadata,
@@ -79,6 +80,7 @@ export function planGenerationAssetRegistration({
   generationId: string;
   variantId?: string;
   variantType?: string;
+  mediaId?: string | null;
   imageUrl: string;
   thumbUrl?: string | null;
   metadata?: Record<string, unknown> | null | undefined;
@@ -119,6 +121,7 @@ export function planGenerationAssetRegistration({
       type: mimeType,
       ...(normalizedDuration !== null ? { duration: normalizedDuration } : {}),
       generationId,
+      ...(mediaId ? { media_id: mediaId } : {}),
       ...(variantId ? { variantId } : {}),
       ...(resolvedThumbUrl !== imageUrl ? { thumbnailUrl: resolvedThumbUrl } : {}),
     },

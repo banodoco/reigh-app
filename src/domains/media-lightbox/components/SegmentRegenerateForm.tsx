@@ -374,18 +374,22 @@ export const SegmentRegenerateForm: React.FC<SegmentRegenerateFormProps> = ({
       task: {
         projectId,
         shotId,
-        generationId,
-        childGenerationId,
         segmentIndex,
         pairShotGenerationId,
         projectResolution,
         modelName: selectedModelName,
         generationTypeMode: formProps.shotDefaults?.generationTypeMode,
         structureInput: structureVideoForTask,
-        originalParams: initialParams,
       },
       run,
       queryClient,
+      onNonFatalError: (_step, error) => {
+        toast({
+          title: 'Segment generation is not yet supported',
+          description: error instanceof Error ? error.message : 'The requested segment capability is unavailable.',
+          variant: 'destructive',
+        });
+      },
     });
   }, [
     projectId,

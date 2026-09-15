@@ -56,7 +56,15 @@ export function useCharacterAnimateGenerate({
             random_seed: true,
           };
 
-          return createCharacterAnimateTask(taskParams);
+          return createCharacterAnimateTask({
+            ...taskParams,
+            // Prefer producer-owned File bytes when the user selected local
+            // media; URL fallback remains for existing remote-source flows.
+            character_image: characterImage.file,
+            character_image_url: characterImage.url,
+            motion_video: motionVideo.file,
+            motion_video_url: motionVideo.url,
+          });
         },
         onSuccess: () => {
           flashSuccessForDuration(setShowSuccessState, 1500);

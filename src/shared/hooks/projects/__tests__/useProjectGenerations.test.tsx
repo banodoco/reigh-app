@@ -3,7 +3,12 @@ import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
 
-import { fetchGenerations, matchesClientSideFilters, useProjectGenerations } from '../useProjectGenerations';
+import {
+  fetchGenerations,
+  fetchRuntimeGenerationsForProject,
+  matchesClientSideFilters,
+  useProjectGenerations,
+} from '../useProjectGenerations';
 import type { GeneratedImageWithMetadata } from '@/shared/components/MediaGallery/types';
 import { createFakeBridgeRouter, type FakeBridgeRouter } from '@/test/fakeBridgeRouter.ts';
 import { createJourneyState, FIXTURE_PROJECT } from '@/test/bridgeFixtures.mjs';
@@ -60,7 +65,141 @@ describe('useProjectGenerations (bridge gallery reads R12)', () => {
     expect(matchesClientSideFilters(audio, { mediaType: 'all' })).toBe(true);
   });
 
-  it('fetchGenerations maps GET /generations rows into gallery items with R9 display URLs', async () => {
+  it('filters Runtime summaries by the mapped tool discriminator', () => {
+    const character = {
+      id: 'character',
+      url: '/character.mp4',
+      type: 'video',
+      isVideo: true,
+      metadata: { tool_type: 'character-animate' },
+    } as GeneratedImageWithMetadata;
+    const imageGeneration = {
+      ...character,
+      id: 'image-generation',
+      metadata: { tool_type: 'image-gen' },
+    } as GeneratedImageWithMetadata;
+
+    expect(matchesClientSideFilters(character, { toolType: 'character-animate' })).toBe(true);
+    expect(matchesClientSideFilters(imageGeneration, { toolType: 'character-animate' })).toBe(false);
+    expect(matchesClientSideFilters(
+      { ...character, metadata: { tool_type: 'character-animate-reconstructed-client' } },
+      { toolType: 'character-animate' },
+    )).toBe(true);
+  });
+
+  it('maps canonical Runtime generation/variant pages into the existing gallery shape', async () => {
+    const listGenerations = vi.fn()
+      .mockResolvedValue({
+        items: [{
+          generation_id: 'runtime-generation-1',
+          project_id: 'runtime-project',
+          source_task_id: 'runtime-task-1',
+          type: 'image',
+          status: 'created',
+          metadata: { tool_type: 'image-gen', content_type: 'image' },
+          version: 3,
+          created_at: '2026-09-11T00:00:00Z',
+          updated_at: '2026-09-11T00:01:00Z',
+        }],
+        next_cursor: 'runtime-generations-next',
+      });
+    const listVariants = vi.fn().mockResolvedValue({
+      items: [{
+        variant_id: 'runtime-variant-1',
+        generation_id: 'runtime-generation-1',
+        object_id: `sha256:${'f'.repeat(64)}`,
+        variant_type: 'original',
+        metadata: { is_primary: true },
+        created_at: '2026-09-11T00:00:30Z',
+      }],
+      next_cursor: null,
+    });
+    const client = {
+      listGenerations,
+      listVariants,
+      objectContentUrl: (objectId: string) => `/api/runtime/v1/objects/${encodeURIComponent(objectId)}`,
+    };
+
+    const result = await fetchRuntimeGenerationsForProject(client, 'runtime-project', 1, 0, { mediaType: 'image' });
+
+    expect(listGenerations).toHaveBeenCalledWith('runtime-project', undefined, 50);
+    expect(listVariants).toHaveBeenCalledWith('runtime-generation-1', undefined, 50);
+    expect(result).toMatchObject({ total: 2, hasMore: true });
+    expect(result.items[0]).toMatchObject({
+      id: 'runtime-generation-1',
+      generation_id: 'runtime-generation-1',
+      primary_variant_id: 'runtime-variant-1',
+      url: `/api/runtime/v1/objects/sha256%3A${'f'.repeat(64)}`,
+      metadata: expect.objectContaining({ tool_type: 'image-gen' }),
+    });
+  });
+
+  it('uses the primary variant MIME for neutral typed Runtime gallery rows', async () => {
+    const listGenerations = vi.fn().mockResolvedValue({
+      items: [{
+        generation_id: 'generation-typed-image',
+        project_id: 'runtime-project',
+        source_task_id: 'runtime-task-typed-image',
+        type: 'generation.generate_image',
+        status: 'completed',
+        metadata: {},
+        version: 1,
+        created_at: '2026-09-11T00:00:00Z',
+        updated_at: '2026-09-11T00:01:00Z',
+      }],
+      next_cursor: null,
+    });
+    const listVariants = vi.fn().mockResolvedValue({
+      items: [
+        {
+          variant_id: 'variant-typed-original',
+          generation_id: 'generation-typed-image',
+          object_id: 'sha256:typed-original',
+          variant_type: 'original',
+          metadata: { media_type: 'image', group_key: 'main', ordinal: 0 },
+          created_at: '2026-09-11T00:00:30Z',
+        },
+        {
+          variant_id: 'variant-typed-alternate',
+          generation_id: 'generation-typed-image',
+          object_id: 'sha256:typed-alternate',
+          variant_type: 'alternate',
+          metadata: { media_type: 'image', group_key: 'main', ordinal: 1 },
+          created_at: '2026-09-11T00:00:31Z',
+        },
+      ],
+      next_cursor: null,
+    });
+    const client = {
+      listGenerations,
+      listVariants,
+      objectContentUrl: (objectId: string) => `/api/runtime/v1/objects/${encodeURIComponent(objectId)}`,
+    };
+
+    const result = await fetchRuntimeGenerationsForProject(
+      client,
+      'runtime-project',
+      50,
+      0,
+      { mediaType: 'image' },
+    );
+
+    expect(listGenerations).toHaveBeenCalledWith('runtime-project', undefined, 50);
+    expect(listVariants).toHaveBeenCalledWith('generation-typed-image', undefined, 50);
+    expect(result).toMatchObject({ total: 1, hasMore: false });
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0]).toMatchObject({
+      id: 'generation-typed-image',
+      generation_id: 'generation-typed-image',
+      primary_variant_id: 'variant-typed-original',
+      type: 'generation.generate_image',
+      contentType: 'image/png',
+      local_file_mime: 'image/png',
+      url: '/api/runtime/v1/objects/sha256%3Atyped-original',
+    });
+  });
+
+  it('fetchGenerations maps generation rows into gallery items with Runtime CAS display URLs', async () => {
     const result = await fetchGenerations(SLUG, 100, 0);
 
     const details = createJourneyState().galleryDetails;
@@ -69,19 +208,21 @@ describe('useProjectGenerations (bridge gallery reads R12)', () => {
     expect(result.total).toBe(details.length);
 
     for (const item of result.items) {
-      // Every display address is a same-origin managed-media content route.
-      expect(item.url).toMatch(/^\/api\/astrid\/projects\/demo-project\/media\/[^/]+\/content$/);
+      // Every display address is a same-origin Runtime CAS object route.
+      expect(item.url).toMatch(/^\/api\/astrid\/v1\/objects\/sha256%3A[a-f0-9]{64}$/);
       expect(item.thumbUrl).toBe(item.url);
     }
     // Recency-first wire order is preserved.
     expect(result.items[0].createdAt >= result.items[result.items.length - 1].createdAt).toBe(true);
   });
 
-  it('pushes the starred filter to the route as a query param', async () => {
-    await fetchGenerations(SLUG, 100, 0, { starredOnly: true });
+  it('applies the starred filter over neutral Runtime generation rows', async () => {
+    const result = await fetchGenerations(SLUG, 100, 0, { starredOnly: true });
 
     const firstCall = vi.mocked(globalThis.fetch).mock.calls[0] as [string];
-    expect(String(firstCall[0])).toContain('starred=true');
+    expect(String(firstCall[0])).toContain('/v1/projects/demo-project/generations');
+    expect(String(firstCall[0])).not.toContain('starred=true');
+    expect(result.items.every((item) => item.starred === true)).toBe(true);
   });
 
   it('marks hasMore and keeps the window bounded while pages remain', async () => {
@@ -99,7 +240,7 @@ describe('useProjectGenerations (bridge gallery reads R12)', () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data?.items.length).toBeGreaterThan(0);
-    expect(result.current.data?.items[0].url).toContain('/media/');
+    expect(result.current.data?.items[0].url).toMatch(/\/v1\/objects\/sha256%3A/);
   });
 
   it('makes zero gallery requests after the boot census marks the route unavailable', async () => {

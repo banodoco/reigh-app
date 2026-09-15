@@ -89,6 +89,7 @@ export function useAddToVideoEditor(media: GenerationRow | undefined): UseAddToV
     if (hasMountedCommandSurface && commands && ops && data) {
       const registrationPlan = planGenerationAssetRegistration({
         generationId,
+        mediaId: media.media_id,
         variantType: media.type === 'video' ? 'video' : 'image',
         imageUrl: media.location ?? media.imageUrl ?? '',
         thumbUrl: media.thumbUrl ?? media.imageUrl ?? media.location ?? '',

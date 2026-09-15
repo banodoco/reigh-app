@@ -18,6 +18,7 @@ export interface PositionedShotGroup {
   color: string;
   mode?: 'images' | 'video';
   hasFinalVideo: boolean;
+  hasManagedOutput?: boolean;
   hasStaleVideo: boolean;
   hasActiveTask: boolean;
   left: number;

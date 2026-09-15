@@ -204,11 +204,76 @@ export const bridgeTaskAdmissionSpecSchema = z.strictObject({
 });
 
 export const bridgeTaskStorageEstimateSchema = z.strictObject({
-  estimated_scratch_bytes: z.number().int().nonnegative(),
-  estimated_output_bytes: z.number().int().nonnegative(),
+  scratch_bytes: z.number().int().nonnegative(),
+  output_bytes: z.number().int().nonnegative(),
 });
 
-export const bridgeTaskSettlementEffectSchema = jsonObject;
+const projectUpdateSettlementEffectSchema = z.strictObject({
+  effect_type: z.literal('project.update'),
+  target_id: z.string().min(1),
+  expected_version: z.number().int().positive(),
+  payload: z.strictObject({
+    name: z.string().min(1).optional(),
+    metadata: z.unknown().optional(),
+  }).optional(),
+});
+
+const generationVariantAppendSettlementEffectSchema = z.strictObject({
+  effect_type: z.literal('generation.variant.append'),
+  target_id: z.string().min(1),
+  expected_version: z.number().int().positive(),
+  payload: z.strictObject({
+    source_variant_id: z.string().min(1),
+    source_object_id: runtimeSha256IdSchema,
+    variant_type: z.string().min(1).max(128),
+    output_name: z.string().min(1).max(512),
+    output_ordinal: z.literal(0),
+    primary_policy: z.literal('preserve'),
+  }),
+});
+
+const generationCreateWithVariantSettlementEffectSchema = z.strictObject({
+  effect_type: z.literal('generation.create_with_variant'),
+  target_id: z.string().min(1),
+  payload: z.strictObject({
+    generation_type: z.string().min(1).max(128),
+    metadata: jsonObject,
+    variant_type: z.string().min(1).max(128),
+    output_name: z.string().min(1).max(512),
+    output_ordinal: z.literal(0),
+    primary_policy: z.literal('preserve'),
+  }),
+});
+
+const generationPublishV1SettlementEffectSchema = z.strictObject({
+  effect_type: z.literal('generation.publish_v1'),
+  target_id: z.string().min(1),
+  payload: z.strictObject({
+    version: z.literal(1),
+    modality: z.enum(['image', 'video', 'audio']),
+    generation_type: z.string().min(1).max(128),
+    metadata: jsonObject,
+    partial_success_policy: z.enum(['reject', 'allow']),
+    groups: z.array(z.strictObject({
+      group_key: z.string().min(1).max(255),
+      selectors: z.array(z.strictObject({
+        selector: z.string().min(1).max(255),
+        ordinal: z.number().int().nonnegative(),
+        variant_key: z.string().min(1).max(255),
+        output_port: z.string().min(1).max(255),
+      })).min(1),
+    })).min(1),
+  }),
+});
+
+/** Runtime settlement effects accepted by the canonical admission envelope. */
+export const bridgeTaskSettlementEffectSchema = z.union([
+  z.strictObject({}),
+  projectUpdateSettlementEffectSchema,
+  generationVariantAppendSettlementEffectSchema,
+  generationCreateWithVariantSettlementEffectSchema,
+  generationPublishV1SettlementEffectSchema,
+]);
 
 /**
  * Bounded current-attempt read model — also the only extra a fence `409`
@@ -262,12 +327,13 @@ export const bridgeTaskSummarySchema = z.looseObject({
   capability: z.string(),
   status: bridgeTaskStatusSchema,
   spec: bridgeTaskSpecSchema.optional(),
-  priority: z.number(),
-  max_attempts: z.number(),
+  priority: z.number().optional(),
+  max_attempts: z.number().optional(),
   created_at: z.string(),
   updated_at: z.string(),
   finished_at: z.string().nullable().optional(),
   winning_attempt_id: z.string().nullable().optional(),
+  result: jsonObject.optional(),
 });
 
 /**
@@ -279,12 +345,12 @@ export const bridgeAdmittedTaskSchema = z.looseObject({
   project_id: z.string(),
   capability: z.string(),
   spec: bridgeTaskSpecSchema,
-  spec_hash: z.string(),
-  input_manifest: z.array(jsonObject),
+  spec_hash: z.string().optional(),
+  input_manifest: z.array(jsonObject).optional(),
   status: bridgeTaskStatusSchema,
-  priority: z.number(),
-  available_at: z.string(),
-  max_attempts: z.number(),
+  priority: z.number().optional(),
+  available_at: z.string().optional(),
+  max_attempts: z.number().optional(),
   run_id: z.string().nullable().optional(),
   run_ordinal: z.number().nullable().optional(),
   winning_attempt_id: z.string().nullable().optional(),
@@ -306,6 +372,8 @@ export const bridgeTaskAdmissionRequestSchema = z.strictObject({
   ),
   spec: bridgeTaskAdmissionSpecSchema,
   storage_estimate: bridgeTaskStorageEstimateSchema,
+  /** Producer-validated GEN intent; Reigh carries it without rebuilding it. */
+  generation_intent: jsonObject.optional(),
   settlement_effect: bridgeTaskSettlementEffectSchema,
 });
 
@@ -313,6 +381,81 @@ export const bridgeTaskAdmissionRequestSchema = z.strictObject({
 export const bridgeTaskAdmissionResponseSchema = z.looseObject({
   task: bridgeAdmittedTaskSchema,
 });
+
+// ---------------------------------------------------------------------------
+// Neutral Runtime resources used by the local Astrid client.  These are kept
+// beside the historical bridge DTOs while the remaining timeline-only routes
+// finish their migration.  The adapter must validate these resources before it
+// projects them onto the app's older task/gallery read models.
+// ---------------------------------------------------------------------------
+
+export const runtimeProjectResourceSchema = z.looseObject({
+  project_id: z.string().min(1),
+  slug: z.string().min(1),
+  name: z.string().min(1),
+  metadata: jsonObject,
+  version: z.number().int().positive(),
+  created_at: z.string().min(1),
+  updated_at: z.string().min(1),
+  archived: z.boolean(),
+});
+
+export const runtimeProjectPageSchema = runtimePageSchema(runtimeProjectResourceSchema);
+
+export const runtimeTaskStateSchema = z.enum([
+  'queued',
+  'blocked',
+  'running',
+  'succeeded',
+  'failed',
+  'cancelled',
+]);
+
+export const runtimeTaskResourceSchema = z.looseObject({
+  task_id: z.string().min(1),
+  run_id: z.string().min(1),
+  project_id: z.string().min(1).nullable(),
+  state: runtimeTaskStateSchema,
+  version: z.number().int().positive(),
+  capability_id: z.string().min(1),
+  capability_digest: runtimeSha256IdSchema,
+  schema_version: z.string().min(1),
+  input_object_ids: z.array(runtimeSha256IdSchema),
+  spec: z.looseObject({}),
+  idempotency_key: z.string().min(1),
+  created_at: z.string().min(1),
+  updated_at: z.string().min(1),
+  attempt_id: z.string().min(1).nullable(),
+  runtime_epoch: z.number().int().positive(),
+  generation_intent: jsonObject.optional(),
+  result: jsonObject.optional(),
+});
+
+export const runtimeTaskPageSchema = runtimePageSchema(runtimeTaskResourceSchema);
+
+export const runtimeGenerationResourceSchema = z.looseObject({
+  generation_id: z.string().min(1),
+  project_id: z.string().min(1),
+  source_task_id: z.string().min(1).nullable(),
+  type: z.string().min(1),
+  status: z.string().min(1),
+  metadata: jsonObject,
+  version: z.number().int().positive(),
+  created_at: z.string().min(1),
+  updated_at: z.string().min(1),
+});
+
+export const runtimeVariantResourceSchema = z.looseObject({
+  variant_id: z.string().min(1),
+  generation_id: z.string().min(1),
+  object_id: runtimeSha256IdSchema.nullable(),
+  variant_type: z.string().min(1),
+  metadata: jsonObject,
+  created_at: z.string().min(1),
+});
+
+export const runtimeGenerationPageSchema = runtimePageSchema(runtimeGenerationResourceSchema);
+export const runtimeVariantPageSchema = runtimePageSchema(runtimeVariantResourceSchema);
 
 /** `GET /projects/:slug/tasks?limit&offset`. */
 export const bridgeTaskListSchema = z.looseObject({
@@ -364,6 +507,8 @@ export const bridgeGenerationSummarySchema = z.looseObject({
   generation_id: z.string(),
   name: z.string().nullable(),
   type: z.string(),
+  /** Runtime generation params used by tool-scoped gallery filters. */
+  params: jsonObject.optional(),
   starred: z.boolean(),
   created_at: z.string(),
   updated_at: z.string(),
@@ -381,6 +526,8 @@ export const bridgeGenerationVariantSchema = z.looseObject({
   id: z.string(),
   generation_id: z.string(),
   media_id: z.string(),
+  /** Runtime CAS identity when the bridge exposes lineage custody. */
+  object_id: runtimeSha256IdSchema.optional(),
   variant_type: z.string().nullable().optional(),
   name: z.string().nullable().optional(),
   params: jsonObject.optional(),
@@ -397,6 +544,8 @@ export const bridgeGenerationDetailPayloadSchema = z.looseObject({
     project_id: z.string(),
     task_id: z.string().nullable().optional(),
     type: z.string(),
+    /** Runtime generation head used for lineage settlement CAS. */
+    version: z.number().int().positive().optional(),
     name: z.string().nullable().optional(),
     based_on_generation_id: z.string().nullable().optional(),
     parent_generation_id: z.string().nullable().optional(),
@@ -470,6 +619,9 @@ export type BridgeAssetRegistryPayload = z.infer<typeof bridgeAssetRegistrySchem
 export type RuntimeManagedObject = z.infer<typeof runtimeManagedObjectSchema>;
 export type RuntimeCapability = z.infer<typeof runtimeCapabilitySchema>;
 export type RuntimeMutationReceipt = z.infer<typeof runtimeMutationReceiptSchema>;
+export type RuntimeTaskResource = z.infer<typeof runtimeTaskResourceSchema>;
+export type RuntimeGenerationResource = z.infer<typeof runtimeGenerationResourceSchema>;
+export type RuntimeVariantResource = z.infer<typeof runtimeVariantResourceSchema>;
 export type BridgeErrorEnvelope = z.infer<typeof bridgeErrorEnvelopeSchema>;
 export type BridgeProjectsPayload = z.infer<typeof bridgeProjectsSchema>;
 export type BridgeTimelinesPayload = z.infer<typeof bridgeTimelinesSchema>;

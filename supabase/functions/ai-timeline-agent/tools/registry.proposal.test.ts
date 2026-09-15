@@ -996,6 +996,12 @@ describe('proposal mode — create_shot blocked', () => {
       state,
       makeSupabaseAdmin(),
       'timeline-1',
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      'proposal',
     );
 
     // create_shot should NOT have been called when proposal mode is active
@@ -1028,6 +1034,12 @@ describe('proposal mode — create_shot blocked', () => {
       state,
       makeSupabaseAdmin(),
       'timeline-1',
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      'proposal',
     );
 
     // No database writes should have occurred

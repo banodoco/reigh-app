@@ -7,13 +7,19 @@
 import type { AstridBridgeTransport } from './transport.ts';
 import { observeAstridCapabilityFailure } from './capabilityCensus.ts';
 import {
-  bridgeGenerationDetailPayloadSchema,
-  bridgeGenerationListSchema,
   bridgeGenerationViewedResponseSchema,
+  runtimeGenerationPageSchema,
+  runtimeGenerationResourceSchema,
+  runtimeVariantPageSchema,
   type BridgeGenerationDetailPayload,
   type BridgeGenerationList,
   type BridgeGenerationViewedResponse,
+  type RuntimeVariantResource,
 } from '@/tools/video-editor/data/bridgeContract.ts';
+import {
+  runtimeGenerationToDetail,
+  runtimeGenerationToSummary,
+} from './runtimeReadModels.ts';
 
 export type GalleryRoutesOptions = {
   /** The project slug every gallery route is scoped under. */
@@ -30,7 +36,32 @@ export class AstridLocalGalleryRoutes {
   }
 
   private base(): string {
-    return `/projects/${encodeURIComponent(this.projectSlug)}/generations`;
+    return `/v1/projects/${encodeURIComponent(this.projectSlug)}/generations`;
+  }
+
+  private async variants(generationId: string): Promise<RuntimeVariantResource[]> {
+    const result: RuntimeVariantResource[] = [];
+    let cursor: string | undefined;
+    const seenCursors = new Set<string>();
+    do {
+      if (cursor !== undefined) {
+        if (seenCursors.has(cursor)) {
+          throw new Error(`Astrid generation variant pagination repeated cursor ${cursor}`);
+        }
+        seenCursors.add(cursor);
+      }
+      const params = new URLSearchParams({ limit: '200' });
+      if (cursor !== undefined) params.set('cursor', cursor);
+      const page = await this.request(() => this.transport.requestJson(
+        `/v1/generations/${encodeURIComponent(generationId)}/variants?${params.toString()}`,
+        {},
+        runtimeVariantPageSchema,
+        'generation variants',
+      ));
+      result.push(...page.items);
+      cursor = page.next_cursor ?? undefined;
+    } while (cursor !== undefined);
+    return result;
   }
 
   private async request<T>(operation: () => Promise<T>): Promise<T> {
@@ -50,25 +81,34 @@ export class AstridLocalGalleryRoutes {
     const params = new URLSearchParams();
     if (options.limit !== undefined) params.set('limit', String(options.limit));
     if (options.cursor !== undefined) params.set('cursor', options.cursor);
-    if (options.starred !== undefined) params.set('starred', String(options.starred));
     const query = params.size > 0 ? `?${params.toString()}` : '';
-    return await this.request(() => this.transport.requestJson(
+    const page = await this.request(() => this.transport.requestJson(
       this.base() + query,
       {},
-      bridgeGenerationListSchema,
+      runtimeGenerationPageSchema,
       'generation list',
     ));
+    const generations = await Promise.all(page.items.map(async (generation) => {
+      const variants = await this.variants(generation.generation_id);
+      return runtimeGenerationToSummary(generation, variants);
+    }));
+    return {
+      generations: options.starred === undefined
+        ? generations
+        : generations.filter((generation) => generation.starred === options.starred),
+      next_cursor: page.next_cursor,
+    };
   }
 
   /** Generation detail including its full variant rows. */
   async get(generationId: string): Promise<BridgeGenerationDetailPayload['generation']> {
-    const payload = await this.request(() => this.transport.requestJson(
-      `${this.base()}/${encodeURIComponent(generationId)}`,
+    const generation = await this.request(() => this.transport.requestJson(
+      `/v1/generations/${encodeURIComponent(generationId)}`,
       {},
-      bridgeGenerationDetailPayloadSchema,
+      runtimeGenerationResourceSchema,
       'generation detail',
     ));
-    return payload.generation;
+    return runtimeGenerationToDetail(generation, await this.variants(generationId));
   }
 
   /** Mark one variant, or all variants when `variantId` is omitted, viewed. */
@@ -77,7 +117,7 @@ export class AstridLocalGalleryRoutes {
     variantId?: string,
   ): Promise<BridgeGenerationViewedResponse> {
     return await this.request(() => this.transport.requestJson(
-      `${this.base()}/${encodeURIComponent(generationId)}/viewed`,
+      `/projects/${encodeURIComponent(this.projectSlug)}/generations/${encodeURIComponent(generationId)}/viewed`,
       {
         method: 'POST',
         body: variantId === undefined ? {} : { variant_id: variantId },

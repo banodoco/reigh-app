@@ -13,7 +13,10 @@ import { useVideoEditorRuntime } from '@/tools/video-editor/contexts/VideoEditor
 import { TimelineEditorCore, resolveSelectedGenerationIdsForShotCreation } from '@/tools/video-editor/components/TimelineEditor/TimelineEditorCore.tsx';
 import { buildEmptyShotAnchorEdit } from '@/tools/video-editor/lib/shot-group-commands.ts';
 import { useActiveTaskClips } from '@/tools/video-editor/hooks/useActiveTaskClips.ts';
-import { useFinalVideoAvailable } from '@/tools/video-editor/hooks/useFinalVideoAvailable.ts';
+import {
+  formatManagedOutputExportReceipt,
+  useFinalVideoAvailable,
+} from '@/tools/video-editor/hooks/useFinalVideoAvailable.ts';
 import {
   usePinnedGroupSync,
   usePinnedShotGroups,
@@ -225,7 +228,32 @@ function ReighTimelineEditorComponent({ onOpenSequenceCreator }: ReighTimelineEd
   }, []);
 
   const { activeTaskAssetKeys } = useActiveTaskClips({ registry: resolvedConfig?.registry });
-  const { finalVideoMap, dismissFinalVideo } = useFinalVideoAvailable();
+  const {
+    finalVideoMap,
+    dismissFinalVideo,
+    exportRuntimeManagedOutput,
+  } = useFinalVideoAvailable();
+
+  const handleExportManagedOutput = useCallback(async (group: { shotId: string; clipIds: string[]; rowId: string }) => {
+    const managedOutput = finalVideoMap.get(group.shotId)?.managedOutput;
+    if (!managedOutput) {
+      toast.error('Selected final video is not a Runtime-managed output.');
+      return;
+    }
+
+    try {
+      const result = await exportRuntimeManagedOutput(managedOutput);
+      toast.success('Managed output exported', {
+        description: `${formatManagedOutputExportReceipt(result)} · receipt_id=${result.receipt.receipt_id} · event_ids=${result.receipt.event_ids.join(',') || 'none'}`,
+        duration: 10_000,
+      });
+    } catch (error) {
+      normalizeAndPresentError(error, {
+        context: 'video-editor:export-managed-output',
+        toastTitle: 'Failed to export managed output',
+      });
+    }
+  }, [exportRuntimeManagedOutput, finalVideoMap]);
   const documentShotGroups = usePinnedShotGroupViews(data);
   const shotGroups = useShotGroups(
     data?.rows ?? [],
@@ -455,6 +483,7 @@ function ReighTimelineEditorComponent({ onOpenSequenceCreator }: ReighTimelineEd
         onShotGroupUnpin={handleShotGroupUnpin}
         onShotGroupDelete={handleDeleteShotGroup}
         onShotGroupSwitchToFinalVideo={handleShotGroupSwitchToFinalVideo}
+        onShotGroupExportManagedOutput={handleExportManagedOutput}
         onShotGroupSwitchToImages={handleShotGroupSwitchToImages}
         onShotGroupUpdateToLatestVideo={handleUpdateToLatestVideo}
         canCreateShotFromSelection={selectionShotCreationState.canCreateShot}

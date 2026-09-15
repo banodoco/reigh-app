@@ -32,6 +32,9 @@ import { usePaneInteractionLifecycle } from '@/shared/components/panes/usePaneIn
 import { SHOT_FILTER, isSpecialFilter } from '@/shared/constants/filterConstants';
 import { useAppEventListener } from '@/shared/lib/typedEvents';
 import { withLocalModeParams } from '@/shared/dev/localModeUrl';
+import { isRuntimeDocumentMode } from '@/app/runtime/runtimeDocument';
+import { withRuntimeDocumentParams } from '@/app/runtime/runtimeDocument';
+import { ADD_GENERATION_QUERY_PARAM } from '@/domains/media-lightbox/hooks/addToVideoEditorConstants';
 
 // Fallback rows for pane (smaller than full page galleries)
 const PANE_ROWS = 2;
@@ -48,6 +51,7 @@ interface GenerationDataParams {
   mediaTypeFilter: MediaTypeFilter;
   shouldEnableDataLoading: boolean;
   selectedProjectId: SelectedProjectId;
+  runtimeProjectId: string | null;
 }
 
 const useGenerationData = ({
@@ -55,6 +59,7 @@ const useGenerationData = ({
   mediaTypeFilter,
   shouldEnableDataLoading,
   selectedProjectId,
+  runtimeProjectId,
 }: GenerationDataParams) => {
   const queryClient = useQueryClient();
   const { createShot } = useShotCreation();
@@ -64,6 +69,7 @@ const useGenerationData = ({
     itemsPerPage,
     mediaType: mediaTypeFilter,
     enableDataLoading: shouldEnableDataLoading,
+    ...(runtimeProjectId ? { runtimeProjectId } : {}),
   });
 
   const shotsForFilter = (galleryPageState.shotsData && galleryPageState.shotsData.length > 0)
@@ -298,10 +304,17 @@ export const useGenerationsPaneController = () => {
   const { projects } = useProjectCrudContext();
   const { currentShotId } = useCurrentShot();
 
+  const runtimeProjectId = isRuntimeDocumentMode(location.search, location.pathname)
+    ? new URLSearchParams(location.search).get('runtimeProject')?.trim() ?? null
+    : null;
+
   const isOnImageGenerationPage = location.pathname === TOOL_ROUTES.IMAGE_GENERATION;
   const currentProject = projects.find((project) => project.id === selectedProjectId);
   const projectAspectRatio = currentProject?.aspectRatio;
-  const shouldEnableDataLoading = isGenerationsPaneOpen;
+  // A locked pane is visible immediately even when it was opened from the
+  // closed tab, so keep its Runtime gallery query enabled in that state too.
+  const shouldEnableDataLoading = !isOnImageGenerationPage
+    && (isGenerationsPaneOpen || isGenerationsPaneLocked);
 
   const { galleryContainerRef, isMobile, paneLayout } = usePaneLayout(projectAspectRatio, isEditorPaneLocked);
 
@@ -311,6 +324,7 @@ export const useGenerationsPaneController = () => {
     mediaTypeFilter,
     shouldEnableDataLoading,
     selectedProjectId,
+    runtimeProjectId,
   });
 
   const filters = useGenerationFilters({
@@ -345,8 +359,15 @@ export const useGenerationsPaneController = () => {
 
   const handleNavigateToImageGeneration = useCallback(() => {
     setIsGenerationsPaneLocked(false);
-    navigate(withLocalModeParams(TOOL_ROUTES.IMAGE_GENERATION, location.search));
+    const localTarget = withLocalModeParams(TOOL_ROUTES.IMAGE_GENERATION, location.search);
+    navigate(withRuntimeDocumentParams(localTarget, location.search));
   }, [location.search, navigate, setIsGenerationsPaneLocked]);
+
+  const handleAddGenerationToTimeline = useCallback((generationId: string) => {
+    const nextSearch = new URLSearchParams(location.search);
+    nextSearch.set(ADD_GENERATION_QUERY_PARAM, generationId);
+    navigate({ pathname: location.pathname, search: `?${nextSearch.toString()}` });
+  }, [location.pathname, location.search, navigate]);
 
   useRenderLogger('GenerationsPane', {
     page: generationData.page,
@@ -386,6 +407,13 @@ export const useGenerationsPaneController = () => {
       paginatedData: generationData.paginatedData,
       shotsData: generationData.shotsData,
       totalCount: generationData.totalCount,
+      readOnly: Boolean(runtimeProjectId),
+      config: runtimeProjectId ? {
+        showDelete: false,
+        showStar: false,
+        showAddToShot: false,
+        showEdit: false,
+      } : undefined,
     },
     layout: {
       galleryContainerRef,
@@ -399,6 +427,7 @@ export const useGenerationsPaneController = () => {
     },
     navigation: {
       handleNavigateToImageGeneration,
+      handleAddGenerationToTimeline,
     },
   };
 };

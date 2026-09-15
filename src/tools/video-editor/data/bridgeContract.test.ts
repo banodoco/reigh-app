@@ -5,6 +5,7 @@ import {
   bridgeTaskAttemptDiagnosticsSchema,
   bridgeTaskAttemptSchema,
   bridgeTaskDetailPayloadSchema,
+  bridgeTaskSettlementEffectSchema,
   bridgeTimelinePayloadSchema,
   parseBridgePayload,
 } from '@/tools/video-editor/data/bridgeContract.ts';
@@ -176,6 +177,25 @@ describe('task detail attempt diagnostics contract', () => {
     expect(() => bridgeTaskAttemptDiagnosticsSchema.parse({
       progress: {},
       error: { message: 'failed', executor_stack: 'secret internals' },
+    })).toThrow();
+  });
+});
+
+describe('task settlement effect contract', () => {
+  it('accepts no effect and Runtime project.update only', () => {
+    expect(bridgeTaskSettlementEffectSchema.parse({})).toEqual({});
+    expect(bridgeTaskSettlementEffectSchema.parse({
+      effect_type: 'project.update',
+      target_id: 'project-1',
+      expected_version: 1,
+      payload: { metadata: { source: 'astrid' } },
+    })).toMatchObject({ effect_type: 'project.update' });
+  });
+
+  it('rejects producer-local lineage keys that Runtime cannot settle', () => {
+    expect(() => bridgeTaskSettlementEffectSchema.parse({
+      based_on: 'generation-1',
+      source_variant_id: 'variant-1',
     })).toThrow();
   });
 });

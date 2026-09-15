@@ -385,6 +385,7 @@ function InnerProvider({
           }
           const registrationPlan = planGenerationAssetRegistration({
             generationId: generation.id,
+            mediaId: generation.media_id,
             variantType: generation.type === 'video' ? 'video' : 'image',
             imageUrl: generation.location ?? generation.imageUrl ?? '',
             thumbUrl: generation.thumbUrl ?? generation.imageUrl ?? generation.location ?? '',
@@ -400,20 +401,40 @@ function InnerProvider({
             patchRegistry: currentOps.patchRegistry,
             registerAsset: currentOps.registerAsset,
           });
-          void persistPromise.catch((error) => {
+          const editorForDrop = editorRef.current;
+          try {
+            // Registry persistence advances the Runtime document version. Wait
+            // for that acknowledgement before the clip edit so the subsequent
+            // save uses the canonical version rather than racing it.
+            await persistPromise;
+          } catch (error) {
             console.error('[video-editor] Failed to persist staged add asset:', error);
             store.getState().ops.unpatchRegistry(assetKey);
             runtime.toast.error('Failed to save asset');
-          });
-          // Let registry patch settle before reading resolvedConfig.
-          await new Promise<void>((resolve) => setTimeout(resolve, 0));
-          const editorForDrop = editorRef.current;
+            processed.push(generationId);
+            continue;
+          }
+          // The standalone registry write advances Runtime's CAS version;
+          // reload the editor snapshot before composing the clip edit.
+          try {
+            const reloadFromServer = store.getState().chrome.reloadFromServer;
+            await reloadFromServer();
+          } catch (error) {
+            console.error('[video-editor] Failed to reload after staged add asset:', error);
+            runtime.toast.error('Failed to reload timeline after saving asset');
+            processed.push(generationId);
+            continue;
+          }
           const clips = editorForDrop.resolvedConfig?.clips ?? [];
           const timelineEnd = clips.reduce(
             (max, clip) => Math.max(max, clip.at + getClipTimelineDuration(clip)),
             0,
           );
-          editorForDrop.handleAssetDrop(assetKey, undefined, timelineEnd, false, false);
+          const placed = editorForDrop.handleAssetDrop(assetKey, undefined, timelineEnd, false, false);
+          if (!placed) {
+            console.error('[video-editor] Staged generation asset was registered but could not be placed', { assetKey });
+            runtime.toast.error('Could not place saved asset on timeline');
+          }
           processed.push(generationId);
           // Allow React to commit the clip before the next iteration reads clips.
           await new Promise<void>((resolve) => setTimeout(resolve, 50));
@@ -803,7 +824,9 @@ export function VideoEditorProvider({
     shots: shotsHost,
     mediaLightbox: {
       Lightbox: VideoEditorMediaLightbox,
-      loadGenerationForLightbox,
+      loadGenerationForLightbox: dataProvider.loadGenerationForLightbox
+        ? dataProvider.loadGenerationForLightbox.bind(dataProvider)
+        : loadGenerationForLightbox,
     },
     agentChat: {
       registerTimeline: agentChatRegistry.register,

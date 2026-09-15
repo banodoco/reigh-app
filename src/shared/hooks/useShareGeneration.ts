@@ -4,6 +4,8 @@ import { toast } from '@/shared/components/ui/runtime/sonner';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { isNotFoundError, isUniqueViolationError } from '@/shared/constants/supabaseErrors';
 import type { Json } from '@/integrations/supabase/jsonTypes';
+import { fetchTaskInProject } from '@/integrations/supabase/repositories/taskRepository';
+import { resolveTaskProjectScope } from '@/shared/lib/tasks/resolveTaskProjectScope';
 
 /** Narrow a Json value to a record, returning null if not an object */
 function asJsonRecord(value: Json | undefined | null): Record<string, Json | undefined> | null {
@@ -25,6 +27,8 @@ interface UseShareGenerationOptions {
   initialShareSlug?: string;
   /** Called after a new share is successfully created */
   onShareCreated?: (generationId: string, slug: string) => void;
+  /** Project scope required by the canonical Astrid task-detail route. */
+  projectId?: string | null;
 }
 
 /**
@@ -129,6 +133,7 @@ interface ShareCachedDataResult {
 async function fetchShareCachedData(
   generationId: string,
   taskId: string | null | undefined,
+  projectId: string | null,
   shotId?: string | null,
 ): Promise<ShareCachedDataResult> {
   const generationResult = shotId
@@ -147,12 +152,23 @@ async function fetchShareCachedData(
   }
 
   let taskResultData: Record<string, Json | undefined> | null = null;
-  if (taskId) {
-    const { data } = await supabase().from('tasks')
-      .select('id, task_type, params, status, created_at')
-      .eq('id', taskId)
-      .single();
-    taskResultData = data;
+  if (taskId && projectId) {
+    try {
+      const task = await fetchTaskInProject(taskId, projectId);
+      taskResultData = task
+        ? {
+            id: task.id,
+            task_type: task.taskType,
+            params: task.params as Json,
+            status: task.status,
+            created_at: task.createdAt,
+          }
+        : null;
+    } catch {
+      // Preserve the legacy best-effort cache behavior: task-read failures do
+      // not prevent creation of an otherwise valid generation share.
+      taskResultData = null;
+    }
   }
 
   let augmentedTaskData: Record<string, Json | undefined> | null = taskResultData;
@@ -330,7 +346,8 @@ export function useShareGeneration(
   shotId?: string | null,
   options?: UseShareGenerationOptions
 ): UseShareGenerationResult {
-  const { initialShareSlug, onShareCreated } = options ?? {};
+  const { initialShareSlug, onShareCreated, projectId } = options ?? {};
+  const taskProjectId = resolveTaskProjectScope(projectId);
   const [shareSlug, setShareSlug] = useState<string | null>(initialShareSlug ?? null);
   const [isCreatingShare, setIsCreatingShare] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
@@ -411,6 +428,7 @@ export function useShareGeneration(
       const { generationData, augmentedTaskData } = await fetchShareCachedData(
         generationId,
         taskId,
+        taskProjectId,
         shotId,
       );
 
@@ -453,7 +471,7 @@ export function useShareGeneration(
     } finally {
       setIsCreatingShare(false);
     }
-  }, [generationId, onShareCreated, shareSlug, shotId, taskId]);
+  }, [generationId, onShareCreated, shareSlug, shotId, taskId, taskProjectId]);
 
   return {
     handleShare,

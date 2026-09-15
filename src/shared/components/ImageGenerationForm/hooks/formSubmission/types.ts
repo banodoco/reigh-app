@@ -29,6 +29,7 @@ export interface FormStateSnapshot {
   styleBoostTerms: string;
   isLocalGenerationEnabled: boolean;
   hiresFixConfig: HiresFixConfig;
+  projectResolution?: string;
 }
 
 export interface FormSubmissionFormState {
@@ -42,6 +43,7 @@ export interface FormSubmissionFormState {
   styleBoostTerms: string;
   isLocalGenerationEnabled: boolean;
   hiresFixConfig: HiresFixConfig;
+  projectResolution?: string;
   effectivePromptMode: PromptMode;
   masterPromptText: string;
   actionablePromptsCount: number;

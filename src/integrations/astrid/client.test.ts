@@ -45,8 +45,8 @@ describe('AstridLocalClient', () => {
         output_policy: {},
       },
       storage_estimate: {
-        estimated_scratch_bytes: 0,
-        estimated_output_bytes: 0,
+        scratch_bytes: 0,
+        output_bytes: 0,
       },
       settlement_effect: {},
     };
@@ -57,6 +57,7 @@ describe('AstridLocalClient', () => {
     await expect(client.projects.list()).resolves.toEqual([
       expect.objectContaining({ slug: 'demo-project' }),
     ]);
+    expect(vi.mocked(globalThis.fetch).mock.calls[0]?.[0]).toContain('/v1/projects?limit=200');
   });
 
   // -- Admission ------------------------------------------------------------
@@ -192,7 +193,7 @@ describe('AstridLocalClient', () => {
     expect(detail.attempts).toEqual([]);
   });
 
-  it('reads detail-only diagnostics while keeping a fence conflict minimal', async () => {
+  it('keeps neutral task reads free of synthetic bridge diagnostics', async () => {
     const client = makeClient();
     const { task } = await client.tasks.admit(admissionRequest(), 'reigh.admit:diagnostics');
     const summary = router.state.tasks.get(task.id);
@@ -200,7 +201,7 @@ describe('AstridLocalClient', () => {
     summary.status = 'running';
 
     const detail = await client.tasks.get(task.id);
-    expect(detail.attempts?.[0]?.diagnostics).toEqual({ progress: {}, error: {} });
+    expect(detail.attempts).toEqual([]);
 
     const error = await client.tasks.cancel(task.id).catch((cause: unknown) => cause);
     expect(error).toBeInstanceOf(BridgeRouteError);

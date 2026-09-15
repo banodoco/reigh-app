@@ -8,21 +8,33 @@ afterEach(() => vi.unstubAllGlobals());
 describe('readBridgeTaskOutputs', () => {
   it('projects committed output rows to stable R9 media records', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => Response.json({
-      task: {
-        task_id: 'task-1',
-        project_id: 'demo',
-        capability: 'render_export',
-        status: 'succeeded',
-        priority: 0,
-        max_attempts: 1,
-        created_at: '2026-08-24T00:00:00Z',
-        updated_at: '2026-08-24T00:01:00Z',
+      task_id: 'task-1',
+      run_id: 'run-1',
+      project_id: 'demo',
+      state: 'succeeded',
+      version: 1,
+      capability_id: 'render_export',
+      capability_digest: `sha256:${'a'.repeat(64)}`,
+      schema_version: '1',
+      input_object_ids: [],
+      spec: {
+        input_object_ids: [],
+        schema_version: '1',
+        capability_digest: `sha256:${'a'.repeat(64)}`,
+        spec: { family: 'render_export', params: {}, output_policy: {} },
+      },
+      idempotency_key: 'task-1',
+      created_at: '2026-08-24T00:00:00Z',
+      updated_at: '2026-08-24T00:01:00Z',
+      attempt_id: null,
+      runtime_epoch: 1,
+      result: {
         outputs: [{
-          ordinal: 0,
-          role: 'video',
-          media_id: 'media-1',
-          is_primary: true,
-          params_json: '{"codec":"h264"}',
+          name: 'video',
+          kind: 'object',
+          digest: `sha256:${'a'.repeat(64)}`,
+          media_type: 'video/mp4',
+          size: 42,
         }],
       },
     })));
@@ -38,9 +50,9 @@ describe('readBridgeTaskOutputs', () => {
 
     await expect(readBridgeTaskOutputs(task)).resolves.toEqual([
       expect.objectContaining({
-        location: '/api/astrid/projects/demo/media/media-1/content',
+        location: `/api/astrid/v1/objects/${encodeURIComponent(`sha256:${'a'.repeat(64)}`)}`,
         type: 'video',
-        params: { codec: 'h264' },
+        params: { media_type: 'video/mp4', size: 42 },
         _variant_is_primary: true,
       }),
     ]);

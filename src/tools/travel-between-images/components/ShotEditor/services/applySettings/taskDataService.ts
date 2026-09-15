@@ -1,4 +1,6 @@
-import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
+import { getBridgeTaskClient } from '@/integrations/astrid/bridgeTaskReads';
+import { BridgeRouteError } from '@/integrations/astrid/transport';
+import { asRecord } from '@/shared/lib/typeCoercion';
 import { buildTaskPayloadSnapshot } from '@/shared/lib/tasks/taskPayloadSnapshot';
 import { buildTravelStructureSource, readResolvedTravelStructure } from '@/shared/lib/tasks/travelContractData';
 import {
@@ -28,35 +30,27 @@ function asStringArray(value: unknown): string[] | undefined {
     : undefined;
 }
 
-export const fetchTask = async (taskId: string): Promise<FetchTaskResult> => {
+export const fetchTask = async (projectSlug: string, taskId: string): Promise<FetchTaskResult> => {
   try {
-    const { data, error } = await supabase().from('tasks')
-      .select('*')
-      .eq('id', taskId)
-      .maybeSingle();
-
-    // .maybeSingle() returns {data: null, error: null} for missing rows,
-    // so only genuine DB errors reach here.
-    if (error) {
-      throw error;
-    }
-
-    if (!data) {
-      return { status: 'missing' };
-    }
-
-    const params = (data.params || {}) as Record<string, unknown>;
-    const orchestrator = (params.orchestrator_details || params.full_orchestrator_payload || {}) as Record<string, unknown>;
+    const task = await getBridgeTaskClient(projectSlug).tasks.get(taskId);
+    const spec = asRecord(task.spec);
+    const params = asRecord(spec?.params) ?? {};
+    const orchestrator = asRecord(params.orchestrator_details)
+      ?? asRecord(params.full_orchestrator_payload)
+      ?? {};
 
     return {
       status: 'found',
       taskData: { params, orchestrator },
     };
   } catch (queryError) {
+    if (queryError instanceof BridgeRouteError && queryError.status === 404) {
+      return { status: 'missing' };
+    }
     normalizeAndPresentError(queryError, {
       context: 'ApplySettings.fetchTask',
       showToast: false,
-      logData: { taskId },
+      logData: { projectSlug, taskId },
     });
     throw queryError;
   }

@@ -1,9 +1,9 @@
 import {
-  createTask,
+  createCharacterAnimationTask,
   validateRequiredFields,
   TaskValidationError
 } from "@/shared/lib/taskCreation";
-import type { TaskCreationResult } from "@/shared/lib/taskCreation";
+import type { RuntimeInput, TaskCreationResult } from "@/shared/lib/taskCreation";
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 
 /**
@@ -11,7 +11,9 @@ import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeErro
  */
 export interface CharacterAnimateTaskParams {
   project_id: string;
+  character_image?: RuntimeInput;
   character_image_url: string;
+  motion_video?: RuntimeInput;
   motion_video_url: string;
   prompt?: string;
   mode: 'replace' | 'animate';
@@ -76,18 +78,19 @@ export async function createCharacterAnimateTask(params: CharacterAnimateTaskPar
     // 1. Validate parameters
     validateCharacterAnimateParams(params);
 
-    const result = await createTask({
-      project_id: params.project_id,
-      family: 'character_animate',
-      input: {
-        character_image_url: params.character_image_url,
-        motion_video_url: params.motion_video_url,
-        prompt: params.prompt ?? DEFAULT_CHARACTER_ANIMATE_VALUES.prompt,
-        mode: params.mode ?? DEFAULT_CHARACTER_ANIMATE_VALUES.mode,
-        resolution: params.resolution ?? DEFAULT_CHARACTER_ANIMATE_VALUES.resolution,
-        seed: params.seed,
-        random_seed: params.random_seed,
-      }
+    const seed = params.random_seed
+      ? Math.floor(Math.random() * 2_147_483_648)
+      : (params.seed ?? DEFAULT_CHARACTER_ANIMATE_VALUES.seed);
+    const result = await createCharacterAnimationTask(params.project_id, {
+      characterImage: params.character_image,
+      characterImageUrl: params.character_image_url,
+      motionVideo: params.motion_video,
+      motionVideoUrl: params.motion_video_url,
+      prompt: params.prompt ?? DEFAULT_CHARACTER_ANIMATE_VALUES.prompt,
+      mode: params.mode ?? DEFAULT_CHARACTER_ANIMATE_VALUES.mode,
+      resolution: params.resolution ?? DEFAULT_CHARACTER_ANIMATE_VALUES.resolution,
+      seed,
+      randomSeed: params.random_seed ?? DEFAULT_CHARACTER_ANIMATE_VALUES.random_seed,
     });
 
     return result;

@@ -78,7 +78,7 @@ export const VideoItem = React.memo<VideoItemProps>(({
   // Share functionality (delegated to shared hook)
   const { handleShare, isCreatingShare, shareCopied, shareSlug } = useShareGeneration(
     video.id, taskMapping?.taskId, undefined,
-    { initialShareSlug: existingShareSlug, onShareCreated }
+    { initialShareSlug: existingShareSlug, onShareCreated, projectId }
   );
 
   // Join clips feature (child generation fetching, join modal state, join task creation)

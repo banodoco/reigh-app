@@ -343,6 +343,7 @@ export function useImageGenForm({
       styleBoostTerms,
       isLocalGenerationEnabled,
       hiresFixConfig,
+      projectResolution,
       effectivePromptMode,
       masterPromptText,
       actionablePromptsCount,

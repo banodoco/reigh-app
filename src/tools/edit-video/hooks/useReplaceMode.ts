@@ -6,27 +6,18 @@ import {
   useRef,
 } from 'react';
 import { GenerationRow } from '@/domains/generation/types';
-import { getGenerationId } from '@/shared/lib/media/mediaTypeHelpers';
-import { useProjectCrudContext, useProjectSelectionContext } from '@/shared/contexts/ProjectContext';
+import { useProjectSelectionContext } from '@/shared/contexts/ProjectContext';
 import { useEditVideoSettings } from '@/shared/settings/hooks/useEditVideoSettings';
 import { useLoraManager } from '@/domains/lora/hooks/useLoraManager';
 import { usePublicLoras } from '@/features/resources/hooks/useResources';
-import { resolveAspectRatioResolutionTuple } from '@/shared/lib/video/resolveAspectRatioResolutionTuple';
-import { useQueryClient } from '@tanstack/react-query';
-import {
-  flashSuccessForDuration,
-  invalidateTaskAndProjectQueries,
-} from '@/shared/lib/tasks/taskMutationFeedback';
-import { generateUUID, generateRunId, createTask } from '@/shared/lib/taskCreation';
-import { useTaskPlaceholder } from '@/shared/hooks/tasks/useTaskPlaceholder';
+import { generateUUID } from '@/shared/lib/taskCreation';
+import { unsupportedLegacyTaskError } from '@/shared/lib/taskCreation/legacyBoundary';
 import type { PortionSelection } from '@/shared/components/VideoPortionTimeline';
-import { DEFAULT_VACE_PHASE_CONFIG, buildPhaseConfigWithLoras, VACE_GENERATION_DEFAULTS } from '@/shared/lib/vaceDefaults';
 import { toast } from '@/shared/components/ui/runtime/sonner';
 import { TOOL_IDS } from '@/shared/lib/tooling/toolIds';
 import {
   calculateGapFramesFromRange,
   calculateMaxContextFrames,
-  capContextFrameCountForRanges,
   getDefaultSelectionRange,
   getNewSelectionRange,
   selectionsToFrameRanges,
@@ -47,7 +38,6 @@ interface UseReplaceModeProps {
  * Returns everything needed for timeline, panel, and overlay rendering.
  */
 export function useReplaceMode({
-  media,
   videoUrl,
   videoDuration,
   videoFps,
@@ -55,9 +45,6 @@ export function useReplaceMode({
   onSegmentsChange,
 }: UseReplaceModeProps) {
   const { selectedProjectId } = useProjectSelectionContext();
-  const { projects } = useProjectCrudContext();
-  const queryClient = useQueryClient();
-  const run = useTaskPlaceholder();
 
   // Multiple portion selections
   // Initialize from saved segments if provided, otherwise default to empty selection
@@ -102,14 +89,6 @@ export function useReplaceMode({
     selectedPhasePresetId,
   } = editSettings.settings;
 
-  // Hardcoded settings
-  const replaceMode = true;
-  const keepBridgingImages = false;
-
-  // Project aspect ratio for resolution
-  const currentProject = projects.find(p => p.id === selectedProjectId);
-  const projectAspectRatio = currentProject?.aspectRatio;
-
   // LoRA management
   const { data: availableLoras } = usePublicLoras();
 
@@ -121,7 +100,7 @@ export function useReplaceMode({
   });
 
   // Success state for button feedback
-  const [showSuccessState, setShowSuccessState] = useState(false);
+  const showSuccessState = false;
 
   // Initialize first selection to 10%-20% of video when duration becomes available
   useEffect(() => {
@@ -256,9 +235,6 @@ export function useReplaceMode({
     });
   }, [videoFps, videoDuration, frameRanges]);
 
-  // Loading state for generation
-  const [isGenerating, setIsGenerating] = useState(false);
-
   const handleGenerate = useCallback(async () => {
     if (!isValidPortion) {
       toast.error('Please select a valid portion of the video');
@@ -266,95 +242,11 @@ export function useReplaceMode({
     }
     if (!selectedProjectId || !videoUrl || !videoFps) return;
 
-    setIsGenerating(true);
-    try {
-      await run({
-        taskType: 'edit_video_orchestrator',
-        label: prompt?.substring(0, 50) || 'Video edit...',
-        context: 'VideoReplaceMode',
-        toastTitle: 'Failed to create regeneration task',
-        create: () => {
-          const portionFrameRanges = selectionsToFrameRanges(selections, videoFps, videoDuration, gapFrameCount, prompt);
-
-          const lorasForTask = loraManager.selectedLoras.map(lora => ({
-            path: lora.path,
-            strength: lora.strength,
-          }));
-          const resolutionTuple = resolveAspectRatioResolutionTuple(projectAspectRatio);
-
-          const baseConfig = savedPhaseConfig || DEFAULT_VACE_PHASE_CONFIG;
-          const phaseConfig = motionMode === 'advanced'
-            ? baseConfig
-            : buildPhaseConfigWithLoras(lorasForTask, baseConfig);
-
-          const totalFrames = Math.round(videoDuration * videoFps);
-          const cappedContextFrameCount = capContextFrameCountForRanges({
-            contextFrameCount,
-            totalFrames,
-            frameRanges: portionFrameRanges,
-          });
-
-          const orchestratorDetails: Record<string, unknown> = {
-            run_id: generateRunId(),
-            priority: editSettings.settings.priority || 0,
-            tool_type: TOOL_IDS.EDIT_VIDEO,
-
-            source_video_url: videoUrl,
-            source_video_fps: videoFps,
-            source_video_total_frames: totalFrames,
-
-            portions_to_regenerate: portionFrameRanges,
-
-            model: (editSettings.settings.model?.startsWith('wan_2_2_')
-              ? editSettings.settings.model
-              : VACE_GENERATION_DEFAULTS.model),
-            resolution: resolutionTuple || [902, 508],
-            seed: editSettings.settings.seed ?? -1,
-
-            context_frame_count: cappedContextFrameCount,
-            gap_frame_count: gapFrameCount,
-            replace_mode: replaceMode,
-            keep_bridging_images: keepBridgingImages,
-
-            prompt: prompt,
-            negative_prompt: negativePrompt,
-            enhance_prompt: enhancePrompt,
-
-            num_inference_steps: editSettings.settings.numInferenceSteps || 6,
-            guidance_scale: editSettings.settings.guidanceScale || 3,
-            phase_config: phaseConfig,
-
-            motion_mode: motionMode,
-            selected_phase_preset_id: selectedPhasePresetId,
-
-            parent_generation_id: getGenerationId(media),
-            based_on: getGenerationId(media),
-          };
-
-          if (lorasForTask.length > 0) {
-            orchestratorDetails.loras = lorasForTask;
-          }
-
-          return createTask({
-            project_id: selectedProjectId!,
-            family: 'edit_video_orchestrator',
-            input: {
-              orchestrator_details: orchestratorDetails,
-              tool_type: TOOL_IDS.EDIT_VIDEO,
-              parent_generation_id: getGenerationId(media),
-              based_on: getGenerationId(media),
-            },
-          });
-        },
-        onSuccess: () => {
-          flashSuccessForDuration(setShowSuccessState, 1500);
-          invalidateTaskAndProjectQueries(queryClient, selectedProjectId);
-        },
-      });
-    } finally {
-      setIsGenerating(false);
-    }
-  }, [isValidPortion, selectedProjectId, videoUrl, videoFps, prompt, selections, videoDuration, gapFrameCount, loraManager.selectedLoras, projectAspectRatio, savedPhaseConfig, motionMode, contextFrameCount, replaceMode, keepBridgingImages, negativePrompt, enhancePrompt, editSettings.settings, selectedPhasePresetId, media, queryClient, run]);
+    // Keeper/gap replacement semantics are not represented by a shipped
+    // canonical capability. Reject before placeholder state or submission
+    // work.
+    toast.error(unsupportedLegacyTaskError('edit_video_orchestrator').message);
+  }, [isValidPortion, selectedProjectId, videoUrl, videoFps]);
 
   return {
     selections,
@@ -371,7 +263,7 @@ export function useReplaceMode({
     loraManager,
     availableLoras,
     handleGenerate,
-    isGenerating,
+    isGenerating: false,
     showSuccessState,
     contextFrameCount,
     gapFrameCount,

@@ -46,11 +46,17 @@ import {
 } from '@/tools/video-editor/dev/devExtensionEnablement.ts';
 import { useExtensionLoaderWiring } from '@/tools/video-editor/runtime/useExtensionLoaderWiring';
 import { ReighVideoEditorShell } from '@/tools/video-editor/components/ReighVideoEditorShell.tsx';
+import { AstridAcpSessionControls } from '@/tools/video-editor/components/AstridAcpSessionControls.tsx';
 import { EditorProjectTimelineSelectors } from '@/tools/video-editor/components/EditorProjectTimelineSelectors.tsx';
 import {
   LOCAL_BRIDGE_BASE_URL,
   useAstridBridgeDiscovery,
 } from '@/tools/video-editor/hooks/useAstridBridgeDiscovery.ts';
+import { RuntimeDataProvider } from '@/integrations/runtime/dataProvider.ts';
+import {
+  RuntimeAuthenticationError,
+  type RuntimeConnectorError,
+} from '@/integrations/runtime/client.ts';
 import { useTimelinesList } from '@/tools/video-editor/hooks/useTimelinesList.ts';
 import type { SaveStatus } from '@/tools/video-editor/hooks/useTimelinePersistence.ts';
 import { astridTimelineReadPath, isAstridWorkspaceV1 } from '@/integrations/astrid/workspaceV1.ts';
@@ -63,7 +69,7 @@ import {
   selectReleaseEnabledExtensions,
 } from '@/tools/video-editor/runtime/extensionReleaseControls.ts';
 
-type VideoEditorMode = 'app' | 'local';
+type VideoEditorMode = 'app' | 'local' | 'runtime';
 
 type ProviderSelection = {
   dataProvider: DataProvider;
@@ -72,6 +78,7 @@ type ProviderSelection = {
   timelineName: string | null;
   userId: string | null;
   remountKey: string;
+  runtimeReconnect?: () => Promise<void>;
 };
 
 /**
@@ -132,6 +139,36 @@ export function timelineFreshnessLabel(updatedAt: string | null | undefined): st
   return `Updated ${new Date(timestamp).toLocaleString()}`;
 }
 
+export function RuntimeConnectorRecoveryBanner({
+  error,
+  onRetry,
+  retrying = false,
+}: {
+  error: RuntimeConnectorError;
+  onRetry: () => void | Promise<void>;
+  retrying?: boolean;
+}) {
+  const authenticationFailed = error instanceof RuntimeAuthenticationError;
+
+  return (
+    <div
+      className="flex items-center justify-between gap-4 border-b border-destructive/30 bg-destructive/5 px-4 py-3"
+      data-testid="runtime-connector-alert"
+      role="alert"
+    >
+      <div className="min-w-0">
+        <p className="text-sm font-medium text-foreground">
+          {authenticationFailed ? 'Workspace Runtime authentication failed' : 'Workspace Runtime is unavailable'}
+        </p>
+        <p className="mt-1 text-xs text-muted-foreground">{error.recoveryAction}</p>
+      </div>
+      <Button type="button" size="sm" variant="outline" onClick={() => void onRetry()} disabled={retrying}>
+        {retrying ? 'Retrying Runtime connection…' : 'Retry Runtime connection'}
+      </Button>
+    </div>
+  );
+}
+
 function useVideoEditorProviderSelection({
   mode,
   selectedProjectId,
@@ -141,7 +178,10 @@ function useVideoEditorProviderSelection({
   localProjectSlug,
   localTimelineId,
   localTimelineName,
+  runtimeProjectId,
+  runtimeTimelineId,
   onBridgeRequest,
+  onRuntimeError,
 }: {
   mode: VideoEditorMode;
   selectedProjectId: string | null;
@@ -151,9 +191,35 @@ function useVideoEditorProviderSelection({
   localProjectSlug: string | null;
   localTimelineId: string | null;
   localTimelineName: string | null;
+  runtimeProjectId: string | null;
+  runtimeTimelineId: string | null;
   onBridgeRequest?: (event: AstridBridgeRequestObservation) => void;
+  onRuntimeError?: (error: RuntimeConnectorError) => void;
 }): ProviderSelection | null {
   return useMemo(() => {
+    if (mode === 'runtime') {
+      if (!runtimeProjectId || !runtimeTimelineId) {
+        return null;
+      }
+
+      const dataProvider = new RuntimeDataProvider({
+        projectId: runtimeProjectId,
+        onRuntimeError,
+      });
+
+      return {
+        dataProvider,
+        projectId: runtimeProjectId,
+        timelineId: runtimeTimelineId,
+        timelineName: runtimeTimelineId,
+        // Runtime authentication is owned by the connector/proxy. Keep the
+        // app user null so cloud-only catalogs cannot become a second authority.
+        userId: null,
+        remountKey: `runtime:${runtimeProjectId}:${runtimeTimelineId}`,
+        runtimeReconnect: () => dataProvider.reconnect(),
+      };
+    }
+
     if (mode === 'local') {
       if (!localProjectSlug || !localTimelineId) {
         return null;
@@ -197,6 +263,9 @@ function useVideoEditorProviderSelection({
     localTimelineName,
     mode,
     onBridgeRequest,
+    onRuntimeError,
+    runtimeProjectId,
+    runtimeTimelineId,
     selectedProjectId,
     userId,
   ]);
@@ -480,13 +549,19 @@ export default function VideoEditorPage() {
   const navigate = useNavigate();
   const { navigateHome } = useHomeNavigation();
 
+  // Runtime mode is an explicit R1 entry. It is intentionally separate from
+  // the existing Astrid bridge mode so the first neutral slice has no fallback
+  // or ambiguous authority selection.
+  const runtimeProjectId = searchParams.get('runtimeProject');
+  const runtimeTimelineId = searchParams.get('runtimeTimeline');
+  const runtimeMode = searchParams.get('runtime') === '1';
   // Local mode is derived solely from the URL params — the legacy
   // `dev.videoEditor.localMode` storage flag has been retired.
   const localProjectSlug = searchParams.get('localProject');
   const localTimelineId = searchParams.get('localTimeline');
-  const mode: VideoEditorMode = searchParams.has('localProject') || searchParams.has('localTimeline')
-    ? 'local'
-    : 'app';
+  const mode: VideoEditorMode = runtimeMode
+    ? 'runtime'
+    : searchParams.has('localProject') || searchParams.has('localTimeline') ? 'local' : 'app';
   const appTimelineId = searchParams.get('timeline');
 
   // Selector dropdown open state drives discovery refetch-on-open + polling.
@@ -499,15 +574,21 @@ export default function VideoEditorPage() {
   });
 
   const [mountedSaveStatus, setMountedSaveStatus] = useState<SaveStatus>('saved');
+  const [runtimeConnectorError, setRuntimeConnectorError] = useState<RuntimeConnectorError | null>(null);
+  const [runtimeRetrying, setRuntimeRetrying] = useState(false);
+  const onRuntimeError = useCallback((error: RuntimeConnectorError) => {
+    setRuntimeConnectorError(error);
+    setRuntimeRetrying(false);
+  }, []);
   const creatingRef = useRef(false);
   const timelines = useTimelinesList(
-    mode === 'local' ? null : selectedProjectId,
-    mode === 'local' ? null : userId,
+    mode === 'app' ? selectedProjectId : null,
+    mode === 'app' ? userId : null,
   );
   const bridgeTimelineName = useBridgeTimelineName(localProjectSlug, localTimelineId, mode === 'local');
   const { settings, update } = useToolSettings(videoEditorSettings.id, {
-    projectId: mode === 'local' ? undefined : (selectedProjectId ?? undefined),
-    enabled: mode !== 'local' && Boolean(selectedProjectId),
+    projectId: mode === 'app' ? (selectedProjectId ?? undefined) : undefined,
+    enabled: mode === 'app' && Boolean(selectedProjectId),
   });
   const appTimelineName = timelines.data?.find(
     (timeline: { id: string; name: string }) => timeline.id === appTimelineId,
@@ -522,7 +603,10 @@ export default function VideoEditorPage() {
     localProjectSlug,
     localTimelineId,
     localTimelineName,
+    runtimeProjectId,
+    runtimeTimelineId,
     onBridgeRequest,
+    onRuntimeError: mode === 'runtime' ? onRuntimeError : undefined,
   });
 
   // dataKind V1 golden path (groken round 4): DEV-only fixture provider so the
@@ -539,6 +623,26 @@ export default function VideoEditorPage() {
         })
       : providerSelection.dataProvider;
   }, [providerSelection]);
+
+  useEffect(() => {
+    setRuntimeConnectorError(null);
+    setRuntimeRetrying(false);
+  }, [mode, providerSelection?.remountKey]);
+
+  const handleRuntimeRetry = useCallback(async () => {
+    if (runtimeRetrying || !providerSelection?.runtimeReconnect) {
+      return;
+    }
+    setRuntimeRetrying(true);
+    try {
+      await providerSelection.runtimeReconnect();
+      setRuntimeConnectorError(null);
+    } catch {
+      // RuntimeDataProvider reports the typed failure through onRuntimeError.
+    } finally {
+      setRuntimeRetrying(false);
+    }
+  }, [providerSelection, runtimeRetrying]);
 
   useEffect(() => {
     setMountedSaveStatus('saved');
@@ -769,10 +873,10 @@ export default function VideoEditorPage() {
 
   const selectors = (
     <EditorProjectTimelineSelectors
-      mode={mode}
+      mode={mode === 'app' ? 'app' : 'local'}
       appProjects={appProjects}
       appProjectsLoading={appProjectsLoading}
-      selectedAppProjectId={mode === 'local' ? null : selectedProjectId}
+      selectedAppProjectId={mode === 'app' ? selectedProjectId : null}
       localProjectSlug={localProjectSlug}
       localTimelineId={localTimelineId}
       localTimelineName={localTimelineName}
@@ -782,6 +886,31 @@ export default function VideoEditorPage() {
       disabled={isSwitchBlockedBySave}
       onOpenChange={setSelectorsOpen}
     />
+  );
+
+  const runtimeSelectors = (
+    <div className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground" data-testid="runtime-project-timeline">
+      <span className="rounded-md border border-border/70 bg-card/80 px-2 py-1">Runtime</span>
+      <span className="truncate" title={runtimeProjectId ?? undefined}>{runtimeProjectId ?? 'No project'}</span>
+      <span aria-hidden="true">/</span>
+      <span className="truncate" title={runtimeTimelineId ?? undefined}>{runtimeTimelineId ?? 'No timeline'}</span>
+    </div>
+  );
+
+  const localNavigationControls = (
+    <div className="flex min-w-0 flex-col gap-2 xl:flex-row xl:items-center">
+      <div className="min-w-0 flex-1">{selectors}</div>
+      <AstridAcpSessionControls enabled={mode === 'local' && Boolean(localProjectSlug)} />
+    </div>
+  );
+  // Keep the existing Runtime identity selector and the host-owned ACP
+  // controls together on the canonical Runtime entry. The ACP connection is
+  // independent of Runtime storage and remains ephemeral in the browser tab.
+  const runtimeNavigationControls = (
+    <div className="flex min-w-0 flex-col gap-2 xl:flex-row xl:items-center">
+      <div className="min-w-0 flex-1">{runtimeSelectors}</div>
+      <AstridAcpSessionControls enabled={mode === 'runtime'} />
+    </div>
   );
 
   // Page-level header for the branches where the editor shell (which hosts the
@@ -795,9 +924,70 @@ export default function VideoEditorPage() {
       >
         ← Back
       </button>
-      <div className="min-w-0 flex-1">{selectors}</div>
+      <div className="min-w-0 flex-1">{mode === 'local' ? localNavigationControls : selectors}</div>
     </div>
   );
+
+  if (mode === 'runtime') {
+    return (
+      <div className="flex h-full w-full flex-col overflow-hidden bg-background">
+        {runtimeConnectorError && (
+          <RuntimeConnectorRecoveryBanner
+            error={runtimeConnectorError}
+            onRetry={handleRuntimeRetry}
+            retrying={runtimeRetrying}
+          />
+        )}
+        {providerSelection ? (
+          <div className="min-h-0 flex-1 overflow-hidden">
+            <VideoEditorProvider
+              key={providerSelection.remountKey}
+              dataProvider={pageDataProvider ?? providerSelection.dataProvider}
+              projectId={providerSelection.projectId}
+              timelineId={providerSelection.timelineId}
+              timelineName={providerSelection.timelineName}
+              userId={providerSelection.userId}
+              onSaveStatusChange={setMountedSaveStatus}
+              extensions={resolvedExtensions}
+              timelineOverlaysEnabled={timelineOverlaysEnabled}
+              extensionHostEnabled={extensionReleaseFlags.extensionHostEnabled}
+              extensionReleaseRevision={extensionReleaseFlags.configurationRevision}
+            >
+              <ReighVideoEditorShell
+                mode="full"
+                timelineId={providerSelection.timelineId}
+                onCreateTimeline={() => navigate('/')}
+                navigationControls={runtimeNavigationControls}
+              />
+            </VideoEditorProvider>
+          </div>
+        ) : (
+          <>
+            <div className="flex items-center gap-3 border-b border-border px-4 py-3">
+              <button type="button" className="shrink-0 text-sm transition-colors hover:text-foreground" onClick={navigateHome}>
+                ← Back
+              </button>
+              <div className="min-w-0 flex-1">{runtimeNavigationControls}</div>
+            </div>
+            <div className="flex flex-1 items-center justify-center px-6">
+              <Card className="w-full max-w-md">
+                <CardHeader>
+                  <CardTitle>Select a Runtime timeline</CardTitle>
+                  <CardDescription>Open this R1 path with runtime=1, runtimeProject, and runtimeTimeline.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">
+                    Configure the authenticated Runtime connector with <code>VITE_WORKSPACE_RUNTIME_URL</code> or use the
+                    default <code>/api/runtime</code> proxy, then retry.
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+          </>
+        )}
+      </div>
+    );
+  }
 
   if (mode === 'local') {
     return (
@@ -826,7 +1016,7 @@ export default function VideoEditorPage() {
                 mode="full"
                 timelineId={providerSelection.timelineId}
                 onCreateTimeline={() => navigate('/')}
-                navigationControls={selectors}
+                navigationControls={mode === 'local' ? localNavigationControls : selectors}
               />
             </VideoEditorProvider>
           </div>

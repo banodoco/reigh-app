@@ -21,6 +21,7 @@ export function useFormSubmission(props: UseFormSubmissionProps): UseFormSubmiss
     selectedProjectId, prompts, imagesPerPrompt, promptMultiplier,
     associatedShotId, currentBeforePromptText, currentAfterPromptText,
     styleBoostTerms, isLocalGenerationEnabled, hiresFixConfig,
+    projectResolution,
     effectivePromptMode, masterPromptText, actionablePromptsCount,
   } = formState;
   const {
@@ -64,6 +65,7 @@ export function useFormSubmission(props: UseFormSubmissionProps): UseFormSubmiss
     styleBoostTerms,
     isLocalGenerationEnabled,
     hiresFixConfig,
+    projectResolution,
     generationSourceRef,
     selectedTextModelRef,
     selectedLorasRef,

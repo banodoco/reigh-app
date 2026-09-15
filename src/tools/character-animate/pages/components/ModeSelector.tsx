@@ -16,14 +16,20 @@ export function ModeSelector({ mode, onChange }: ModeSelectorProps) {
           <Button variant={mode === 'animate' ? 'default' : 'outline'} onClick={() => onChange('animate')} className="flex-1">
             Animate
           </Button>
-          <Button variant={mode === 'replace' ? 'default' : 'outline'} onClick={() => onChange('replace')} className="flex-1">
-            Replace
+          <Button
+            variant={mode === 'replace' ? 'default' : 'outline'}
+            onClick={() => onChange('replace')}
+            className="flex-1"
+            disabled={mode !== 'replace'}
+            title="Replace mode is not admitted by the current Astrid profile"
+          >
+            Replace (unavailable)
           </Button>
         </div>
         <p className="text-xs text-muted-foreground flex-1">
           {mode === 'animate'
             ? 'Animate the character in input image with movements from the input video'
-            : 'Replace the character in input video with the character in input image'}
+            : 'Replace mode is not admitted by the current Astrid profile'}
         </p>
       </div>
     </div>

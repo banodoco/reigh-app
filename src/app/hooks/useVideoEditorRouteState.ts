@@ -14,7 +14,9 @@ export function useVideoEditorRouteState() {
   // same full-height shell, so both have to switch the app layout over to it —
   // reading only `timeline` left local mode rendering the shell inside the
   // scrolling page layout, with the timeline pushed below the fold.
-  const timelineId = searchParams.get('timeline') ?? searchParams.get('localTimeline');
+  const timelineId = searchParams.get('timeline')
+    ?? searchParams.get('localTimeline')
+    ?? searchParams.get('runtimeTimeline');
   const isEditorRoute = isVideoEditorRoute(pathname);
   const isVideoEditorShellActive = isEditorRoute && Boolean(timelineId);
 

@@ -2,6 +2,7 @@ import React, { createContext, useState, useContext, ReactNode, useEffect, useMe
 import { probeBridgeSession } from '@/shared/auth/bridgeSession';
 import { requireContextValue } from './contextGuard';
 import { isLocalTestMode } from '@/app/localTestRuntime';
+import { isRuntimeDocumentMode } from '@/app/runtime/runtimeDocument';
 
 interface AuthContextType {
   userId: string | null;
@@ -17,11 +18,13 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
  * reaches browser code. */
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const localTestMode = isLocalTestMode();
+  const runtimeDocumentMode = isRuntimeDocumentMode();
+  const sessionlessDocument = localTestMode || runtimeDocumentMode;
   const [userId, setUserId] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(!localTestMode);
+  const [isLoading, setIsLoading] = useState(!sessionlessDocument);
 
   useEffect(() => {
-    if (localTestMode) {
+    if (sessionlessDocument) {
       setUserId(null);
       setIsLoading(false);
       return;
@@ -35,7 +38,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => {
       cancelled = true;
     };
-  }, [localTestMode]);
+  }, [sessionlessDocument]);
 
   const value = useMemo(() => ({ userId, isAuthenticated: !!userId, isLoading }), [userId, isLoading]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
