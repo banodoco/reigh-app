@@ -127,10 +127,16 @@ const includeBridgeServer = includeTimelineDevices || includeExtensionHarness;
 const extensionHarnessDependencies = includeExtensionHarness
   ? ['extension-harness-setup']
   : [];
-const defaultProjectIgnores = [TIMELINE_DEVICE_SPECS, EXTENSION_HARNESS_SETUP_SPEC];
+// Release specs require the paired gate's provisioned fixtures and credentials;
+// playwright.paired-release.config.ts owns their collection.
+const PAIRED_RELEASE_SPECS = /tests[\\/]e2e[\\/]release[\\/].*\.spec\.ts$/;
+const defaultProjectIgnores = [TIMELINE_DEVICE_SPECS, EXTENSION_HARNESS_SETUP_SPEC, PAIRED_RELEASE_SPECS];
 
 export default defineConfig({
   testDir: './tests/e2e',
+  // Unit helpers here use Vitest or node:test; only browser specs belong to
+  // Playwright. The extension setup project overrides this match explicitly.
+  testMatch: '**/*.spec.ts',
   outputDir,
   timeout: 30_000,
   expect: {
