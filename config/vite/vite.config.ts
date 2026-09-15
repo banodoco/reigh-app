@@ -129,6 +129,7 @@ export default defineConfig(() => {
         "react-dom": path.resolve(__dirname, "../../node_modules/react-dom"),
         "remotion": path.resolve(__dirname, "../../node_modules/remotion"),
         "@remotion/layout-utils": path.resolve(__dirname, "../../node_modules/@remotion/layout-utils"),
+        "@remotion/media": path.resolve(__dirname, "../../node_modules/@remotion/media"),
         "@banodoco/timeline-composition/registry.generated": fs.existsSync(generatedRegistryPath)
           ? generatedRegistryPath
           : generatedRegistryFallbackPath,
