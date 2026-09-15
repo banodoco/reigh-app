@@ -40,6 +40,7 @@ export default defineConfig({
       'react-dom': path.resolve(projectRoot, 'node_modules/react-dom'),
       'remotion': path.resolve(projectRoot, 'node_modules/remotion'),
       '@remotion/layout-utils': path.resolve(projectRoot, 'node_modules/@remotion/layout-utils'),
+      '@remotion/media': path.resolve(projectRoot, 'node_modules/@remotion/media'),
       '@banodoco/timeline-composition/registry.generated': resolvedTimelineCompositionRegistryPath,
       '@banodoco/timeline-composition/theme-api': resolvedTimelineCompositionThemeApiPath,
       '@banodoco/timeline-composition': path.resolve(projectRoot, 'node_modules/@banodoco/timeline-composition'),

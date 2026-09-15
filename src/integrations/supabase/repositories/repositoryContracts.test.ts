@@ -132,7 +132,7 @@ describe('repository contracts', () => {
     expect(admit.status).toBe(201);
     const { task } = (await admit.json()) as { task: { id: string } };
     vi.stubGlobal('fetch', vi.fn(async () => await router.handle(
-      new Request(`http://bridge.fake/api/astrid/projects/project-1/tasks/${task.id}`),
+      new Request(`http://bridge.fake/api/astrid/v1/tasks/${task.id}`),
     )));
 
     const mapped = await fetchTaskInProject(task.id, 'project-1');

@@ -61,12 +61,19 @@ async function sha256Hex(bytes: Uint8Array): Promise<string> {
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
+function isInputBlob(input: RuntimeInput): input is Blob {
+  return input instanceof Blob || (typeof input === 'object' && input !== null
+    && 'arrayBuffer' in input && typeof input.arrayBuffer === 'function'
+    && 'type' in input && typeof input.type === 'string');
+}
+
 async function inputBytes(input: RuntimeInput): Promise<{
   bytes: Uint8Array;
   mediaType: string | undefined;
   originalName: string | undefined;
 }> {
-  if (input instanceof Blob) {
+  // Fetch and iframe Blobs may belong to another realm and fail instanceof.
+  if (isInputBlob(input)) {
     return {
       bytes: new Uint8Array(await input.arrayBuffer()),
       mediaType: input.type || undefined,
