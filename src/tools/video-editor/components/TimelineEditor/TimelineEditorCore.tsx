@@ -191,8 +191,8 @@ export interface TimelineEditorCoreProps {
   onShotGroupNavigate?: (shotId: string) => void;
   onShotGroupOpen?: (occurrence: CanonicalShotOccurrence) => void;
   onShotGroupGenerateVideo?: (shotId: string) => void;
-  onShotGroupSwitchToFinalVideo?: (group: { shotId: string; clipIds: string[]; rowId: string }) => void;
-  onShotGroupExportManagedOutput?: (group: { shotId: string; clipIds: string[]; rowId: string }) => void | Promise<void>;
+  onShotGroupSwitchToFinalVideo?: (group: { shotId: string; clipIds: string[]; rowId: string; canonicalIdentity?: CanonicalShotOccurrence }) => void;
+  onShotGroupExportManagedOutput?: (group: { shotId: string; clipIds: string[]; rowId: string; canonicalIdentity?: CanonicalShotOccurrence }) => void | Promise<void>;
   onShotGroupSwitchToImages?: (group: { shotId: string; rowId: string }) => void;
   onShotGroupUpdateToLatestVideo?: (group: { shotId: string; rowId: string }) => void;
   onShotGroupUnpin?: (group: { shotId: string; trackId: string }) => void;

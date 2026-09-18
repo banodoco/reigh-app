@@ -44,7 +44,7 @@ import { TimelineGhostLayer } from '@/tools/video-editor/components/TimelineEdit
 import { VideoEditorRuntimeContext } from '@/tools/video-editor/contexts/VideoEditorRuntimeContext.tsx';
 import type { TimelineGhostEntry } from '@/tools/video-editor/types/timeline-canvas.ts';
 import { useClipResizeGesture } from '@/tools/video-editor/hooks/useClipResizeGesture.ts';
-import type { ShotGroup } from '@/tools/video-editor/hooks/useShotGroups.ts';
+import { shotGroupVideoKey, type ShotGroup } from '@/tools/video-editor/hooks/useShotGroups.ts';
 import type { CanonicalShotOccurrence } from '@/tools/video-editor/data/shotCompositionAdapter.ts';
 import { useTimelineEditorDataSafe, useTimelineMutableAdapters } from '@/tools/video-editor/hooks/timelineStore.ts';
 import { useDataLanes } from '@/tools/video-editor/data-kinds/useDataLanes.ts';
@@ -144,8 +144,8 @@ export interface TimelineCanvasProps {
   onShotGroupNavigate?: (shotId: string) => void;
   onShotGroupOpen?: (occurrence: CanonicalShotOccurrence) => void;
   onShotGroupGenerateVideo?: (shotId: string) => void;
-  onShotGroupSwitchToFinalVideo?: (group: { shotId: string; clipIds: string[]; rowId: string }) => void;
-  onShotGroupExportManagedOutput?: (group: { shotId: string; clipIds: string[]; rowId: string }) => void | Promise<void>;
+  onShotGroupSwitchToFinalVideo?: (group: { shotId: string; clipIds: string[]; rowId: string; canonicalIdentity?: CanonicalShotOccurrence }) => void;
+  onShotGroupExportManagedOutput?: (group: { shotId: string; clipIds: string[]; rowId: string; canonicalIdentity?: CanonicalShotOccurrence }) => void | Promise<void>;
   onShotGroupSwitchToImages?: (group: { shotId: string; rowId: string }) => void;
   onShotGroupUpdateToLatestVideo?: (group: { shotId: string; rowId: string }) => void;
   onShotGroupUnpin?: (group: { shotId: string; trackId: string }) => void;
@@ -667,7 +667,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
       const preview = resizePreviewSnapshot[groupKey];
       const start = preview?.start ?? group.start;
       const end = preview?.end ?? group.end ?? (group.start + lastChild!.offset + lastChild!.duration);
-      const finalVideo = finalVideoMap?.get(group.shotId);
+      const finalVideo = finalVideoMap?.get(shotGroupVideoKey(group));
 
       return [{
         key: `${group.shotId}:${group.rowId}:${group.clipIds.join(',')}`,
@@ -679,7 +679,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
         rowId: group.rowId,
         color: group.color,
         mode: group.mode,
-        hasFinalVideo: finalVideoMap?.has(group.shotId) ?? false,
+        hasFinalVideo: finalVideoMap?.has(shotGroupVideoKey(group)) ?? false,
         hasManagedOutput: Boolean(finalVideo && typeof finalVideo === 'object' && (finalVideo as { managedOutput?: unknown }).managedOutput),
         hasStaleVideo: staleShotGroupIds?.has(`${group.shotId}:${group.rowId}`) ?? false,
         hasActiveTask: activeTaskClipIds ? group.clipIds.some((id) => activeTaskClipIds.has(id)) : false,

@@ -23,6 +23,10 @@ export interface ShotGroup {
   canonicalIdentity?: CanonicalShotOccurrence;
 }
 
+export function shotGroupVideoKey(group: Pick<ShotGroup, 'shotId' | 'canonicalIdentity'>): string {
+  return group.canonicalIdentity?.occurrenceId ?? group.shotId;
+}
+
 export function getShotColor(shotId: string): string {
   let hash = 0;
   for (let index = 0; index < shotId.length; index += 1) {

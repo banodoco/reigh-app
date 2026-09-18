@@ -24,6 +24,7 @@ import {
 } from '@/tools/video-editor/hooks/usePinnedShotGroups.ts';
 import { useShotGroupHandlers } from '@/tools/video-editor/hooks/useShotGroupHandlers.ts';
 import { useShotGroups } from '@/tools/video-editor/hooks/useShotGroups.ts';
+import { shotGroupVideoKey } from '@/tools/video-editor/hooks/useShotGroups.ts';
 import { useSwitchToFinalVideo } from '@/tools/video-editor/hooks/useSwitchToFinalVideo.ts';
 import {
   useTimelineDataSelector,
@@ -41,6 +42,7 @@ import {
   duplicateIndependentShot,
 } from '@/tools/video-editor/data/shotCompositionEditor.ts';
 import type { CanonicalShotOccurrence } from '@/tools/video-editor/data/shotCompositionAdapter.ts';
+import { managedOutputMatchesOccurrence } from '@/tools/video-editor/data/shotCompositionProjection.ts';
 import type { ClipMeta } from '@/tools/video-editor/lib/timeline-data.ts';
 
 interface ReighTimelineEditorProps {
@@ -241,10 +243,17 @@ function ReighTimelineEditorComponent({ onOpenSequenceCreator }: ReighTimelineEd
     exportRuntimeManagedOutput,
   } = useFinalVideoAvailable();
 
-  const handleExportManagedOutput = useCallback(async (group: { shotId: string; clipIds: string[]; rowId: string }) => {
-    const managedOutput = finalVideoMap.get(group.shotId)?.managedOutput;
+  const handleExportManagedOutput = useCallback(async (group: { shotId: string; clipIds: string[]; rowId: string; canonicalIdentity?: CanonicalShotOccurrence }) => {
+    const finalVideo = finalVideoMap.get(shotGroupVideoKey(group));
+    const managedOutput = finalVideo?.managedOutput;
     if (!managedOutput) {
       toast.error('Selected final video is not a Runtime-managed output.');
+      return;
+    }
+    if (group.canonicalIdentity
+      && finalVideo?.canonicalOccurrenceId !== group.canonicalIdentity.occurrenceId
+      && !managedOutputMatchesOccurrence(managedOutput as unknown as Record<string, unknown>, group.canonicalIdentity)) {
+      toast.error('The selected managed output does not belong to this shot occurrence.');
       return;
     }
 
@@ -536,12 +545,12 @@ function ReighTimelineEditorComponent({ onOpenSequenceCreator }: ReighTimelineEd
         onShotGroupGenerateVideo={isDocumentShotMode ? undefined : handleShotGroupGenerateVideo}
         onShotGroupDuplicate={isDocumentShotMode ? handleDuplicateDocumentShotGroup : undefined}
         onShotGroupPromotePrimary={isDocumentShotMode ? handlePromoteDocumentShotGroupPrimary : undefined}
-        onShotGroupUnpin={handleShotGroupUnpin}
-        onShotGroupDelete={handleDeleteShotGroup}
-        onShotGroupSwitchToFinalVideo={handleShotGroupSwitchToFinalVideo}
+        onShotGroupUnpin={isCanonicalEditor ? undefined : handleShotGroupUnpin}
+        onShotGroupDelete={isCanonicalEditor ? undefined : handleDeleteShotGroup}
+        onShotGroupSwitchToFinalVideo={isCanonicalEditor ? undefined : handleShotGroupSwitchToFinalVideo}
         onShotGroupExportManagedOutput={handleExportManagedOutput}
-        onShotGroupSwitchToImages={handleShotGroupSwitchToImages}
-        onShotGroupUpdateToLatestVideo={handleUpdateToLatestVideo}
+        onShotGroupSwitchToImages={isCanonicalEditor ? undefined : handleShotGroupSwitchToImages}
+        onShotGroupUpdateToLatestVideo={isCanonicalEditor ? undefined : handleUpdateToLatestVideo}
         canCreateShotFromSelection={selectionShotCreationState.canCreateShot}
         existingShots={isDocumentShotMode ? [] : existingShotsForSelection}
         onCreateShotFromSelection={isDocumentShotMode ? handleCreateDocumentShotFromSelection : handleCreateShotFromSelection}

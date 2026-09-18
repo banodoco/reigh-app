@@ -33,6 +33,7 @@ import {
 import { syncPlannerDiagnosticsToCollection } from '@/tools/video-editor/runtime/diagnosticCollectionSync.ts';
 import type { PlannerBackedRenderRouteDecision } from '@/tools/video-editor/lib/renderRouter.ts';
 import type { RenderExportDestination } from '@/tools/video-editor/lib/renderRouter.ts';
+import { projectCanonicalComposition } from '@/tools/video-editor/data/shotCompositionProjection.ts';
 import type { BridgeTaskDetailPayload } from '@/tools/video-editor/data/bridgeContract.ts';
 import type {
   CapabilityFinding,
@@ -509,6 +510,25 @@ export function useRenderState(
     return categorizeExportFormats(outputFormats);
   }, [extensionRuntime]);
   const runtimeContext = useContext(VideoEditorRuntimeContext);
+  const canonicalLane = runtimeContext?.userId === null && Boolean(runtimeContext.shots.shotComposition);
+  const canonicalComposition = canonicalLane ? runtimeContext?.shots.canonicalComposition : null;
+  const canonicalProjection = useMemo(() => {
+    if (!canonicalComposition) return null;
+    try {
+      return projectCanonicalComposition(canonicalComposition, resolvedConfig);
+    } catch (error) {
+      return { error: error instanceof Error ? error : new Error(String(error)) };
+    }
+  }, [canonicalComposition, resolvedConfig]);
+  // In the Reigh document lane the prepared graph is the only preview/export
+  // input. While it is loading, or when it cannot be projected, stay blank and
+  // surface the projection error instead of reviving the legacy timeline.
+  const renderConfig = canonicalLane
+    ? (canonicalProjection && 'config' in canonicalProjection ? canonicalProjection.config : null)
+    : resolvedConfig;
+  const renderProjectionError = canonicalLane && canonicalProjection && 'error' in canonicalProjection
+    ? canonicalProjection.error
+    : null;
   const diagnosticCollection = runtimeContext?.diagnosticCollection;
   const processStatuses = runtimeContext?.processStatuses;
   const processResultAttachRecords = runtimeContext?.processResultAttachRecords;
@@ -532,7 +552,7 @@ export function useRenderState(
   }, [exportResultUrl]);
 
   const startClientRender = useClientRender({
-    resolvedConfig,
+    resolvedConfig: renderConfig,
     metadata: renderMetadata,
     setRenderStatus,
     setRenderProgress,
@@ -553,6 +573,13 @@ export function useRenderState(
   });
 
   const runExportGuard = useCallback((): boolean => {
+    if (renderProjectionError) {
+      setRenderStatus('error');
+      setRenderProgress(null);
+      setRenderDirty(false);
+      setRenderLog(renderProjectionError.message);
+      return false;
+    }
     diagnosticCollection?.remove((diagnostic) => diagnostic.detail?.source === 'export-guard');
     diagnosticCollection?.remove((diagnostic) => diagnostic.detail?.source === 'render-planner');
 
@@ -564,12 +591,12 @@ export function useRenderState(
       && effectRegistrySnapshot.records.length === 0
       && transitionRegistrySnapshot.records.length === 0
       && clipTypeRegistrySnapshot.records.length === 0
-      && !hasTimelineShaderMetadata(resolvedConfig, compositionGraph)
+      && !hasTimelineShaderMetadata(renderConfig, compositionGraph)
     ) {
       return true; // no blocker
     }
 
-    if (!resolvedConfig || resolvedConfig.clips.length === 0) {
+    if (!renderConfig || renderConfig.clips.length === 0) {
       return true; // nothing to scan
     }
 
@@ -577,7 +604,7 @@ export function useRenderState(
     const allContributions = extensionRuntime ? buildExtensionContributions(extensionRuntime) : [];
     const extIds = collectExtensionDeclaredIds(allContributions);
     const guardResult = scanExportConfig(
-      resolvedConfig,
+      renderConfig,
       builtIn,
       extIds,
       effectRegistrySnapshot,
@@ -645,7 +672,7 @@ export function useRenderState(
           return;
         }
         setRenderResultUrl(client.media.contentUrl(output.media_id));
-        setRenderResultFilename(resolvedConfig?.output?.file ?? `timeline-${runtimeContext?.timelineId ?? taskId}.mp4`);
+        setRenderResultFilename(renderConfig?.output?.file ?? `timeline-${runtimeContext?.timelineId ?? taskId}.mp4`);
         setRenderProgress({ current: 1, total: 1, percent: 100, phase: 'complete' });
         renderOperationIdRef.current = null;
         setRenderStatus('done');
@@ -688,12 +715,18 @@ export function useRenderState(
       setRenderLog(`Could not read Astrid render progress: ${error instanceof Error ? error.message : String(error)}`);
       setActiveRenderTaskId(null);
     }
-  }, [renderMetadata?.durationInFrames, resolvedConfig?.output?.file, runtimeContext?.timelineId]);
+  }, [renderConfig?.output?.file, renderMetadata?.durationInFrames, runtimeContext?.timelineId]);
 
   const startAstridRender = useCallback(async (): Promise<boolean> => {
     const projectId = runtimeContext?.project?.projectId;
     const timelineId = runtimeContext?.timelineId;
-    if (!projectId || !timelineId || !resolvedConfig) return false;
+    if (!projectId || !timelineId || !renderConfig) return false;
+    if (renderProjectionError) {
+      setRenderStatus('error');
+      setRenderProgress(null);
+      setRenderLog(renderProjectionError.message);
+      return true;
+    }
 
     if (!flushPendingSave) {
       setRenderStatus('error');
@@ -711,7 +744,7 @@ export function useRenderState(
       setRenderLog(`Could not save the exact timeline version for rendering: ${error instanceof Error ? error.message : String(error)}`);
       return true;
     }
-    if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 0) {
+    if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 1) {
       setRenderStatus('error');
       setRenderProgress(null);
       setRenderLog('Could not render because the timeline save did not return a valid acknowledged version.');
@@ -742,7 +775,7 @@ export function useRenderState(
       // legacy payload fields stay null so the browser cannot become a second
       // render-input authority.
       assetRegistry: null,
-      resolvedConfig,
+      resolvedConfig: renderConfig,
       renderRuntime: {
         projectId,
         bridgeBaseUrl,
@@ -781,7 +814,7 @@ export function useRenderState(
     const generation = ++renderPollGenerationRef.current;
     await pollAstridRender(client, admission.task_id, generation);
     return true;
-  }, [flushPendingSave, pollAstridRender, renderDestination, renderMetadata?.durationInFrames, resolvedConfig, runtimeContext]);
+  }, [flushPendingSave, pollAstridRender, renderConfig, renderDestination, renderMetadata?.durationInFrames, renderProjectionError, runtimeContext]);
 
   const cancelRender = useCallback(async () => {
     if (!activeRenderTaskId || !renderClientRef.current) return;
@@ -826,13 +859,13 @@ export function useRenderState(
     }
 
     let decision: FastRenderRouteDecision | PlannerBackedRenderRouteDecision | null =
-      getFastRenderRouteDecision(resolvedConfig);
+      getFastRenderRouteDecision(renderConfig);
     if (!decision) {
       let importedDecision: PlannerBackedRenderRouteDecision;
       try {
         const renderRouter = await import('@/tools/video-editor/lib/renderRouter');
         importedDecision = renderRouter.decideRenderRoute(
-          resolvedConfig,
+          renderConfig,
           undefined,
           {
             compositionGraph: runtimeTimelineCompositionGraph(extensionRuntime),
@@ -893,7 +926,7 @@ export function useRenderState(
     // path below as an explicit unscoped capability, not a silent fallback.
     if (!isLocalBrowserRenderProof() && await startAstridRender()) return;
 
-    if (exporter && resolvedConfig) {
+    if (exporter && renderConfig) {
       setRenderStatus('rendering');
       setRenderProgress({
         current: 0,
@@ -911,11 +944,11 @@ export function useRenderState(
       setRenderLog('');
 
       const job = await exporter.render({
-        timeline: resolvedConfig,
-        registry: { assets: resolvedConfig.registry },
+        timeline: renderConfig,
+        registry: { assets: renderConfig.registry },
         output: {
-          file: resolvedConfig.output.file,
-          fps: resolvedConfig.output.fps,
+          file: renderConfig.output.file,
+          fps: renderConfig.output.fps,
         },
       });
 
@@ -935,7 +968,7 @@ export function useRenderState(
           setRenderDirty(false);
           if (progress.resultUrl) {
             setRenderResultUrl(progress.resultUrl);
-            setRenderResultFilename(resolvedConfig.output.file);
+            setRenderResultFilename(renderConfig.output.file);
           }
           return;
         }
@@ -959,7 +992,7 @@ export function useRenderState(
     processResultAttachRecords,
     processStatuses,
     renderMetadata?.durationInFrames,
-    resolvedConfig,
+    renderConfig,
     startClientRender,
     startAstridRender,
     runExportGuard,
@@ -970,9 +1003,9 @@ export function useRenderState(
     formatId: string,
     compileOnlyRegistry?: CompileOnlyOutputFormatRegistry,
   ) => {
-    if (!resolvedConfig) {
+    if (!renderConfig) {
       setExportStatus('error');
-      setExportLogState('Export unavailable: no timeline configuration.');
+      setExportLogState(renderProjectionError?.message ?? 'Export unavailable: no timeline configuration.');
       return;
     }
 
@@ -1054,18 +1087,18 @@ export function useRenderState(
     try {
       // Build timeline snapshot from resolved config
       const timeline = Object.freeze({
-        id: resolvedConfig.output?.file ?? 'timeline',
-        assetKeys: Object.freeze(Object.keys(resolvedConfig.registry ?? {})),
-        clipCount: resolvedConfig.clips?.length ?? 0,
-        trackCount: resolvedConfig.tracks?.length ?? 0,
-        fps: resolvedConfig.output?.fps ?? 30,
-        resolution: resolvedConfig.output?.resolution ?? '1920x1080',
+        id: renderConfig.output?.file ?? 'timeline',
+        assetKeys: Object.freeze(Object.keys(renderConfig.registry ?? {})),
+        clipCount: renderConfig.clips?.length ?? 0,
+        trackCount: renderConfig.tracks?.length ?? 0,
+        fps: renderConfig.output?.fps ?? 30,
+        resolution: renderConfig.output?.resolution ?? '1920x1080',
       });
 
       // Build assets map from registry
       const assetsMap = new Map<string, any>();
-      if (resolvedConfig.registry) {
-        for (const [key, entry] of Object.entries(resolvedConfig.registry)) {
+      if (renderConfig.registry) {
+        for (const [key, entry] of Object.entries(renderConfig.registry)) {
           assetsMap.set(key, Object.freeze(entry));
         }
       }
@@ -1111,7 +1144,7 @@ export function useRenderState(
       setExportLogState(`Export failed: ${message}`);
     }
   }, [
-    resolvedConfig,
+    renderConfig,
     extensionRuntime,
     processResultAttachRecords,
     processStatuses,
