@@ -51,7 +51,7 @@ interface ShotEditorViewProps {
   /** Sort mode for shot navigation */
   shotSortMode?: 'ordered' | 'newest' | 'oldest';
   /** Canonical occurrence identity used by local/read-only composition views. */
-  canonicalOccurrence?: Pick<LocalTimelineShotModel, 'occurrenceId' | 'shotId' | 'revisionId' | 'stableDeepLink' | 'outputIdentity'>;
+  canonicalOccurrence?: Pick<LocalTimelineShotModel, 'occurrenceId' | 'shotId' | 'revisionId' | 'parentDocumentId' | 'stableDeepLink' | 'outputIdentity'> & { projectId?: string | null };
   /** The same adapter used by the overview; local mode intentionally does not publish. */
   canonicalShotComposition?: ShotCompositionAdapter;
 }
@@ -225,6 +225,8 @@ export function ShotEditorView({
       <div
         className="px-4 max-w-7xl mx-auto pt-4"
         data-canonical-occurrence-id={canonicalOccurrence?.occurrenceId}
+        data-canonical-project-id={canonicalOccurrence?.projectId ?? selectedProjectId}
+        data-canonical-parent-document-id={canonicalOccurrence?.parentDocumentId}
         data-canonical-shot-id={canonicalOccurrence?.shotId}
         data-canonical-revision-id={canonicalOccurrence?.revisionId}
         data-canonical-deep-link={canonicalOccurrence?.stableDeepLink}

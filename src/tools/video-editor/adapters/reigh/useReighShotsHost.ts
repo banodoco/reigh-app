@@ -96,6 +96,7 @@ export function useReighShotsHost(
     dismissFinalVideo,
     shotComposition,
     canonicalOccurrences,
+    canonicalComposition: preparedComposition,
     canonicalCompositionError,
   }), [
     canonicalLoading,
@@ -105,6 +106,7 @@ export function useReighShotsHost(
     visibleFinalVideoMap,
     shotComposition,
     canonicalOccurrences,
+    preparedComposition,
     canonicalCompositionError,
   ]);
 }

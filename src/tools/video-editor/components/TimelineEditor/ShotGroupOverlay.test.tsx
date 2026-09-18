@@ -100,4 +100,35 @@ describe('ShotGroupLabels', () => {
     expect(parentDoubleClick).not.toHaveBeenCalled();
     expect(parentContextMenu).not.toHaveBeenCalled();
   });
+
+  it('opens a canonical occurrence with its full pinned identity', () => {
+    const onShotGroupOpen = vi.fn();
+    const canonicalIdentity = {
+      projectId: 'project-1',
+      occurrenceId: 'occ-1',
+      parentDocumentId: 'timeline-1',
+      shotId: 'shot-1',
+      revisionId: 'rev-1',
+      ordinal: 0,
+      atMs: 0,
+      durationMs: 1000,
+      stableDeepLink: 'project/project-1/document/timeline-1/shot/shot-1/revision/rev-1/occurrence/occ-1',
+      outputIdentity: 'project/project-1/document/timeline-1/occurrence/occ-1/output/final-video',
+      revision: {},
+    } as const;
+    const { getByTitle } = render(
+      <ShotGroupLabels
+        positionedShotGroups={[{ ...positionedShotGroups[0], shotName: 'Opening', canonicalIdentity }]}
+        hidden={false}
+        showTouchActions={false}
+        scrollLeft={0}
+        scrollTop={0}
+        openShotGroupMenu={vi.fn()}
+        onShotGroupOpen={onShotGroupOpen}
+      />,
+    );
+
+    fireEvent.doubleClick(getByTitle('Opening'));
+    expect(onShotGroupOpen).toHaveBeenCalledWith(canonicalIdentity);
+  });
 });

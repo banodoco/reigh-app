@@ -40,6 +40,7 @@ export class ShotCompositionUnavailableError extends Error {
 }
 
 export type CanonicalShotOccurrence = Readonly<{
+  projectId: string;
   occurrenceId: string;
   parentDocumentId: string;
   shotId: string;
@@ -49,6 +50,12 @@ export type CanonicalShotOccurrence = Readonly<{
   durationMs: number;
   stableDeepLink: string;
   outputIdentity: string;
+  trackId?: string;
+  sourceOffsetMs?: number;
+  speed?: number;
+  gain?: number;
+  muted?: boolean;
+  transform?: JsonObject;
   revision: JsonObject;
 }>;
 
@@ -116,6 +123,7 @@ function prepareContract(contract: ShotCompositionContract): PreparedShotComposi
         );
       }
       return Object.freeze({
+        projectId,
         occurrenceId: requiredString(occurrence.occurrence_id, 'occurrence.occurrence_id'),
         parentDocumentId: requiredString(occurrence.parent_document_id, 'occurrence.parent_document_id'),
         shotId,
@@ -125,6 +133,22 @@ function prepareContract(contract: ShotCompositionContract): PreparedShotComposi
         durationMs: requiredNumber(occurrence.duration_ms, 'occurrence.duration_ms'),
         stableDeepLink: requiredString(occurrence.stable_deep_link, 'occurrence.stable_deep_link'),
         outputIdentity: requiredString(occurrence.output_identity, 'occurrence.output_identity'),
+        ...(typeof occurrence.track === 'string' && occurrence.track.length > 0
+          ? { trackId: occurrence.track }
+          : {}),
+        ...(typeof occurrence.source_offset === 'number' && Number.isFinite(occurrence.source_offset)
+          ? { sourceOffsetMs: occurrence.source_offset }
+          : {}),
+        ...(typeof occurrence.speed === 'number' && Number.isFinite(occurrence.speed) && occurrence.speed > 0
+          ? { speed: occurrence.speed }
+          : {}),
+        ...(typeof occurrence.gain === 'number' && Number.isFinite(occurrence.gain)
+          ? { gain: occurrence.gain }
+          : {}),
+        ...(typeof occurrence.muted === 'boolean' ? { muted: occurrence.muted } : {}),
+        ...(occurrence.transform !== undefined && occurrence.transform !== null && typeof occurrence.transform === 'object' && !Array.isArray(occurrence.transform)
+          ? { transform: occurrence.transform as JsonObject }
+          : {}),
         revision,
       });
     })

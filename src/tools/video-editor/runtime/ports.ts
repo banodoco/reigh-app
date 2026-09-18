@@ -4,6 +4,7 @@ import type { DataProvider } from '@/tools/video-editor/data/DataProvider.ts';
 import type { ShotFinalVideo } from '@/tools/travel-between-images/hooks/video/useShotFinalVideos.ts';
 import type {
   CanonicalShotOccurrence,
+  PreparedShotComposition,
   ShotCompositionAdapter,
 } from '@/tools/video-editor/data/shotCompositionAdapter.ts';
 
@@ -46,6 +47,7 @@ export interface VideoEditorShotsHost {
   dismissFinalVideo: (finalVideoId: string) => void;
   shotComposition?: ShotCompositionAdapter | null;
   canonicalOccurrences?: readonly CanonicalShotOccurrence[];
+  canonicalComposition?: PreparedShotComposition | null;
   canonicalCompositionError?: Error | null;
 }
 

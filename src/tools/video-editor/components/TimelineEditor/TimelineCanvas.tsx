@@ -45,6 +45,7 @@ import { VideoEditorRuntimeContext } from '@/tools/video-editor/contexts/VideoEd
 import type { TimelineGhostEntry } from '@/tools/video-editor/types/timeline-canvas.ts';
 import { useClipResizeGesture } from '@/tools/video-editor/hooks/useClipResizeGesture.ts';
 import type { ShotGroup } from '@/tools/video-editor/hooks/useShotGroups.ts';
+import type { CanonicalShotOccurrence } from '@/tools/video-editor/data/shotCompositionAdapter.ts';
 import { useTimelineEditorDataSafe, useTimelineMutableAdapters } from '@/tools/video-editor/hooks/timelineStore.ts';
 import { useDataLanes } from '@/tools/video-editor/data-kinds/useDataLanes.ts';
 import { useTimelineSelectionStore } from '@/shared/state/selectionStore.ts';
@@ -141,6 +142,7 @@ export interface TimelineCanvasProps {
   staleShotGroupIds?: Set<string>;
   activeTaskClipIds?: Set<string>;
   onShotGroupNavigate?: (shotId: string) => void;
+  onShotGroupOpen?: (occurrence: CanonicalShotOccurrence) => void;
   onShotGroupGenerateVideo?: (shotId: string) => void;
   onShotGroupSwitchToFinalVideo?: (group: { shotId: string; clipIds: string[]; rowId: string }) => void;
   onShotGroupExportManagedOutput?: (group: { shotId: string; clipIds: string[]; rowId: string }) => void | Promise<void>;
@@ -148,7 +150,7 @@ export interface TimelineCanvasProps {
   onShotGroupUpdateToLatestVideo?: (group: { shotId: string; rowId: string }) => void;
   onShotGroupUnpin?: (group: { shotId: string; trackId: string }) => void;
   onShotGroupDelete?: (group: { shotId: string; trackId: string; clipIds: string[] }) => void;
-  onShotGroupDuplicate?: (group: { shotId: string; trackId: string }) => void;
+  onShotGroupDuplicate?: (group: { shotId: string; trackId: string; canonicalIdentity?: CanonicalShotOccurrence }) => void;
   onShotGroupPromotePrimary?: (group: { shotId: string; trackId: string }) => void;
   onSelectClips?: (clipIds: string[]) => void;
   dragSessionRef?: MutableRefObject<DragSession | null>;
@@ -331,6 +333,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
   staleShotGroupIds,
   activeTaskClipIds,
   onShotGroupNavigate,
+  onShotGroupOpen,
   onShotGroupGenerateVideo,
   onShotGroupSwitchToFinalVideo,
   onShotGroupExportManagedOutput,
@@ -656,14 +659,14 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
       }
 
       const lastChild = group.children[group.children.length - 1];
-      if (!lastChild) {
+      if (!lastChild && group.end === undefined) {
         return [];
       }
 
       const groupKey = `${group.shotId}:${group.rowId}`;
       const preview = resizePreviewSnapshot[groupKey];
       const start = preview?.start ?? group.start;
-      const end = preview?.end ?? (group.start + lastChild.offset + lastChild.duration);
+      const end = preview?.end ?? group.end ?? (group.start + lastChild!.offset + lastChild!.duration);
       const finalVideo = finalVideoMap?.get(group.shotId);
 
       return [{
@@ -684,6 +687,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
         top: group.rowIndex * rowHeight + ACTION_VERTICAL_MARGIN,
         width: Math.max((end - start) * pixelsPerSecond, 1),
         height: actionHeight,
+        ...(group.canonicalIdentity ? { canonicalIdentity: group.canonicalIdentity } : {}),
       }];
     });
   }, [actionHeight, activeTaskClipIds, finalVideoMap, pixelsPerSecond, resizePreviewSnapshot, rowHeight, rows, shotGroups, staleShotGroupIds, timeToPixel]);
@@ -785,7 +789,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
   const openShotGroupMenu = useCallback((
     x: number,
     y: number,
-    group: Pick<PositionedShotGroup, 'shotId' | 'shotName' | 'clipIds' | 'rowId' | 'hasFinalVideo' | 'hasStaleVideo' | 'mode'>,
+    group: Pick<PositionedShotGroup, 'shotId' | 'shotName' | 'clipIds' | 'rowId' | 'hasFinalVideo' | 'hasStaleVideo' | 'mode' | 'canonicalIdentity'>,
   ) => {
     setShotGroupMenu({ x, y, ...group, trackId: group.rowId });
   }, []);
@@ -1114,6 +1118,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
         openShotGroupMenu={openShotGroupMenu}
         onSelectClips={onSelectClips}
         onShotGroupNavigate={onShotGroupNavigate}
+        onShotGroupOpen={onShotGroupOpen}
       />
       <div
         ref={setScrollContainer}

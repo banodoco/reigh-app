@@ -6,6 +6,7 @@ import {
   SHOT_GROUP_LABEL_HEIGHT,
   TIME_RULER_HEIGHT,
 } from './timeline-canvas-constants.ts';
+import type { CanonicalShotOccurrence } from '@/tools/video-editor/data/shotCompositionAdapter.ts';
 
 export interface PositionedShotGroup {
   key: string;
@@ -25,6 +26,7 @@ export interface PositionedShotGroup {
   top: number;
   width: number;
   height: number;
+  canonicalIdentity?: CanonicalShotOccurrence;
 }
 
 interface ShotGroupLabelsProps {
@@ -36,6 +38,7 @@ interface ShotGroupLabelsProps {
   openShotGroupMenu: (clientX: number, clientY: number, group: PositionedShotGroup) => void;
   onSelectClips?: (clipIds: string[]) => void;
   onShotGroupNavigate?: (shotId: string) => void;
+  onShotGroupOpen?: (occurrence: CanonicalShotOccurrence) => void;
 }
 
 interface ShotGroupBordersProps {
@@ -52,6 +55,7 @@ export const ShotGroupLabels = React.memo(function ShotGroupLabels({
   openShotGroupMenu,
   onSelectClips,
   onShotGroupNavigate,
+  onShotGroupOpen,
 }: ShotGroupLabelsProps) {
   if (hidden) {
     return null;
@@ -64,7 +68,7 @@ export const ShotGroupLabels = React.memo(function ShotGroupLabels({
           key={`${group.key}:label`}
           className={cn(
             'absolute cursor-pointer select-none rounded-t-sm transition-opacity',
-            showTouchActions ? 'opacity-100' : 'opacity-0 hover:opacity-100',
+            showTouchActions || group.canonicalIdentity ? 'opacity-100' : 'opacity-0 hover:opacity-100',
           )}
           title={group.shotName}
           {...shotGroupLabelAttrs(group.clipIds[0] ?? '', group.rowId)}
@@ -75,7 +79,15 @@ export const ShotGroupLabels = React.memo(function ShotGroupLabels({
           onDoubleClick={(event) => {
             event.stopPropagation();
             if (onShotGroupNavigate) {
+              if (group.canonicalIdentity && onShotGroupOpen) {
+                onShotGroupOpen(group.canonicalIdentity);
+                return;
+              }
               onShotGroupNavigate(group.shotId);
+              return;
+            }
+            if (group.canonicalIdentity && onShotGroupOpen) {
+              onShotGroupOpen(group.canonicalIdentity);
               return;
             }
             onSelectClips?.(group.clipIds);

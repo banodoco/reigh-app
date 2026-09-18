@@ -23,6 +23,7 @@ import type { TimelineAction } from '@/tools/video-editor/types/timeline-canvas.
 interface UsePinnedShotGroupsArgs {
   dataRef: TimelineDataRef;
   applyEdit: TimelineApplyEdit;
+  enabled?: boolean;
 }
 
 interface UsePinnedGroupSyncArgs extends UsePinnedShotGroupsArgs {
@@ -40,10 +41,10 @@ type PinnedShotGroupUpdates = Partial<Omit<PinnedShotGroup, 'shotId' | 'trackId'
  * Keeping this next to the mutation hook makes it difficult for a caller to
  * accidentally re-introduce a relational shot-placement join as authority.
  */
-export function usePinnedShotGroupViews(data: TimelineData | null): readonly TimelineShotGroupView[] {
+export function usePinnedShotGroupViews(data: TimelineData | null, enabled = true): readonly TimelineShotGroupView[] {
   return useMemo(
-    () => data ? deriveTimelineShotGroupViews(data.config, data.registry) : [],
-    [data?.config, data?.registry],
+    () => enabled && data ? deriveTimelineShotGroupViews(data.config, data.registry) : [],
+    [data?.config, data?.registry, enabled],
   );
 }
 
@@ -104,8 +105,10 @@ function appendActionToTrack({
 export function usePinnedShotGroups({
   dataRef,
   applyEdit,
+  enabled = true,
 }: UsePinnedShotGroupsArgs) {
   const pinGroup = useCallback((shotId: string, trackId: string, clipIds: string[], name?: string) => {
+    if (!enabled) return;
     const current = dataRef.current;
     const mutation = buildPinShotGroupMutation(current, {
       shotId,
@@ -119,25 +122,27 @@ export function usePinnedShotGroups({
     }
 
     applyEdit(mutation);
-  }, [applyEdit, dataRef]);
+  }, [applyEdit, dataRef, enabled]);
 
   const unpinGroup = useCallback((shotId: string, trackId: string) => {
+    if (!enabled) return;
     const mutation = buildUnpinShotGroupMutation(dataRef.current, { shotId, trackId });
     if (!mutation) {
       return;
     }
 
     applyEdit(mutation);
-  }, [applyEdit, dataRef]);
+  }, [applyEdit, dataRef, enabled]);
 
   const updatePinnedGroup = useCallback((shotId: string, trackId: string, updates: PinnedShotGroupUpdates) => {
+    if (!enabled) return;
     const mutation = buildUpdatePinnedShotGroupMutation(dataRef.current, { shotId, trackId }, updates);
     if (!mutation) {
       return;
     }
 
     applyEdit(mutation);
-  }, [applyEdit, dataRef]);
+  }, [applyEdit, dataRef, enabled]);
 
   return {
     pinGroup,
@@ -154,11 +159,19 @@ export function usePinnedGroupSync({
   registerGenerationAsset,
   isInteractionActive: _isInteractionActive,
   debounceMs = 300,
+  enabled = true,
 }: UsePinnedGroupSyncArgs) {
   const timeoutRef = useRef<number | null>(null);
   const isInteractionActive = _isInteractionActive ?? (() => false);
 
   useEffect(() => {
+    if (!enabled) {
+      if (timeoutRef.current !== null) {
+        window.clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+      return;
+    }
     const current = dataRef.current;
     const pinnedShotGroups = current?.config.pinnedShotGroups ?? [];
     if (!data || !shots || pinnedShotGroups.length === 0) {
@@ -433,5 +446,5 @@ export function usePinnedGroupSync({
     return () => {
       clearScheduledSync();
     };
-  }, [applyEdit, data, dataRef, debounceMs, isInteractionActive, registerGenerationAsset, shots]);
+  }, [applyEdit, data, dataRef, debounceMs, enabled, isInteractionActive, registerGenerationAsset, shots]);
 }

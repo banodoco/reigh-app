@@ -1,6 +1,7 @@
 import { useLayoutEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ArrowRight, Clapperboard, Copy, Download, RefreshCw, Scissors, Sparkles, Trash2, Video } from 'lucide-react';
+import type { CanonicalShotOccurrence } from '@/tools/video-editor/data/shotCompositionAdapter.ts';
 
 const VIEWPORT_MARGIN = 8;
 
@@ -16,6 +17,7 @@ export type ShotGroupMenuState = {
   hasManagedOutput?: boolean;
   hasStaleVideo: boolean;
   mode?: 'images' | 'video';
+  canonicalIdentity?: CanonicalShotOccurrence;
 } | null;
 
 interface ShotGroupContextMenuProps {
@@ -30,7 +32,7 @@ interface ShotGroupContextMenuProps {
   onUpdateToLatestVideo?: (group: { shotId: string; rowId: string }) => void;
   onUnpinGroup?: (group: { shotId: string; trackId: string }) => void;
   onDeleteShot?: (group: { shotId: string; trackId: string; clipIds: string[] }) => void;
-  onDuplicateGroup?: (group: { shotId: string; trackId: string }) => void;
+  onDuplicateGroup?: (group: { shotId: string; trackId: string; canonicalIdentity?: CanonicalShotOccurrence }) => void;
   onPromotePrimary?: (group: { shotId: string; trackId: string }) => void;
 }
 
@@ -146,7 +148,9 @@ export function ShotGroupContextMenu({
     : [];
   const defaultActions = [
     onDuplicateGroup
-      ? { key: 'duplicate-shot-group', label: 'Duplicate shot', icon: Copy, onClick: () => onDuplicateGroup({ shotId: menu.shotId, trackId: menu.trackId }) }
+      ? { key: 'duplicate-shot-group', label: 'Duplicate shot', icon: Copy, onClick: () => onDuplicateGroup(menu.canonicalIdentity
+        ? { shotId: menu.shotId, trackId: menu.trackId, canonicalIdentity: menu.canonicalIdentity }
+        : { shotId: menu.shotId, trackId: menu.trackId }) }
       : null,
     onPromotePrimary
       ? { key: 'promote-primary-variant', label: 'Promote next variant', icon: Sparkles, onClick: () => onPromotePrimary({ shotId: menu.shotId, trackId: menu.trackId }) }
