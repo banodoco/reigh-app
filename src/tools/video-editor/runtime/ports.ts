@@ -2,6 +2,10 @@ import type { ComponentType, ReactNode } from 'react';
 import type { Shot, GenerationRow } from '@/domains/generation/types/index.ts';
 import type { DataProvider } from '@/tools/video-editor/data/DataProvider.ts';
 import type { ShotFinalVideo } from '@/tools/travel-between-images/hooks/video/useShotFinalVideos.ts';
+import type {
+  CanonicalShotOccurrence,
+  ShotCompositionAdapter,
+} from '@/tools/video-editor/data/shotCompositionAdapter.ts';
 
 /**
  * Checklist-backed runtime inventory for the host surfaces Sprint 2 is
@@ -40,6 +44,9 @@ export interface VideoEditorShotsHost {
   noShotImagesCount?: number;
   finalVideoMap: Map<string, ShotFinalVideo>;
   dismissFinalVideo: (finalVideoId: string) => void;
+  shotComposition?: ShotCompositionAdapter | null;
+  canonicalOccurrences?: readonly CanonicalShotOccurrence[];
+  canonicalCompositionError?: Error | null;
 }
 
 export interface VideoEditorMediaLightboxHost {

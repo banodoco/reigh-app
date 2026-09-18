@@ -1,12 +1,20 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useShots } from '@/shared/contexts/ShotsContext.tsx';
 import { useShotFinalVideos, type ShotFinalVideo } from '@/tools/travel-between-images/hooks/video/useShotFinalVideos.ts';
 import type { VideoEditorShotsHost } from '@/tools/video-editor/runtime/ports.ts';
+import {
+  createShotCompositionAdapter,
+  type ShotCompositionPort,
+} from '@/tools/video-editor/data/shotCompositionAdapter.ts';
 
 const MAX_DISMISSED_FINAL_VIDEOS = 256;
 const dismissedFinalVideoIds = new Set<string>();
 
-export function useReighShotsHost(projectId: string | null): VideoEditorShotsHost {
+export function useReighShotsHost(
+  projectId: string | null,
+  parentDocumentId: string,
+  shotCompositionPort?: ShotCompositionPort,
+): VideoEditorShotsHost {
   const {
     shots,
     isLoading,
@@ -17,6 +25,33 @@ export function useReighShotsHost(projectId: string | null): VideoEditorShotsHos
   } = useShots();
   const { finalVideoMap } = useShotFinalVideos(projectId);
   const [, forceRender] = useState(0);
+  const shotComposition = useMemo(
+    () => shotCompositionPort ? createShotCompositionAdapter(shotCompositionPort) : null,
+    [shotCompositionPort],
+  );
+  const [canonicalOccurrences, setCanonicalOccurrences] = useState<VideoEditorShotsHost['canonicalOccurrences']>([]);
+  const [canonicalCompositionError, setCanonicalCompositionError] = useState<Error | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    if (!projectId || !parentDocumentId || !shotComposition) {
+      setCanonicalOccurrences([]);
+      setCanonicalCompositionError(null);
+      return () => { active = false; };
+    }
+    void shotComposition.load({ projectId, parentDocumentId })
+      .then((composition) => {
+        if (!active) return;
+        setCanonicalOccurrences(composition.occurrences);
+        setCanonicalCompositionError(null);
+      })
+      .catch((loadError: unknown) => {
+        if (!active) return;
+        setCanonicalOccurrences([]);
+        setCanonicalCompositionError(loadError instanceof Error ? loadError : new Error(String(loadError)));
+      });
+    return () => { active = false; };
+  }, [parentDocumentId, projectId, shotComposition]);
 
   const dismissFinalVideo = useCallback((finalVideoId: string) => {
     dismissedFinalVideoIds.add(finalVideoId);
@@ -50,6 +85,9 @@ export function useReighShotsHost(projectId: string | null): VideoEditorShotsHos
     noShotImagesCount,
     finalVideoMap: visibleFinalVideoMap,
     dismissFinalVideo,
+    shotComposition,
+    canonicalOccurrences,
+    canonicalCompositionError,
   }), [
     allImagesCount,
     dismissFinalVideo,
@@ -59,5 +97,8 @@ export function useReighShotsHost(projectId: string | null): VideoEditorShotsHos
     refetchShots,
     shots,
     visibleFinalVideoMap,
+    shotComposition,
+    canonicalOccurrences,
+    canonicalCompositionError,
   ]);
 }

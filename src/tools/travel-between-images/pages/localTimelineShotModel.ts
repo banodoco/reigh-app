@@ -1,175 +1,182 @@
-import type {
-  AssetRegistry,
-  AssetRegistryEntry,
-  TimelineClip,
-  TimelineConfig,
-  TrackDefinition,
-} from '@/tools/video-editor/types/index.ts';
-import { getClipTimelineDuration } from '@/tools/video-editor/lib/config-utils.ts';
+import type { AssetRegistry, AssetRegistryEntry } from '@/tools/video-editor/types/index.ts';
 import { bridgeMediaUrl } from '@/shared/lib/media/bridgeMediaUrl.ts';
 import type { GenerationRow, Shot } from '@/domains/generation/types';
+import type { CanonicalShotOccurrence, PreparedShotComposition } from '@/tools/video-editor/data/shotCompositionAdapter.ts';
 
 export type LocalTimelineShotClip = {
   clipId: string;
-  clip: TimelineClip;
+  clip: Record<string, unknown>;
   durationSeconds: number;
   startSeconds: number;
-  /** Start relative to this shot's first visual clip. */
   relativeStartSeconds: number;
-  /** Collision lane used by the compact positioned timeline. */
   lane: number;
   asset: AssetRegistryEntry | undefined;
   thumbnailUrl: string | undefined;
-  /** True when the group points at a visual clip with no registry entry. */
   missingAsset: boolean;
 };
 
 export type LocalTimelineShot = {
   id: string;
+  occurrenceId: string;
+  shotId: string;
+  revisionId: string;
+  parentDocumentId: string;
+  stableDeepLink: string;
+  outputIdentity: string;
   name: string;
   trackId: string;
   clips: LocalTimelineShotClip[];
-  /** Number of group members that cannot be rendered as visual clips. */
   nonVisualClipCount: number;
-  /** Number of clip IDs in the group that are absent from the document. */
   missingClipCount: number;
   durationSeconds: number;
   laneCount: number;
 };
 
-/**
- * The legacy Shots editor consumes GenerationRow/Shot records.  Astrid owns
- * these values in the timeline document instead of relational shot tables, so
- * keep this adapter next to the document selector.  It is deliberately pure:
- * callers can provide the selected group's rows to the existing editor
- * without opening a second (Supabase) source of truth.
- */
+/** The legacy editor view model, carrying canonical identity as metadata. */
 export type LocalTimelineShotModel = Shot & {
+  occurrenceId: string;
+  shotId: string;
+  revisionId: string;
+  parentDocumentId: string;
+  stableDeepLink: string;
+  outputIdentity: string;
   images: GenerationRow[];
 };
 
-type RegistryEntryWithSource = AssetRegistryEntry & { src?: string };
+type JsonObject = Record<string, unknown>;
+const isRecord = (value: unknown): value is JsonObject => value !== null && typeof value === 'object' && !Array.isArray(value);
+const positiveNumber = (value: unknown): number | undefined => typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : undefined;
+const stringValue = (value: unknown): string | undefined => typeof value === 'string' && value.trim() ? value : undefined;
 
-const isRecord = (value: unknown): value is Record<string, unknown> => (
-  value !== null && typeof value === 'object' && !Array.isArray(value)
-);
-
-const positiveNumber = (value: unknown): number | undefined => (
-  typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : undefined
-);
-
-const assetIsAudio = (asset: AssetRegistryEntry | undefined): boolean => (
-  typeof asset?.type === 'string' && asset.type.toLowerCase().startsWith('audio/')
-);
-
-const clipIsAudio = (clip: TimelineClip, asset: AssetRegistryEntry | undefined, track?: TrackDefinition): boolean => (
-  track?.kind === 'audio'
-  || assetIsAudio(asset)
-  || clip.clipType?.toLowerCase() === 'audio'
-);
-
-const normalizedLabel = (value: string): string => value.toLowerCase().replace(/[^a-z0-9]+/g, '');
-
-function groupDisplayName(
-  group: Record<string, unknown>,
-  clips: LocalTimelineShotClip[],
-  shotId: string,
-  groupIndex: number,
-): string {
-  if (typeof group.name === 'string' && group.name.trim() !== '') return group.name;
-
-  const anchor = group.emptyShotAnchor;
-  if (typeof anchor === 'string' && anchor.trim() !== '') return anchor;
-  if (isRecord(anchor)) {
-    for (const key of ['name', 'label', 'title']) {
-      if (typeof anchor[key] === 'string' && anchor[key].trim() !== '') return anchor[key];
-    }
-  }
-
-  const matchingLabel = clips.find((item) => (
-    typeof item.clip.label === 'string'
-    && normalizedLabel(item.clip.label) === normalizedLabel(shotId)
-  ));
-  const firstLabel = matchingLabel?.clip.label ?? clips.find((item) => item.clip.label?.trim())?.clip.label;
-  return firstLabel?.trim() || `Shot ${groupIndex + 1}`;
-}
-
-function clipDurationSeconds(clip: TimelineClip, asset: AssetRegistryEntry | undefined): number {
-  try {
-    const duration = positiveNumber(getClipTimelineDuration(clip));
-    if (duration !== undefined) return duration;
-  } catch {
-    // A malformed clip should not prevent the other groups from rendering.
-  }
-  return positiveNumber(asset?.duration) ?? 0;
-}
-
-function assetThumbnailUrl(
-  asset: AssetRegistryEntry | undefined,
-  projectSlug: string | undefined,
-): string | undefined {
+function assetReference(asset: AssetRegistryEntry | undefined): string | undefined {
   if (!asset) return undefined;
-  const sourceEntry = asset as RegistryEntryWithSource;
-  const reference = sourceEntry.thumbnailUrl
-    ?? sourceEntry.src
-    ?? sourceEntry.url
-    ?? sourceEntry.file
-    ?? sourceEntry.media_id;
-  if (typeof reference !== 'string' || reference.trim().length === 0) return undefined;
-  return bridgeMediaUrl(projectSlug, reference.trim());
+  const candidate = asset as AssetRegistryEntry & { src?: string; url?: string; file?: string };
+  return stringValue(candidate.thumbnailUrl) ?? stringValue(candidate.src) ?? stringValue(candidate.url) ?? stringValue(candidate.file) ?? stringValue(candidate.media_id);
 }
 
-function assetDisplayUrl(
-  asset: AssetRegistryEntry | undefined,
-  projectSlug: string | undefined,
-): string | undefined {
+function displayReference(asset: AssetRegistryEntry | undefined): string | undefined {
   if (!asset) return undefined;
-  const sourceEntry = asset as RegistryEntryWithSource;
-  const reference = sourceEntry.src
-    ?? sourceEntry.url
-    ?? sourceEntry.file
-    ?? sourceEntry.media_id;
-  if (typeof reference !== 'string' || reference.trim().length === 0) return undefined;
-  return bridgeMediaUrl(projectSlug, reference.trim());
+  const candidate = asset as AssetRegistryEntry & { src?: string; url?: string; file?: string };
+  return stringValue(candidate.src) ?? stringValue(candidate.url) ?? stringValue(candidate.file) ?? stringValue(candidate.media_id);
 }
 
-/** Convert one document-derived shot group into the legacy editor's model. */
-export function toDocumentDerivedShotModel(
-  shot: LocalTimelineShot,
-  config: TimelineConfig,
-  projectSlug?: string,
-): LocalTimelineShotModel {
-  const fps = Number.isFinite(config.output?.fps) && config.output.fps > 0 ? config.output.fps : 30;
-  const images = shot.clips.flatMap((item, index) => {
-    const location = assetDisplayUrl(item.asset, projectSlug);
-    if (!location) return [];
-    const thumbnail = item.thumbnailUrl ?? location;
-    const generationId = item.asset?.generationId ?? item.asset?.variantId ?? item.clip.asset ?? item.clipId;
-    const frame = Math.max(0, Math.round(item.startSeconds * fps));
+function revisionTimeline(revision: JsonObject): JsonObject {
+  const internal = isRecord(revision.internal_timeline_revision) ? revision.internal_timeline_revision : {};
+  return isRecord(internal.timeline) ? internal.timeline : {};
+}
+
+function revisionAssets(revision: JsonObject): Map<string, string> {
+  const assets = Array.isArray(revision.assets) ? revision.assets : [];
+  return new Map(assets.flatMap((rawAsset) => {
+    if (!isRecord(rawAsset)) return [];
+    const assetId = stringValue(rawAsset.asset_id);
+    const objectId = stringValue(rawAsset.object_id);
+    return assetId && objectId ? [[assetId, objectId] as const] : [];
+  }));
+}
+
+function registryAsset(registry: AssetRegistry | null | undefined, assetId: string | undefined, objectId: string | undefined): AssetRegistryEntry | undefined {
+  const assets = registry?.assets ?? {};
+  if (assetId && assets[assetId]) return assets[assetId];
+  if (objectId && assets[objectId]) return assets[objectId];
+  return Object.values(assets).find((entry) => entry.media_id === objectId);
+}
+
+function shotName(occurrence: CanonicalShotOccurrence): string {
+  const provenance = isRecord(occurrence.revision.provenance) ? occurrence.revision.provenance : {};
+  return stringValue(provenance.name) ?? stringValue(provenance.title) ?? occurrence.shotId;
+}
+
+function toOccurrenceShot(occurrence: CanonicalShotOccurrence, registry: AssetRegistry | null | undefined, projectSlug?: string): LocalTimelineShot {
+  const timeline = revisionTimeline(occurrence.revision);
+  const assetObjects = revisionAssets(occurrence.revision);
+  const rawClips = Array.isArray(timeline.clips) ? timeline.clips : [];
+  const clips = rawClips.flatMap((rawClip, clipIndex) => {
+    if (!isRecord(rawClip)) return [];
+    const clipId = stringValue(rawClip.id) ?? `${occurrence.occurrenceId}-clip-${clipIndex}`;
+    const assetId = stringValue(rawClip.asset_id);
+    const objectId = assetId ? assetObjects.get(assetId) : undefined;
+    const asset = registryAsset(registry, assetId, objectId);
+    const thumb = assetReference(asset);
     return [{
-      id: `${shot.id}:${item.clipId}`,
-      shot_generation_id: `${shot.id}:${item.clipId}`,
+      clipId,
+      clip: rawClip,
+      durationSeconds: (positiveNumber(rawClip.duration_ms) ?? 0) / 1000,
+      startSeconds: (positiveNumber(rawClip.at_ms) ?? 0) / 1000,
+      relativeStartSeconds: 0,
+      lane: 0,
+      asset,
+      thumbnailUrl: thumb ? bridgeMediaUrl(projectSlug, thumb) : undefined,
+      missingAsset: Boolean(assetId && !asset),
+    } satisfies LocalTimelineShotClip];
+  }).sort((left, right) => left.startSeconds - right.startSeconds);
+
+  const timelineStart = clips.length > 0 ? Math.min(...clips.map((clip) => clip.startSeconds)) : 0;
+  const laneEnds: number[] = [];
+  clips.forEach((clip) => {
+    clip.relativeStartSeconds = Math.max(0, clip.startSeconds - timelineStart);
+    const end = clip.relativeStartSeconds + clip.durationSeconds;
+    const availableLane = laneEnds.findIndex((laneEnd) => laneEnd <= clip.relativeStartSeconds);
+    clip.lane = availableLane >= 0 ? availableLane : laneEnds.length;
+    laneEnds[clip.lane] = end;
+  });
+
+  const timelineTracks = Array.isArray(timeline.tracks) ? timeline.tracks : [];
+  const firstTrack = timelineTracks[0];
+  return {
+    id: occurrence.occurrenceId,
+    occurrenceId: occurrence.occurrenceId,
+    shotId: occurrence.shotId,
+    revisionId: occurrence.revisionId,
+    parentDocumentId: occurrence.parentDocumentId,
+    stableDeepLink: occurrence.stableDeepLink,
+    outputIdentity: occurrence.outputIdentity,
+    name: shotName(occurrence),
+    trackId: isRecord(firstTrack) ? stringValue(firstTrack.id) ?? 'video' : 'video',
+    clips,
+    nonVisualClipCount: 0,
+    missingClipCount: 0,
+    durationSeconds: clips.reduce((latest, clip) => Math.max(latest, clip.relativeStartSeconds + clip.durationSeconds), 0),
+    laneCount: Math.max(1, laneEnds.length),
+  };
+}
+
+export function selectCanonicalShotOccurrences(composition: PreparedShotComposition | null | undefined, registry: AssetRegistry | null | undefined = undefined, projectSlug?: string): LocalTimelineShot[] {
+  return composition?.occurrences.map((occurrence) => toOccurrenceShot(occurrence, registry, projectSlug)) ?? [];
+}
+
+export function toCanonicalShotModel(shot: LocalTimelineShot, fps = 30, projectSlug?: string): LocalTimelineShotModel {
+  const images = shot.clips.flatMap((item, index) => {
+    const locationReference = displayReference(item.asset);
+    if (!locationReference) return [];
+    const location = bridgeMediaUrl(projectSlug, locationReference);
+    const generationId = item.asset?.generationId ?? item.asset?.variantId ?? item.asset?.media_id ?? item.clipId;
+    return [{
+      id: `${shot.occurrenceId}:${item.clipId}`,
+      shot_generation_id: `${shot.occurrenceId}:${item.clipId}`,
       generation_id: generationId,
       location,
       imageUrl: location,
-      thumbUrl: thumbnail,
+      thumbUrl: item.thumbnailUrl ?? location,
       type: item.asset?.type ?? 'image',
       createdAt: new Date(index).toISOString(),
-      name: item.clip.label ?? item.clipId,
-      timeline_frame: frame,
+      name: stringValue(item.clip.label) ?? item.clipId,
+      timeline_frame: Math.max(0, Math.round(item.startSeconds * fps)),
       metadata: {
-        source: 'astrid-timeline',
+        source: 'canonical-shot-composition',
         projectSlug,
-        timelineShotId: shot.id,
+        shotId: shot.shotId,
+        revisionId: shot.revisionId,
+        occurrenceId: shot.occurrenceId,
+        stableDeepLink: shot.stableDeepLink,
+        outputIdentity: shot.outputIdentity,
         clipId: item.clipId,
-        timelineRef: config.app?.timelineRef,
       },
-      params: item.clip.params,
     } satisfies GenerationRow];
   });
 
   return {
-    id: shot.id,
+    id: shot.occurrenceId,
     name: shot.name,
     created_at: '1970-01-01T00:00:00.000Z',
     updated_at: null,
@@ -177,104 +184,20 @@ export function toDocumentDerivedShotModel(
     aspect_ratio: null,
     position: 0,
     settings: {},
+    occurrenceId: shot.occurrenceId,
+    shotId: shot.shotId,
+    revisionId: shot.revisionId,
+    parentDocumentId: shot.parentDocumentId,
+    stableDeepLink: shot.stableDeepLink,
+    outputIdentity: shot.outputIdentity,
     images,
     imageCount: images.length,
-    positionedImageCount: images.filter((image) => image.timeline_frame != null).length,
-    unpositionedImageCount: images.filter((image) => image.timeline_frame == null).length,
-    hasUnpositionedImages: images.some((image) => image.timeline_frame == null),
+    positionedImageCount: images.length,
+    unpositionedImageCount: 0,
+    hasUnpositionedImages: false,
   };
 }
 
-export function selectDocumentDerivedShotModels(
-  config: TimelineConfig | null | undefined,
-  registry: AssetRegistry | null | undefined,
-  projectSlug?: string,
-): LocalTimelineShotModel[] {
-  if (!config) return [];
-  return selectDocumentDerivedShots(config, registry, projectSlug)
-    .map((shot) => toDocumentDerivedShotModel(shot, config, projectSlug));
-}
-
-/**
- * Build the local shot view directly from the timeline document.
- *
- * This deliberately has no shots repository input: a group's clipIds are the
- * complete scope of its mini timeline, and ordering comes from the document's
- * clip positions (with the persisted clipIds order as a deterministic tie-break).
- */
-export function selectDocumentDerivedShots(
-  config: TimelineConfig | null | undefined,
-  registry: AssetRegistry | null | undefined = undefined,
-  projectSlug?: string,
-): LocalTimelineShot[] {
-  const groups = config?.pinnedShotGroups;
-  if (!Array.isArray(groups)) return [];
-
-  const clipsById = new Map((config?.clips ?? []).map((clip) => [clip.id, clip]));
-  const tracksById = new Map((config?.tracks ?? []).map((track) => [track.id, track]));
-  const assets = registry?.assets ?? {};
-
-  return groups.flatMap((rawGroup, groupIndex) => {
-    if (!isRecord(rawGroup) || typeof rawGroup.shotId !== 'string' || rawGroup.shotId.trim() === '') {
-      return [];
-    }
-
-    const shotId = rawGroup.shotId;
-    const trackId = typeof rawGroup.trackId === 'string' ? rawGroup.trackId : '';
-    const clipIds = Array.isArray(rawGroup.clipIds)
-      ? rawGroup.clipIds.filter((clipId): clipId is string => typeof clipId === 'string')
-      : [];
-    const track = tracksById.get(trackId);
-    let missingClipCount = 0;
-    let nonVisualClipCount = 0;
-
-    const clips = clipIds.flatMap((clipId, clipIndex) => {
-      const clip = clipsById.get(clipId);
-      if (!clip) {
-        missingClipCount += 1;
-        return [];
-      }
-      const asset = clip.asset ? assets[clip.asset] : undefined;
-      if (clipIsAudio(clip, asset, track)) {
-        nonVisualClipCount += 1;
-        return [];
-      }
-      return [{
-        clipId,
-        clip,
-        durationSeconds: clipDurationSeconds(clip, asset),
-        startSeconds: typeof clip.at === 'number' && Number.isFinite(clip.at) ? clip.at : clipIndex,
-        relativeStartSeconds: 0,
-        lane: 0,
-        asset,
-        thumbnailUrl: assetThumbnailUrl(asset, projectSlug),
-        missingAsset: Boolean(clip.asset && !asset),
-      } satisfies LocalTimelineShotClip];
-    }).sort((left, right) => left.startSeconds - right.startSeconds || clipIds.indexOf(left.clipId) - clipIds.indexOf(right.clipId));
-
-    const timelineStart = clips.length > 0 ? Math.min(...clips.map((clip) => clip.startSeconds)) : 0;
-    const laneEnds: number[] = [];
-    clips.forEach((clip) => {
-      clip.relativeStartSeconds = Math.max(0, clip.startSeconds - timelineStart);
-      const end = clip.relativeStartSeconds + clip.durationSeconds;
-      const availableLane = laneEnds.findIndex((laneEnd) => laneEnd <= clip.relativeStartSeconds);
-      clip.lane = availableLane >= 0 ? availableLane : laneEnds.length;
-      laneEnds[clip.lane] = end;
-    });
-    const timelineEnd = clips.reduce(
-      (latest, clip) => Math.max(latest, clip.relativeStartSeconds + clip.durationSeconds),
-      0,
-    );
-
-    return [{
-      id: shotId,
-      name: groupDisplayName(rawGroup, clips, shotId, groupIndex),
-      trackId,
-      clips,
-      nonVisualClipCount,
-      missingClipCount,
-      durationSeconds: timelineEnd,
-      laneCount: Math.max(1, laneEnds.length),
-    }];
-  });
+export function selectCanonicalShotModels(composition: PreparedShotComposition | null | undefined, registry: AssetRegistry | null | undefined, projectSlug?: string): LocalTimelineShotModel[] {
+  return selectCanonicalShotOccurrences(composition, registry, projectSlug).map((shot) => toCanonicalShotModel(shot, 30, projectSlug));
 }

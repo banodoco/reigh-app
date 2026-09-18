@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, useLocation, useNavigate } from 'react-router-dom';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LocalTimelineShotBrowser } from './LocalTimelineShotBrowser';
+import fixture from '@/tools/video-editor/data/shotComposition.fixture.json';
 
 // The production list/editor are integration-tested separately. These focused
 // tests keep the document-to-shot adapter and URL contract deterministic without
@@ -22,7 +23,7 @@ vi.mock('../components/VideoGallery/ShotListDisplay.tsx', () => ({
 }));
 
 vi.mock('./ShotEditorView.tsx', () => ({
-  ShotEditorView: ({ shotToEdit }: { shotToEdit: { name: string; images?: Array<{ id: string }> } }) => {
+  ShotEditorView: ({ shotToEdit, canonicalOccurrence, canonicalShotComposition }: { shotToEdit: { name: string; images?: Array<{ id: string }> }; canonicalOccurrence?: { occurrenceId: string; stableDeepLink: string }; canonicalShotComposition?: unknown }) => {
     const navigate = useNavigate();
     const location = useLocation();
     return (
@@ -32,6 +33,8 @@ vi.mock('./ShotEditorView.tsx', () => ({
           onClick={() => navigate({ pathname: location.pathname, search: location.search, hash: '' })}
         >Back to all shots</button>
         <h1>{shotToEdit.name}</h1>
+        <div data-testid="canonical-occurrence">{canonicalOccurrence?.occurrenceId}:{canonicalOccurrence?.stableDeepLink}</div>
+        <div data-testid="canonical-adapter">{canonicalShotComposition ? 'shared' : 'missing'}</div>
         <div data-testid="selected-shot-image-ids">{shotToEdit.images?.map((image) => image.id).join(',')}</div>
       </div>
     );
@@ -42,6 +45,7 @@ const mocks = vi.hoisted(() => ({
   loadTimeline: vi.fn(),
   loadAssetRegistry: vi.fn(),
   onResolve: vi.fn(({ file }: { file: string }) => `https://bridge.test/${file}`),
+  loadShotComposition: vi.fn(),
 }));
 
 vi.mock('@/tools/video-editor/data/AstridBridgeDataProvider.ts', () => ({
@@ -49,6 +53,7 @@ vi.mock('@/tools/video-editor/data/AstridBridgeDataProvider.ts', () => ({
     loadTimeline = mocks.loadTimeline;
     loadAssetRegistry = mocks.loadAssetRegistry;
     onResolve = mocks.onResolve;
+    shotComposition = { load: mocks.loadShotComposition };
   },
 }));
 
@@ -70,60 +75,61 @@ function renderBrowser(initialEntry = '/tools/travel-between-images?localProject
 }
 
 describe('LocalTimelineShotBrowser', () => {
+  afterEach(() => cleanup());
+
   beforeEach(() => {
     mocks.loadTimeline.mockReset();
     mocks.loadAssetRegistry.mockReset();
     mocks.onResolve.mockClear();
+    mocks.loadShotComposition.mockReset();
     mocks.loadTimeline.mockResolvedValue({
       config: {
         output: { resolution: '1280x720', fps: 24, file: 'out.mp4' },
         tracks: [{ id: 'V1', kind: 'visual', label: 'Visual' }],
-        clips: [
-          { id: 'clip-a', at: 0, track: 'V1', asset: 'asset-a', from: 0, to: 2 },
-          { id: 'clip-other', at: 2, track: 'V1', asset: 'asset-other', from: 0, to: 9 },
-        ],
-        pinnedShotGroups: [{ shotId: 'shot-a', name: 'Opening', trackId: 'V1', clipIds: ['clip-a'] }],
+        clips: [{ id: 'clip-a', at: 0, track: 'V1', asset: 'asset-a', from: 0, to: 2 }],
       },
       configVersion: 1,
     });
     mocks.loadAssetRegistry.mockResolvedValue({
       assets: {
-        'asset-a': { media_id: 'media-a', type: 'image/png', duration: 2 },
-        'asset-other': { media_id: 'media-other', type: 'image/png', duration: 9 },
+        'alpha-image': { media_id: 'object-alpha-image', type: 'image/png', duration: 2 },
+        'beta-image': { media_id: 'object-beta-image', type: 'image/png', duration: 1.2 },
       },
     });
+    mocks.loadShotComposition.mockResolvedValue(fixture);
   });
 
   it('renders the established shot list from document-derived shot models', async () => {
     renderBrowser();
 
-    expect(await screen.findByRole('button', { name: 'Select shot Opening' })).toBeInTheDocument();
+    expect(await screen.findAllByRole('button', { name: 'Select shot shot-alpha' })).not.toHaveLength(0);
     expect(screen.getByTestId('production-shot-list')).toBeInTheDocument();
   });
 
   it('opens the established shot editor with only the selected group clips', async () => {
     renderBrowser();
-    const shot = await screen.findByRole('button', { name: 'Select shot Opening' });
+    const shot = (await screen.findAllByRole('button', { name: 'Select shot shot-alpha' }))[0];
     fireEvent.click(shot);
 
     await waitFor(() => {
       expect(screen.getByTestId('location')).toHaveTextContent(
-        '/tools/travel-between-images?localProject=demo&localTimeline=timeline-1#shot-a',
+        '/tools/travel-between-images?localProject=demo&localTimeline=timeline-1#project%2Fproject-001%2Fdocument%2Fdocument-primary%2Fshot%2Fshot-alpha%2Frevision%2Frev-a%2Foccurrence%2Focc-1',
       );
-      expect(screen.getByRole('heading', { name: 'Opening' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'shot-alpha' })).toBeInTheDocument();
       expect(screen.getByTestId('production-shot-editor')).toBeInTheDocument();
-      expect(screen.getByTestId('selected-shot-image-ids')).toHaveTextContent('shot-a:clip-a');
-      expect(screen.queryByText('shot-a:clip-other')).not.toBeInTheDocument();
+      expect(screen.getByTestId('canonical-occurrence')).toHaveTextContent('occ-1');
+      expect(screen.getByTestId('canonical-adapter')).toHaveTextContent('shared');
+      expect(screen.getByTestId('selected-shot-image-ids')).toHaveTextContent('occ-1:alpha-video');
     });
   });
 
   it('opens a valid deep link directly in shot detail after refresh', async () => {
-    renderBrowser('/tools/travel-between-images?localProject=demo&localTimeline=timeline-1#shot-a');
+    renderBrowser('/tools/travel-between-images?localProject=demo&localTimeline=timeline-1#project%2Fproject-001%2Fdocument%2Fdocument-primary%2Fshot%2Fshot-alpha%2Frevision%2Frev-a%2Foccurrence%2Focc-1');
 
-    expect(await screen.findByRole('heading', { name: 'Opening' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'shot-alpha' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Back to all shots/i })).toBeInTheDocument();
     expect(screen.getByTestId('location')).toHaveTextContent(
-      '/tools/travel-between-images?localProject=demo&localTimeline=timeline-1#shot-a',
+      '/tools/travel-between-images?localProject=demo&localTimeline=timeline-1#project%2Fproject-001%2Fdocument%2Fdocument-primary%2Fshot%2Fshot-alpha%2Frevision%2Frev-a%2Foccurrence%2Focc-1',
     );
   });
 
@@ -133,7 +139,7 @@ describe('LocalTimelineShotBrowser', () => {
   ])('falls back to the overview for a %s hash', async (_kind, initialEntry) => {
     renderBrowser(initialEntry);
 
-    expect(await screen.findByRole('button', { name: 'Select shot Opening' })).toBeInTheDocument();
+    expect(await screen.findAllByRole('button', { name: 'Select shot shot-alpha' })).not.toHaveLength(0);
     await waitFor(() => {
       expect(screen.getByTestId('location')).toHaveTextContent(
         '/tools/travel-between-images?localProject=demo&localTimeline=timeline-1',
@@ -144,7 +150,7 @@ describe('LocalTimelineShotBrowser', () => {
 
   it('returns from shot detail to the complete overview while preserving local scope', async () => {
     renderBrowser();
-    fireEvent.click(await screen.findByRole('button', { name: 'Select shot Opening' }));
+    fireEvent.click((await screen.findAllByRole('button', { name: 'Select shot shot-alpha' }))[0]);
 
     const back = await screen.findByRole('button', { name: /Back to all shots/i });
     fireEvent.click(back);
@@ -153,16 +159,13 @@ describe('LocalTimelineShotBrowser', () => {
       expect(screen.getByTestId('location')).toHaveTextContent(
         '/tools/travel-between-images?localProject=demo&localTimeline=timeline-1',
       );
-      expect(screen.getByRole('button', { name: 'Select shot Opening' })).toBeInTheDocument();
+      expect(screen.getAllByRole('button', { name: 'Select shot shot-alpha' })).not.toHaveLength(0);
     });
   });
 
-  it('reports an empty document without invoking cloud shot reads', async () => {
-    mocks.loadTimeline.mockResolvedValueOnce({
-      config: { output: { resolution: '1280x720', fps: 24, file: 'out.mp4' }, clips: [], pinnedShotGroups: [] },
-      configVersion: 1,
-    });
+  it('reports a typed canonical graph failure', async () => {
+    mocks.loadShotComposition.mockRejectedValueOnce(new Error('missing canonical dependency'));
     renderBrowser();
-    expect(await screen.findByText('This timeline has no document shot groups yet.')).toBeInTheDocument();
+    expect(await screen.findByRole('alert')).toHaveTextContent('missing canonical dependency');
   });
 });

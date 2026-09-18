@@ -57,6 +57,10 @@ import {
   parseTimelineBundle,
   type TimelineBundleEnvelope,
 } from '@/tools/video-editor/data/typed/timelineBundle.ts';
+import {
+  ShotCompositionUnavailableError,
+  type ShotCompositionPort,
+} from '@/tools/video-editor/data/shotCompositionAdapter.ts';
 
 /**
  * The provider's internal view of a timeline payload. Deliberately looser than
@@ -73,6 +77,7 @@ type BridgeTimelinePayload = {
   config_version?: unknown;
   registry?: unknown;
   bundle?: unknown;
+  shot_composition?: unknown;
 };
 
 type AstridBridgeDataProviderOptions = {
@@ -251,6 +256,7 @@ export class AstridBridgeDataProvider implements DataProvider {
   readonly supportsEditorSync = false;
   /** Direct all-file asset upload is the Local provider's core surface. */
   readonly supportsDirectAssetUpload = true;
+  readonly shotComposition: ShotCompositionPort;
   readonly apiBaseUrl: string;
   readonly assetBaseUrl: string;
 
@@ -313,6 +319,40 @@ export class AstridBridgeDataProvider implements DataProvider {
     this.projectSlug = options.projectSlug;
     this.registeredParsers = options.registeredParsers;
     this.onBridgeRequest = options.onBridgeRequest;
+    this.shotComposition = {
+      load: async () => {
+        const payload = await this.fetchTimelinePayload(this.selectedTimelineRef, { fresh: true });
+        if (payload.shot_composition === undefined) {
+          throw new ShotCompositionUnavailableError(
+            'This timeline does not expose a canonical shot-composition document yet.',
+          );
+        }
+        return payload.shot_composition;
+      },
+      publish: async (request) => {
+        if (isAstridWorkspaceV1) {
+          throw new ShotCompositionUnavailableError('The live Astrid workspace preview is read-only.');
+        }
+        const payload = await this.transport.requestJson(
+          `/projects/${encodeURIComponent(this.projectSlug)}/timelines/${encodeURIComponent(this.getTimelineRequestRef(request.parentDocumentId))}/shot-composition/save`,
+          {
+            method: 'POST',
+            body: {
+              project_id: request.projectId,
+              parent_document_id: request.parentDocumentId,
+              expected_head_revision_id: request.expectedHeadRevisionId,
+              graph: request.graph,
+            },
+          },
+          bridgeTimelinePayloadSchema,
+          'publish shot composition',
+        );
+        if (payload.shot_composition === undefined) {
+          throw new ShotCompositionUnavailableError('Shot-composition publish returned no canonical graph.');
+        }
+        return payload.shot_composition;
+      },
+    };
   }
 
   private observeBridgeRequest(
