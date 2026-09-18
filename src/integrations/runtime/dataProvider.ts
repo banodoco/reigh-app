@@ -29,7 +29,10 @@ import type {
 import type { TimelineBundleEnvelope } from '@/tools/video-editor/data/typed/timelineBundle.ts';
 import { parseTimelineBundle } from '@/tools/video-editor/data/typed/timelineBundle.ts';
 import { withDefaultTimelineOutput } from '@/tools/video-editor/lib/defaults.ts';
-import { type ShotCompositionPort } from '@/tools/video-editor/data/shotCompositionAdapter.ts';
+import {
+  ShotCompositionUnavailableError,
+  type ShotCompositionPort,
+} from '@/tools/video-editor/data/shotCompositionAdapter.ts';
 import {
   assertExpectedHead,
   stableOccurrenceDeepLink,
@@ -69,9 +72,10 @@ export class RuntimeDataProvider implements DataProvider {
     load: async (request) => this.loadRuntimeShotComposition(request.projectId, request.parentDocumentId),
     publish: async (request) => {
       try {
+        assertGraphRequestIdentity(request.graph, request.projectId, request.parentDocumentId);
         const timeline = await this.client.getProjectTimeline(request.projectId, request.parentDocumentId);
         assertRuntimeIdentity(timeline, request.projectId, request.parentDocumentId, 'timeline');
-        const currentHead = requiredString(timeline.head_revision_id, 'timeline.head_revision_id');
+        const currentHead = nullableString(timeline.head_revision_id, 'timeline.head_revision_id');
         assertExpectedHead(request.expectedHeadRevisionId, currentHead);
         const publication = await toRuntimePublication(request.graph, request.projectId, request.parentDocumentId, request.expectedHeadRevisionId);
         await this.client.publishParentComposition(request.projectId, request.parentDocumentId, publication);
@@ -102,7 +106,12 @@ export class RuntimeDataProvider implements DataProvider {
   private async loadRuntimeShotComposition(projectId: string, timelineId: string): Promise<unknown> {
     const timeline = await this.client.getProjectTimeline(projectId, timelineId);
     assertRuntimeIdentity(timeline, projectId, timelineId, 'timeline');
-    const headRevisionId = requiredString(timeline.head_revision_id, 'timeline.head_revision_id');
+    const headRevisionId = nullableString(timeline.head_revision_id, 'timeline.head_revision_id');
+    if (headRevisionId === null) {
+      throw new ShotCompositionUnavailableError(
+        `Workspace Runtime timeline ${timelineId} has no published canonical shot-composition head`,
+      );
+    }
     const parent = await this.client.getProjectParentCompositionRevision(projectId, timelineId, headRevisionId);
     assertRuntimeIdentity(parent, projectId, timelineId, 'parent composition revision');
     assertRevisionIdentity(parent, headRevisionId, 'parent composition revision');
@@ -118,8 +127,28 @@ export class RuntimeDataProvider implements DataProvider {
       assertRevisionIdentity(shot, revisionId, 'shot revision');
       if (shot.shot_id !== shotId) throw new Error(`Runtime shot revision identity mismatch: requested ${shotId}, got ${String(shot.shot_id)}`);
       const internalRevisionId = requiredString(shot.internal_timeline_revision_id, `shot revision ${revisionId}.internal_timeline_revision_id`);
-      const internal = await this.client.getProjectTimelineRevision(projectId, internalTimelineId(shot, timelineId), internalRevisionId);
-      assertRuntimeIdentity(internal, projectId, internalTimelineId(shot, timelineId), 'internal timeline revision');
+      const candidateScopes = [
+        typeof shot.timeline_id === 'string' && shot.timeline_id.length > 0 ? shot.timeline_id : undefined,
+        timelineId,
+        `shot:${shotId}`,
+      ].filter((scope, index, scopes): scope is string => Boolean(scope) && scopes.indexOf(scope) === index);
+      let internalTimelineScope: string | undefined;
+      let internal: RuntimeRecord | undefined;
+      let lastNotFound: ApiError | undefined;
+      for (const candidateScope of candidateScopes) {
+        try {
+          internal = await this.client.getProjectTimelineRevision(projectId, candidateScope, internalRevisionId);
+          internalTimelineScope = candidateScope;
+          break;
+        } catch (error) {
+          if (!(error instanceof ApiError) || error.status !== 404) throw error;
+          lastNotFound = error;
+        }
+      }
+      if (!internal || !internalTimelineScope) {
+        throw lastNotFound ?? new Error(`Workspace Runtime internal timeline revision ${internalRevisionId} was not found`);
+      }
+      assertRuntimeIdentity(internal, projectId, internalTimelineScope, 'internal timeline revision');
       assertRevisionIdentity(internal, internalRevisionId, 'internal timeline revision');
       return { shot, internal };
     }));
@@ -410,6 +439,11 @@ function requiredString(value: unknown, label: string): string {
   return value;
 }
 
+function nullableString(value: unknown, label: string): string | null {
+  if (value === null) return null;
+  return requiredString(value, label);
+}
+
 function array(value: unknown, label: string): RuntimeRecord[] {
   if (!Array.isArray(value)) throw new Error(`Workspace Runtime ${label} must be an array`);
   return value.map((item, index) => requiredRecord(item, `${label}[${index}]`));
@@ -431,8 +465,22 @@ function assertRevisionIdentity(value: RuntimeRecord, revisionId: string, label:
   }
 }
 
-function internalTimelineId(shot: RuntimeRecord, fallback: string): string {
-  return typeof shot.timeline_id === 'string' && shot.timeline_id.length > 0 ? shot.timeline_id : fallback;
+function assertGraphRequestIdentity(graph: unknown, projectId: string, timelineId: string): void {
+  const graphRecord = requiredRecord(graph, 'publication graph');
+  const project = requiredRecord(graphRecord.project, 'publication graph.project');
+  const primary = requiredRecord(graphRecord.primary_timeline, 'publication graph.primary_timeline');
+  const graphProjectId = requiredString(project.project_id, 'publication graph.project.project_id');
+  const projectDocumentId = requiredString(project.document_id, 'publication graph.project.document_id');
+  const primaryDocumentId = requiredString(primary.document_id, 'publication graph.primary_timeline.document_id');
+  if (graphProjectId !== projectId) {
+    throw new Error(`Workspace Runtime publication graph belongs to project ${graphProjectId}, not ${projectId}`);
+  }
+  if (projectDocumentId !== timelineId) {
+    throw new Error(`Workspace Runtime publication graph project document is ${projectDocumentId}, not ${timelineId}`);
+  }
+  if (primaryDocumentId !== timelineId) {
+    throw new Error(`Workspace Runtime publication graph primary timeline is ${primaryDocumentId}, not ${timelineId}`);
+  }
 }
 
 function uniqueOccurrences(occurrences: RuntimeRecord[]): RuntimeRecord[] {
@@ -497,6 +545,9 @@ function runtimeGraphToContract(
       document_role: 'shot_revision',
       content_digest: requiredString(shot.content_digest, 'shot revision.content_digest'),
       internal_timeline_revision: {
+        timeline_id: typeof internal.timeline_id === 'string' && internal.timeline_id.length > 0
+          ? internal.timeline_id
+          : timelineId,
         revision_id: requiredString(internal.revision_id, 'internal timeline revision.revision_id'),
         content_digest: requiredString(internal.content_digest, 'internal timeline revision.content_digest'),
         timeline: timelinePayload,
@@ -592,7 +643,7 @@ async function toRuntimePublication(
   graph: RuntimeRecord,
   projectId: string,
   timelineId: string,
-  expectedHead: string,
+  expectedHead: string | null,
 ): Promise<RuntimeRecord> {
   const primary = requiredRecord(graph.primary_timeline, 'primary_timeline');
   const head = requiredRecord(primary.head, 'primary_timeline.head');
@@ -614,13 +665,16 @@ async function toRuntimePublication(
     const internal = requiredRecord(revision.internal_timeline_revision, `shot revision ${String(revision.revision_id)}.internal_timeline_revision`);
     const internalRevisionId = requiredString(internal.revision_id, 'internal timeline revision.revision_id');
     const internalTimeline = requiredRecord(internal.timeline, `internal timeline revision ${internalRevisionId}.timeline`);
+    const internalTimelineId = typeof internal.timeline_id === 'string' && internal.timeline_id.length > 0
+      ? internal.timeline_id
+      : timelineId;
     const timelineRevision = {
-      timeline_id: timelineId,
+      timeline_id: internalTimelineId,
       revision_id: internalRevisionId,
       content_digest: requiredString(internal.content_digest, `internal timeline revision ${internalRevisionId}.content_digest`),
       payload: internalTimeline,
     };
-    internalByKey.set(`${timelineId}\u0000${internalRevisionId}`, timelineRevision);
+    internalByKey.set(`${internalTimelineId}\u0000${internalRevisionId}`, timelineRevision);
     return {
       shot_id: requiredString(revision.shot_id, 'shot revision.shot_id'),
       revision_id: requiredString(revision.revision_id, 'shot revision.revision_id'),

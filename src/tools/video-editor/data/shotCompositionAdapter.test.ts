@@ -52,6 +52,34 @@ describe('shot-composition product adapter', () => {
     }));
   });
 
+  it('rejects a submitted graph whose project or timeline identity does not match the request', async () => {
+    const publish = vi.fn();
+    const graph = JSON.parse(JSON.stringify(fixture)) as Record<string, any>;
+    graph.project.project_id = 'project-foreign';
+
+    await expect(createShotCompositionAdapter({ load: vi.fn(), publish }).publish({
+      projectId: 'project-001',
+      parentDocumentId: 'document-primary',
+      expectedHeadRevisionId: null,
+      graph,
+    })).rejects.toThrow(/project|timeline/);
+    expect(publish).not.toHaveBeenCalled();
+  });
+
+  it('publishes an explicitly null expected head', async () => {
+    const publish = vi.fn().mockResolvedValue(fixture);
+    const adapter = createShotCompositionAdapter({ load: vi.fn(), publish });
+
+    await adapter.publish({
+      projectId: 'project-001',
+      parentDocumentId: 'document-primary',
+      expectedHeadRevisionId: null,
+      graph: fixture,
+    });
+
+    expect(publish).toHaveBeenCalledWith(expect.objectContaining({ expectedHeadRevisionId: null }));
+  });
+
   it('reports a typed read-only failure when the provider has no publish port', async () => {
     const adapter = createShotCompositionAdapter({ load: vi.fn() });
     await expect(adapter.publish({

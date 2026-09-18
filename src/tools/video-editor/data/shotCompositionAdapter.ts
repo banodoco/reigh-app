@@ -14,7 +14,7 @@ export type ShotCompositionReadRequest = Readonly<{
 export type ShotCompositionPublishRequest = Readonly<{
   projectId: string;
   parentDocumentId: string;
-  expectedHeadRevisionId: string;
+  expectedHeadRevisionId: string | null;
   graph: ShotCompositionContract;
 }>;
 
@@ -153,6 +153,13 @@ function assertRequestIdentity(
       `Canonical composition belongs to timeline ${composition.parentDocumentId}, not ${request.parentDocumentId}`,
     );
   }
+  const primaryTimeline = record(composition.contract.primary_timeline, 'primary_timeline');
+  const primaryDocumentId = requiredString(primaryTimeline.document_id, 'primary_timeline.document_id');
+  if (primaryDocumentId !== request.parentDocumentId) {
+    throw new ShotCompositionUnavailableError(
+      `Canonical primary timeline belongs to ${primaryDocumentId}, not ${request.parentDocumentId}`,
+    );
+  }
 }
 
 export function createShotCompositionAdapter(port: ShotCompositionPort) {
@@ -179,8 +186,11 @@ export function createShotCompositionAdapter(port: ShotCompositionPort) {
       // Validate the submitted graph before crossing the port. The submitted
       // graph may advance the head; expectedHeadRevisionId is the old head the
       // Runtime must compare-and-swap against.
-      prepareContract(parseShotComposition(request.graph));
-      requiredString(request.expectedHeadRevisionId, 'expectedHeadRevisionId');
+      const submitted = prepareContract(parseShotComposition(request.graph));
+      assertRequestIdentity(submitted, request);
+      if (request.expectedHeadRevisionId !== null) {
+        requiredString(request.expectedHeadRevisionId, 'expectedHeadRevisionId');
+      }
       try {
         const published = await port.publish(request);
         const composition = prepareContract(parseShotComposition(published));

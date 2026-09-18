@@ -97,7 +97,7 @@ export function stableOutputIdentity(projectId: string, parentDocumentId: string
 }
 
 /** Local contract guard shared with Runtime CAS publication error mapping. */
-export function assertExpectedHead(expectedRevisionId: string, actualRevisionId: string): void {
+export function assertExpectedHead(expectedRevisionId: string | null, actualRevisionId: string | null): void {
   if (expectedRevisionId !== actualRevisionId) {
     throw new StaleWriteError(`stale shot-composition head: expected ${expectedRevisionId}, actual ${actualRevisionId}`);
   }

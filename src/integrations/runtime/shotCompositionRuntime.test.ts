@@ -67,8 +67,11 @@ function runtimeResponses(headRevisionId = 'timeline-rev-2') {
   return { graph, parent, occurrences, shots, internals };
 }
 
-function fixtureTransport(options: { conflict?: boolean } = {}) {
+function fixtureTransport(options: { conflict?: boolean; initialHeadRevisionId?: string | null; legacyInternalScope?: boolean } = {}) {
   const responses = runtimeResponses();
+  let currentHeadRevisionId = options.initialHeadRevisionId === undefined
+    ? responses.parent.revision_id
+    : options.initialHeadRevisionId;
   const requests: Array<{ method: string; path: string; body?: Record<string, unknown> }> = [];
   const transport = async (method: string, path: string, _headers: Record<string, string>, body?: Uint8Array) => {
     const parsedBody = body ? JSON.parse(new TextDecoder().decode(body)) as Record<string, unknown> : undefined;
@@ -76,18 +79,26 @@ function fixtureTransport(options: { conflict?: boolean } = {}) {
     if (path === '/v1/health') return { status: 200, headers: {}, body: json({ status: 'ok', protocol: 'workspace.v1', schema_digest: 'sha256:test', runtime_epoch: 1 }) };
     if (path === '/v1/handshake') return { status: 200, headers: {}, body: json({ protocol: 'workspace.v1', schema_digest: 'sha256:test', session_id: 'session', actor_id: 'owner', realm_id: 'realm', scopes: ['projects:read', 'projects:write'] }) };
     if (path === '/v1/realm') return { status: 200, headers: {}, body: json({ realm_id: 'realm', display_name: 'fixture', version: 1, created_at: '2026-09-19T00:00:00Z' }) };
-    if (method === 'GET' && path === `/v1/projects/${PROJECT_ID}/timelines/${TIMELINE_ID}`) return { status: 200, headers: {}, body: json({ timeline_id: TIMELINE_ID, project_id: PROJECT_ID, version: 1, head_revision_id: responses.parent.revision_id, archived: false, shots: [], references: [] }) };
+    if (method === 'GET' && path === `/v1/projects/${PROJECT_ID}/timelines/${TIMELINE_ID}`) return { status: 200, headers: {}, body: json({ timeline_id: TIMELINE_ID, project_id: PROJECT_ID, version: 1, head_revision_id: currentHeadRevisionId, archived: false, shots: [], references: [] }) };
     if (path === `/v1/projects/${PROJECT_ID}/timelines/${TIMELINE_ID}/composition-revisions/${responses.parent.revision_id}`) return { status: 200, headers: {}, body: json(responses.parent) };
     if (path.startsWith(`/v1/projects/${PROJECT_ID}/shots/`) && path.includes('/revisions/')) {
       const [, shotId, revisionId] = path.match(/\/shots\/([^/]+)\/revisions\/([^/]+)$/) ?? [];
       return { status: 200, headers: {}, body: json(responses.shots.get(`${shotId}\u0000${revisionId}`)) };
     }
     if (path.startsWith(`/v1/projects/${PROJECT_ID}/timelines/${TIMELINE_ID}/revisions/`)) {
+      if (options.legacyInternalScope) return { status: 404, headers: {}, body: json({ code: 'not_found', message: 'legacy child scope' }) };
       const revisionId = path.split('/').pop() ?? '';
       return { status: 200, headers: {}, body: json(responses.internals.get(revisionId)) };
     }
+    if (path.startsWith(`/v1/projects/${PROJECT_ID}/timelines/${encodeURIComponent('shot:')}`)) {
+      const match = path.match(/\/timelines\/shot%3A([^/]+)\/revisions\/([^/]+)$/);
+      if (!match) throw new Error(`unexpected legacy internal path ${path}`);
+      const revision = responses.internals.get(decodeURIComponent(match[2]));
+      return { status: 200, headers: {}, body: json({ ...revision, timeline_id: `shot:${decodeURIComponent(match[1])}` }) };
+    }
     if (method === 'POST' && path === `/v1/projects/${PROJECT_ID}/timelines/${TIMELINE_ID}/composition-revisions`) {
       if (options.conflict) return { status: 409, headers: {}, body: json({ code: 'conflict', message: 'head moved' }) };
+      currentHeadRevisionId = responses.parent.revision_id;
       return { status: 200, headers: {}, body: json({ data: { revision_id: responses.parent.revision_id }, receipt: { receipt_id: 'receipt', command_kind: 'parent_composition.publish', idempotency_key: 'key', request_hash: 'hash', project_id: PROJECT_ID, project_seq: [1, 1], event_ids: ['event'], result: {}, created_at: '2026-09-19T00:00:00Z' } }) };
     }
     throw new Error(`unexpected ${method} ${path}`);
@@ -128,6 +139,50 @@ describe('Runtime shot-composition port', () => {
       dependency_manifest: { shots: expect.any(Array), internal_timelines: expect.any(Array), media: expect.any(Array) },
     });
     expect(publication?.content_digest).toMatch(/^sha256:[0-9a-f]{64}$/);
+  });
+
+  it('publishes a prepared graph against a null initial Runtime head', async () => {
+    const fixtureRuntime = fixtureTransport({ initialHeadRevisionId: null });
+    const provider = new RuntimeDataProvider({ projectId: PROJECT_ID, transport: fixtureRuntime.transport });
+
+    await provider.shotComposition.publish?.({
+      projectId: PROJECT_ID,
+      parentDocumentId: TIMELINE_ID,
+      expectedHeadRevisionId: null,
+      graph: fixture as any,
+    });
+
+    const publication = fixtureRuntime.requests.find((request) => request.method === 'POST' && request.path.includes('/composition-revisions'))?.body;
+    expect(publication).toMatchObject({ expected_head: null });
+  });
+
+  it('falls back to the legacy shot timeline scope for immutable internal revisions', async () => {
+    const fixtureRuntime = fixtureTransport({ legacyInternalScope: true });
+    const provider = new RuntimeDataProvider({ projectId: PROJECT_ID, transport: fixtureRuntime.transport });
+
+    await provider.shotComposition.load({ projectId: PROJECT_ID, parentDocumentId: TIMELINE_ID });
+
+    const internalReads = fixtureRuntime.requests
+      .map(({ method, path }) => `${method} ${path}`)
+      .filter((value) => value.includes('/revisions/'));
+    expect(internalReads.some((value) => value.includes(`/timelines/${TIMELINE_ID}/revisions/`))).toBe(true);
+    expect(internalReads.some((value) => value.includes('/timelines/shot%3A'))).toBe(true);
+    expect(fixtureRuntime.requests.some(({ path }) => path.includes('/documents/') || path.startsWith('/v1/timelines/'))).toBe(false);
+  });
+
+  it('rejects a publication graph with foreign project identity before the Runtime read', async () => {
+    const fixtureRuntime = fixtureTransport();
+    const provider = new RuntimeDataProvider({ projectId: PROJECT_ID, transport: fixtureRuntime.transport });
+    const graph = JSON.parse(JSON.stringify(fixture)) as Record<string, any>;
+    graph.project.project_id = 'project-foreign';
+
+    await expect(provider.shotComposition.publish?.({
+      projectId: PROJECT_ID,
+      parentDocumentId: TIMELINE_ID,
+      expectedHeadRevisionId: 'timeline-rev-2',
+      graph: graph as any,
+    })).rejects.toThrow(/publication graph belongs to project/);
+    expect(fixtureRuntime.requests).toHaveLength(0);
   });
 
   it('maps Runtime 409 to the existing stale-write error', async () => {
