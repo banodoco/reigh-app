@@ -11,6 +11,8 @@ import {
   useTimelineEditorData,
   useTimelinePlaybackContext,
 } from '@/tools/video-editor/hooks/timelineStore.ts';
+import { useOptionalVideoEditorRuntime } from '@/tools/video-editor/contexts/VideoEditorRuntimeContext.tsx';
+import { projectCanonicalComposition } from '@/tools/video-editor/data/shotCompositionProjection.ts';
 
 interface CompactPreviewCoreProps {
   timelineId?: string | null;
@@ -21,18 +23,30 @@ interface CompactPreviewCoreProps {
 export function CompactPreviewCore({ timelineId, onCreateTimeline, onOpenEditor }: CompactPreviewCoreProps) {
   useRenderDiagnostic('CompactPreviewCore');
   const { resolvedConfig } = useTimelineEditorData();
+  const runtime = useOptionalVideoEditorRuntime();
+  const canonicalComposition = runtime?.userId === null
+    ? runtime.shots.canonicalComposition
+    : null;
+  const previewConfig = useMemo(() => {
+    if (!canonicalComposition) return resolvedConfig;
+    try {
+      return projectCanonicalComposition(canonicalComposition, resolvedConfig).config;
+    } catch {
+      return null;
+    }
+  }, [canonicalComposition, resolvedConfig]);
   const { saveStatus } = useTimelineChromeContext();
   const { previewRef, playerContainerRef, currentTime, onPreviewTimeUpdate } = useTimelinePlaybackContext();
 
   const totalSeconds = useMemo(() => {
-    if (!resolvedConfig) {
+    if (!previewConfig) {
       return 1;
     }
 
-    return getTimelineDurationInFrames(resolvedConfig, resolvedConfig.output.fps) / resolvedConfig.output.fps;
-  }, [resolvedConfig]);
+    return getTimelineDurationInFrames(previewConfig, previewConfig.output.fps) / previewConfig.output.fps;
+  }, [previewConfig]);
 
-  if (!resolvedConfig || !timelineId) {
+  if (!previewConfig || !timelineId) {
     return (
       <div className="flex h-full items-center justify-center bg-background">
         <div className="rounded-xl border border-dashed border-border bg-card/60 p-6 text-center">
@@ -68,7 +82,7 @@ export function CompactPreviewCore({ timelineId, onCreateTimeline, onOpenEditor 
         <div className="h-full overflow-hidden rounded-xl border border-border">
           <RemotionPreview
             ref={previewRef}
-            config={resolvedConfig}
+            config={previewConfig}
             compact
             onTimeUpdate={onPreviewTimeUpdate}
             playerContainerRef={playerContainerRef}

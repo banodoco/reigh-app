@@ -32,6 +32,8 @@ import { useNavigationState } from '../hooks/navigation/useNavigationState';
 import { useOperationTracking } from '../hooks/useOperationTracking';
 import { usePanesStore } from '@/shared/state/panesStore';
 import { hasLocalModeUrlParams } from '@/shared/dev/devSession';
+import type { LocalTimelineShotModel } from './localTimelineShotModel.ts';
+import type { ShotCompositionAdapter } from '@/tools/video-editor/data/shotCompositionAdapter.ts';
 
 interface ShotEditorViewProps {
   /** The shot to edit */
@@ -48,6 +50,10 @@ interface ShotEditorViewProps {
   availableLoras: LoraModel[];
   /** Sort mode for shot navigation */
   shotSortMode?: 'ordered' | 'newest' | 'oldest';
+  /** Canonical occurrence identity used by local/read-only composition views. */
+  canonicalOccurrence?: Pick<LocalTimelineShotModel, 'occurrenceId' | 'shotId' | 'revisionId' | 'parentDocumentId' | 'stableDeepLink' | 'outputIdentity'> & { projectId?: string | null };
+  /** The same adapter used by the overview; local mode intentionally does not publish. */
+  canonicalShotComposition?: ShotCompositionAdapter;
 }
 
 /**
@@ -62,6 +68,8 @@ export function ShotEditorView({
   shots,
   availableLoras,
   shotSortMode = 'ordered',
+  canonicalOccurrence,
+  canonicalShotComposition,
 }: ShotEditorViewProps) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -214,7 +222,17 @@ export function ShotEditorView({
 
   return (
     <>
-      <div className="px-4 max-w-7xl mx-auto pt-4">
+      <div
+        className="px-4 max-w-7xl mx-auto pt-4"
+        data-canonical-occurrence-id={canonicalOccurrence?.occurrenceId}
+        data-canonical-project-id={canonicalOccurrence?.projectId ?? selectedProjectId}
+        data-canonical-parent-document-id={canonicalOccurrence?.parentDocumentId}
+        data-canonical-shot-id={canonicalOccurrence?.shotId}
+        data-canonical-revision-id={canonicalOccurrence?.revisionId}
+        data-canonical-deep-link={canonicalOccurrence?.stableDeepLink}
+        data-canonical-output-identity={canonicalOccurrence?.outputIdentity}
+        data-canonical-adapter={canonicalShotComposition ? 'shot-composition' : undefined}
+      >
         <Suspense fallback={<LoadingSkeleton type="editor" />}>
           <VideoTravelSettingsProvider
             projectId={selectedProjectId}

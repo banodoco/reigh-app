@@ -1,0 +1,116 @@
+import { describe, expect, it } from 'vitest';
+
+import fixture from './shotComposition.fixture.json';
+import { createShotCompositionAdapter, type PreparedShotComposition } from './shotCompositionAdapter.ts';
+import {
+  CanonicalCompositionProjectionError,
+  managedOutputMatchesOccurrence,
+  projectCanonicalComposition,
+} from './shotCompositionProjection.ts';
+
+const prepared = createShotCompositionAdapter({ load: async () => fixture }).prepare(fixture);
+
+function withOccurrenceRevision(
+  source: PreparedShotComposition,
+  occurrenceIndex: number,
+  edit: (timeline: Record<string, unknown>) => Record<string, unknown>,
+): PreparedShotComposition {
+  const occurrences = source.occurrences.map((occurrence, index) => {
+    if (index !== occurrenceIndex) return occurrence;
+    const internal = occurrence.revision.internal_timeline_revision as Record<string, unknown>;
+    return {
+      ...occurrence,
+      revision: {
+        ...occurrence.revision,
+        internal_timeline_revision: {
+          ...internal,
+          timeline: edit({ ...(internal.timeline as Record<string, unknown>) }),
+        },
+      },
+    };
+  });
+  return { ...source, occurrences };
+}
+
+describe('canonical shot-composition downstream projection', () => {
+  it('projects occurrence timing and source/audio controls without legacy group or shot clips', () => {
+    const graph = JSON.parse(JSON.stringify(fixture)) as typeof fixture;
+    graph.occurrences[0] = {
+      ...graph.occurrences[0],
+      source_offset: 350,
+      speed: 1.5,
+      gain: 0.65,
+      muted: true,
+    };
+    const projection = projectCanonicalComposition(
+      createShotCompositionAdapter({ load: async () => graph }).prepare(graph),
+      { output: { resolution: '1280x720', fps: 24, file: 'canonical.mp4' }, tracks: [], clips: [], registry: {} },
+    );
+    const first = projection.config.clips.find((clip) => clip.id === 'occ-1:alpha-video');
+    expect(first).toMatchObject({
+      at: 0,
+      speed: 1.5,
+      from: 0.35,
+      volume: 0,
+      hold: 2,
+      app: { canonicalTiming: { sourceOffsetMs: 350, speed: 1.5, gain: 0.65, muted: true } },
+    });
+    expect(first?.app).toMatchObject({
+      canonical: {
+        projectId: 'project-001',
+        parentDocumentId: 'document-primary',
+        occurrenceId: 'occ-1',
+        shotId: 'shot-alpha',
+        revisionId: 'rev-a',
+        internalTimelineRevisionId: 'timeline-alpha-a',
+        outputIdentity: 'project/project-001/document/document-primary/occurrence/occ-1/output/final-video',
+      },
+    });
+    expect(JSON.stringify(projection.config)).not.toContain('pinnedShotGroups');
+    expect(JSON.stringify(projection.config)).not.toContain('"clipType":"shot"');
+  });
+
+  it('keeps linked occurrences distinct while retaining their shared revision identity', () => {
+    const projection = projectCanonicalComposition(prepared);
+    const first = projection.config.clips.find((clip) => clip.id === 'occ-1:alpha-video');
+    const linked = projection.config.clips.find((clip) => clip.id === 'occ-2:alpha-video');
+    expect(first?.app?.canonical).toMatchObject({ occurrenceId: 'occ-1', revisionId: 'rev-a' });
+    expect(linked?.app?.canonical).toMatchObject({ occurrenceId: 'occ-2', revisionId: 'rev-a' });
+    expect(projection.occurrenceIdentities.get('occ-1')).not.toBe(projection.occurrenceIdentities.get('occ-2'));
+    expect(projection.occurrenceIdentities.get('occ-1')?.revisionId)
+      .toBe(projection.occurrenceIdentities.get('occ-2')?.revisionId);
+  });
+
+  it('rejects missing dependencies before downstream projection', () => {
+    const contract = {
+      ...prepared.contract,
+      shot_revisions: prepared.contract.shot_revisions.filter((revision) => revision.shot_id !== 'shot-beta'),
+    };
+    expect(() => projectCanonicalComposition({ ...prepared, contract })).toThrowError(
+      expect.objectContaining({ code: 'missing_dependency' }),
+    );
+  });
+
+  it('rejects unsupported deeper nesting and blank child output', () => {
+    const nested = withOccurrenceRevision(prepared, 0, (timeline) => ({
+      ...timeline,
+      clips: [{ ...(timeline.clips as Array<Record<string, unknown>>)[0], clip_type: 'shot' }],
+    }));
+    expect(() => projectCanonicalComposition(nested)).toThrowError(
+      expect.objectContaining({ code: 'unsupported_nesting' }),
+    );
+
+    const blank = withOccurrenceRevision(prepared, 0, (timeline) => ({ ...timeline, clips: [] }));
+    expect(() => projectCanonicalComposition(blank)).toThrowError(
+      expect.objectContaining({ code: 'blank_child_output' }),
+    );
+    expect(() => projectCanonicalComposition(blank)).toThrow(CanonicalCompositionProjectionError);
+  });
+
+  it('matches managed outputs only to occurrence-qualified metadata', () => {
+    const occurrence = prepared.occurrences[0]!;
+    expect(managedOutputMatchesOccurrence({ provenance: { output_identity: occurrence.outputIdentity } }, occurrence)).toBe(true);
+    expect(managedOutputMatchesOccurrence({ provenance: { occurrence_id: 'occ-2' } }, occurrence)).toBe(false);
+    expect(managedOutputMatchesOccurrence({ shot_id: occurrence.shotId }, occurrence)).toBe(false);
+  });
+});

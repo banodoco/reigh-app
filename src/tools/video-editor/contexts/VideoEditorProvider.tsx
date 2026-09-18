@@ -679,7 +679,7 @@ export function VideoEditorProvider({
   extensionOperationalEventSink = dispatchExtensionOperationalEvent,
   children,
 }: VideoEditorProviderProps) {
-  const shotsHost = useReighShotsHost(projectId);
+  const shotsHost = useReighShotsHost(projectId, timelineId, dataProvider.shotComposition);
   const agentChatRegistry = useAgentChatRegistry();
   const telemetryHost = useMemo(() => createPrivacySafeExtensionTelemetryHost(), []);
   const knownExtensionVersionsRef = useRef(new Map<string, Set<string>>());

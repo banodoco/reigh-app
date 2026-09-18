@@ -29,6 +29,16 @@ import type {
 import type { TimelineBundleEnvelope } from '@/tools/video-editor/data/typed/timelineBundle.ts';
 import { parseTimelineBundle } from '@/tools/video-editor/data/typed/timelineBundle.ts';
 import { withDefaultTimelineOutput } from '@/tools/video-editor/lib/defaults.ts';
+import {
+  ShotCompositionUnavailableError,
+  type ShotCompositionPort,
+} from '@/tools/video-editor/data/shotCompositionAdapter.ts';
+import {
+  assertExpectedHead,
+  stableOccurrenceDeepLink,
+  stableOutputIdentity,
+  StaleWriteError,
+} from '@/tools/video-editor/data/shotComposition.ts';
 
 type RuntimeRecord = Record<string, unknown>;
 
@@ -58,6 +68,28 @@ export class RuntimeDataProvider implements DataProvider {
    */
   readonly refreshIntervalMs = 2_000;
   readonly apiBaseUrl: string;
+  readonly shotComposition: ShotCompositionPort = {
+    load: async (request) => this.loadRuntimeShotComposition(request.projectId, request.parentDocumentId),
+    publish: async (request) => {
+      try {
+        assertGraphRequestIdentity(request.graph, request.projectId, request.parentDocumentId);
+        const timeline = await this.client.getProjectTimeline(request.projectId, request.parentDocumentId);
+        assertRuntimeIdentity(timeline, request.projectId, request.parentDocumentId, 'timeline');
+        const currentHead = nullableString(timeline.head_revision_id, 'timeline.head_revision_id');
+        assertExpectedHead(request.expectedHeadRevisionId, currentHead);
+        const publication = await toRuntimePublication(request.graph, request.projectId, request.parentDocumentId, request.expectedHeadRevisionId);
+        await this.client.publishParentComposition(request.projectId, request.parentDocumentId, publication);
+        // The mutation receipt is not the canonical graph. Reload the committed
+        // head and its immutable closure so callers only observe durable bytes.
+        return await this.loadRuntimeShotComposition(request.projectId, request.parentDocumentId);
+      } catch (error) {
+        if (error instanceof ApiError && error.status === 409) {
+          throw new StaleWriteError(`Workspace Runtime rejected a stale shot-composition write: ${error.message}`);
+        }
+        throw error;
+      }
+    },
+  };
 
   private readonly projectId: string;
   private readonly client: ReighRuntimeClient;
@@ -69,6 +101,58 @@ export class RuntimeDataProvider implements DataProvider {
     this.client = new ReighRuntimeClient({ baseUrl: options.baseUrl, token: options.token, transport: options.transport });
     this.onRuntimeError = options.onRuntimeError;
     this.apiBaseUrl = this.client.baseUrl;
+  }
+
+  private async loadRuntimeShotComposition(projectId: string, timelineId: string): Promise<unknown> {
+    const timeline = await this.client.getProjectTimeline(projectId, timelineId);
+    assertRuntimeIdentity(timeline, projectId, timelineId, 'timeline');
+    const headRevisionId = nullableString(timeline.head_revision_id, 'timeline.head_revision_id');
+    if (headRevisionId === null) {
+      throw new ShotCompositionUnavailableError(
+        `Workspace Runtime timeline ${timelineId} has no published canonical shot-composition head`,
+      );
+    }
+    const parent = await this.client.getProjectParentCompositionRevision(projectId, timelineId, headRevisionId);
+    assertRuntimeIdentity(parent, projectId, timelineId, 'parent composition revision');
+    assertRevisionIdentity(parent, headRevisionId, 'parent composition revision');
+    const parentPayload = requiredRecord(parent.payload, 'parent composition revision.payload');
+    const rawOccurrences = array(parentPayload.occurrences, 'parent composition.occurrences');
+    const identities = uniqueOccurrences(rawOccurrences).map((occurrence) => ({
+      shotId: requiredString(occurrence.shot_id, 'parent composition occurrence.shot_id'),
+      revisionId: requiredString(occurrence.shot_revision_id ?? occurrence.revision_id, 'parent composition occurrence.shot_revision_id'),
+    }));
+    const resolved = await Promise.all(identities.map(async ({ shotId, revisionId }) => {
+      const shot = await this.client.getProjectShotRevision(projectId, shotId, revisionId);
+      assertRuntimeIdentity(shot, projectId, shotId, 'shot revision');
+      assertRevisionIdentity(shot, revisionId, 'shot revision');
+      if (shot.shot_id !== shotId) throw new Error(`Runtime shot revision identity mismatch: requested ${shotId}, got ${String(shot.shot_id)}`);
+      const internalRevisionId = requiredString(shot.internal_timeline_revision_id, `shot revision ${revisionId}.internal_timeline_revision_id`);
+      const candidateScopes = [
+        typeof shot.timeline_id === 'string' && shot.timeline_id.length > 0 ? shot.timeline_id : undefined,
+        timelineId,
+        `shot:${shotId}`,
+      ].filter((scope, index, scopes): scope is string => Boolean(scope) && scopes.indexOf(scope) === index);
+      let internalTimelineScope: string | undefined;
+      let internal: RuntimeRecord | undefined;
+      let lastNotFound: ApiError | undefined;
+      for (const candidateScope of candidateScopes) {
+        try {
+          internal = await this.client.getProjectTimelineRevision(projectId, candidateScope, internalRevisionId);
+          internalTimelineScope = candidateScope;
+          break;
+        } catch (error) {
+          if (!(error instanceof ApiError) || error.status !== 404) throw error;
+          lastNotFound = error;
+        }
+      }
+      if (!internal || !internalTimelineScope) {
+        throw lastNotFound ?? new Error(`Workspace Runtime internal timeline revision ${internalRevisionId} was not found`);
+      }
+      assertRuntimeIdentity(internal, projectId, internalTimelineScope, 'internal timeline revision');
+      assertRevisionIdentity(internal, internalRevisionId, 'internal timeline revision');
+      return { shot, internal };
+    }));
+    return runtimeGraphToContract(projectId, timelineId, timeline, parent, resolved);
   }
 
   /** Re-open the cached Runtime handshake before the next hosted read. */
@@ -340,3 +424,320 @@ function assertManagedObjectIdentity(
 }
 
 export type { RuntimeUnavailableError };
+
+function requiredRecord(value: unknown, label: string): RuntimeRecord {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error(`Workspace Runtime ${label} must be an object`);
+  }
+  return value as RuntimeRecord;
+}
+
+function requiredString(value: unknown, label: string): string {
+  if (typeof value !== 'string' || value.length === 0) {
+    throw new Error(`Workspace Runtime ${label} is missing`);
+  }
+  return value;
+}
+
+function nullableString(value: unknown, label: string): string | null {
+  if (value === null) return null;
+  return requiredString(value, label);
+}
+
+function array(value: unknown, label: string): RuntimeRecord[] {
+  if (!Array.isArray(value)) throw new Error(`Workspace Runtime ${label} must be an array`);
+  return value.map((item, index) => requiredRecord(item, `${label}[${index}]`));
+}
+
+function assertRuntimeIdentity(value: RuntimeRecord, projectId: string, identity: string, label: string): void {
+  if (value.project_id !== projectId) {
+    throw new Error(`Workspace Runtime ${label} belongs to project ${String(value.project_id)}, not ${projectId}`);
+  }
+  const key = label.includes('shot') ? 'shot_id' : 'timeline_id';
+  if (value[key] !== identity) {
+    throw new Error(`Workspace Runtime ${label} belongs to ${key === 'shot_id' ? 'shot' : 'timeline'} ${String(value[key])}, not ${identity}`);
+  }
+}
+
+function assertRevisionIdentity(value: RuntimeRecord, revisionId: string, label: string): void {
+  if (value.revision_id !== revisionId) {
+    throw new Error(`Workspace Runtime ${label} identity mismatch: requested ${revisionId}, got ${String(value.revision_id)}`);
+  }
+}
+
+function assertGraphRequestIdentity(graph: unknown, projectId: string, timelineId: string): void {
+  const graphRecord = requiredRecord(graph, 'publication graph');
+  const project = requiredRecord(graphRecord.project, 'publication graph.project');
+  const primary = requiredRecord(graphRecord.primary_timeline, 'publication graph.primary_timeline');
+  const graphProjectId = requiredString(project.project_id, 'publication graph.project.project_id');
+  const projectDocumentId = requiredString(project.document_id, 'publication graph.project.document_id');
+  const primaryDocumentId = requiredString(primary.document_id, 'publication graph.primary_timeline.document_id');
+  if (graphProjectId !== projectId) {
+    throw new Error(`Workspace Runtime publication graph belongs to project ${graphProjectId}, not ${projectId}`);
+  }
+  if (projectDocumentId !== timelineId) {
+    throw new Error(`Workspace Runtime publication graph project document is ${projectDocumentId}, not ${timelineId}`);
+  }
+  if (primaryDocumentId !== timelineId) {
+    throw new Error(`Workspace Runtime publication graph primary timeline is ${primaryDocumentId}, not ${timelineId}`);
+  }
+}
+
+function uniqueOccurrences(occurrences: RuntimeRecord[]): RuntimeRecord[] {
+  const seen = new Set<string>();
+  return occurrences.filter((occurrence) => {
+    const key = `${String(occurrence.shot_id)}\u0000${String(occurrence.shot_revision_id ?? occurrence.revision_id)}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function canonicalArray(value: unknown, fallback: unknown[] = []): unknown[] {
+  return Array.isArray(value) ? value : fallback;
+}
+
+function canonicalAudio(payload: RuntimeRecord, projectId: string, shotId: string, revisionId: string): RuntimeRecord {
+  const candidate = Array.isArray(payload.audio) ? payload.audio[0] : payload.audio;
+  const audio = candidate && typeof candidate === 'object' && !Array.isArray(candidate)
+    ? candidate as RuntimeRecord
+    : undefined;
+  if (!audio) {
+    throw new Error(`Workspace Runtime shot revision ${shotId}/${revisionId} has no canonical audio record`);
+  }
+  const scope = audio.scope && typeof audio.scope === 'object' && !Array.isArray(audio.scope)
+    ? audio.scope as RuntimeRecord
+    : { project_id: projectId };
+  return { ...audio, scope: { ...scope, project_id: projectId } };
+}
+
+function runtimeGraphToContract(
+  projectId: string,
+  timelineId: string,
+  timeline: RuntimeRecord,
+  parent: RuntimeRecord,
+  resolved: Array<{ shot: RuntimeRecord; internal: RuntimeRecord }>,
+): RuntimeRecord {
+  const parentPayload = requiredRecord(parent.payload, 'parent composition revision.payload');
+  const parentOccurrences = array(parentPayload.occurrences, 'parent composition.occurrences');
+  const resolvedByKey = new Map(resolved.map(({ shot, internal }) => [
+    `${String(shot.shot_id)}\u0000${String(shot.revision_id)}`,
+    { shot, internal },
+  ]));
+  const durationByKey = new Map(parentOccurrences.map((occurrence) => [
+    `${String(occurrence.shot_id)}\u0000${String(occurrence.shot_revision_id ?? occurrence.revision_id)}`,
+    Number(occurrence.duration_ms ?? occurrence.duration ?? 0),
+  ]));
+  const shotRevisions = resolved.map(({ shot, internal }) => {
+    const shotPayload = requiredRecord(shot.payload, `shot revision ${String(shot.revision_id)}.payload`);
+    const internalPayload = requiredRecord(internal.payload, `internal timeline revision ${String(internal.revision_id)}.payload`);
+    const timelinePayload = requiredRecord(internalPayload.timeline ?? internalPayload, `internal timeline revision ${String(internal.revision_id)}.timeline`);
+    const timing = shotPayload.timing && typeof shotPayload.timing === 'object' && !Array.isArray(shotPayload.timing)
+      ? shotPayload.timing as RuntimeRecord
+      : { duration_ms: durationByKey.get(`${String(shot.shot_id)}\u0000${String(shot.revision_id)}`) ?? 0 };
+    const provenance = shotPayload.provenance && typeof shotPayload.provenance === 'object' && !Array.isArray(shotPayload.provenance)
+      ? shotPayload.provenance as RuntimeRecord
+      : {};
+    return {
+      ...shotPayload,
+      shot_id: requiredString(shot.shot_id, 'shot revision.shot_id'),
+      revision_id: requiredString(shot.revision_id, 'shot revision.revision_id'),
+      document_role: 'shot_revision',
+      content_digest: requiredString(shot.content_digest, 'shot revision.content_digest'),
+      internal_timeline_revision: {
+        timeline_id: typeof internal.timeline_id === 'string' && internal.timeline_id.length > 0
+          ? internal.timeline_id
+          : timelineId,
+        revision_id: requiredString(internal.revision_id, 'internal timeline revision.revision_id'),
+        content_digest: requiredString(internal.content_digest, 'internal timeline revision.content_digest'),
+        timeline: timelinePayload,
+      },
+      dependencies: canonicalArray(shotPayload.dependencies),
+      assets: canonicalArray(shotPayload.assets),
+      generation_inputs: canonicalArray(shotPayload.generation_inputs),
+      timing,
+      audio: canonicalAudio(shotPayload, projectId, String(shot.shot_id), String(shot.revision_id)),
+      provenance,
+    };
+  });
+  const graphOccurrences = parentOccurrences.map((occurrence, ordinal) => {
+    const shotId = requiredString(occurrence.shot_id, `parent composition occurrence[${ordinal}].shot_id`);
+    const revisionId = requiredString(occurrence.shot_revision_id ?? occurrence.revision_id, `parent composition occurrence[${ordinal}].shot_revision_id`);
+    const placement = occurrence.placement && typeof occurrence.placement === 'object' && !Array.isArray(occurrence.placement)
+      ? occurrence.placement as RuntimeRecord
+      : {};
+    const atMs = Number(placement.start_ms ?? occurrence.at_ms ?? 0);
+    const durationMs = Number(occurrence.duration_ms ?? occurrence.duration ?? 0);
+    const occurrenceId = requiredString(occurrence.occurrence_id, `parent composition occurrence[${ordinal}].occurrence_id`);
+    return {
+      occurrence_id: occurrenceId,
+      parent_document_id: timelineId,
+      shot_id: shotId,
+      revision_id: revisionId,
+      ordinal,
+      at_ms: atMs,
+      duration_ms: durationMs,
+      stable_deep_link: stableOccurrenceDeepLink(projectId, timelineId, shotId, revisionId, occurrenceId),
+      output_identity: stableOutputIdentity(projectId, timelineId, occurrenceId),
+      placement,
+      source_offset: occurrence.source_offset ?? 0,
+      speed: occurrence.speed ?? 1,
+      track: occurrence.track ?? placement.track ?? 'video',
+      transform: occurrence.transform ?? {},
+      gain: occurrence.gain ?? 1,
+      muted: occurrence.muted ?? occurrence.mute ?? false,
+      provenance: occurrence.provenance ?? {},
+    };
+  });
+  for (const occurrence of graphOccurrences) {
+    if (!resolvedByKey.has(`${occurrence.shot_id}\u0000${occurrence.revision_id}`)) {
+      throw new Error(`Workspace Runtime parent composition references an unresolved shot revision ${occurrence.shot_id}/${occurrence.revision_id}`);
+    }
+  }
+  const headRevisionId = requiredString(parent.revision_id, 'parent composition revision.revision_id');
+  const parentGraph = {
+    config: parentPayload.config ?? {},
+    registry: parentPayload.registry ?? {},
+    clips: parentPayload.clips ?? [],
+    occurrences: parentPayload.occurrences,
+  };
+  return {
+    schema_version: 1,
+    project: { project_id: projectId, document_id: timelineId, role: 'project' },
+    primary_timeline: {
+      document_id: timelineId,
+      role: 'primary_timeline',
+      head: { revision_id: headRevisionId, content_digest: requiredString(parent.content_digest, 'parent composition revision.content_digest') },
+    },
+    parent_composition: parentGraph,
+    shot_revisions: shotRevisions,
+    occurrences: graphOccurrences,
+    cases: {
+      missing_dependency: { shot_id: 'missing-dependency', revision_id: 'missing-revision', expected: 'missing_dependency' },
+      stale_write_rejection: { expected_head_revision_id: headRevisionId, submitted_head_revision_id: headRevisionId, expected_status: 409 },
+    },
+    timeline: { timeline_id: timeline.timeline_id, project_id: timeline.project_id, version: timeline.version },
+  };
+}
+
+function stableStringify(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
+  if (value !== null && typeof value === 'object') {
+    return `{${Object.entries(value as RuntimeRecord).sort(([left], [right]) => left.localeCompare(right)).map(([key, item]) => `${JSON.stringify(key)}:${stableStringify(item)}`).join(',')}}`;
+  }
+  return JSON.stringify(value);
+}
+
+async function sha256(value: unknown): Promise<string> {
+  const bytes = new TextEncoder().encode(stableStringify(value));
+  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  return `sha256:${Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('')}`;
+}
+
+function runtimePayloadWithoutCanonicalEnvelope(revision: RuntimeRecord): RuntimeRecord {
+  const { shot_id: _shotId, revision_id: _revisionId, document_role: _role, content_digest: _digest, internal_timeline_revision: _internal, ...payload } = revision;
+  return payload;
+}
+
+async function toRuntimePublication(
+  graph: RuntimeRecord,
+  projectId: string,
+  timelineId: string,
+  expectedHead: string | null,
+): Promise<RuntimeRecord> {
+  const primary = requiredRecord(graph.primary_timeline, 'primary_timeline');
+  const head = requiredRecord(primary.head, 'primary_timeline.head');
+  const parentRevisionId = requiredString(head.revision_id, 'primary_timeline.head.revision_id');
+  const revisions = array(graph.shot_revisions, 'shot_revisions');
+  const occurrences = array(graph.occurrences, 'occurrences');
+  const revisionByKey = new Map(revisions.map((revision) => [
+    `${String(revision.shot_id)}\u0000${String(revision.revision_id)}`,
+    revision,
+  ]));
+  const used = uniqueOccurrences(occurrences).map((occurrence) => {
+    const key = `${String(occurrence.shot_id)}\u0000${String(occurrence.revision_id)}`;
+    const revision = revisionByKey.get(key);
+    if (!revision) throw new Error(`Canonical graph is missing shot revision ${key}`);
+    return revision;
+  });
+  const internalByKey = new Map<string, RuntimeRecord>();
+  const shotRevisions = used.map((revision) => {
+    const internal = requiredRecord(revision.internal_timeline_revision, `shot revision ${String(revision.revision_id)}.internal_timeline_revision`);
+    const internalRevisionId = requiredString(internal.revision_id, 'internal timeline revision.revision_id');
+    const internalTimeline = requiredRecord(internal.timeline, `internal timeline revision ${internalRevisionId}.timeline`);
+    const internalTimelineId = typeof internal.timeline_id === 'string' && internal.timeline_id.length > 0
+      ? internal.timeline_id
+      : timelineId;
+    const timelineRevision = {
+      timeline_id: internalTimelineId,
+      revision_id: internalRevisionId,
+      content_digest: requiredString(internal.content_digest, `internal timeline revision ${internalRevisionId}.content_digest`),
+      payload: internalTimeline,
+    };
+    internalByKey.set(`${internalTimelineId}\u0000${internalRevisionId}`, timelineRevision);
+    return {
+      shot_id: requiredString(revision.shot_id, 'shot revision.shot_id'),
+      revision_id: requiredString(revision.revision_id, 'shot revision.revision_id'),
+      internal_timeline_revision_id: internalRevisionId,
+      content_digest: requiredString(revision.content_digest, 'shot revision.content_digest'),
+      payload: runtimePayloadWithoutCanonicalEnvelope(revision),
+    };
+  });
+  const parentSource = requiredRecord(graph.parent_composition ?? {}, 'parent_composition');
+  const parentComposition = {
+    config: parentSource.config ?? {},
+    registry: parentSource.registry ?? {},
+    clips: parentSource.clips ?? [],
+    occurrences: occurrences.map((occurrence, ordinal) => ({
+      occurrence_id: requiredString(occurrence.occurrence_id, `occurrences[${ordinal}].occurrence_id`),
+      shot_id: requiredString(occurrence.shot_id, `occurrences[${ordinal}].shot_id`),
+      shot_revision_id: requiredString(occurrence.revision_id, `occurrences[${ordinal}].revision_id`),
+      placement: { start_ms: Number(occurrence.at_ms ?? 0), ...(occurrence.placement as RuntimeRecord ?? {}) },
+      source_offset: occurrence.source_offset ?? 0,
+      duration_ms: Number(occurrence.duration_ms ?? 0),
+      speed: occurrence.speed ?? 1,
+      track: occurrence.track ?? 'video',
+      transform: occurrence.transform ?? {},
+      gain: occurrence.gain ?? 1,
+      mute: occurrence.muted ?? occurrence.mute ?? false,
+      provenance: occurrence.provenance ?? {},
+    })),
+  };
+  const mediaDigests = new Set<string>();
+  const collectMedia = (value: unknown): void => {
+    if (Array.isArray(value)) return value.forEach(collectMedia);
+    if (value === null || typeof value !== 'object') return;
+    for (const [key, item] of Object.entries(value as RuntimeRecord)) {
+      if (['digest', 'content_digest', 'content_sha256', 'sha256'].includes(key) && typeof item === 'string' && /^sha256:[0-9a-f]{64}$/.test(item)) mediaDigests.add(item);
+      else collectMedia(item);
+    }
+  };
+  collectMedia(shotRevisions.map((revision) => revision.payload));
+  collectMedia([...internalByKey.values()].map((revision) => revision.payload));
+  collectMedia(parentComposition);
+  const dependencyManifest = {
+    shots: shotRevisions.map((revision) => ({
+      shot_id: revision.shot_id,
+      revision_id: revision.revision_id,
+      internal_timeline_revision_id: revision.internal_timeline_revision_id,
+      content_digest: revision.content_digest,
+    })),
+    internal_timelines: [...internalByKey.values()].map((revision) => ({
+      timeline_id: revision.timeline_id,
+      revision_id: revision.revision_id,
+      content_digest: revision.content_digest,
+    })),
+    media: [...mediaDigests].sort().map((digest) => ({ media_id: digest, content_digest: digest })),
+  };
+  return {
+    project_id: projectId,
+    timeline_id: timelineId,
+    expected_head: expectedHead,
+    parent_revision_id: parentRevisionId,
+    content_digest: await sha256(parentComposition),
+    parent_composition: parentComposition,
+    shot_revisions: shotRevisions,
+    internal_timeline_revisions: [...internalByKey.values()],
+    dependency_manifest: dependencyManifest,
+  };
+}

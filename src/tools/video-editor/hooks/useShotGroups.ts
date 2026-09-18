@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import type { TimelineShotGroupView } from '@/tools/video-editor/lib/timeline-domain.ts';
 import type { TimelineRow } from '@/tools/video-editor/types/timeline-canvas.ts';
+import type { CanonicalShotOccurrence } from '@/tools/video-editor/data/shotCompositionAdapter.ts';
 
 const SHOT_COLORS = ['#a855f7', '#ef4444', '#22c55e', '#3b82f6', '#f59e0b', '#14b8a6', '#ec4899', '#84cc16'];
 
@@ -10,6 +11,7 @@ export interface ShotGroup {
   rowId: string;
   rowIndex: number;
   start: number;
+  end?: number;
   clipIds: string[];
   children: Array<{ clipId: string; offset: number; duration: number }>;
   color: string;
@@ -18,6 +20,11 @@ export interface ShotGroup {
   variantIdsByGenerationId: Readonly<Record<string, string>>;
   finalVideoAssetKey?: string;
   derivedFrom?: Readonly<{ shotId: string; trackId: string }>;
+  canonicalIdentity?: CanonicalShotOccurrence;
+}
+
+export function shotGroupVideoKey(group: Pick<ShotGroup, 'shotId' | 'canonicalIdentity'>): string {
+  return group.canonicalIdentity?.occurrenceId ?? group.shotId;
 }
 
 export function getShotColor(shotId: string): string {
@@ -31,8 +38,48 @@ export function getShotColor(shotId: string): string {
 export function useShotGroups(
   rows: TimelineRow[],
   documentGroups: readonly TimelineShotGroupView[],
+  canonicalOccurrences: readonly CanonicalShotOccurrence[] = [],
 ): ShotGroup[] {
   return useMemo(() => {
+    if (canonicalOccurrences.length > 0) {
+      return canonicalOccurrences.map((occurrence) => {
+        const start = occurrence.atMs / 1000;
+        const end = start + occurrence.durationMs / 1000;
+        const candidateRows = rows
+          .map((row, rowIndex) => ({ row, rowIndex }))
+          .filter(({ row }) => row.actions.some((action) => action.end > start && action.start < end));
+        const fallbackRow = rows.find((row) => row.id === occurrence.trackId)
+          ?? rows.find((row) => row.actions.length > 0)
+          ?? rows[0];
+        const selected = candidateRows[0] ?? (fallbackRow ? { row: fallbackRow, rowIndex: rows.indexOf(fallbackRow) } : null);
+        const row = selected?.row;
+        const rowIndex = selected?.rowIndex ?? 0;
+        const children = row?.actions
+          .filter((action) => action.end > start && action.start < end)
+          .sort((left, right) => left.start - right.start)
+          .map((action) => ({
+            clipId: action.id,
+            offset: action.start - start,
+            duration: action.end - action.start,
+          })) ?? [];
+        return {
+          shotId: occurrence.shotId,
+          shotName: shotNameForOccurrence(occurrence),
+          rowId: row?.id ?? occurrence.trackId ?? 'V1',
+          rowIndex,
+          start,
+          end,
+          clipIds: children.map((child) => child.clipId),
+          children,
+          color: getShotColor(occurrence.occurrenceId),
+          mode: 'images' as const,
+          poolGenerationIds: [],
+          variantIdsByGenerationId: Object.freeze({}),
+          canonicalIdentity: occurrence,
+        } satisfies ShotGroup;
+      });
+    }
+
     const rowIndexById = new Map(rows.map((row, rowIndex) => [row.id, rowIndex]));
 
     const result: ShotGroup[] = [];
@@ -93,5 +140,15 @@ export function useShotGroups(
       });
     }
     return result;
-  }, [documentGroups, rows]);
+  }, [canonicalOccurrences, documentGroups, rows]);
+}
+
+function shotNameForOccurrence(occurrence: CanonicalShotOccurrence): string {
+  const provenance = occurrence.revision.provenance;
+  if (provenance && typeof provenance === 'object' && !Array.isArray(provenance)) {
+    const value = provenance as Record<string, unknown>;
+    if (typeof value.name === 'string' && value.name.trim()) return value.name;
+    if (typeof value.title === 'string' && value.title.trim()) return value.title;
+  }
+  return occurrence.shotId;
 }

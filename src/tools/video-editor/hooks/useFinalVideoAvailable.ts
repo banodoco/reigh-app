@@ -15,12 +15,19 @@ import { useRuntimeTasks } from '@/features/tasks/components/TasksPane/hooks/use
 import { useVideoEditorRuntime } from '@/tools/video-editor/contexts/VideoEditorRuntimeContext.tsx';
 import type { ShotFinalVideo } from '@/tools/travel-between-images/hooks/video/useShotFinalVideos.ts';
 import { useBridgeTaskSnapshot } from '@/shared/hooks/tasks/useBridgeTaskSnapshot.ts';
+import {
+  managedOutputIdentityForOccurrence,
+  managedOutputMatchesOccurrence,
+} from '@/tools/video-editor/data/shotCompositionProjection.ts';
+import type { PreparedShotComposition } from '@/tools/video-editor/data/shotCompositionAdapter.ts';
 
 export type { ShotFinalVideo };
 
 export type RuntimeShotFinalVideo = ShotFinalVideo & {
   /** Runtime-owned association retained for the selected-output export action. */
   managedOutput?: ManagedOutput;
+  canonicalOccurrenceId?: string;
+  canonicalOutputIdentity?: string;
 };
 
 type RuntimeFinalVideoClient = Pick<
@@ -132,6 +139,7 @@ export async function readRuntimeFinalVideos(
   client: RuntimeFinalVideoClient,
   projectId: string,
   taskInput?: readonly RuntimeTask[],
+  canonicalComposition?: PreparedShotComposition | null,
 ): Promise<Map<string, RuntimeShotFinalVideo>> {
   const tasks = taskInput ? [...taskInput] : await (async () => {
     const listed: RuntimeTask[] = [];
@@ -157,16 +165,35 @@ export async function readRuntimeFinalVideos(
   for (const detail of details) {
     if (detail.state !== 'succeeded') continue;
     const owner = runtimeTaskOwner(detail);
-    if (!owner || next.has(owner)) continue;
+    if (!owner && !canonicalComposition) continue;
     const outputs = await listAllRuntimeManagedOutputs(client, detail.task_id);
     const output = outputs.find(isPlayableManagedOutput);
     if (!output) continue;
-    next.set(owner, {
+    const taskSpec = runtimeTaskSpec(detail);
+    const taskParams = asRecord(taskSpec.params) ?? asRecord(taskSpec.inputs) ?? {};
+    const canonicalOccurrence = canonicalComposition?.occurrences.find((occurrence) => (
+      managedOutputMatchesOccurrence({
+        ...(output as unknown as Record<string, unknown>),
+        ...taskParams,
+      }, occurrence)
+    ));
+    // Linked occurrences share shot_id but must never share a final-video
+    // output. Canonical mode therefore requires occurrence-qualified output
+    // metadata and drops ambiguous legacy associations.
+    if (canonicalComposition && !canonicalOccurrence) continue;
+    const ownerKey = canonicalOccurrence?.occurrenceId ?? owner;
+    if (!ownerKey || next.has(ownerKey)) continue;
+    const outputIdentity = managedOutputIdentityForOccurrence(output as unknown as Record<string, unknown>);
+    next.set(ownerKey, {
       id: output.object_id,
       location: client.objectContentUrl(output.object_id),
       thumbnailUrl: null,
       variantFetchGenerationId: null,
       managedOutput: output,
+      ...(canonicalOccurrence ? {
+        canonicalOccurrenceId: canonicalOccurrence.occurrenceId,
+        canonicalOutputIdentity: outputIdentity.outputIdentity ?? canonicalOccurrence.outputIdentity,
+      } : {}),
     });
   }
 
@@ -176,6 +203,7 @@ export async function readRuntimeFinalVideos(
 export function useFinalVideoAvailable() {
   const runtime = useVideoEditorRuntime();
   const { shots } = runtime;
+  const canonicalComposition = runtime.userId === null ? shots.canonicalComposition : null;
   const [taskVideos, setTaskVideos] = useState<Map<string, ShotFinalVideo>>(new Map());
   const [dismissedTaskOutputs, setDismissedTaskOutputs] = useState<ReadonlySet<string>>(new Set());
   const projectSlug = runtime.project.projectId;
@@ -203,7 +231,7 @@ export function useFinalVideoAvailable() {
   );
   const runtimeFinalVideos = useQuery<Map<string, ShotFinalVideo>, Error>({
     queryKey: ['runtime-final-videos', runtimeBaseUrl ?? RUNTIME_BASE_URL, projectSlug ?? '__no-project__', runtimeTaskFingerprint],
-    queryFn: () => readRuntimeFinalVideos(runtimeClient, projectSlug!, runtimeTasks.data),
+    queryFn: () => readRuntimeFinalVideos(runtimeClient, projectSlug!, runtimeTasks.data, canonicalComposition),
     enabled: isRuntimeMode && Boolean(projectSlug) && runtimeTasks.data !== undefined,
     staleTime: 0,
     gcTime: 5 * 60 * 1000,
@@ -269,14 +297,16 @@ export function useFinalVideoAvailable() {
 
   const finalVideoMap = useMemo(() => {
     const merged = new Map<string, RuntimeShotFinalVideo>();
-    for (const [owner, video] of shots.finalVideoMap) {
-      merged.set(owner, video);
-    }
     for (const [owner, video] of taskVideos) {
       if (!dismissedTaskOutputs.has(video.id)) merged.set(owner, video);
     }
+    if (!canonicalComposition) {
+      for (const [owner, video] of shots.finalVideoMap) {
+        merged.set(owner, video);
+      }
+    }
     return merged;
-  }, [dismissedTaskOutputs, shots.finalVideoMap, taskVideos]);
+  }, [canonicalComposition, dismissedTaskOutputs, shots.finalVideoMap, taskVideos]);
 
   const dismissFinalVideo = useCallback((finalVideoId: string) => {
     if (Array.from(taskVideos.values()).some((video) => video.id === finalVideoId)) {

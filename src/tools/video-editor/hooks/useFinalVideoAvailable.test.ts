@@ -10,6 +10,8 @@ import {
   getManagedOutputExportExpectedIdentity,
   readRuntimeFinalVideos,
 } from './useFinalVideoAvailable.ts';
+import fixture from '@/tools/video-editor/data/shotComposition.fixture.json';
+import { createShotCompositionAdapter } from '@/tools/video-editor/data/shotCompositionAdapter.ts';
 
 const PROJECT_ID = 'project-retained-output';
 const TASK_ID = 'task-retained-output';
@@ -179,5 +181,39 @@ describe('Runtime final-video hydration boundary', () => {
     })).toBe(
       `export_id=export-retained-output · association_id=${ASSOCIATION_ID} · object_id=${OBJECT_ID} · digest=${OBJECT_ID} · bytes=133738 · filename=retained-output.mp4 · runtime_epoch=4`,
     );
+  });
+
+  it('projects Runtime managed output by occurrence identity and drops ambiguous linked output', async () => {
+    const composition = createShotCompositionAdapter({ load: async () => fixture }).prepare(fixture);
+    const canonicalTask = {
+      ...task(),
+      project_id: 'project-001',
+      spec: {
+        spec: {
+          family: 'rendering.render',
+          params: { timeline_ref: 'document-primary', occurrence_id: 'occ-2' },
+        },
+      },
+    } as RuntimeTask;
+    const canonicalOutput = {
+      ...managedOutput(),
+      project_id: 'project-001',
+      provenance: { occurrence_id: 'occ-2', output_identity: composition.occurrences[1]!.outputIdentity },
+    };
+    const client = {
+      listProjectTasks: async () => ({ items: [canonicalTask], next_cursor: null }),
+      getTask: async () => canonicalTask,
+      listManagedOutputs: async () => ({ items: [canonicalOutput], next_cursor: null }),
+      objectContentUrl: (objectId: string) => `object:${objectId}`,
+    } as unknown as Parameters<typeof readRuntimeFinalVideos>[0];
+
+    const videos = await readRuntimeFinalVideos(client, 'project-001', undefined, composition);
+    expect(videos.get('occ-2')).toMatchObject({
+      id: OBJECT_ID,
+      canonicalOccurrenceId: 'occ-2',
+      canonicalOutputIdentity: composition.occurrences[1]!.outputIdentity,
+    });
+    expect(videos.has('shot-alpha')).toBe(false);
+    expect(videos.has('occ-1')).toBe(false);
   });
 });

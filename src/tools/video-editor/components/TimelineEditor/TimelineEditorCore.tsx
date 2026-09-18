@@ -29,6 +29,7 @@ import { useClipDrag } from '@/tools/video-editor/hooks/useClipDrag.ts';
 import { useActiveTaskClips } from '@/tools/video-editor/hooks/useActiveTaskClips.ts';
 import { useMarqueeSelect } from '@/tools/video-editor/hooks/useMarqueeSelect.ts';
 import type { ShotGroup } from '@/tools/video-editor/hooks/useShotGroups.ts';
+import type { CanonicalShotOccurrence } from '@/tools/video-editor/data/shotCompositionAdapter.ts';
 import { useStaleVariants } from '@/tools/video-editor/hooks/useStaleVariants.ts';
 import { useAddVariantAsGeneration } from '@/tools/video-editor/hooks/useAddVariantAsGeneration.ts';
 import { useTimelineScale } from '@/tools/video-editor/hooks/useTimelineScale.ts';
@@ -188,14 +189,15 @@ export interface TimelineEditorCoreProps {
   activeTaskClipIds?: Set<string>;
   shotGroupClipIds?: Set<string>;
   onShotGroupNavigate?: (shotId: string) => void;
+  onShotGroupOpen?: (occurrence: CanonicalShotOccurrence) => void;
   onShotGroupGenerateVideo?: (shotId: string) => void;
-  onShotGroupSwitchToFinalVideo?: (group: { shotId: string; clipIds: string[]; rowId: string }) => void;
-  onShotGroupExportManagedOutput?: (group: { shotId: string; clipIds: string[]; rowId: string }) => void | Promise<void>;
+  onShotGroupSwitchToFinalVideo?: (group: { shotId: string; clipIds: string[]; rowId: string; canonicalIdentity?: CanonicalShotOccurrence }) => void;
+  onShotGroupExportManagedOutput?: (group: { shotId: string; clipIds: string[]; rowId: string; canonicalIdentity?: CanonicalShotOccurrence }) => void | Promise<void>;
   onShotGroupSwitchToImages?: (group: { shotId: string; rowId: string }) => void;
   onShotGroupUpdateToLatestVideo?: (group: { shotId: string; rowId: string }) => void;
   onShotGroupUnpin?: (group: { shotId: string; trackId: string }) => void;
   onShotGroupDelete?: (group: { shotId: string; trackId: string; clipIds: string[] }) => void;
-  onShotGroupDuplicate?: (group: { shotId: string; trackId: string }) => void;
+  onShotGroupDuplicate?: (group: { shotId: string; trackId: string; canonicalIdentity?: CanonicalShotOccurrence }) => void;
   onShotGroupPromotePrimary?: (group: { shotId: string; trackId: string }) => void;
   canCreateShotFromSelection?: boolean;
   existingShots?: Shot[];
@@ -219,6 +221,7 @@ function TimelineEditorCoreComponent({
   activeTaskClipIds,
   shotGroupClipIds = EMPTY_CLIP_IDS,
   onShotGroupNavigate,
+  onShotGroupOpen,
   onShotGroupGenerateVideo,
   onShotGroupSwitchToFinalVideo,
   onShotGroupExportManagedOutput,
@@ -489,6 +492,13 @@ function TimelineEditorCoreComponent({
   }, [pixelToTime, timelineWrapperRef]);
 
   const handleDoubleClickVideoClip = useCallback((clipId: string) => {
+    const canonicalGroup = shotGroups.find((group) => (
+      group.canonicalIdentity && group.clipIds.includes(clipId)
+    ));
+    if (canonicalGroup?.canonicalIdentity && onShotGroupOpen) {
+      onShotGroupOpen(canonicalGroup.canonicalIdentity);
+      return;
+    }
     const assetKey = data?.meta[clipId]?.asset;
     const generationId = assetKey ? data?.registry?.assets[assetKey]?.generationId : undefined;
     const fileUrl = assetKey ? getAssetFileLocator(data?.registry?.assets[assetKey]) : undefined;
@@ -509,7 +519,7 @@ function TimelineEditorCoreComponent({
     if (resolution.type === 'video-modal') {
       onOpenShotVideoModal?.(resolution.shotId, resolution.reason);
     }
-  }, [data?.meta, data?.registry?.assets, dataRef, finalVideoMap, onDoubleClickAsset, onOpenShotVideoModal]);
+  }, [data?.meta, data?.registry?.assets, dataRef, finalVideoMap, onDoubleClickAsset, onOpenShotVideoModal, onShotGroupOpen, shotGroups]);
 
   const handleSplitClipHere = useCallback((clipId: string, clientX: number) => {
     const time = clientXToTime(clientX);
@@ -823,6 +833,7 @@ function TimelineEditorCoreComponent({
           staleShotGroupIds={staleShotGroupIds}
           activeTaskClipIds={activeTaskClipIds}
           onShotGroupNavigate={onShotGroupNavigate}
+          onShotGroupOpen={onShotGroupOpen}
           onShotGroupGenerateVideo={onShotGroupGenerateVideo}
           onShotGroupExportManagedOutput={onShotGroupExportManagedOutput}
           onShotGroupUnpin={onShotGroupUnpin}

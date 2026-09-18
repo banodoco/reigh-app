@@ -636,6 +636,7 @@ const MANAGED_RENDER_CAPABILITY_ID = 'rendering.render';
 const MANAGED_RENDER_SELECTOR = 'rendering.remotion';
 const RUNTIME_SHA256_ID = /^sha256:[0-9a-f]{64}$/;
 const BARE_SHA256 = /^[0-9a-f]{64}$/;
+const MAX_MANAGED_RENDER_INPUTS = 256;
 
 export interface BanodocoRenderTimelinePayload {
   timeline_id: string;
@@ -728,6 +729,9 @@ function managedInputObjectIds(config: unknown): { ids: string[]; error?: string
       return { ids: [], error: `managed render input ${assetId} has no Runtime-managed object identity` };
     }
     if (!seen.has(id)) {
+      if (ids.length >= MAX_MANAGED_RENDER_INPUTS) {
+        return { ids: [], error: `managed render input set exceeds the ${MAX_MANAGED_RENDER_INPUTS}-object admission bound` };
+      }
       seen.add(id);
       ids.push(id);
     }
@@ -799,6 +803,21 @@ function renderAdmissionKey(payload: BanodocoRenderTimelinePayload, options: Enq
   return `reigh.render:v1:${payload.timeline_id}:${version}:${destination}:${payload.output_filename}`;
 }
 
+function canonicalAdmissionMetadata(timeline: unknown): Record<string, unknown> {
+  if (!timeline || typeof timeline !== 'object' || Array.isArray(timeline)) return {};
+  const app = (timeline as { app?: unknown }).app;
+  if (!app || typeof app !== 'object' || Array.isArray(app)) return {};
+  const canonical = (app as { canonicalComposition?: unknown }).canonicalComposition;
+  if (!canonical || typeof canonical !== 'object' || Array.isArray(canonical)) return {};
+  const value = canonical as Record<string, unknown>;
+  return {
+    ...(typeof value.projectId === 'string' ? { canonical_project_id: value.projectId } : {}),
+    ...(typeof value.parentDocumentId === 'string' ? { canonical_parent_document_id: value.parentDocumentId } : {}),
+    ...(typeof value.headRevisionId === 'string' ? { canonical_head_revision_id: value.headRevisionId } : {}),
+    ...(Array.isArray(value.occurrenceIds) ? { canonical_occurrence_ids: [...value.occurrenceIds] } : {}),
+  };
+}
+
 /**
  * Admit a managed render through Runtime's common HC-04 task primitive.
  *
@@ -839,6 +858,7 @@ export async function enqueueBanodocoRenderTimeline(
             : {}),
           selector: MANAGED_RENDER_SELECTOR,
           output_name: payload.output_filename,
+          ...canonicalAdmissionMetadata(payload.timeline),
         },
         output_policy: {
           format: 'mp4',

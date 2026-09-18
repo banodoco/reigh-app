@@ -10,6 +10,8 @@ import {
 import { shallow } from 'zustand/shallow';
 import { RemotionPreview } from '@/tools/video-editor/components/PreviewPanel/RemotionPreview.tsx';
 import { useTimelineDataSelector, useTimelinePlaybackSelector } from '@/tools/video-editor/hooks/timelineStore.ts';
+import { useOptionalVideoEditorRuntime } from '@/tools/video-editor/contexts/VideoEditorRuntimeContext.tsx';
+import { projectCanonicalComposition } from '@/tools/video-editor/data/shotCompositionProjection.ts';
 
 export interface VideoEditorPreviewSurface {
   slotRef: RefCallback<HTMLDivElement>;
@@ -25,6 +27,21 @@ export function useVideoEditorPreviewSurface({
   touchChrome?: boolean;
 } = {}): VideoEditorPreviewSurface {
   const resolvedConfig = useTimelineDataSelector((timeline) => timeline.resolvedConfig);
+  const runtime = useOptionalVideoEditorRuntime();
+  const canonicalComposition = runtime?.userId === null
+    ? runtime.shots.canonicalComposition
+    : null;
+  const projectedConfig = useMemo(() => {
+    if (!canonicalComposition) return undefined;
+    try {
+      return projectCanonicalComposition(canonicalComposition, resolvedConfig).config;
+    } catch {
+      // Canonical preview is fail-closed. A malformed/unsupported child must
+      // never fall back to the legacy timeline projection.
+      return null;
+    }
+  }, [canonicalComposition, resolvedConfig]);
+  const previewConfig = canonicalComposition ? projectedConfig ?? null : resolvedConfig;
   const {
     currentTime,
     previewRef,
@@ -56,7 +73,7 @@ export function useVideoEditorPreviewSurface({
       return;
     }
 
-    if (!resolvedConfig || !slotNode) {
+    if (!previewConfig || !slotNode) {
       hostNode.remove();
       return () => {
         hostNode.remove();
@@ -70,17 +87,17 @@ export function useVideoEditorPreviewSurface({
     return () => {
       hostNode.remove();
     };
-  }, [hostNode, resolvedConfig, slotNode]);
+  }, [hostNode, previewConfig, slotNode]);
 
   const portal = useMemo(() => {
-    if (!hostNode || !resolvedConfig) {
+    if (!hostNode || !previewConfig) {
       return null;
     }
 
     return createPortal(
       <RemotionPreview
         ref={previewRef}
-        config={resolvedConfig}
+        config={previewConfig}
         compact={compact}
         touchChrome={touchChrome}
         initialTime={currentTime}
@@ -98,12 +115,12 @@ export function useVideoEditorPreviewSurface({
     onPreviewTimeUpdate,
     playerContainerRef,
     previewRef,
-    resolvedConfig,
+    previewConfig,
   ]);
 
   return useMemo(() => ({
     slotRef,
     portal,
-    hasConfig: Boolean(resolvedConfig),
-  }), [portal, resolvedConfig, slotRef]);
+    hasConfig: Boolean(previewConfig),
+  }), [portal, previewConfig, slotRef]);
 }

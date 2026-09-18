@@ -1,6 +1,7 @@
 import { useLayoutEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ArrowRight, Clapperboard, Copy, Download, RefreshCw, Scissors, Sparkles, Trash2, Video } from 'lucide-react';
+import type { CanonicalShotOccurrence } from '@/tools/video-editor/data/shotCompositionAdapter.ts';
 
 const VIEWPORT_MARGIN = 8;
 
@@ -16,6 +17,7 @@ export type ShotGroupMenuState = {
   hasManagedOutput?: boolean;
   hasStaleVideo: boolean;
   mode?: 'images' | 'video';
+  canonicalIdentity?: CanonicalShotOccurrence;
 } | null;
 
 interface ShotGroupContextMenuProps {
@@ -24,13 +26,13 @@ interface ShotGroupContextMenuProps {
   closeMenu: () => void;
   onNavigate?: (shotId: string) => void;
   onGenerateVideo?: (shotId: string) => void;
-  onSwitchToFinalVideo?: (group: { shotId: string; clipIds: string[]; rowId: string }) => void;
-  onExportManagedOutput?: (group: { shotId: string; clipIds: string[]; rowId: string }) => void | Promise<void>;
+  onSwitchToFinalVideo?: (group: { shotId: string; clipIds: string[]; rowId: string; canonicalIdentity?: CanonicalShotOccurrence }) => void;
+  onExportManagedOutput?: (group: { shotId: string; clipIds: string[]; rowId: string; canonicalIdentity?: CanonicalShotOccurrence }) => void | Promise<void>;
   onSwitchToImages?: (group: { shotId: string; rowId: string }) => void;
   onUpdateToLatestVideo?: (group: { shotId: string; rowId: string }) => void;
   onUnpinGroup?: (group: { shotId: string; trackId: string }) => void;
   onDeleteShot?: (group: { shotId: string; trackId: string; clipIds: string[] }) => void;
-  onDuplicateGroup?: (group: { shotId: string; trackId: string }) => void;
+  onDuplicateGroup?: (group: { shotId: string; trackId: string; canonicalIdentity?: CanonicalShotOccurrence }) => void;
   onPromotePrimary?: (group: { shotId: string; trackId: string }) => void;
 }
 
@@ -107,7 +109,7 @@ export function ShotGroupContextMenu({
           key: 'switch-final-video',
           label: 'Switch to Final Video',
           icon: Video,
-          onClick: () => onSwitchToFinalVideo({ shotId: menu.shotId, clipIds: menu.clipIds, rowId: menu.rowId }),
+          onClick: () => onSwitchToFinalVideo({ shotId: menu.shotId, clipIds: menu.clipIds, rowId: menu.rowId, ...(menu.canonicalIdentity ? { canonicalIdentity: menu.canonicalIdentity } : {}) }),
         }
         : null,
     ].filter((action): action is { key: string; label: string; icon: typeof Video; onClick: () => void } => Boolean(action))
@@ -129,7 +131,7 @@ export function ShotGroupContextMenu({
         key: 'export-managed-output',
         label: 'Export managed output',
         icon: Download,
-        onClick: () => onExportManagedOutput({ shotId: menu.shotId, clipIds: menu.clipIds, rowId: menu.rowId }),
+        onClick: () => onExportManagedOutput({ shotId: menu.shotId, clipIds: menu.clipIds, rowId: menu.rowId, ...(menu.canonicalIdentity ? { canonicalIdentity: menu.canonicalIdentity } : {}) }),
       }]
     : [];
   const staleVideoActions = menu.hasStaleVideo && menu.mode === 'video'
@@ -146,7 +148,9 @@ export function ShotGroupContextMenu({
     : [];
   const defaultActions = [
     onDuplicateGroup
-      ? { key: 'duplicate-shot-group', label: 'Duplicate shot', icon: Copy, onClick: () => onDuplicateGroup({ shotId: menu.shotId, trackId: menu.trackId }) }
+      ? { key: 'duplicate-shot-group', label: 'Duplicate shot', icon: Copy, onClick: () => onDuplicateGroup(menu.canonicalIdentity
+        ? { shotId: menu.shotId, trackId: menu.trackId, canonicalIdentity: menu.canonicalIdentity }
+        : { shotId: menu.shotId, trackId: menu.trackId }) }
       : null,
     onPromotePrimary
       ? { key: 'promote-primary-variant', label: 'Promote next variant', icon: Sparkles, onClick: () => onPromotePrimary({ shotId: menu.shotId, trackId: menu.trackId }) }

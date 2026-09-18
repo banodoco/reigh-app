@@ -3,7 +3,7 @@ import type { Shot } from '@/domains/generation/types/index.ts';
 import { buildDeleteShotGroupMutation } from '@/tools/video-editor/lib/shot-group-commands.ts';
 import type { TimelineApplyEdit, TimelineDataRef } from '@/tools/video-editor/hooks/timeline-state-types.ts';
 import type { ShotFinalVideo } from '@/tools/video-editor/hooks/useFinalVideoAvailable.ts';
-import type { ShotGroup } from '@/tools/video-editor/hooks/useShotGroups.ts';
+import { shotGroupVideoKey, type ShotGroup } from '@/tools/video-editor/hooks/useShotGroups.ts';
 import type { ResolvedAssetRegistryEntry, PinnedShotGroup } from '@/tools/video-editor/types/index.ts';
 import type { TimelineRow } from '@/tools/video-editor/types/timeline-canvas.ts';
 
@@ -84,7 +84,7 @@ export function useShotGroupHandlers({
       }
 
       const currentGenerationId = registry[group.videoAssetKey]?.generationId;
-      const latestFinalVideoId = finalVideoMap.get(group.shotId)?.id;
+      const latestFinalVideoId = finalVideoMap.get(shotGroupVideoKey(group))?.id;
       if (!currentGenerationId || !latestFinalVideoId) {
         continue;
       }
@@ -123,7 +123,7 @@ export function useShotGroupHandlers({
   }, [applyEdit, dataRef]);
 
   const handleUpdateToLatestVideo = useCallback((group: { shotId: string; rowId: string }) => {
-    const finalVideo = finalVideoMap.get(group.shotId);
+    const finalVideo = finalVideoMap.get(shotGroupVideoKey(group));
     if (finalVideo) {
       dismissFinalVideo(finalVideo.id);
     }
@@ -135,7 +135,7 @@ export function useShotGroupHandlers({
   }, [unpinGroup]);
 
   const handleShotGroupSwitchToFinalVideo = useCallback((group: { shotId: string; clipIds: string[]; rowId: string }) => {
-    const finalVideo = finalVideoMap.get(group.shotId);
+    const finalVideo = finalVideoMap.get(shotGroupVideoKey(group));
     if (finalVideo) {
       dismissFinalVideo(finalVideo.id);
     }

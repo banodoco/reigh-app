@@ -96,8 +96,8 @@ export function stableOutputIdentity(projectId: string, parentDocumentId: string
   return `project/${project}/document/${document}/occurrence/${occurrence}/output/final-video`;
 }
 
-/** Local contract guard only; Runtime CAS publication remains unproven. */
-export function assertExpectedHead(expectedRevisionId: string, actualRevisionId: string): void {
+/** Local contract guard shared with Runtime CAS publication error mapping. */
+export function assertExpectedHead(expectedRevisionId: string | null, actualRevisionId: string | null): void {
   if (expectedRevisionId !== actualRevisionId) {
     throw new StaleWriteError(`stale shot-composition head: expected ${expectedRevisionId}, actual ${actualRevisionId}`);
   }

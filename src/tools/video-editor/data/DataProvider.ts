@@ -10,6 +10,7 @@ import type { Checkpoint } from '@/tools/video-editor/types/history.ts';
 import type { AssetResolver } from '@/tools/video-editor/data/AssetResolver.ts';
 import type { TimelineBundleEnvelope } from '@/tools/video-editor/data/typed/timelineBundle.ts';
 import type { GenerationRow } from '@/domains/generation/types/index.ts';
+import type { ShotCompositionPort } from '@/tools/video-editor/data/shotCompositionAdapter.ts';
 export type {
   AssetProfile,
   SilenceRegion,
@@ -328,6 +329,8 @@ export interface ExtensionPersistenceService {
 // ---------------------------------------------------------------------------
 
 export interface DataProvider extends AssetResolver {
+  /** Optional canonical shot-composition boundary. Legacy shot records are not a fallback. */
+  shotComposition?: ShotCompositionPort;
   /** Optional provider-owned generation lookup for editor asset actions. */
   loadGenerationForLightbox?(generationId: string): Promise<GenerationRow | null>;
   persistenceEnabled?: boolean;

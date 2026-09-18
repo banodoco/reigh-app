@@ -19,6 +19,7 @@ import type {
   UploadedAssetResult,
   UploadAssetOptions,
 } from '@/tools/video-editor/data/DataProvider.ts';
+import type { ShotCompositionPort } from '@/tools/video-editor/data/shotCompositionAdapter.ts';
 
 export type AppSyncState =
   | 'up_to_date'
@@ -55,6 +56,10 @@ export class SupabaseDataProvider implements DataProvider {
   readonly persistenceEnabled = true;
   readonly supportsEditorSync = false;
   readonly supportsDirectAssetUpload = true;
+  readonly shotComposition: ShotCompositionPort = {
+    load: (request) => this.providerFor(request.parentDocumentId).shotComposition.load(request),
+    publish: (request) => this.providerFor(request.parentDocumentId).shotComposition.publish!(request),
+  };
 
   private readonly providers = new Map<string, AstridBridgeDataProvider>();
   private activeProvider: AstridBridgeDataProvider | null = null;

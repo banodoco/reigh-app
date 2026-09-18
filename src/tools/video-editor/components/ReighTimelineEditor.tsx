@@ -24,6 +24,7 @@ import {
 } from '@/tools/video-editor/hooks/usePinnedShotGroups.ts';
 import { useShotGroupHandlers } from '@/tools/video-editor/hooks/useShotGroupHandlers.ts';
 import { useShotGroups } from '@/tools/video-editor/hooks/useShotGroups.ts';
+import { shotGroupVideoKey } from '@/tools/video-editor/hooks/useShotGroups.ts';
 import { useSwitchToFinalVideo } from '@/tools/video-editor/hooks/useSwitchToFinalVideo.ts';
 import {
   useTimelineDataSelector,
@@ -37,6 +38,11 @@ import {
   duplicateShotGroup,
   promotePrimaryVariant,
 } from '@/tools/video-editor/lib/shot-group-pack-commands.ts';
+import {
+  duplicateIndependentShot,
+} from '@/tools/video-editor/data/shotCompositionEditor.ts';
+import type { CanonicalShotOccurrence } from '@/tools/video-editor/data/shotCompositionAdapter.ts';
+import { managedOutputMatchesOccurrence } from '@/tools/video-editor/data/shotCompositionProjection.ts';
 import type { ClipMeta } from '@/tools/video-editor/lib/timeline-data.ts';
 
 interface ReighTimelineEditorProps {
@@ -55,6 +61,8 @@ function ReighTimelineEditorComponent({ onOpenSequenceCreator }: ReighTimelineEd
   const { shots } = useShots();
   const runtime = useVideoEditorRuntime();
   const isDocumentShotMode = runtime.userId === null;
+  const canonicalOccurrences = runtime.shots?.canonicalOccurrences ?? [];
+  const isCanonicalEditor = isDocumentShotMode && canonicalOccurrences.length > 0;
   const configVersion = useTimelineConfigVersion();
   const reloadFromServer = useTimelineChromeSelector((chrome) => chrome.reloadFromServer);
   const {
@@ -133,6 +141,7 @@ function ReighTimelineEditorComponent({ onOpenSequenceCreator }: ReighTimelineEd
   } = usePinnedShotGroups({
     dataRef,
     applyEdit,
+    enabled: !isCanonicalEditor,
   });
 
   const handleCreateShotFromSelection = useCallback(async (): Promise<Shot | null> => {
@@ -234,10 +243,17 @@ function ReighTimelineEditorComponent({ onOpenSequenceCreator }: ReighTimelineEd
     exportRuntimeManagedOutput,
   } = useFinalVideoAvailable();
 
-  const handleExportManagedOutput = useCallback(async (group: { shotId: string; clipIds: string[]; rowId: string }) => {
-    const managedOutput = finalVideoMap.get(group.shotId)?.managedOutput;
+  const handleExportManagedOutput = useCallback(async (group: { shotId: string; clipIds: string[]; rowId: string; canonicalIdentity?: CanonicalShotOccurrence }) => {
+    const finalVideo = finalVideoMap.get(shotGroupVideoKey(group));
+    const managedOutput = finalVideo?.managedOutput;
     if (!managedOutput) {
       toast.error('Selected final video is not a Runtime-managed output.');
+      return;
+    }
+    if (group.canonicalIdentity
+      && finalVideo?.canonicalOccurrenceId !== group.canonicalIdentity.occurrenceId
+      && !managedOutputMatchesOccurrence(managedOutput as unknown as Record<string, unknown>, group.canonicalIdentity)) {
+      toast.error('The selected managed output does not belong to this shot occurrence.');
       return;
     }
 
@@ -254,13 +270,60 @@ function ReighTimelineEditorComponent({ onOpenSequenceCreator }: ReighTimelineEd
       });
     }
   }, [exportRuntimeManagedOutput, finalVideoMap]);
-  const documentShotGroups = usePinnedShotGroupViews(data);
+  const documentShotGroups = usePinnedShotGroupViews(data, !isDocumentShotMode);
   const shotGroups = useShotGroups(
     data?.rows ?? [],
     documentShotGroups,
+    isCanonicalEditor ? canonicalOccurrences : [],
   );
 
-  const handleDuplicateDocumentShotGroup = useCallback(async (locator: { shotId: string; trackId: string }) => {
+  const handleOpenCanonicalOccurrence = useCallback((occurrence: CanonicalShotOccurrence) => {
+    const url = `/tools/travel-between-images?localProject=${encodeURIComponent(occurrence.projectId)}&localTimeline=${encodeURIComponent(occurrence.parentDocumentId)}#${encodeURIComponent(occurrence.stableDeepLink)}`;
+    globalThis.history.pushState({
+      fromShotClick: true,
+      canonicalIdentity: {
+        projectId: occurrence.projectId,
+        parentDocumentId: occurrence.parentDocumentId,
+        shotId: occurrence.shotId,
+        revisionId: occurrence.revisionId,
+        occurrenceId: occurrence.occurrenceId,
+      },
+    }, '', url);
+    globalThis.dispatchEvent(new PopStateEvent('popstate'));
+  }, []);
+
+  const handleDuplicateDocumentShotGroup = useCallback(async (locator: { shotId: string; trackId: string; canonicalIdentity?: CanonicalShotOccurrence }) => {
+    if (locator.canonicalIdentity && runtime.shots?.shotComposition && runtime.shots.canonicalComposition) {
+      const occurrence = locator.canonicalIdentity;
+      const suffix = globalThis.crypto?.randomUUID?.().slice(0, 8) ?? String(Date.now());
+      try {
+        const graph = duplicateIndependentShot(
+          runtime.shots.canonicalComposition.contract,
+          occurrence.occurrenceId,
+          {
+            shotId: `${occurrence.shotId}-copy-${suffix}`,
+            revisionId: `${occurrence.revisionId}-copy-${suffix}`,
+            internalTimelineRevisionId: `${occurrence.revisionId}-timeline-copy-${suffix}`,
+            occurrenceId: `${occurrence.occurrenceId}-copy-${suffix}`,
+          },
+        );
+        await runtime.shots.shotComposition.publish?.({
+          projectId: occurrence.projectId,
+          parentDocumentId: occurrence.parentDocumentId,
+          expectedHeadRevisionId: runtime.shots.canonicalComposition.headRevisionId,
+          graph,
+        });
+        runtime.shots.refetchShots();
+        toast.success('Independent shot duplicated');
+      } catch (error) {
+        normalizeAndPresentError(error, {
+          context: 'video-editor:duplicate-canonical-shot',
+          toastTitle: 'Failed to duplicate canonical shot',
+        });
+      }
+      return;
+    }
+
     const projectSlug = runtime.project.projectId;
     if (!projectSlug) {
       toast.error('Select an Astrid project before duplicating a shot.');
@@ -284,7 +347,7 @@ function ReighTimelineEditorComponent({ onOpenSequenceCreator }: ReighTimelineEd
         toastTitle: 'Failed to duplicate shot',
       });
     }
-  }, [configVersion, reloadFromServer, runtime.project.projectId, runtime.timelineId]);
+  }, [configVersion, reloadFromServer, runtime.project.projectId, runtime.shots, runtime.timelineId]);
 
   const handlePromoteDocumentShotGroupPrimary = useCallback(async (locator: { shotId: string; trackId: string }) => {
     const projectSlug = runtime.project.projectId;
@@ -384,6 +447,7 @@ function ReighTimelineEditorComponent({ onOpenSequenceCreator }: ReighTimelineEd
     shots: isDocumentShotMode ? undefined : shots,
     registerGenerationAsset,
     isInteractionActive,
+    enabled: !isCanonicalEditor,
   });
 
   const handleOpenShotVideoModal = useCallback((shotId: string) => {
@@ -477,15 +541,16 @@ function ReighTimelineEditorComponent({ onOpenSequenceCreator }: ReighTimelineEd
         activeTaskClipIds={activeTaskClipIds}
         shotGroupClipIds={shotGroupClipIds}
         onShotGroupNavigate={isDocumentShotMode ? undefined : handleShotGroupNavigate}
+        onShotGroupOpen={isCanonicalEditor ? handleOpenCanonicalOccurrence : undefined}
         onShotGroupGenerateVideo={isDocumentShotMode ? undefined : handleShotGroupGenerateVideo}
         onShotGroupDuplicate={isDocumentShotMode ? handleDuplicateDocumentShotGroup : undefined}
         onShotGroupPromotePrimary={isDocumentShotMode ? handlePromoteDocumentShotGroupPrimary : undefined}
-        onShotGroupUnpin={handleShotGroupUnpin}
-        onShotGroupDelete={handleDeleteShotGroup}
-        onShotGroupSwitchToFinalVideo={handleShotGroupSwitchToFinalVideo}
+        onShotGroupUnpin={isCanonicalEditor ? undefined : handleShotGroupUnpin}
+        onShotGroupDelete={isCanonicalEditor ? undefined : handleDeleteShotGroup}
+        onShotGroupSwitchToFinalVideo={isCanonicalEditor ? undefined : handleShotGroupSwitchToFinalVideo}
         onShotGroupExportManagedOutput={handleExportManagedOutput}
-        onShotGroupSwitchToImages={handleShotGroupSwitchToImages}
-        onShotGroupUpdateToLatestVideo={handleUpdateToLatestVideo}
+        onShotGroupSwitchToImages={isCanonicalEditor ? undefined : handleShotGroupSwitchToImages}
+        onShotGroupUpdateToLatestVideo={isCanonicalEditor ? undefined : handleUpdateToLatestVideo}
         canCreateShotFromSelection={selectionShotCreationState.canCreateShot}
         existingShots={isDocumentShotMode ? [] : existingShotsForSelection}
         onCreateShotFromSelection={isDocumentShotMode ? handleCreateDocumentShotFromSelection : handleCreateShotFromSelection}
