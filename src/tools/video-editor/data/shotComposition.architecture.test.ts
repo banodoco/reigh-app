@@ -26,4 +26,13 @@ describe('canonical shot-composition architecture boundary', () => {
     expect(browser).toContain('createShotCompositionAdapter');
     expect(browser).toContain('ShotCompositionPort');
   });
+
+  it('keeps the normal Reigh host canonical-only', () => {
+    const host = readFileSync(PRODUCT_MODULES[1], 'utf8');
+    expect(host).not.toMatch(/import[^;]*useShots/);
+    expect(host).not.toMatch(/\buseShots\s*\(/);
+    expect(host).toContain('selectCanonicalShotViewModels');
+    expect(host).toContain('ShotCompositionUnavailableError');
+    expect(host).toContain('setCanonicalOccurrences([])');
+  });
 });

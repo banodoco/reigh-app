@@ -35,6 +35,22 @@ describe('canonical local timeline shot model', () => {
     expect(shots[4]?.shotId).toBe('shot-alpha-copy');
     expect(models[0]?.id).toBe('occ-1');
     expect(models[0]?.images[0]?.metadata).toMatchObject({ occurrenceId: 'occ-1', revisionId: 'rev-a' });
+    expect(shots[0]).toMatchObject({
+      timing: { duration_ms: 2000 },
+      audio: { track_id: 'audio', object_id: 'object-alpha-audio' },
+      assets: [{ asset_id: 'alpha-image', object_id: 'object-alpha-image' }],
+      dependencies: [{ shot_id: 'shot-beta', revision_id: 'rev-a', required: true }],
+      provenance: { source: 'travel-between-images' },
+    });
+    expect(shots[0]?.generationInputs[0]).toMatchObject({ input_id: 'alpha-input-0', ordinal: 0 });
+    expect(models[0]).toMatchObject({
+      timing: { duration_ms: 2000 },
+      audio: { object_id: 'object-alpha-audio' },
+      assets: [{ asset_id: 'alpha-image' }],
+      dependencies: [{ shot_id: 'shot-beta' }],
+      provenance: { source: 'travel-between-images' },
+    });
+    expect(models[0]?.generationInputs[0]).toMatchObject({ input_id: 'alpha-input-0' });
   });
 
   it('keeps a missing canonical dependency as a typed load failure', async () => {

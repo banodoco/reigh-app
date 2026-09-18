@@ -139,11 +139,29 @@ function prepareContract(contract: ShotCompositionContract): PreparedShotComposi
   });
 }
 
+function assertRequestIdentity(
+  composition: PreparedShotComposition,
+  request: ShotCompositionReadRequest | ShotCompositionPublishRequest,
+): void {
+  if (composition.projectId !== request.projectId) {
+    throw new ShotCompositionUnavailableError(
+      `Canonical composition belongs to project ${composition.projectId}, not ${request.projectId}`,
+    );
+  }
+  if (composition.parentDocumentId !== request.parentDocumentId) {
+    throw new ShotCompositionUnavailableError(
+      `Canonical composition belongs to timeline ${composition.parentDocumentId}, not ${request.parentDocumentId}`,
+    );
+  }
+}
+
 export function createShotCompositionAdapter(port: ShotCompositionPort) {
   return {
     async load(request: ShotCompositionReadRequest): Promise<PreparedShotComposition> {
       try {
-        return prepareContract(parseShotComposition(await port.load(request)));
+        const composition = prepareContract(parseShotComposition(await port.load(request)));
+        assertRequestIdentity(composition, request);
+        return composition;
       } catch (error) {
         if (error instanceof ShotCompositionUnavailableError) throw error;
         throw error;
@@ -165,7 +183,9 @@ export function createShotCompositionAdapter(port: ShotCompositionPort) {
       requiredString(request.expectedHeadRevisionId, 'expectedHeadRevisionId');
       try {
         const published = await port.publish(request);
-        return prepareContract(parseShotComposition(published));
+        const composition = prepareContract(parseShotComposition(published));
+        assertRequestIdentity(composition, request);
+        return composition;
       } catch (error) {
         if (error instanceof StaleWriteError) throw error;
         if (isConflict(error)) {

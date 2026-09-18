@@ -30,6 +30,12 @@ export type LocalTimelineShot = {
   missingClipCount: number;
   durationSeconds: number;
   laneCount: number;
+  timing: JsonObject;
+  audio: JsonObject;
+  generationInputs: readonly JsonObject[];
+  assets: readonly JsonObject[];
+  dependencies: readonly JsonObject[];
+  provenance: JsonObject;
 };
 
 /** The legacy editor view model, carrying canonical identity as metadata. */
@@ -41,6 +47,12 @@ export type LocalTimelineShotModel = Shot & {
   stableDeepLink: string;
   outputIdentity: string;
   images: GenerationRow[];
+  timing: JsonObject;
+  audio: JsonObject;
+  generationInputs: readonly JsonObject[];
+  assets: readonly JsonObject[];
+  dependencies: readonly JsonObject[];
+  provenance: JsonObject;
 };
 
 type JsonObject = Record<string, unknown>;
@@ -88,6 +100,7 @@ function shotName(occurrence: CanonicalShotOccurrence): string {
 }
 
 function toOccurrenceShot(occurrence: CanonicalShotOccurrence, registry: AssetRegistry | null | undefined, projectSlug?: string): LocalTimelineShot {
+  const revision = occurrence.revision;
   const timeline = revisionTimeline(occurrence.revision);
   const assetObjects = revisionAssets(occurrence.revision);
   const rawClips = Array.isArray(timeline.clips) ? timeline.clips : [];
@@ -96,7 +109,17 @@ function toOccurrenceShot(occurrence: CanonicalShotOccurrence, registry: AssetRe
     const clipId = stringValue(rawClip.id) ?? `${occurrence.occurrenceId}-clip-${clipIndex}`;
     const assetId = stringValue(rawClip.asset_id);
     const objectId = assetId ? assetObjects.get(assetId) : undefined;
-    const asset = registryAsset(registry, assetId, objectId);
+    const canonicalAsset = Array.isArray(revision.assets)
+      ? revision.assets.find((rawAsset) => isRecord(rawAsset) && rawAsset.asset_id === assetId)
+      : undefined;
+    const canonicalAssetEntry = isRecord(canonicalAsset) && stringValue(canonicalAsset.object_id)
+      ? {
+        media_id: canonicalAsset.object_id,
+        type: stringValue(canonicalAsset.media_type) ?? 'image',
+        file: canonicalAsset.object_id,
+      } as AssetRegistryEntry
+      : undefined;
+    const asset = registryAsset(registry, assetId, objectId) ?? canonicalAssetEntry;
     const thumb = assetReference(asset);
     return [{
       clipId,
@@ -138,6 +161,12 @@ function toOccurrenceShot(occurrence: CanonicalShotOccurrence, registry: AssetRe
     missingClipCount: 0,
     durationSeconds: clips.reduce((latest, clip) => Math.max(latest, clip.relativeStartSeconds + clip.durationSeconds), 0),
     laneCount: Math.max(1, laneEnds.length),
+    timing: isRecord(revision.timing) ? revision.timing : {},
+    audio: isRecord(revision.audio) ? revision.audio : {},
+    generationInputs: Array.isArray(revision.generation_inputs) ? revision.generation_inputs.filter(isRecord) : [],
+    assets: Array.isArray(revision.assets) ? revision.assets.filter(isRecord) : [],
+    dependencies: Array.isArray(revision.dependencies) ? revision.dependencies.filter(isRecord) : [],
+    provenance: isRecord(revision.provenance) ? revision.provenance : {},
   };
 }
 
@@ -190,6 +219,12 @@ export function toCanonicalShotModel(shot: LocalTimelineShot, fps = 30, projectS
     parentDocumentId: shot.parentDocumentId,
     stableDeepLink: shot.stableDeepLink,
     outputIdentity: shot.outputIdentity,
+    timing: shot.timing,
+    audio: shot.audio,
+    generationInputs: shot.generationInputs,
+    assets: shot.assets,
+    dependencies: shot.dependencies,
+    provenance: shot.provenance,
     images,
     imageCount: images.length,
     positionedImageCount: images.length,

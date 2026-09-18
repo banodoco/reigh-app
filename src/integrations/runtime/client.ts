@@ -153,6 +153,35 @@ export class ReighRuntimeClient {
     });
   }
 
+  async getProjectTimeline(projectId: string, timelineId: string): Promise<Record<string, unknown>> {
+    return this.withSession(() => this.client.getProjectTimeline(projectId, timelineId));
+  }
+
+  async publishParentComposition(
+    projectId: string,
+    timelineId: string,
+    publication: Record<string, unknown>,
+  ): Promise<MutationResult<Record<string, unknown>>> {
+    return this.withSession(() => this.client.publishParentComposition(
+      projectId,
+      timelineId,
+      publication,
+      idempotencyKey(),
+    ));
+  }
+
+  async getProjectParentCompositionRevision(projectId: string, timelineId: string, revision: string): Promise<Record<string, unknown>> {
+    return this.withSession(() => this.client.getProjectParentCompositionRevision(projectId, timelineId, revision));
+  }
+
+  async getProjectShotRevision(projectId: string, shotId: string, revision: string): Promise<Record<string, unknown>> {
+    return this.withSession(() => this.client.getProjectShotRevision(projectId, shotId, revision));
+  }
+
+  async getProjectTimelineRevision(projectId: string, timelineId: string, revision: string): Promise<Record<string, unknown>> {
+    return this.withSession(() => this.client.getProjectTimelineRevision(projectId, timelineId, revision));
+  }
+
   async getTimeline(timelineId: string): Promise<Record<string, unknown>> {
     return this.withSession(() => this.client.getTimeline(timelineId));
   }

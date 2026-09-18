@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useShots } from '@/shared/contexts/ShotsContext.tsx';
 import { useShotFinalVideos, type ShotFinalVideo } from '@/tools/travel-between-images/hooks/video/useShotFinalVideos.ts';
 import type { VideoEditorShotsHost } from '@/tools/video-editor/runtime/ports.ts';
 import {
   createShotCompositionAdapter,
+  ShotCompositionUnavailableError,
   type ShotCompositionPort,
 } from '@/tools/video-editor/data/shotCompositionAdapter.ts';
+import { selectCanonicalShotViewModels } from '@/tools/video-editor/data/canonicalShotViewModel.ts';
 
 const MAX_DISMISSED_FINAL_VIDEOS = 256;
 const dismissedFinalVideoIds = new Set<string>();
@@ -15,14 +16,6 @@ export function useReighShotsHost(
   parentDocumentId: string,
   shotCompositionPort?: ShotCompositionPort,
 ): VideoEditorShotsHost {
-  const {
-    shots,
-    isLoading,
-    error,
-    refetchShots,
-    allImagesCount,
-    noShotImagesCount,
-  } = useShots();
   const { finalVideoMap } = useShotFinalVideos(projectId);
   const [, forceRender] = useState(0);
   const shotComposition = useMemo(
@@ -31,27 +24,43 @@ export function useReighShotsHost(
   );
   const [canonicalOccurrences, setCanonicalOccurrences] = useState<VideoEditorShotsHost['canonicalOccurrences']>([]);
   const [canonicalCompositionError, setCanonicalCompositionError] = useState<Error | null>(null);
+  const [preparedComposition, setPreparedComposition] = useState<Awaited<ReturnType<NonNullable<typeof shotComposition>['load']>> | null>(null);
+  const [canonicalLoading, setCanonicalLoading] = useState(false);
+  const [reloadToken, setReloadToken] = useState(0);
 
   useEffect(() => {
     let active = true;
     if (!projectId || !parentDocumentId || !shotComposition) {
       setCanonicalOccurrences([]);
-      setCanonicalCompositionError(null);
+      setPreparedComposition(null);
+      setCanonicalLoading(false);
+      setCanonicalCompositionError(new ShotCompositionUnavailableError(
+        'The canonical shot-composition provider is unavailable for this editor.',
+      ));
       return () => { active = false; };
     }
+    setCanonicalLoading(true);
+    setCanonicalCompositionError(null);
     void shotComposition.load({ projectId, parentDocumentId })
       .then((composition) => {
         if (!active) return;
+        setPreparedComposition(composition);
         setCanonicalOccurrences(composition.occurrences);
+        setCanonicalLoading(false);
         setCanonicalCompositionError(null);
       })
       .catch((loadError: unknown) => {
         if (!active) return;
+        setPreparedComposition(null);
         setCanonicalOccurrences([]);
+        setCanonicalLoading(false);
         setCanonicalCompositionError(loadError instanceof Error ? loadError : new Error(String(loadError)));
       });
     return () => { active = false; };
-  }, [parentDocumentId, projectId, shotComposition]);
+  }, [parentDocumentId, projectId, reloadToken, shotComposition]);
+
+  const shots = useMemo(() => selectCanonicalShotViewModels(preparedComposition), [preparedComposition]);
+  const refetchShots = useCallback(() => setReloadToken((value) => value + 1), []);
 
   const dismissFinalVideo = useCallback((finalVideoId: string) => {
     dismissedFinalVideoIds.add(finalVideoId);
@@ -78,22 +87,19 @@ export function useReighShotsHost(
 
   return useMemo(() => ({
     shots,
-    isLoading,
-    error,
+    isLoading: canonicalLoading,
+    error: canonicalCompositionError,
     refetchShots,
-    allImagesCount,
-    noShotImagesCount,
+    allImagesCount: shots.reduce((total, shot) => total + (shot.images?.length ?? 0), 0),
+    noShotImagesCount: 0,
     finalVideoMap: visibleFinalVideoMap,
     dismissFinalVideo,
     shotComposition,
     canonicalOccurrences,
     canonicalCompositionError,
   }), [
-    allImagesCount,
+    canonicalLoading,
     dismissFinalVideo,
-    error,
-    isLoading,
-    noShotImagesCount,
     refetchShots,
     shots,
     visibleFinalVideoMap,
