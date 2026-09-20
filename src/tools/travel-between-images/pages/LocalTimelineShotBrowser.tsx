@@ -180,6 +180,7 @@ export function LocalTimelineShotBrowser({ projectSlug, projectId, timelineRef, 
           shotToEdit={selectedShotModel}
           canonicalOccurrence={selectedShotModel}
           canonicalShotComposition={documentQuery.data?.compositionAdapter}
+          canonicalComposition={documentQuery.data?.composition}
           selectedProjectId={projectSlug}
           isNewlyCreatedShot={false}
           shotFromState={undefined}

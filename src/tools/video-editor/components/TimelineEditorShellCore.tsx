@@ -133,6 +133,20 @@ function TimelineEditorShellCoreComponent({
   const playback = useTimelinePlaybackContext();
   const isPhone = editorData.deviceClass === 'phone';
   const isTablet = editorData.deviceClass === 'tablet';
+  /** M1: Extension activity region status events (placeholder state). */
+  const [activityEvents, setActivityEvents] = useState<readonly ExtensionStatusEvent[]>([]);
+  /** M2: Proposal runtime and import diagnostics from timelineStore. */
+  const proposalRuntime = useProposalRuntimeFromStoreSafe();
+  const proposalImportDiagnostics = useProposalImportDiagnosticsFromStoreSafe();
+  const hasProposals = proposalRuntime !== null && proposalRuntime.list().length > 0;
+  const hasDiagnostics = proposalImportDiagnostics !== null && (
+    proposalImportDiagnostics.diagnostics.length > 0 ||
+    proposalImportDiagnostics.imported > 0 ||
+    proposalImportDiagnostics.skipped > 0 ||
+    proposalImportDiagnostics.rejected > 0
+  );
+  const showProposalPanel = proposalRuntime !== null && (hasProposals || hasDiagnostics);
+  const hasActivityRegion = activityEvents.length > 0 || showProposalPanel;
   const {
     containerRef,
     dividerRef,
@@ -140,13 +154,11 @@ function TimelineEditorShellCoreComponent({
     setIsTimelineMaximized,
     onDividerMouseDown,
     gridTemplateRows,
-  } = useTimelineShellDividerDrag();
+  } = useTimelineShellDividerDrag(hasActivityRegion);
   const [condensedRightPanel, setCondensedRightPanel] = useState<'preview' | 'properties'>('preview');
   const [isMobilePropertiesOpen, setIsMobilePropertiesOpen] = useState(false);
   const [isElementsOpen, setIsElementsOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
-  /** M1: Extension activity region status events (placeholder state). */
-  const [activityEvents, setActivityEvents] = useState<readonly ExtensionStatusEvent[]>([]);
   const agentChatBridge = useOptionalAgentChatBridge();
   const requestComposerPrompt = agentChatBridge?.requestComposerPrompt;
   const setIsTasksPaneOpen = usePanesStore((state) => state.setIsTasksPaneOpen);
@@ -158,9 +170,6 @@ function TimelineEditorShellCoreComponent({
     setActivityEvents((prev) => prev.filter((e) => e.id !== eventId));
   }, []);
 
-  /** M2: Proposal runtime and import diagnostics from timelineStore. */
-  const proposalRuntime = useProposalRuntimeFromStoreSafe();
-  const proposalImportDiagnostics = useProposalImportDiagnosticsFromStoreSafe();
   const timelineFps = Math.max(1, editorData.resolvedConfig?.output?.fps ?? 30);
   const conflict = useTimelineRealtime({
     timelineId,
@@ -416,37 +425,32 @@ function TimelineEditorShellCoreComponent({
     />
   );
 
-  /** M2: Determine whether to show the ProposalPanel inside the activity region.
-   * The panel is shown when a proposalRuntime is available and either proposals
-   * or import diagnostics exist.  The runtime list() call is synchronous and
-   * cheap — the panel itself subscribes via useSyncExternalStore for updates. */
-  const hasProposals = proposalRuntime !== null && proposalRuntime.list().length > 0;
-  const hasDiagnostics = proposalImportDiagnostics !== null && (
-    proposalImportDiagnostics.diagnostics.length > 0 ||
-    proposalImportDiagnostics.imported > 0 ||
-    proposalImportDiagnostics.skipped > 0 ||
-    proposalImportDiagnostics.rejected > 0
-  );
-  const showProposalPanel = proposalRuntime !== null && (hasProposals || hasDiagnostics);
-
-  /** M1: Extension activity region — shallow placeholder mounted between toolbar and timeline.
-   * M1-LOCKED: This mount point is intentional across all three layout variants
-   * (desktop, condensed, mobile).  M2 wires the ProposalPanel into the region
-   * when a runtime and proposals/diagnostics exist.  See docs/extensions/extension-layer-foundation-assessment.md §2.5. */
-  const activityRegion = (
+  /** M1/M2: Mount extension activity only when it has visible content. */
+  const activityRegion = hasActivityRegion ? (
     <ExtensionActivityRegion
       statusEvents={activityEvents}
       onDismiss={handleActivityDismiss}
       isExpanded={false}
     >
-      {showProposalPanel && proposalRuntime && (
+      {showProposalPanel && proposalRuntime ? (
         <ProposalPanel
           proposalRuntime={proposalRuntime}
           proposalImportDiagnostics={proposalImportDiagnostics}
         />
-      )}
+      ) : null}
     </ExtensionActivityRegion>
-  );
+  ) : null;
+
+  const reservedSlots = codePanelSlot || writingPanelSlot || stagePanelSlot ? (
+    <div
+      className="flex max-h-32 w-full min-w-0 max-w-full shrink-0 flex-wrap items-start gap-2 overflow-y-auto border-t border-border/40 px-3 py-2"
+      {...shellRegionAttrs('reservedSlots')}
+    >
+      {codePanelSlot}
+      {writingPanelSlot}
+      {stagePanelSlot}
+    </div>
+  ) : null;
 
   const previewOverlay = (
     <div
@@ -662,7 +666,12 @@ function TimelineEditorShellCoreComponent({
 
         {mobileSinglePane ? (
           <main
-            className="grid h-full w-full min-h-0 min-w-0 max-w-full flex-1 animate-in fade-in duration-200 motion-reduce:animate-none motion-reduce:transition-none grid-rows-[auto_auto_auto_minmax(200px,42dvh)_minmax(140px,1fr)] gap-3 overflow-x-clip p-3 transition-opacity"
+            className={cn(
+              'grid h-full w-full min-h-0 min-w-0 max-w-full flex-1 animate-in fade-in duration-200 motion-reduce:animate-none motion-reduce:transition-none gap-3 overflow-x-clip p-3 transition-opacity',
+              hasActivityRegion
+                ? 'grid-rows-[auto_auto_auto_minmax(200px,42dvh)_minmax(140px,1fr)]'
+                : 'grid-rows-[auto_auto_minmax(200px,42dvh)_minmax(140px,1fr)]',
+            )}
             style={{ paddingInline: mainPaddingInline }}
           >
             <div className="min-w-0">
@@ -671,12 +680,8 @@ function TimelineEditorShellCoreComponent({
 
             {phoneModeBar}
 
-            {/* M1: Extension activity region — between toolbar and timeline.
-                Kept in its own wrapper so the row count stays constant whether
-                or not the region has anything to show. */}
-            <div className="min-w-0">
-              {activityRegion}
-            </div>
+            {/* Extension activity region — only mounted when it has content. */}
+            {hasActivityRegion && <div className="min-w-0">{activityRegion}</div>}
 
             <div className="flex min-h-0 min-w-0 flex-col gap-3">
               <div className="relative min-h-0 flex-1">
@@ -701,19 +706,23 @@ function TimelineEditorShellCoreComponent({
           </main>
         ) : condensed ? (
           <main
-            className="grid h-full w-full min-h-0 min-w-0 max-w-full flex-1 animate-in fade-in duration-200 motion-reduce:animate-none motion-reduce:transition-none grid-cols-[minmax(0,1fr)_320px] grid-rows-[auto_auto_minmax(0,1fr)] gap-3 overflow-x-clip p-3 transition-opacity"
+            className={cn(
+              'grid h-full w-full min-h-0 min-w-0 max-w-full flex-1 animate-in fade-in duration-200 motion-reduce:animate-none motion-reduce:transition-none grid-cols-[minmax(0,1fr)_320px] gap-3 overflow-x-clip p-3 transition-opacity',
+              hasActivityRegion ? 'grid-rows-[auto_auto_minmax(0,1fr)]' : 'grid-rows-[auto_minmax(0,1fr)]',
+            )}
             style={{ paddingInline: mainPaddingInline }}
           >
             <div className="col-span-1">
               {toolbar}
             </div>
 
-            {/* M1: Extension activity region — between toolbar and timeline */}
-            <div className="col-span-1">
-              {activityRegion}
-            </div>
+            {/* Extension activity region — only mounted when it has content. */}
+            {hasActivityRegion && <div className="col-span-1">{activityRegion}</div>}
 
-            <div className="row-span-3 flex min-h-0 flex-col overflow-hidden rounded-xl border border-border bg-card/80">
+            <div className={cn(
+              hasActivityRegion ? 'row-span-3' : 'row-span-2',
+              'flex min-h-0 flex-col overflow-hidden rounded-xl border border-border bg-card/80',
+            )}>
               <div className="flex items-center border-b border-border">
                 <button
                   type="button"
@@ -800,9 +809,11 @@ function TimelineEditorShellCoreComponent({
             </div>
 
             {/* M1: Extension activity region — between toolbar and timeline */}
-            <div className="col-span-1" style={{ gridColumn: leftPanelSlot ? '2 / span 2' : '1 / span 2' }}>
-              {activityRegion}
-            </div>
+            {hasActivityRegion && (
+              <div className="col-span-1" style={{ gridColumn: leftPanelSlot ? '2 / span 2' : '1 / span 2' }}>
+                {activityRegion}
+              </div>
+            )}
 
             <div className="relative min-h-0 overflow-hidden" style={{ gridColumn: leftPanelSlot ? '2 / span 2' : '1 / span 2' }}>
               {timelineRegion}
@@ -813,18 +824,7 @@ function TimelineEditorShellCoreComponent({
         )}
         {statusBarSlot}
 
-        {/* Reserved surface slots rendered as inert placeholders (host-owned footer region).
-            Height-capped and independently scrollable: the placeholders stay small,
-            and as an unbounded flex item this footer took height out of the editor
-            above it — collapsing the preview and clipping the timeline. */}
-        <div
-          className="flex max-h-32 w-full min-w-0 max-w-full shrink-0 flex-wrap items-start gap-2 overflow-y-auto border-t border-border/40 px-3 py-2"
-          {...shellRegionAttrs('reservedSlots')}
-        >
-          {codePanelSlot}
-          {writingPanelSlot}
-          {stagePanelSlot}
-        </div>
+        {reservedSlots}
       </div>
       {/* Render the shared preview portal here only when the rendered layout
           hosts it on a bare `previewSurface.slotRef` — that is the condensed

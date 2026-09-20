@@ -32,7 +32,11 @@ import { useOperationTracking } from '../hooks/useOperationTracking';
 import { usePanesStore } from '@/shared/state/panesStore';
 import { hasLocalModeUrlParams } from '@/shared/dev/devSession';
 import type { LocalTimelineShotModel } from './localTimelineShotModel.ts';
-import type { ShotCompositionAdapter } from '@/tools/video-editor/data/shotCompositionAdapter.ts';
+import type {
+  PreparedShotComposition,
+  ShotCompositionAdapter,
+} from '@/tools/video-editor/data/shotCompositionAdapter.ts';
+import { ShotTimelinePreview } from '../components/ShotTimelinePreview.tsx';
 
 interface ShotEditorViewProps {
   /** The shot to edit */
@@ -53,6 +57,8 @@ interface ShotEditorViewProps {
   canonicalOccurrence?: Pick<LocalTimelineShotModel, 'occurrenceId' | 'shotId' | 'revisionId' | 'parentDocumentId' | 'stableDeepLink' | 'outputIdentity'> & { projectId?: string | null };
   /** The same adapter used by the overview; local mode intentionally does not publish. */
   canonicalShotComposition?: ShotCompositionAdapter;
+  /** Prepared canonical graph shared by the overview and the shot-local preview. */
+  canonicalComposition?: PreparedShotComposition;
 }
 
 /**
@@ -69,6 +75,7 @@ export function ShotEditorView({
   shotSortMode = 'ordered',
   canonicalOccurrence,
   canonicalShotComposition,
+  canonicalComposition,
 }: ShotEditorViewProps) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -230,6 +237,12 @@ export function ShotEditorView({
         data-canonical-output-identity={canonicalOccurrence?.outputIdentity}
         data-canonical-adapter={canonicalShotComposition ? 'shot-composition' : undefined}
       >
+        {canonicalComposition && canonicalOccurrence ? (
+          <ShotTimelinePreview
+            composition={canonicalComposition}
+            occurrenceId={canonicalOccurrence.occurrenceId}
+          />
+        ) : null}
         <Suspense fallback={<LoadingSkeleton type="editor" />}>
           <VideoTravelSettingsProvider
             projectId={selectedProjectId}

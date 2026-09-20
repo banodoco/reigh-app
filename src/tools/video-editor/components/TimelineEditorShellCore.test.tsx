@@ -305,15 +305,15 @@ describe('TimelineEditorShellCore surface slots', () => {
   });
 
   // ---- Shell grid row alignment ---------------------------------------------
-  it('declares one grid row for every stacked region of the desktop layout', () => {
+  it('does not reserve a grid row for inactive extension activity', () => {
     render(<TimelineEditorShellCore timelineId="test-timeline" />);
 
     const grid = document.querySelector('main.grid') as HTMLElement | null;
     expect(grid).toBeTruthy();
 
     const rows = (grid?.style.gridTemplateRows ?? '').trim().split(/\s+/).filter(Boolean);
-    // preview, divider/toolbar, extension activity region, timeline
-    expect(rows).toHaveLength(4);
+    // preview, divider/toolbar, timeline
+    expect(rows).toHaveLength(3);
 
     // Every grid child except the row-spanning right panel stacks in column 1.
     // An undeclared row would push the timeline into an implicit `auto` track,
@@ -411,55 +411,23 @@ describe('TimelineEditorShellCore surface slots', () => {
     expect(screen.getByTestId('properties-panel')).toBeTruthy();
   });
 
-  // ---- Reserved slot placeholders ----------------------------------------
-  it('renders reserved placeholders for codePanel, writingPanel, and stagePanel', () => {
+  // ---- Reserved slots stay hidden until an extension contributes -------------
+  it('does not render unclaimed codePanel, writingPanel, or stagePanel slots', () => {
     render(<TimelineEditorShellCore timelineId="test-timeline" />);
 
     const codeCanary = document.querySelector('[data-video-editor-slot="codePanel"]');
     const writingCanary = document.querySelector('[data-video-editor-slot="writingPanel"]');
     const stageCanary = document.querySelector('[data-video-editor-slot="stagePanel"]');
 
-    expect(codeCanary).toBeTruthy();
-    expect(writingCanary).toBeTruthy();
-    expect(stageCanary).toBeTruthy();
+    expect(codeCanary).toBeNull();
+    expect(writingCanary).toBeNull();
+    expect(stageCanary).toBeNull();
   });
 
-  it('renders reserved placeholders with inert data attribute (no canary marker)', () => {
+  it('does not render an inert reserved-slot footer when no extension contributes', () => {
     render(<TimelineEditorShellCore timelineId="test-timeline" />);
 
-    const placeholders = document.querySelectorAll('[data-video-editor-slot-inert="true"]');
-    expect(placeholders.length).toBe(3);
-
-    placeholders.forEach((el) => {
-      expect(el.getAttribute('data-video-editor-slot-inert')).toBe('true');
-    });
-
-    // Canary demo surfaces were removed — no element carries the canary marker.
-    expect(document.querySelectorAll('[data-video-editor-canary="true"]').length).toBe(0);
-  });
-
-  it('renders reserved placeholders with milestone label', () => {
-    render(<TimelineEditorShellCore timelineId="test-timeline" />);
-
-    const codeCanary = document.querySelector('[data-video-editor-slot="codePanel"]');
-    const writingCanary = document.querySelector('[data-video-editor-slot="writingPanel"]');
-    const stageCanary = document.querySelector('[data-video-editor-slot="stagePanel"]');
-
-    expect(codeCanary?.textContent).toContain('M4');
-    expect(writingCanary?.textContent).toContain('M4');
-    expect(stageCanary?.textContent).toContain('M3');
-  });
-
-  it('renders reserved placeholders with slot name and milestone label', () => {
-    render(<TimelineEditorShellCore timelineId="test-timeline" />);
-
-    const codePlaceholder = document.querySelector('[data-video-editor-slot="codePanel"]');
-    const writingPlaceholder = document.querySelector('[data-video-editor-slot="writingPanel"]');
-    const stagePlaceholder = document.querySelector('[data-video-editor-slot="stagePanel"]');
-
-    expect(codePlaceholder?.textContent).toContain('codePanel — M4');
-    expect(writingPlaceholder?.textContent).toContain('writingPanel — M4');
-    expect(stagePlaceholder?.textContent).toContain('stagePanel — M3');
+    expect(document.querySelector('[data-video-editor-shell-region="reservedSlots"]')).toBeNull();
   });
 
   // ---- Shell region data attributes -----------------------------------------
@@ -470,7 +438,7 @@ describe('TimelineEditorShellCore surface slots', () => {
     const reservedSlots = document.querySelector('[data-video-editor-shell-region="reservedSlots"]');
 
     expect(rightPanel).toBeTruthy();
-    expect(reservedSlots).toBeTruthy();
+    expect(reservedSlots).toBeNull();
   });
 
   it('does not render leftPanel region when no leftPanel slot renderer is registered', () => {
@@ -478,16 +446,6 @@ describe('TimelineEditorShellCore surface slots', () => {
 
     const leftPanel = document.querySelector('[data-video-editor-shell-region="leftPanel"]');
     expect(leftPanel).toBeNull();
-  });
-
-  // ---- Reserved slots container styling -------------------------------------
-  it('wraps reserved slots in a flex container with border', () => {
-    const { container } = render(<TimelineEditorShellCore timelineId="test-timeline" />);
-
-    const reservedContainer = container.querySelector('[data-video-editor-shell-region="reservedSlots"]');
-    expect(reservedContainer).toBeTruthy();
-    expect(reservedContainer?.classList.contains('flex')).toBe(true);
-    expect(reservedContainer?.classList.contains('flex-wrap')).toBe(true);
   });
 
   // ---- Static surface slots do NOT render when no renderer and not reserved --
@@ -522,26 +480,12 @@ describe('TimelineEditorShellCore surface slots', () => {
     expect(style).toContain('minmax(0,1fr) 360px');
   });
 
-  // ---- Multiple reserved slots render in deterministic order -----------------
-  it('renders reserved slots in deterministic order: codePanel, writingPanel, stagePanel', () => {
-    const { container } = render(<TimelineEditorShellCore timelineId="test-timeline" />);
-
-    const reservedContainer = container.querySelector('[data-video-editor-shell-region="reservedSlots"]');
-    const children = reservedContainer?.querySelectorAll('[data-video-editor-slot]');
-    expect(children?.length).toBe(3);
-
-    const slotNames = Array.from(children ?? []).map((el) =>
-      el.getAttribute('data-video-editor-slot'),
-    );
-    expect(slotNames).toEqual(['codePanel', 'writingPanel', 'stagePanel']);
-  });
-
-  // ---- Force condensed mode still renders reserved slots ---------------------
-  it('renders reserved placeholders in condensed mode', () => {
+  // ---- Force condensed mode also stays clean -------------------------------
+  it('does not render reserved placeholders in condensed mode', () => {
     render(<TimelineEditorShellCore timelineId="test-timeline" forceCondensed />);
 
     const codePlaceholder = document.querySelector('[data-video-editor-slot="codePanel"]');
-    expect(codePlaceholder).toBeTruthy();
+    expect(codePlaceholder).toBeNull();
   });
 });
 

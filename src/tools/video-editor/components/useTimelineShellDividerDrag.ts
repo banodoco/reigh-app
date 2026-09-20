@@ -9,12 +9,12 @@ export const CHROME_OVERHEAD = MIN_TIMELINE_HEIGHT + 40 + 28 + 24;
  * resulting timeline height, and the maximize toggle. Emits the grid template
  * the desktop layout applies.
  *
- * Four rows, in DOM order: preview, divider/toolbar, extension activity
- * region, timeline. The activity region row must be declared — otherwise the
- * timeline lands in an implicit `auto` row, the activity region takes the
- * timeline's sizing, and the preview's `1fr` collapses to zero height.
+ * Three rows are used when there is no extension activity: preview,
+ * divider/toolbar, timeline. A fourth row is added only while extension
+ * activity is visible, so an empty activity surface cannot leave a blank band
+ * between the toolbar and timeline.
  */
-export function useTimelineShellDividerDrag() {
+export function useTimelineShellDividerDrag(hasActivityRegion = false) {
   const containerRef = useRef<HTMLDivElement>(null);
   const dividerRef = useRef<HTMLDivElement>(null);
   const [timelineHeight, setTimelineHeight] = useState<number | null>(null);
@@ -39,7 +39,9 @@ export function useTimelineShellDividerDrag() {
       if (rect.height - nextHeight < MIN_PREVIEW_HEIGHT) {
         return;
       }
-      container.style.gridTemplateRows = `minmax(0,1fr) auto auto ${nextHeight}px`;
+      container.style.gridTemplateRows = hasActivityRegion
+        ? `minmax(0,1fr) auto auto ${nextHeight}px`
+        : `minmax(0,1fr) auto ${nextHeight}px`;
     };
 
     const onMouseUp = () => {
@@ -57,13 +59,19 @@ export function useTimelineShellDividerDrag() {
 
     window.addEventListener('mousemove', onMouseMove);
     window.addEventListener('mouseup', onMouseUp);
-  }, []);
+  }, [hasActivityRegion]);
 
   const gridTemplateRows = isTimelineMaximized
-    ? `${MIN_PREVIEW_HEIGHT}px auto auto 1fr`
+    ? (hasActivityRegion
+      ? `${MIN_PREVIEW_HEIGHT}px auto auto 1fr`
+      : `${MIN_PREVIEW_HEIGHT}px auto 1fr`)
     : (timelineHeight
-      ? `minmax(0,1fr) auto auto ${timelineHeight}px`
-      : 'minmax(0,1fr) auto auto minmax(200px,36%)');
+      ? (hasActivityRegion
+        ? `minmax(0,1fr) auto auto ${timelineHeight}px`
+        : `minmax(0,1fr) auto ${timelineHeight}px`)
+      : (hasActivityRegion
+        ? 'minmax(0,1fr) auto auto minmax(200px,36%)'
+        : 'minmax(0,1fr) auto minmax(200px,36%)'));
 
   return {
     containerRef,

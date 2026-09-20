@@ -11,10 +11,6 @@ import {
 } from '@/tools/video-editor/runtime/ContributionErrorBoundary.tsx';
 import { useOptionalVideoEditorRuntime } from '@/tools/video-editor/contexts/VideoEditorRuntimeContext.tsx';
 import type { VideoEditorSlotName, VideoEditorOutputFormatDescriptor } from '@/tools/video-editor/runtime/extensionSurface';
-import {
-  InertReservedPlaceholder,
-  RESERVED_SLOT_NAMES,
-} from './TimelineEditorShellReservedSlots.tsx';
 
 /**
  * Resolves every extension slot the shell can host into a ready-to-render node,
@@ -77,10 +73,9 @@ export function useVideoEditorShellSlots() {
   }, []);
 
   /**
-   * Resolve a surface slot renderer or return an inert placeholder for
-   * reserved slots.
+   * Resolve a surface slot renderer, returning nothing for unclaimed slots.
    * - If a renderer is registered → wrap in HostContributionErrorBoundary
-   * - If the slot is reserved → render InertReservedPlaceholder
+   * - If the slot is reserved but unclaimed → render nothing
    * - Otherwise → null (slot is unclaimed)
    */
   const resolveSurfaceSlot = useCallback(
@@ -99,9 +94,6 @@ export function useVideoEditorShellSlots() {
             {renderer(renderContext)}
           </HostContributionErrorBoundary>
         );
-      }
-      if (RESERVED_SLOT_NAMES[slotName]) {
-        return <InertReservedPlaceholder key={slotName} slotName={slotName} />;
       }
       return null;
     },
