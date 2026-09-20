@@ -482,6 +482,16 @@ function TimelineEditorCoreComponent({
 
     return new Map(resolvedConfig.tracks.map((track) => [track.id, track]));
   }, [resolvedConfig]);
+  const shotNameByClipId = useMemo(() => {
+    const names = new Map<string, string>();
+    for (const group of shotGroups) {
+      if (!group.shotName) continue;
+      for (const clipId of group.clipIds) {
+        names.set(clipId, group.shotName);
+      }
+    }
+    return names;
+  }, [shotGroups]);
 
   const nestedAudioTrackIds = useMemo(() => {
     if (!data) return new Set<string>();
@@ -702,6 +712,7 @@ function TimelineEditorCoreComponent({
       <ClipAction
         action={action}
         clipMeta={clipMeta}
+        shotName={shotNameByClipId.get(action.id)}
         isVideoClip={isVideoClip}
         isInPinnedShotGroup={shotGroupClipIds.has(action.id)}
         isSelected={isClipSelected(action.id)}
@@ -782,6 +793,7 @@ function TimelineEditorCoreComponent({
     primaryClipId,
     resolvedClipMap,
     selectedClipIds,
+    shotNameByClipId,
     shotGroupClipIds,
     staleAssetKeys,
     thumbnailMap,

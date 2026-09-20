@@ -61,6 +61,7 @@ function renderSelectors({
   onSetPrimaryTimeline,
   disabled = false,
   onOpenChange,
+  localTimelineName = 'Intro Cut',
 }: {
   discovery?: UseAstridBridgeDiscoveryResult;
   onSelectProject?: (value: string) => void;
@@ -68,12 +69,13 @@ function renderSelectors({
   onSetPrimaryTimeline?: (timelineId: string) => void;
   disabled?: boolean;
   onOpenChange?: (open: boolean) => void;
+  localTimelineName?: string | null;
 } = {}) {
   return render(
     <ProjectTimelineSelectors
       localProjectSlug="ados-talks"
       localTimelineId="11111111-1111-1111-1111-111111111111"
-      localTimelineName="Intro Cut"
+      localTimelineName={localTimelineName}
       discovery={discovery ?? makeDiscovery()}
       onSelectProject={onSelectProject}
       onSelectTimeline={onSelectTimeline}
@@ -162,6 +164,12 @@ describe('ProjectTimelineSelectors', () => {
     renderSelectors({});
 
     expect(screen.getByRole('combobox', { name: 'Select timeline' })).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Select timeline' })).toHaveTextContent('Intro Cut');
+  });
+
+  it('uses the discovered timeline name when the bridge name is unavailable', () => {
+    renderSelectors({ localTimelineName: null });
+
     expect(screen.getByRole('combobox', { name: 'Select timeline' })).toHaveTextContent('Intro Cut');
   });
 

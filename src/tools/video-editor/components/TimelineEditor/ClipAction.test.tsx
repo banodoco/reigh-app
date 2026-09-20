@@ -161,6 +161,15 @@ describe('ClipAction', () => {
     mocks.useWaveformData.mockImplementation(implementation);
   };
 
+  it('renders a canonical shot name instead of the generated clip id', () => {
+    mockUseWaveformData();
+    const props = buildProps({ shotName: '02 What this video covers' });
+
+    render(<ClipAction {...props} />);
+
+    expect(screen.getByText('02 What this video covers')).toBeInTheDocument();
+  });
+
   it('adds create-shot actions without disturbing existing batch actions', () => {
     mockUseWaveformData();
     const props = buildProps();

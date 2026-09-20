@@ -96,7 +96,17 @@ export function ProjectTimelineSelectors({
     .map(({ timeline }) => timeline);
 
   const projectTriggerLabel = localProjectSlug ?? 'Select project';
-  const timelineTriggerLabel = localTimelineName ?? localTimelineId ?? 'Timeline';
+  const selectedTimeline = discoveredLocalTimelines.find((timeline) => (
+    timeline.timeline_id === localTimelineId
+    || timeline.timeline_ulid === localTimelineId
+  ));
+  // Discovery already contains the selected timeline's display name. Use it
+  // while the optional bridge name lookup is pending or unavailable.
+  const timelineTriggerLabel = localTimelineName
+    ?? selectedTimeline?.name
+    ?? selectedTimeline?.slug
+    ?? localTimelineId
+    ?? 'Timeline';
 
   return (
     <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2" data-testid="editor-project-timeline-selectors">

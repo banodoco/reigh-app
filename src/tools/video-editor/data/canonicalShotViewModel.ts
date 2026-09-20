@@ -20,6 +20,7 @@ function text(value: unknown): string | undefined {
 export function selectCanonicalShotViewModels(composition: PreparedShotComposition | null | undefined): Shot[] {
   return composition?.occurrences.map((occurrence) => {
     const provenance = record(occurrence.revision.provenance);
+    const metadata = record(occurrence.revision.metadata);
     const timing = record(occurrence.revision.timing);
     const images = (Array.isArray(occurrence.revision.assets) ? occurrence.revision.assets : [])
       .map((asset, index) => {
@@ -41,7 +42,11 @@ export function selectCanonicalShotViewModels(composition: PreparedShotCompositi
       .filter((image): image is NonNullable<typeof image> => image !== null);
     return {
       id: occurrence.occurrenceId,
-      name: text(provenance.name) ?? text(provenance.title) ?? occurrence.shotId,
+      name: text(provenance.name)
+        ?? text(provenance.title)
+        ?? text(metadata.name)
+        ?? text(metadata.title)
+        ?? occurrence.shotId,
       project_id: composition.projectId,
       position: occurrence.ordinal,
       settings: {},

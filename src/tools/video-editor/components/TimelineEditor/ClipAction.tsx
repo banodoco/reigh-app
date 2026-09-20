@@ -33,6 +33,8 @@ interface ContextMenuState {
 interface ClipActionProps {
   action: TimelineAction;
   clipMeta: ClipMeta;
+  /** Display name for clips projected from a canonical shot occurrence. */
+  shotName?: string;
   isSelected: boolean;
   isPrimary?: boolean;
   /** Group members use the shot-group overlay for resize; clip-level handles stay hidden. */
@@ -412,6 +414,7 @@ function ClipActionComponent({
   onNavigateToShot,
   onOpenGenerateVideo,
   isCreatingShot = false,
+  shotName,
   audioSrc,
   clipWidth,
   overhangDurationSeconds,
@@ -625,7 +628,7 @@ function ClipActionComponent({
               ? (emptyShotLabel ?? 'New Shot')
               : isEffectLayer
                 ? (clipMeta.continuous?.type || 'Effect Layer')
-                : (clipMeta.text?.content || clipMeta.asset || action.id)}
+                : (shotName || clipMeta.text?.content || clipMeta.asset || action.id)}
           </div>
           {effectBadges.length > 0 && (
             <div className="mt-1 flex gap-1 overflow-hidden">
@@ -790,6 +793,7 @@ function areClipActionPropsEqual(prev: ClipActionProps, next: ClipActionProps): 
   const nextSelectedClipIds = next.selectedClipIds ?? [];
   if (prev.action !== next.action) return false;
   if (prev.clipMeta !== next.clipMeta) return false;
+  if (prev.shotName !== next.shotName) return false;
   if (prev.isSelected !== next.isSelected) return false;
   if (prev.isPrimary !== next.isPrimary) return false;
   if (prev.isInPinnedShotGroup !== next.isInPinnedShotGroup) return false;

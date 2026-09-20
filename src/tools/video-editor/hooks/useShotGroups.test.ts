@@ -71,6 +71,28 @@ describe('useShotGroups', () => {
     });
   });
 
+  it('uses the canonical shot metadata name when provenance has no name', () => {
+    const rows: TimelineRow[] = [{ id: 'picture', actions: [buildAction('shot-child', 0, 2)] }];
+    const occurrence = {
+      projectId: 'project-1',
+      occurrenceId: 'occ-1',
+      parentDocumentId: 'timeline-1',
+      shotId: 'shot-1',
+      revisionId: 'rev-1',
+      ordinal: 0,
+      atMs: 0,
+      durationMs: 2_000,
+      stableDeepLink: 'project/project-1/document/timeline-1/shot/shot-1/revision/rev-1/occurrence/occ-1',
+      outputIdentity: 'project/project-1/document/timeline-1/occurrence/occ-1/output/final-video',
+      trackId: 'picture',
+      revision: { metadata: { name: '02 What this video covers' } },
+    } satisfies CanonicalShotOccurrence;
+
+    const { result } = renderHook(() => useShotGroups(rows, [], [occurrence]));
+
+    expect(result.current[0]?.shotName).toBe('02 What this video covers');
+  });
+
   it('returns deterministic colors and different colors for distinct sample shot ids', () => {
     expect(getShotColor('shot-a')).toBe(getShotColor('shot-a'));
     expect(new Set(['shot-a', 'shot-b', 'shot-c'].map((shotId) => getShotColor(shotId))).size).toBe(3);

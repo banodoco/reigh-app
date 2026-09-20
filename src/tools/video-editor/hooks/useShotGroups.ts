@@ -156,5 +156,11 @@ function shotNameForOccurrence(occurrence: CanonicalShotOccurrence): string {
     if (typeof value.name === 'string' && value.name.trim()) return value.name;
     if (typeof value.title === 'string' && value.title.trim()) return value.title;
   }
+  const metadata = occurrence.revision.metadata;
+  if (metadata && typeof metadata === 'object' && !Array.isArray(metadata)) {
+    const value = metadata as Record<string, unknown>;
+    if (typeof value.name === 'string' && value.name.trim()) return value.name;
+    if (typeof value.title === 'string' && value.title.trim()) return value.title;
+  }
   return occurrence.shotId;
 }
