@@ -4,10 +4,11 @@ import {
   refreshAstridCapabilityCensus,
   useAstridCapabilityCensus,
 } from './capabilityCensus.ts';
+import { isAstridWorkspaceV1 } from './workspaceV1.ts';
 
 /** Starts the single shared capability census before feature pollers opt in. */
 export function AstridCapabilityBootstrap({ children }: { children: ReactNode }) {
-  const runtimeDocumentMode = isRuntimeDocumentMode();
+  const runtimeDocumentMode = isRuntimeDocumentMode() || isAstridWorkspaceV1;
   const capabilityCensus = useAstridCapabilityCensus();
   useEffect(() => {
     if (runtimeDocumentMode) return;
