@@ -44,7 +44,20 @@ describe('canonical shot-composition downstream projection', () => {
     };
     const projection = projectCanonicalComposition(
       createShotCompositionAdapter({ load: async () => graph }).prepare(graph),
-      { output: { resolution: '1280x720', fps: 24, file: 'canonical.mp4' }, tracks: [], clips: [], registry: {} },
+      {
+        output: { resolution: '1280x720', fps: 24, file: 'canonical.mp4' },
+        tracks: [
+          { id: 'frame', kind: 'visual', label: 'Frame' },
+          { id: 'picture', kind: 'visual', label: 'Shots' },
+        ],
+        clips: [
+          { id: 'parent-overlay', at: 0, track: 'frame', clipType: 'media', hold: 120, asset: 'frame-asset' },
+          { id: 'legacy-shot', at: 0, track: 'picture', clipType: 'shot', hold: 2 },
+        ],
+        registry: {
+          'frame-asset': { file: 'frame.png', type: 'image/png' },
+        },
+      },
     );
     const first = projection.config.clips.find((clip) => clip.id === 'occ-1:alpha-video');
     expect(first).toMatchObject({
@@ -68,6 +81,10 @@ describe('canonical shot-composition downstream projection', () => {
     });
     expect(JSON.stringify(projection.config)).not.toContain('pinnedShotGroups');
     expect(JSON.stringify(projection.config)).not.toContain('"clipType":"shot"');
+    expect(projection.config.clips.some((clip) => clip.id === 'parent-overlay')).toBe(true);
+    expect(projection.config.clips.some((clip) => clip.id === 'legacy-shot')).toBe(false);
+    expect(projection.config.tracks.map((track) => track.id)).toEqual(expect.arrayContaining(['frame', 'picture']));
+    expect(projection.config.registry['frame-asset']).toMatchObject({ file: 'frame.png' });
   });
 
   it('keeps linked occurrences distinct while retaining their shared revision identity', () => {

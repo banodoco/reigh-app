@@ -1,7 +1,8 @@
 import { useEffect, useMemo } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { AlertCircle } from 'lucide-react';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/shared/components/ui/card.tsx';
+import { isAstridWorkspaceV1 } from '@/integrations/astrid/workspaceV1.ts';
 import { useAstridBridgeDiscovery } from '@/tools/video-editor/hooks/useAstridBridgeDiscovery.ts';
 import { LocalTimelineShotBrowser } from './LocalTimelineShotBrowser.tsx';
 
@@ -29,6 +30,8 @@ function chooseTimeline(
  */
 export function AstridTravelRoute() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
+  const navigate = useNavigate();
   const projectSlug = searchParams.get('localProject')?.trim() || null;
   const timelineRef = searchParams.get('localTimeline')?.trim() || null;
   const discovery = useAstridBridgeDiscovery({
@@ -38,9 +41,12 @@ export function AstridTravelRoute() {
   });
   const timelines = discovery.timelinesQuery.data?.timelines ?? null;
   const selectedProject = useMemo(
-    () => discovery.projectsQuery.data?.projects?.find((project) => project.slug === projectSlug) ?? null,
+    () => discovery.projectsQuery.data?.projects?.find((project) => (
+      project.slug === projectSlug || project.project_id === projectSlug
+    )) ?? null,
     [discovery.projectsQuery.data?.projects, projectSlug],
   );
+  const resolvedProjectSlug = selectedProject?.slug ?? projectSlug;
   const defaultTimeline = useMemo(
     () => timelines ? chooseTimeline(timelines) : null,
     [timelines],
@@ -72,10 +78,23 @@ export function AstridTravelRoute() {
     timelineRef,
   ]);
 
-  if (projectSlug && timelineRef) {
+  const projectDiscoveryReady = !isAstridWorkspaceV1
+    || (!discovery.projectsQuery.isLoading && !discovery.projectsQuery.error && Boolean(selectedProject));
+
+  useEffect(() => {
+    // Normalize UUID deep links emitted by older Runtime-backed surfaces to
+    // the slug used by the shared project/chat context. Preserve the hash so
+    // the selected shot remains open after the URL repair.
+    if (!projectSlug || !selectedProject?.slug || selectedProject.slug === projectSlug) return;
+    const next = new URLSearchParams(searchParams);
+    next.set('localProject', selectedProject.slug);
+    navigate(`${location.pathname}?${next.toString()}${location.hash}`, { replace: true });
+  }, [location.hash, location.pathname, navigate, projectSlug, searchParams, selectedProject?.slug]);
+
+  if (projectSlug && timelineRef && projectDiscoveryReady) {
     return (
       <LocalTimelineShotBrowser
-        projectSlug={projectSlug}
+        projectSlug={resolvedProjectSlug ?? projectSlug}
         projectId={selectedProject?.project_id}
         timelineRef={timelineRef}
       />

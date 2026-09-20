@@ -133,8 +133,11 @@ function childTimeline(occurrence: CanonicalShotOccurrence): JsonObject {
 
 function assetRegistryFor(
   composition: PreparedShotComposition,
+  baseConfig?: ResolvedTimelineConfig | null,
 ): Record<string, ResolvedAssetRegistryEntry> {
-  const registry: Record<string, ResolvedAssetRegistryEntry> = {};
+  const registry: Record<string, ResolvedAssetRegistryEntry> = {
+    ...(baseConfig?.registry ?? {}),
+  };
   for (const occurrence of composition.occurrences) {
     const assets = Array.isArray(occurrence.revision.assets) ? occurrence.revision.assets : [];
     for (const rawAsset of assets) {
@@ -162,8 +165,16 @@ function assetRegistryFor(
   return registry;
 }
 
-function tracksFor(composition: PreparedShotComposition): TrackDefinition[] {
-  const tracks = new Map<string, TrackDefinition>();
+function tracksFor(
+  composition: PreparedShotComposition,
+  baseConfig?: ResolvedTimelineConfig | null,
+): TrackDefinition[] {
+  // Keep parent-owned lanes (frame overlays, FX, terminal activity, VO, etc.)
+  // alongside the projected shot child lanes. The canonical graph owns shot
+  // content, but it does not replace unrelated parent timeline content.
+  const tracks = new Map<string, TrackDefinition>(
+    (baseConfig?.tracks ?? []).map((track) => [track.id, track]),
+  );
   for (const occurrence of composition.occurrences) {
     const timeline = childTimeline(occurrence);
     const rawTracks = Array.isArray(timeline.tracks) ? timeline.tracks : [];
@@ -272,13 +283,16 @@ export function projectCanonicalComposition(
     }
   }
 
+  // Legacy parent shot clips are replaced by the immutable child projection;
+  // every other parent clip remains part of the rendered/editor timeline.
+  const parentClips = (baseConfig?.clips ?? []).filter((clip) => clip.clipType !== 'shot');
   const output = baseConfig?.output ?? { resolution: '1920x1080', fps: 30, file: `timeline-${composition.parentDocumentId}.mp4` };
   const baseApp = record(baseConfig?.app) ?? {};
   const config: ResolvedTimelineConfig = {
     output,
-    tracks: tracksFor(composition),
-    clips: clips as ResolvedTimelineConfig['clips'],
-    registry: assetRegistryFor(composition),
+    tracks: tracksFor(composition, baseConfig),
+    clips: [...parentClips, ...clips] as ResolvedTimelineConfig['clips'],
+    registry: assetRegistryFor(composition, baseConfig),
     ...(baseConfig?.theme ? { theme: baseConfig.theme } : {}),
     ...(baseConfig?.theme_overrides ? { theme_overrides: baseConfig.theme_overrides } : {}),
     ...(baseConfig?.generation_defaults ? { generation_defaults: baseConfig.generation_defaults } : {}),

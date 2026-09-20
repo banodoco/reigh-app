@@ -51,7 +51,13 @@ export function useShotGroups(
         const fallbackRow = rows.find((row) => row.id === occurrence.trackId)
           ?? rows.find((row) => row.actions.length > 0)
           ?? rows[0];
-        const selected = candidateRows[0] ?? (fallbackRow ? { row: fallbackRow, rowIndex: rows.indexOf(fallbackRow) } : null);
+        // A full-length parent lane (usually the Frame track) can overlap
+        // every occurrence. Prefer the occurrence's declared track before
+        // falling back to the first overlapping row, otherwise every shot is
+        // incorrectly grouped under that parent lane.
+        const selected = candidateRows.find(({ row }) => row.id === occurrence.trackId)
+          ?? candidateRows[0]
+          ?? (fallbackRow ? { row: fallbackRow, rowIndex: rows.indexOf(fallbackRow) } : null);
         const row = selected?.row;
         const rowIndex = selected?.rowIndex ?? 0;
         const children = row?.actions

@@ -584,7 +584,10 @@ function ClipActionComponent({
             onExpandTinyClip(action.id);
             return;
           }
-          if (isVideoClip && onDoubleClickVideoClip) {
+          // Canonical shot occurrences are managed timeline clips rather than
+          // ordinary video assets, but they still need the video clip
+          // double-click affordance to open their travel editor.
+          if ((isVideoClip || clipMeta.clipType === 'shot') && onDoubleClickVideoClip) {
             onDoubleClickVideoClip(action.id);
           } else if (clipMeta.asset) {
             onDoubleClickAsset?.(clipMeta.asset, action.id);

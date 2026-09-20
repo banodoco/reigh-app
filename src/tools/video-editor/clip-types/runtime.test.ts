@@ -21,6 +21,16 @@ describe('clip-type runtime registry', () => {
       && getBuiltinClipTypeDescriptor('audio-reactive-colour')!.hold.maxSeconds).toBeGreaterThan(168.4375);
   });
 
+  it('inspects managed shot occurrences without promoting shot to a creatable builtin type', () => {
+    expect(getBuiltinClipTypeDescriptor('shot')).toBeUndefined();
+    expect(getRegisteredClipTypeDescriptor('shot')).toMatchObject({
+      id: 'shot',
+      label: 'Shot',
+      hold: { kind: 'required' },
+      renderCapabilities: { previewRoute: 'custom' },
+    });
+  });
+
   it('resolves builtin, available sequence, unavailable sequence, and unknown clip types distinctly', () => {
     const view = createEditorClipTypeRegistry({
       'resource-card': { component: () => null },

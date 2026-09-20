@@ -3,6 +3,7 @@ import { renderHook } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import type { TimelineShotGroupView } from '@/tools/video-editor/lib/timeline-domain';
 import type { TimelineAction, TimelineRow } from '@/tools/video-editor/types/timeline-canvas';
+import type { CanonicalShotOccurrence } from '@/tools/video-editor/data/shotCompositionAdapter';
 import { getShotColor, useShotGroups } from './useShotGroups';
 
 function buildAction(id: string, start: number, end: number): TimelineAction {
@@ -40,6 +41,36 @@ function buildGroup(
 }
 
 describe('useShotGroups', () => {
+  it('prefers the occurrence track when another full-length row overlaps it', () => {
+    const rows: TimelineRow[] = [
+      { id: 'frame', actions: [buildAction('frame-overlay', 0, 120)] },
+      { id: 'picture', actions: [buildAction('shot-child', 10, 12)] },
+    ];
+    const occurrence = {
+      projectId: 'project-1',
+      occurrenceId: 'occ-1',
+      parentDocumentId: 'timeline-1',
+      shotId: 'shot-1',
+      revisionId: 'rev-1',
+      ordinal: 0,
+      atMs: 10_000,
+      durationMs: 2_000,
+      stableDeepLink: 'project/project-1/document/timeline-1/shot/shot-1/revision/rev-1/occurrence/occ-1',
+      outputIdentity: 'project/project-1/document/timeline-1/occurrence/occ-1/output/final-video',
+      trackId: 'picture',
+      revision: { provenance: { name: 'Shot 1' } },
+    } satisfies CanonicalShotOccurrence;
+
+    const { result } = renderHook(() => useShotGroups(rows, [], [occurrence]));
+
+    expect(result.current[0]).toMatchObject({
+      rowId: 'picture',
+      rowIndex: 1,
+      clipIds: ['shot-child'],
+      children: [{ clipId: 'shot-child', offset: 0, duration: 2 }],
+    });
+  });
+
   it('returns deterministic colors and different colors for distinct sample shot ids', () => {
     expect(getShotColor('shot-a')).toBe(getShotColor('shot-a'));
     expect(new Set(['shot-a', 'shot-b', 'shot-c'].map((shotId) => getShotColor(shotId))).size).toBe(3);

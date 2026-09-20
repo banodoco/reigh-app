@@ -279,19 +279,17 @@ function ReighTimelineEditorComponent({ onOpenSequenceCreator, onOpenElementCrea
   );
 
   const handleOpenCanonicalOccurrence = useCallback((occurrence: CanonicalShotOccurrence) => {
-    const url = `/tools/travel-between-images?localProject=${encodeURIComponent(occurrence.projectId)}&localTimeline=${encodeURIComponent(occurrence.parentDocumentId)}#${encodeURIComponent(occurrence.stableDeepLink)}`;
-    globalThis.history.pushState({
-      fromShotClick: true,
-      canonicalIdentity: {
-        projectId: occurrence.projectId,
-        parentDocumentId: occurrence.parentDocumentId,
-        shotId: occurrence.shotId,
-        revisionId: occurrence.revisionId,
-        occurrenceId: occurrence.occurrenceId,
-      },
-    }, '', url);
-    globalThis.dispatchEvent(new PopStateEvent('popstate'));
-  }, []);
+    // The Runtime graph carries the canonical project UUID, while the Astrid
+    // tool route is keyed by the human-facing project slug.  Keep the
+    // identity pair intact in state, but address the route with the slug so
+    // opening a shot from the editor resolves through Astrid discovery.
+    const projectSlug = runtime.project.projectSlug ?? runtime.project.projectId ?? occurrence.projectId;
+    const url = `/tools/travel-between-images?localProject=${encodeURIComponent(projectSlug)}&localTimeline=${encodeURIComponent(occurrence.parentDocumentId)}#${encodeURIComponent(occurrence.stableDeepLink)}`;
+    // This boundary crosses between independently mounted tools. Use a real
+    // deep-link navigation so the destination receives the same discovery and
+    // bootstrap path as a refreshed browser tab.
+    globalThis.location.assign(url);
+  }, [runtime.project.projectId, runtime.project.projectSlug]);
 
   const handleDuplicateDocumentShotGroup = useCallback(async (locator: { shotId: string; trackId: string; canonicalIdentity?: CanonicalShotOccurrence }) => {
     if (locator.canonicalIdentity && runtime.shots?.shotComposition && runtime.shots.canonicalComposition) {

@@ -370,6 +370,30 @@ const BUILTIN_CLIP_TYPE_REGISTRATION_MAP = new Map(
   BUILTIN_CLIP_TYPE_REGISTRATIONS.map((registration) => [registration.id, registration]),
 );
 
+// `shot` remains a migration-only timeline value and is intentionally not
+// added to BUILTIN_CLIP_TYPES. The live editor still needs to inspect legacy
+// managed shot occurrences while the canonical composition projection is
+// being adopted, so give it host-owned timing/effects semantics without
+// presenting it as a creatable canonical clip type.
+const LEGACY_SHOT_CLIP_DESCRIPTOR = defineClipType({
+  id: 'shot',
+  label: 'Shot',
+  description: 'Managed shot occurrence backed by the canonical shot composition.',
+  hold: {
+    kind: 'required',
+    defaultSeconds: 5,
+    minSeconds: 0.05,
+    maxSeconds: 120,
+    stepSeconds: 0.1,
+  },
+  commands: HOLD_ONLY_COMMANDS,
+  renderCapabilities: {
+    previewRoute: 'custom',
+    exportRoute: 'custom',
+    features: ['visual', 'hold-duration'],
+  },
+});
+
 const asComparableArray = (
   value: ClipTypeCommandConstraintValue | undefined,
 ): readonly (string | number | boolean)[] => {
@@ -455,6 +479,9 @@ export const getRegisteredClipTypeDescriptor = (
 ): ClipTypeDescriptor | undefined => {
   if (!clipType) {
     return getBuiltinClipTypeDescriptor('media');
+  }
+  if (clipType === LEGACY_SHOT_CLIP_DESCRIPTOR.id) {
+    return LEGACY_SHOT_CLIP_DESCRIPTOR;
   }
   return getBuiltinClipTypeDescriptor(clipType)
     ?? getTrustedClipTypeDescriptor(clipType)
