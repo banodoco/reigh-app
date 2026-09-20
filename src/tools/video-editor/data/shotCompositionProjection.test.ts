@@ -85,6 +85,11 @@ describe('canonical shot-composition downstream projection', () => {
     expect(projection.config.clips.some((clip) => clip.id === 'legacy-shot')).toBe(false);
     expect(projection.config.tracks.map((track) => track.id)).toEqual(expect.arrayContaining(['frame', 'picture']));
     expect(projection.config.registry['frame-asset']).toMatchObject({ file: 'frame.png' });
+    expect(first?.assetEntry).toMatchObject({
+      file: 'object-alpha-image',
+      media_id: 'object-alpha-image',
+      src: '/api/astrid/projects/project-001/media/object-alpha-image/content',
+    });
   });
 
   it('keeps linked occurrences distinct while retaining their shared revision identity', () => {
