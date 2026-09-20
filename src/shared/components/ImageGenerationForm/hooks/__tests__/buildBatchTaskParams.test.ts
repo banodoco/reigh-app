@@ -15,7 +15,9 @@ describe('buildBatchTaskParams', () => {
       beforePromptText: 'Before',
       afterPromptText: 'After',
       styleBoostTerms: 'Boost',
-      isLocalGenerationEnabled: false,
+      // Legacy callers may still carry this flag, but Astrid admission is
+      // always cloud-backed now.
+      isLocalGenerationEnabled: true,
       hiresFixConfig: DEFAULT_HIRES_FIX_CONFIG,
       modelName: 'qwen-image',
       referenceParams: {},
@@ -24,6 +26,7 @@ describe('buildBatchTaskParams', () => {
     const combinedFullPrompt = `Before, ${fullPrompt.trim()}, After, Boost`;
     expect(result.prompts[0].shortPrompt).toBe(toShortPrompt(combinedFullPrompt));
     expect(result.loras).toEqual([{ path: '/loras/landscape.safetensors', strength: 0.65 }]);
+    expect(result.execution).toBe('cloud');
   });
 
   it('passes through explicit subject reference image without rewriting it', () => {

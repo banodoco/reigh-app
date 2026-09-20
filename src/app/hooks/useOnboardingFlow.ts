@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { useOnboarding } from '@/shared/hooks/useOnboarding';
-import { useUserUIState } from '@/shared/hooks/useUserUIState';
 import { useProductTour } from '@/shared/hooks/useProductTour';
 import {
   checkAstridDoctorAvailability,
@@ -62,9 +61,6 @@ export function useOnboardingFlow() {
       startTour();
     }, 1000);
   }, [clearTourStartTimeout, closeOnboardingModal, navigate, refreshDoctorAvailability, startTour]);
-
-  // Preload user settings to warm the cache for the welcome modal
-  useUserUIState('generationMethods', { onComputer: true, inCloud: true });
 
   // Preload ProductTour chunk when onboarding is shown
   useEffect(() => {

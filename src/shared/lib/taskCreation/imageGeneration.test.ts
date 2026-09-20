@@ -294,7 +294,28 @@ describe('typed image-generation admission', () => {
         scratch_bytes: 8 * 1024 * 1024,
         output_bytes: 64 * 1024,
       },
-      settlement_effect: {},
+      settlement_effect: {
+        effect_type: 'generation.create_with_variant',
+        target_id: 'project-1',
+        payload: {
+          generation_type: 'image',
+          metadata: {
+            params: {
+              tool_type: 'image-to-image',
+              content_type: 'image',
+              model: 'z-image',
+              mode: 'i2i',
+              prompt: 'make it cinematic',
+              strength: 0.6,
+              size: '1024x1024',
+            },
+          },
+          variant_type: 'image_to_image',
+          output_name: 'generated_images',
+          output_ordinal: 0,
+          primary_policy: 'preserve',
+        },
+      },
     });
     const admission = mocks.createTask.mock.calls[0]?.[0] as Record<string, unknown>;
     expect(JSON.stringify(admission)).not.toContain('media.example');

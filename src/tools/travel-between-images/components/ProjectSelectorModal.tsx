@@ -186,6 +186,7 @@ export const ProjectSelectorModal: React.FC<ProjectSelectorModalProps> = ({
                   <div className="flex gap-2">
                     <Input
                       id="project-name"
+                      autoComplete="off"
                       value={newProjectName}
                       onChange={(e) => setNewProjectName(e.target.value)}
                       placeholder="Enter project name"

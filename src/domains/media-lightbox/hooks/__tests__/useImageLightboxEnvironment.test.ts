@@ -10,7 +10,6 @@ const mocks = vi.hoisted(() => ({
     tasksPaneWidth: 320,
     isTasksPaneLocked: true,
   },
-  useUserUIState: vi.fn(),
   usePublicLoras: vi.fn(),
   useLoraManager: vi.fn(),
   useIsMobile: vi.fn(),
@@ -28,10 +27,6 @@ vi.mock('@/shared/contexts/ProjectContext', () => ({
 
 vi.mock('@/shared/state/panesStore', () => ({
   usePanesStore: (selector: (state: typeof mocks.panesState) => unknown) => selector(mocks.panesState),
-}));
-
-vi.mock('@/shared/hooks/useUserUIState', () => ({
-  useUserUIState: (...args: unknown[]) => mocks.useUserUIState(...args),
 }));
 
 vi.mock('@/features/resources/hooks/useResources', () => ({
@@ -87,9 +82,6 @@ describe('useImageLightboxEnvironment', () => {
       tasksPaneWidth: 320,
       isTasksPaneLocked: true,
     };
-    mocks.useUserUIState.mockReturnValue({
-      value: { onComputer: true, inCloud: false },
-    });
     mocks.usePublicLoras.mockReturnValue({
       data: [{ id: 'pub-1' }],
     });
@@ -123,8 +115,8 @@ describe('useImageLightboxEnvironment', () => {
     expect(result.current.selectedProjectId).toBe('project-1');
     expect(result.current.projectAspectRatio).toBe('16:9');
     expect(result.current.isMobile).toBe(true);
-    expect(result.current.isCloudMode).toBe(false);
-    expect(result.current.isLocalGeneration).toBe(true);
+    expect(result.current.isCloudMode).toBe(true);
+    expect(result.current.isLocalGeneration).toBe(false);
     expect(result.current.isTasksPaneLocked).toBe(true);
     expect(result.current.effectiveTasksPaneOpen).toBe(true);
     expect(result.current.effectiveTasksPaneWidth).toBe(900);
@@ -182,11 +174,7 @@ describe('useImageLightboxEnvironment', () => {
     expect(result.current.imageDimensions).toEqual({ width: 1024, height: 512 });
   });
 
-  it('derives isCloudMode and isLocalGeneration from generationMethods UI state', () => {
-    mocks.useUserUIState.mockReturnValue({
-      value: { onComputer: false, inCloud: true },
-    });
-
+  it('always exposes the Astrid cloud execution mode', () => {
     const { result } = renderHook(() =>
       useImageLightboxEnvironment({ media: createMedia() }),
     );
@@ -205,9 +193,6 @@ describe('useImageLightboxEnvironment', () => {
       tasksPaneWidth: 320,
       isTasksPaneLocked: true,
     };
-    const stableGenerationMethodsState = {
-      value: { onComputer: true, inCloud: false },
-    };
     const stableAvailableLoras = [{ id: 'pub-1' }];
     const stableLoraManager = {
       selectedLoras: [{ path: 'lora://selected', strength: 0.8 }],
@@ -224,7 +209,6 @@ describe('useImageLightboxEnvironment', () => {
 
     mocks.useProject.mockReturnValue(stableProjectState);
     mocks.panesState = stablePanesState;
-    mocks.useUserUIState.mockReturnValue(stableGenerationMethodsState);
     mocks.usePublicLoras.mockReturnValue({ data: stableAvailableLoras });
     mocks.useLoraManager.mockReturnValue(stableLoraManager);
     mocks.useUpscale.mockReturnValue(stableUpscaleHook);
@@ -258,9 +242,6 @@ describe('useImageLightboxEnvironment', () => {
       expect.objectContaining({
         useIsMobile: true,
         useProjectSelectionContext: expect.objectContaining({ selectedProjectId: 'project-1' }),
-        useUserUIState_generationMethods: expect.objectContaining({
-          value: expect.objectContaining({ onComputer: true, inCloud: false }),
-        }),
         usePanes: expect.objectContaining({
           isTasksPaneLocked: true,
           isTasksPaneOpen: false,

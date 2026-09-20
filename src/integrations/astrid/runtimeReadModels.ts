@@ -40,10 +40,12 @@ export function runtimeTaskToSummary(
     project_id: taskProjectId(resource, projectSlug),
     capability: resource.capability_id,
     status: resource.state,
+    version: resource.version,
     spec: runtimeSpec(resource),
     created_at: resource.created_at,
     updated_at: resource.updated_at,
     winning_attempt_id: resource.attempt_id,
+    ...(resource.progress ? { progress: resource.progress } : {}),
   };
 }
 

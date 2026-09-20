@@ -281,6 +281,21 @@ describe('PropertiesPanel registry surfaces', () => {
     ]);
   });
 
+  it('keeps timeline assets behind a tab so the editor tabs remain reachable', () => {
+    render(
+      <PropertiesPanel
+        assetPanel={<div data-testid="timeline-assets-tab-content">Timeline assets</div>}
+      />,
+    );
+
+    expect(screen.getByRole('tab', { name: 'Assets' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Extensions' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Processes' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Assets' }));
+    expect(screen.getByTestId('timeline-assets-tab-content')).toBeInTheDocument();
+  });
+
   it('keeps the bulk inspector as the core panel when multiple clips are selected', () => {
     useTimelineEditorDataMock.mockReturnValue({
       ...createBaseEditorData(),

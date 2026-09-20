@@ -183,6 +183,7 @@ export function resolveWaveformAudioSrc(
 
 export interface TimelineEditorCoreProps {
   onOpenSequenceCreator?: () => void;
+  onOpenElementCreationPrompt?: (prompt: string) => void;
   finalVideoMap?: Map<string, DoubleClickFinalVideo>;
   shotGroups?: ShotGroup[];
   staleShotGroupIds?: Set<string>;
@@ -215,6 +216,7 @@ export interface TimelineEditorCoreProps {
 
 function TimelineEditorCoreComponent({
   onOpenSequenceCreator,
+  onOpenElementCreationPrompt,
   finalVideoMap = EMPTY_FINAL_VIDEO_MAP,
   shotGroups = EMPTY_SHOT_GROUPS,
   staleShotGroupIds,
@@ -481,6 +483,26 @@ function TimelineEditorCoreComponent({
     return new Map(resolvedConfig.tracks.map((track) => [track.id, track]));
   }, [resolvedConfig]);
 
+  const nestedAudioTrackIds = useMemo(() => {
+    if (!data) return new Set<string>();
+    const hasNestedShots = Object.values(data.meta).some((clip) => clip.clipType === 'shot');
+    if (!hasNestedShots) return new Set<string>();
+    const emptyAudioTracks = new Set(
+      data.rows
+        .filter((row) => row.actions.length === 0)
+        .map((row) => row.id),
+    );
+    return new Set(
+      data.tracks
+        .filter((track) => (
+          track.kind === 'audio'
+          && emptyAudioTracks.has(track.id)
+          && /^(vo|voiceover)$/i.test(track.id)
+        ))
+        .map((track) => track.id),
+    );
+  }, [data]);
+
   const clientXToTime = useCallback((clientX: number): number => {
     const wrapper = timelineWrapperRef.current;
     if (!wrapper) return 0;
@@ -701,6 +723,7 @@ function TimelineEditorCoreComponent({
         onDeleteClip={handleDeleteClip}
         onToggleMuteClips={handleToggleMuteClips}
         onOpenSequenceCreator={onOpenSequenceCreator}
+        onOpenElementCreationPrompt={onOpenElementCreationPrompt}
         isTaskActive={isTaskActive}
         isVariantStale={isStale && !isDismissed}
         isGenerationAsset={isGenAsset}
@@ -803,6 +826,7 @@ function TimelineEditorCoreComponent({
           ref={timelineRef as React.RefObject<import('@/tools/video-editor/types/timeline-canvas').TimelineCanvasHandle>}
           rows={data.rows}
           tracks={data.tracks}
+          nestedAudioTrackIds={nestedAudioTrackIds}
           deviceClass={deviceClass}
           inputModality={inputModality}
           interactionMode={interactionMode}
@@ -852,6 +876,7 @@ function TimelineEditorCoreComponent({
           onAddTextAt={handleAddTextAt}
           onAddEffectLayerAt={handleAddEffectLayerAt}
           onOpenSequenceCreator={onOpenSequenceCreator}
+          onOpenElementCreationPrompt={onOpenElementCreationPrompt}
           onScaleWidthChange={setScaleWidth}
           unusedTrackCount={unusedTrackCount}
           onClearUnusedTracks={handleClearUnusedTracks}

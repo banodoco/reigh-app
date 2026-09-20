@@ -4,6 +4,25 @@ import { describe, expect, it, vi } from 'vitest';
 import { AgentChatAttachmentStrip, AgentChatMessage } from './AgentChatMessage';
 
 describe('AgentChatMessage', () => {
+  it('renders assistant Markdown with headings, lists, emphasis, code, and tables', () => {
+    render(
+      <AgentChatMessage
+        turn={{
+          role: 'assistant',
+          content: '## Timeline\n\n- **at:** `0.5s`\n- **end:** 7.0667s\n\n| field | value |\n| --- | --- |\n| version | 62 |\n\n```text\nversion 62\n```',
+          timestamp: '2026-04-04T12:00:00.000Z',
+        }}
+      />,
+    );
+
+    expect(screen.getByRole('heading', { name: 'Timeline', level: 2 })).toBeInTheDocument();
+    expect(screen.getByText('at:')).toBeInTheDocument();
+    expect(screen.getByText('0.5s')).toBeInTheDocument();
+    expect(screen.getByRole('table')).toBeInTheDocument();
+    expect(screen.getByText('version 62')).toBeInTheDocument();
+    expect(screen.getByText('version 62').tagName).toBe('CODE');
+  });
+
   it('renders attachment summaries for gallery-style attachments that include generationId', () => {
     render(
       <AgentChatMessage

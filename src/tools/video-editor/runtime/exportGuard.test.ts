@@ -309,6 +309,11 @@ describe('collectBuiltInKnownIds', () => {
     expect(ids.clipTypes.has('audio-reactive-colour')).toBe(true);
   });
 
+  it('does not globally recognise managed Runtime authoring clips', () => {
+    const ids = collectBuiltInKnownIds();
+    expect(ids.clipTypes.has('shot')).toBe(false);
+  });
+
   it('includes TRUSTED_CLIP_TYPES', () => {
     const ids = collectBuiltInKnownIds();
     expect(ids.clipTypes.has('image-jump')).toBe(true);
@@ -346,6 +351,7 @@ describe('collectBuiltInKnownIds', () => {
   it('includes built-in transition types', () => {
     const ids = collectBuiltInKnownIds();
     expect(ids.transitionTypes.has('crossfade')).toBe(true);
+    expect(ids.transitionTypes.has('cross-fade')).toBe(true);
     expect(ids.transitionTypes.has('wipe')).toBe(true);
     expect(ids.transitionTypes.has('slide-push')).toBe(true);
     expect(ids.transitionTypes.has('zoom-through')).toBe(true);
@@ -494,6 +500,16 @@ describe('scanExportConfig — known clip types', () => {
     const config = makeConfig([makeClip('c1', { clipType: 'art-card' })]);
     const result = scanExportConfig(config, builtIn, extIds);
     expect(result.diagnostics).toEqual([]);
+  });
+
+  it('admits a published revision-pinned Astrid effect for worker resolution', () => {
+    const config = makeConfig([makeClip('c1', {
+      clipType: 'frame-overlay',
+      elementRef: { id: 'frame-overlay', kind: 'effect', revision: 'sha256:published' },
+    })]);
+    const result = scanExportConfig(config, builtIn, extIds);
+    expect(result.diagnostics).toEqual([]);
+    expect(result.hasBlockingErrors).toBe(false);
   });
 });
 
@@ -792,6 +808,130 @@ describe('scanExportConfig — unknown clip type', () => {
     // Extension-declared clip types do NOT appear in unknownClipTypes
     expect(result.unknownClipTypes).toEqual([]);
     expect(result.hasBlockingErrors).toBe(false);
+  });
+});
+
+describe('scanExportConfig — managed Runtime clip type', () => {
+  const managedRuntimeAdmission = {
+    managedRuntimeAdmission: {
+      projectId: 'project-1',
+      timelineId: 'timeline-1',
+    },
+  } as const;
+
+  it('allows valid shot authoring clips only through scoped Runtime admission', () => {
+    const result = scanExportConfig(
+      makeConfig([makeClip('shot-1', {
+        clipType: 'shot',
+        params: { shot_id: 'shot-record-1', timeline_document_id: 'timeline-doc-1' },
+      })]),
+      collectBuiltInKnownIds(),
+      collectExtensionDeclaredIds([]),
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      managedRuntimeAdmission,
+    );
+
+    expect(result.diagnostics).toEqual([]);
+    expect(result.unknownClipTypes).toEqual([]);
+    expect(result.hasBlockingErrors).toBe(false);
+  });
+
+  it('allows Astrid pack effect clips only through scoped Runtime admission', () => {
+    const result = scanExportConfig(
+      makeConfig([makeClip('guide-1', {
+        clipType: 'scrolling-guide',
+        params: { side: 'left' },
+      })]),
+      collectBuiltInKnownIds(),
+      collectExtensionDeclaredIds([]),
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      managedRuntimeAdmission,
+    );
+
+    expect(result.diagnostics).toEqual([]);
+    expect(result.unknownClipTypes).toEqual([]);
+    expect(result.hasBlockingErrors).toBe(false);
+  });
+
+  it('keeps Astrid pack effect clips blocked on strict browser scans', () => {
+    const result = scanExportConfig(
+      makeConfig([makeClip('guide-1', { clipType: 'scrolling-guide' })]),
+      collectBuiltInKnownIds(),
+      collectExtensionDeclaredIds([]),
+    );
+
+    expect(result.unknownClipTypes).toEqual(['scrolling-guide']);
+    expect(result.hasBlockingErrors).toBe(true);
+  });
+
+  it('blocks shots on strict browser and compile-only scans', () => {
+    const result = scanExportConfig(
+      makeConfig([makeClip('shot-1', {
+        clipType: 'shot',
+        params: { shot_id: 'shot-record-1', timeline_document_id: 'timeline-doc-1' },
+      })]),
+      collectBuiltInKnownIds(),
+      collectExtensionDeclaredIds([]),
+    );
+
+    expect(result.unknownClipTypes).toEqual(['shot']);
+    expect(result.hasBlockingErrors).toBe(true);
+  });
+
+  it('blocks malformed managed references even on the Runtime path', () => {
+    const result = scanExportConfig(
+      makeConfig([makeClip('shot-1', {
+        clipType: 'shot',
+        params: { shot_id: 'shot-record-1' },
+      })]),
+      collectBuiltInKnownIds(),
+      collectExtensionDeclaredIds([]),
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      managedRuntimeAdmission,
+    );
+
+    expect(result.unknownClipTypes).toEqual(['shot']);
+    expect(result.hasBlockingErrors).toBe(true);
+  });
+
+  it('does not let an inactive extension shadow the reserved shot contract', () => {
+    const extIds = collectExtensionDeclaredIds([
+      { id: 'contrib.shot' as any, kind: 'clipType', clipTypeId: 'shot' } as ExtensionContribution,
+    ]);
+    const result = scanExportConfig(
+      makeConfig([makeClip('shot-1', { clipType: 'shot', params: {} })]),
+      collectBuiltInKnownIds(),
+      extIds,
+    );
+
+    expect(result.diagnostics[0]?.severity).toBe('error');
+    expect(result.hasBlockingErrors).toBe(true);
+  });
+
+  it('does not let an active registry entry shadow the reserved shot contract', () => {
+    const result = scanExportConfig(
+      makeConfig([makeClip('shot-1', { clipType: 'shot', params: {} })]),
+      collectBuiltInKnownIds(),
+      collectExtensionDeclaredIds([]),
+      undefined,
+      undefined,
+      clipTypeSnapshotWith([clipTypeRecord('shot')]),
+    );
+
+    expect(result.diagnostics[0]?.severity).toBe('error');
+    expect(result.hasBlockingErrors).toBe(true);
   });
 });
 
@@ -1215,6 +1355,15 @@ describe('scanExportConfig — known transitions', () => {
     const clip = makeClip('c1', {
       clipType: 'media',
       transition: { type: 'crossfade', duration: 1 },
+    });
+    const result = scanExportConfig(makeConfig([clip]), builtIn, extIds);
+    expect(result.diagnostics).toEqual([]);
+  });
+
+  it('passes canonical Astrid transition "cross-fade"', () => {
+    const clip = makeClip('c1', {
+      clipType: 'media',
+      transition: { type: 'cross-fade', duration: 1, revision: 'astrid-rev-1' },
     });
     const result = scanExportConfig(makeConfig([clip]), builtIn, extIds);
     expect(result.diagnostics).toEqual([]);

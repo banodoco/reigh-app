@@ -98,7 +98,7 @@ export class WorkspaceClient {
     if (slug !== undefined) content.slug = slug;
     if (name !== undefined) content.name = name;
     const document = await this.updateDocument(projectId, `timeline:${timelineId}`, expectedVersion, idempotencyKey, content);
-    const timeline = await this.getTimeline(timelineId);
+    const timeline = await this.getProjectTimeline(projectId, timelineId);
     return Object.assign({ ...timeline, slug: content.slug ?? timelineId, name: content.name ?? timelineId, config_version: document.version, config, registry }, { receipt: document.receipt }) as MutationResult<Record<string, unknown>>;
   }
   async listTimelines(projectId: string, cursor?: string, limit = 50): Promise<Page<Record<string, unknown>>> { return this.page((await this.request("GET", `/v1/projects/${encodeURIComponent(projectId)}/timelines?limit=${limit}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`)).body) }

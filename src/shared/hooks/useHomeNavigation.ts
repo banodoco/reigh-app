@@ -14,8 +14,6 @@ import { TOOL_IDS } from '@/shared/lib/tooling/toolIds';
 import { usePanesStore } from '@/shared/state/panesStore';
 import { videoEditorSettings } from '@/tools/video-editor/settings/videoEditorDefaults';
 
-const FALLBACK_GENERATION_METHODS = { onComputer: true, inCloud: true };
-
 export function useHomeNavigation() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -24,10 +22,6 @@ export function useHomeNavigation() {
   const { value: defaultTool } = useUserUIState('defaultTool', {
     toolId: TOOL_IDS.TRAVEL_BETWEEN_IMAGES,
   });
-  const { value: generationMethods, isLoading: isLoadingGenerationMethods } = useUserUIState(
-    'generationMethods',
-    FALLBACK_GENERATION_METHODS,
-  );
   const { settings: videoEditorProjectSettings } = useToolSettings(videoEditorSettings.id, {
     projectId: selectedProjectId ?? undefined,
     enabled: Boolean(selectedProjectId),
@@ -38,14 +32,12 @@ export function useHomeNavigation() {
       resolveHomeToolPath({
         preferredToolId: defaultTool.toolId,
         currentEnv: getCurrentAppEnv(),
-        isCloudGenerationEnabled: generationMethods.inCloud,
-        isLoadingGenerationMethods,
+        isCloudGenerationEnabled: true,
+        isLoadingGenerationMethods: false,
         videoEditorTimelineId: videoEditorProjectSettings?.lastTimelineId,
       }),
     [
       defaultTool.toolId,
-      generationMethods.inCloud,
-      isLoadingGenerationMethods,
       videoEditorProjectSettings?.lastTimelineId,
     ],
   );

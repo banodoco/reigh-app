@@ -162,7 +162,9 @@ export class AstridLocalTaskRoutes {
     const body = parsedFence.status_version === undefined
       ? {}
       : { expected_version: parsedFence.status_version };
-    const idempotencyKey = `reigh.task.cancel:${taskId}:${parsedFence.status_version ?? 'current'}`;
+    // Runtime key grammar: ^[A-Za-z0-9][A-Za-z0-9._~-]{0,255}$ — separators
+    // must stay inside that set (a colon key is a hard 400 on this route).
+    const idempotencyKey = `reigh.task.cancel-${taskId}-${parsedFence.status_version ?? 'current'}`;
     const response = await this.request(() => this.transport.requestJson(
       `/v1/tasks/${encodeURIComponent(taskId)}/cancel`,
       { method: 'POST', body, headers: { 'Idempotency-Key': idempotencyKey } },

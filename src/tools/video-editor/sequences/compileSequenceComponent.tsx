@@ -52,7 +52,11 @@ function getSequenceGlobals(): Record<string, unknown> {
 }
 
 const COMPILE_OPTIONS = {
-  transforms: ['jsx', 'typescript'] as Array<'jsx' | 'typescript'>,
+  // `imports` is needed for the authored `export default` form used by
+  // sequence/effect drafts. The validator rejects external imports before
+  // this point; this transform only lowers the safe default export into the
+  // sandbox wrapper's `exports.default` slot.
+  transforms: ['jsx', 'typescript', 'imports'] as Array<'jsx' | 'typescript' | 'imports'>,
   jsxRuntime: 'classic' as const,
 };
 

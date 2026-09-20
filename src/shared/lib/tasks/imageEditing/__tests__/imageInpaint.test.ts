@@ -95,6 +95,17 @@ describe('createImageInpaintTask', () => {
       capability_digest: `sha256:${'d'.repeat(64)}`,
       input_object_ids: [`sha256:${'b'.repeat(64)}`, `sha256:${'c'.repeat(64)}`],
       storage_estimate: { scratch_bytes: 137338880, output_bytes: 68157440 },
+      settlement_effect: expect.objectContaining({
+        effect_type: 'generation.create_with_variant',
+        target_id: 'proj-1',
+        payload: expect.objectContaining({
+          generation_type: 'image',
+          variant_type: 'inpaint',
+          output_name: 'generated_images',
+          output_ordinal: 0,
+          primary_policy: 'preserve',
+        }),
+      }),
       spec: expect.objectContaining({
         params: expect.objectContaining({
           model: 'qwen-image-edit-inpaint',
@@ -126,7 +137,27 @@ describe('createImageInpaintTask', () => {
       capability_id: IMAGE_EDIT_CAPABILITY_ID,
       input_object_ids: [`sha256:${'b'.repeat(64)}`],
       storage_estimate: { scratch_bytes: 136826880, output_bytes: 68157440 },
-      settlement_effect: {},
+      settlement_effect: {
+        effect_type: 'generation.create_with_variant',
+        target_id: 'proj-1',
+        payload: {
+          generation_type: 'image',
+          metadata: {
+            params: {
+              tool_type: 'magic-edit',
+              content_type: 'image',
+              model: 'qwen-image-edit-2511',
+              mode: 'edit',
+              prompt: 'remove the sign',
+              size: '1024x1024',
+            },
+          },
+          variant_type: 'magic_edit',
+          output_name: 'generated_images',
+          output_ordinal: 0,
+          primary_policy: 'preserve',
+        },
+      },
       spec: expect.objectContaining({
         family: IMAGE_EDIT_CAPABILITY_ID,
         params: expect.objectContaining({

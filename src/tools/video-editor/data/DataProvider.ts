@@ -30,6 +30,13 @@ export interface LoadedTimeline {
   bundle?: TimelineBundleEnvelope | null;
 }
 
+export interface LoadedReferencedTimeline {
+  timeline: LoadedTimeline;
+  registry: AssetRegistry;
+  /** Resolve child assets against the child timeline's registry/authority. */
+  resolveAssetUrl: (file: string) => Promise<string>;
+}
+
 export class TimelineNotFoundError extends Error {
   code = 'timeline_not_found' as const;
 
@@ -349,6 +356,10 @@ export interface DataProvider extends AssetResolver {
    */
   supportsDirectAssetUpload?: boolean;
   loadTimeline(timelineId: string): Promise<LoadedTimeline>;
+  /** Read a nested timeline document for preview-only composition. */
+  loadReferencedTimeline?(timelineId: string): Promise<LoadedReferencedTimeline>;
+  /** Persist the project-level primary/default timeline selection. */
+  setPrimaryTimeline?(timelineId: string): Promise<void>;
   saveTimeline(
     timelineId: string,
     config: TimelineConfig,

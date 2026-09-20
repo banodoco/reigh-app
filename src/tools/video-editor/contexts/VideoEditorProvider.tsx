@@ -33,7 +33,7 @@ import {
   type EditorRuntimeAssembly,
 } from '@/tools/video-editor/contexts/editorRuntimeAssembly.tsx';
 import type { DiagnosticCollection, ReighExtension } from '@reigh/editor-sdk';
-import { useAgentChatRegistry } from '@/shared/contexts/AgentChatContext.tsx';
+import { useAgentChatRegistry, type AgentChatEditorContext } from '@/shared/contexts/AgentChatContext.tsx';
 import { clearTimelineClipData, setTimelineClipData } from '@/shared/state/selectionStore.ts';
 import { type VideoEditorEffectCatalog } from '@/tools/video-editor/hooks/useEffectResources.ts';
 import { type VideoEditorSequenceComponentCatalog } from '@/tools/video-editor/hooks/useSequenceResources.ts';
@@ -48,6 +48,17 @@ import { isOpenableAssetType } from '@/tools/video-editor/lib/editor-utils.ts';
 import { getAssetDisplayReference, getAssetResolvedSource } from '@/tools/video-editor/lib/asset-registry.ts';
 import { loadGenerationForLightbox } from '@/tools/video-editor/lib/generation-utils.ts';
 import { getClipTimelineDuration } from '@/tools/video-editor/lib/config-utils.ts';
+import { useTimelineConfigVersion, useTimelineEditorData } from '@/tools/video-editor/hooks/timelineStore.ts';
+import { useEffectResources } from '@/tools/video-editor/hooks/useEffectResources.ts';
+import { useSequenceResources } from '@/tools/video-editor/hooks/useSequenceResources.ts';
+import { buildReighAgentElementContext } from '@/tools/video-editor/runtime/element-contract.ts';
+import { AstridElementOperationAdapter } from '@/tools/video-editor/runtime/element-adapter.ts';
+import {
+  ASTRID_ANIMATION_CATALOG,
+  ASTRID_EFFECT_CATALOG,
+  ASTRID_TRANSITION_CATALOG,
+} from '@/tools/video-editor/runtime/astrid-element-catalog.ts';
+import { AstridLocalClient } from '@/integrations/astrid/client.ts';
 import {
   ADD_GENERATION_QUERY_PARAM,
   readPendingAdds,
@@ -227,8 +238,63 @@ export function buildVideoEditorLightboxMedia(
 /** Registers video-editor state into the app-level AgentChatContext and keeps
  *  timeline attachment metadata synchronized in the selection store. */
 function AgentChatBridgeRegistration() {
-  const { timelineId, agentChat } = useVideoEditorRuntime();
+  const { timelineId, timelineName, project, agentChat } = useVideoEditorRuntime();
   const allClips = useTimelineClipsForAttachments();
+  const { data, resolvedConfig } = useTimelineEditorData();
+  const effectCatalog = useEffectResources();
+  const sequenceCatalog = useSequenceResources();
+  const configVersion = useTimelineConfigVersion();
+  const timelineSummary = useMemo(() => {
+    if (!resolvedConfig) return undefined;
+    const clips = resolvedConfig.clips ?? [];
+    const tracks = resolvedConfig.tracks ?? [];
+    const registry = resolvedConfig.registry ?? {};
+    const duration = clips.reduce(
+      (maxDuration, clip) => Math.max(maxDuration, clip.at + getClipTimelineDuration(clip)),
+      0,
+    );
+    return {
+      configVersion,
+      trackCount: tracks.length,
+      clipCount: clips.length,
+      assetCount: Object.keys(registry).length,
+      duration,
+    };
+  }, [configVersion, resolvedConfig]);
+  const resolvedClips = resolvedConfig?.clips ?? [];
+  const elementContext = useMemo(() => buildReighAgentElementContext({
+    effects: effectCatalog.effects,
+    astridEffects: ASTRID_EFFECT_CATALOG,
+    astridAnimations: ASTRID_ANIMATION_CATALOG,
+    sequences: sequenceCatalog.components,
+    // This is the generated, checked-in projection of Astrid's rendering-pack
+    // manifests. The runtime remains authoritative for validation/export;
+    // the projection keeps agent and editor vocabulary aligned for effects,
+    // animations, and transitions.
+    astridTransitions: ASTRID_TRANSITION_CATALOG,
+    clips: [...(data?.selectedClipIds ?? [])]
+      .map((clipId) => resolvedClips.find((clip) => clip.id === clipId))
+      .filter((clip): clip is NonNullable<typeof clip> => Boolean(clip))
+      .map((clip) => ({
+        id: clip.id,
+        trackId: clip.track,
+        at: clip.at,
+        duration: getClipTimelineDuration(clip),
+        ...(clip.clipType ? { clipType: clip.clipType } : {}),
+        scope: typeof clip.params?.timeline_document_id === 'string'
+          ? 'child-shot' as const
+          : 'parent-timeline' as const,
+      })),
+  }), [data?.selectedClipIds, effectCatalog.effects, sequenceCatalog.components, resolvedClips]);
+  const elementOperationAdapter = useMemo(() => {
+    if (!project.projectSlug || !timelineId) return undefined;
+    const client = new AstridLocalClient({ projectSlug: project.projectSlug });
+    return new AstridElementOperationAdapter(
+      elementContext,
+      client.timelines,
+      project.projectSlug,
+    );
+  }, [elementContext, project.projectSlug, timelineId]);
 
   useEffect(() => {
     setTimelineClipData(allClips);
@@ -236,9 +302,17 @@ function AgentChatBridgeRegistration() {
   }, [allClips]);
 
   useEffect(() => {
-    agentChat.registerTimeline({ timelineId });
+    agentChat.registerTimeline({
+      timelineId,
+      projectId: project.projectId,
+      projectSlug: project.projectSlug,
+      timelineName,
+      timelineSummary,
+      elementContext,
+      elementOperationAdapter,
+    });
     return agentChat.unregisterTimeline;
-  }, [agentChat, timelineId]);
+  }, [agentChat, elementContext, project.projectId, project.projectSlug, timelineId, timelineName, timelineSummary]);
 
   return null;
 }
@@ -633,6 +707,7 @@ function InnerProvider({
 export interface VideoEditorProviderProps {
   dataProvider: DataProvider;
   projectId: string | null;
+  projectSlug?: string | null;
   timelineId: string;
   timelineName?: string | null;
   /** Local mode (DEV, no session) mounts with `null`; auth-gated queries disable. */
@@ -663,6 +738,7 @@ export interface VideoEditorProviderProps {
 export function VideoEditorProvider({
   dataProvider,
   projectId,
+  projectSlug,
   timelineId,
   timelineName,
   userId,
@@ -681,6 +757,38 @@ export function VideoEditorProvider({
 }: VideoEditorProviderProps) {
   const shotsHost = useReighShotsHost(projectId, timelineId, dataProvider.shotComposition);
   const agentChatRegistry = useAgentChatRegistry();
+  const registerAgentChatTimeline = useCallback((value: {
+    timelineId: string | null;
+    projectId: string | null;
+    projectSlug?: string | null;
+    timelineName?: string | null;
+    timelineSummary?: {
+      configVersion: number;
+      trackCount: number;
+      clipCount: number;
+      assetCount: number;
+      duration: number;
+    };
+    elementContext?: AgentChatEditorContext['elementContext'];
+    elementOperationAdapter?: AgentChatEditorContext['elementOperationAdapter'];
+  }) => {
+    agentChatRegistry.register({
+      timelineId: value.timelineId,
+      editorContext: value.timelineId
+        ? {
+            tool: 'video-editor',
+            projectId: value.projectId,
+            projectSlug: value.projectSlug ?? null,
+            timelineId: value.timelineId,
+            timelineName: value.timelineName ?? null,
+            timelineSummary: value.timelineSummary,
+            elementContext: value.elementContext,
+            elementOperationAdapter: value.elementOperationAdapter,
+            deepLink: typeof globalThis.location?.href === 'string' ? globalThis.location.href : null,
+          }
+        : null,
+    });
+  }, [agentChatRegistry.register]);
   const telemetryHost = useMemo(() => createPrivacySafeExtensionTelemetryHost(), []);
   const knownExtensionVersionsRef = useRef(new Map<string, Set<string>>());
   const extensionVersions = useMemo(
@@ -820,6 +928,7 @@ export function VideoEditorProvider({
     },
     project: {
       projectId,
+      projectSlug,
     },
     shots: shotsHost,
     mediaLightbox: {
@@ -829,7 +938,7 @@ export function VideoEditorProvider({
         : loadGenerationForLightbox,
     },
     agentChat: {
-      registerTimeline: agentChatRegistry.register,
+      registerTimeline: registerAgentChatTimeline,
       unregisterTimeline: agentChatRegistry.unregister,
     },
     toast: {
@@ -859,7 +968,7 @@ export function VideoEditorProvider({
     timelineOverlaysEnabled,
     timelineViewStore: assembly.timelineViewStoreRef.current ?? undefined,
     timelineEditability,
-  }), [agentChatRegistry.register, agentChatRegistry.unregister, dataProvider, extensionHostEnabled, operationalEmitter, projectId, shotsHost, telemetryHost, timelineId, timelineName, userId, assembly.resolvedExtensionsConfig, assembly.extensionRuntime, assembly.processResultAttachRecords, assembly.processStatuses, assembly.recordProcessResultAttach, assembly.getRecoveryKey, assembly.incrementRecoveryKey, timelineOverlaysEnabled]);
+  }), [agentChatRegistry.unregister, dataProvider, extensionHostEnabled, operationalEmitter, projectId, projectSlug, registerAgentChatTimeline, shotsHost, telemetryHost, timelineId, timelineName, userId, assembly.resolvedExtensionsConfig, assembly.extensionRuntime, assembly.processResultAttachRecords, assembly.processStatuses, assembly.recordProcessResultAttach, assembly.getRecoveryKey, assembly.incrementRecoveryKey, timelineOverlaysEnabled]);
 
   return (
     <VideoEditorRuntimeProvider value={runtimeValue}>

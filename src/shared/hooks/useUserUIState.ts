@@ -13,7 +13,7 @@ import { isDeferredCloudDataAuthority } from '@/app/runtime/dataAuthority';
 //
 // WHY THIS EXISTS (instead of React Query):
 // This hook reads a single key from `users.settings.ui`, but many instances
-// mount concurrently for different keys (generationMethods, privacyDefaults,
+// mount concurrently for different keys (privacyDefaults,
 // theme, etc.). Without deduplication, each mount fires an identical
 // `SELECT settings FROM users WHERE id = ?` query.
 //
@@ -89,10 +89,6 @@ interface UISettings {
   };
   imageDeletion?: {
     skipConfirmation: boolean;
-  };
-  generationMethods: {
-    onComputer: boolean;
-    inCloud: boolean;
   };
   aiInputMode: {
     mode: 'voice' | 'text';
@@ -178,26 +174,6 @@ function decodeImageDeletion(
   };
 }
 
-function decodeGenerationMethods(
-  value: unknown,
-  fallback: UISettings['generationMethods'],
-): UISettings['generationMethods'] {
-  const record = toRecord(value);
-  const normalized = {
-    inCloud: readBoolean(record?.inCloud, fallback.inCloud),
-    onComputer: readBoolean(record?.onComputer, fallback.onComputer),
-  };
-
-  if (normalized.inCloud && normalized.onComputer) {
-    return {
-      inCloud: true,
-      onComputer: false,
-    };
-  }
-
-  return normalized;
-}
-
 function decodeAIInputMode(
   value: unknown,
   fallback: UISettings['aiInputMode'],
@@ -263,11 +239,6 @@ function normalizeUserUISetting<K extends keyof UISettings>(
       return decodeImageDeletion(
         value,
         fallback as NonNullable<UISettings['imageDeletion']>,
-      ) as UISettings[K];
-    case 'generationMethods':
-      return decodeGenerationMethods(
-        value,
-        fallback as UISettings['generationMethods'],
       ) as UISettings[K];
     case 'aiInputMode':
       return decodeAIInputMode(value, fallback as UISettings['aiInputMode']) as UISettings[K];

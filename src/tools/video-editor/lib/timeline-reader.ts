@@ -513,14 +513,34 @@ export function createTimelineReader(
     extensionRequirements.map((r) => r.extensionId),
   );
 
-  return {
-    snapshot(): TimelineSnapshot {
-      const data = getData();
-      const { config, registry, meta: metaMap } = data;
-      // The canonical version may be tracked separately from the data object
-      // (persistence's configVersionRef advances on receipt-only acks without
-      // committing a new data object). Prefer the live source when provided.
-      const configVersion = options.configVersion ? options.configVersion() : data.configVersion;
+  // Snapshot cache. `snapshot()` is O(clips) with a per-clip
+  // `computeTimelineClipOutputFingerprint` (canonicalize + BigInt FNV-1a
+  // hash). Overlay renderers call `reader.snapshot()` on every React render,
+  // and during playback/scroll those re-render continuously; without the
+  // cache each one re-fingerprints the whole document. TimelineData objects
+  // are replaced (never mutated) on every commit/undo/poll adoption, and the
+  // live `configVersion` source can advance between data objects, so both
+  // form the cache key. Callers treat snapshots as immutable reads — none
+  // mutate the returned object (verified across creative-lab + dev lanes).
+  let cachedData: TimelineData | null = null;
+  let cachedConfigVersion: number | null = null;
+  let cachedSnapshot: TimelineSnapshot | null = null;
+
+  const readSnapshot = (): TimelineSnapshot => {
+    const data = getData();
+    const configVersion = options.configVersion ? options.configVersion() : data.configVersion;
+    if (cachedSnapshot && cachedData === data && cachedConfigVersion === configVersion) {
+      return cachedSnapshot;
+    }
+    const snapshot = projectSnapshot(data, configVersion);
+    cachedData = data;
+    cachedConfigVersion = configVersion;
+    cachedSnapshot = snapshot;
+    return snapshot;
+  };
+  const projectSnapshot = (data: TimelineData, configVersion: number): TimelineSnapshot => {
+    const { config, registry, meta: metaMap } = data;
+   // ── projection statements below, single return at the end ──
 
       // ── Clips ──────────────────────────────────────────────────────
       const clipSummaries: TimelineClipSummary[] = [];
@@ -958,7 +978,10 @@ export function createTimelineReader(
           renderGroups.length > 0 ? renderGroups : undefined,
         outputMetadata: output,
       };
-    },
+  };
+
+  return {
+    snapshot: readSnapshot,
     /**
      * Live canonical version — the same source `snapshot().baseVersion` /
      * `currentVersion` use, without the O(clips) projection cost. Extensions

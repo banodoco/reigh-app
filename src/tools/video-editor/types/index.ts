@@ -109,7 +109,16 @@ export type ClipContinuous = {
 export type ClipTransition = {
   type: string;
   duration: number;
+  /** Content-digested Astrid element revision when the transition is registered. */
+  revision?: string;
   params?: Record<string, unknown>;
+};
+
+/** Stable, revision-pinned reference for an Astrid-backed visual element. */
+export type TimelineElementRef = {
+  id: string;
+  kind: 'effect' | 'animation' | 'transition';
+  revision: string;
 };
 
 export type TextAlignment = 'left' | 'center' | 'right';
@@ -374,6 +383,8 @@ export type TimelineClip = {
   exit?: ClipExit;
   continuous?: ClipContinuous;
   transition?: ClipTransition;
+  /** Optional Astrid element identity; legacy clips remain valid without it. */
+  elementRef?: TimelineElementRef;
   effects?: TimelineEffect[] | Record<string, number>;
   // Sprint 2: schema-lift fields. All optional; existing timelines without them
   // round-trip unchanged. `params` carries effect/theme parameter blobs;

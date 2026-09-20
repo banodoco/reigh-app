@@ -19,6 +19,7 @@ interface UseGenerationsPageLogicOptions {
   toolType?: string;
   enableDataLoading?: boolean;
   runtimeProjectId?: string | null;
+  runtimeAuthority?: boolean;
 }
 
 /**
@@ -30,11 +31,14 @@ function useGenerationsPageLogic({
   toolType,
   enableDataLoading = true,
   runtimeProjectId = null,
+  runtimeAuthority = runtimeProjectId !== null,
 }: UseGenerationsPageLogicOptions = {}) {
   const { selectedProjectId } = useProjectSelectionContext();
   const { shots: shotsData } = useShots();
 
-  const shouldLoadData = enableDataLoading && !!(runtimeProjectId ?? selectedProjectId);
+  const shouldLoadData = enableDataLoading && (
+    runtimeAuthority ? Boolean(runtimeProjectId) : Boolean(runtimeProjectId ?? selectedProjectId)
+  );
   const [page, setPage] = useState(1);
 
   const { currentShotId } = useCurrentShot();
@@ -70,7 +74,7 @@ function useGenerationsPageLogic({
     itemsPerPage,
     shouldLoadData,
     filters,
-    { runtimeProjectId },
+    { runtimeProjectId, runtimeAuthority },
   );
   const generationsResponse = generationsQuery.data as GenerationsPaginatedResponse | undefined;
   const isFetching = generationsQuery.isFetching;

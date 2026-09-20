@@ -5,15 +5,41 @@ import {
   type AcpProcessSpawner,
 } from './acpProcessHost.ts';
 
-/**
- * The installed, user-machine OMP runtime selected for the canonical Astrid
- * ACP launch. The raw prompt remains Astrid-owned; this consumer only passes
- * its path to OMP and never copies its contents.
- */
-export const ASTRID_ACP_OMP_BIN = '/Users/hannahomalley/.bun/bin/omp';
-export const ASTRID_ACP_PROFILE = 'astrid';
-export const ASTRID_ACP_SYSTEM_PROMPT_FILE = '/Users/hannahomalley/.omp/agent/agents/astrid.md';
+type HostOs = {
+  readonly homedir?: () => string;
+};
+
+function resolveHostHomeDirectory(): string {
+  const runtime = (globalThis as {
+    readonly process?: {
+      readonly env?: Readonly<Record<string, string | undefined>>;
+      readonly getBuiltinModule?: (id: string) => unknown;
+    };
+  }).process;
+  const os = runtime?.getBuiltinModule?.('node:os') as HostOs | undefined;
+  return os?.homedir?.() || runtime?.env?.HOME || '';
+}
+
+/** Resolve the real user-machine Astrid launcher; it selects the branded OMP build itself. */
+export const ASTRID_ACP_COMMAND = 'astrid';
+export const ASTRID_ACP_MODE_ARG = '--mode=acp';
+export const ASTRID_ACP_SYSTEM_PROMPT_FILE = `${resolveHostHomeDirectory()}/.omp/agent/agents/astrid.md`;
 export const ASTRID_ACP_AGENT_IDENTITY = 'astrid';
+/** Stable integration rules; the selected project itself is supplied per turn. */
+export const ASTRID_ACP_CONTEXT_SYSTEM_PROMPT = [
+  'When a Reigh editor prompt contains <reigh_editor_context>, treat that structured block as the authoritative editor context for that turn.',
+  'Use the Astrid runtime tools available in the session; do not infer project, timeline, or asset state from the filesystem. The context block is a compact scoped read, not a full asset registry.',
+  'The context IDs are resource references, not authorization. Preserve the selected project/timeline scope and use the document version returned by the runtime when saving.',
+  'The context can change between turns, so never assume a prior project or timeline remains selected.',
+  'For a scoped Reigh timeline request, do not repeat startup maintenance, skill discovery, ls/grep workspace scans, import-location checks, or exploratory one-off Python probes. The Astrid session preflight is already complete; only do those checks when a runtime command fails and diagnosis requires them.',
+  'Use the compact runtime read first: astrid-tools timelines show --summary --project <project-slug> <timeline-ref>. It returns the timeline version, tracks, clip ids, start/duration/end timing, and counts without dumping prompts, effect parameters, media URLs, or the full asset registry.',
+  'Every runtime command must include explicit --project <project-slug> and the timeline reference; do not rely on implicit current-project selection for an edit.',
+  'For a single clip timing change, prefer the one-shot route: astrid-tools timelines retime-clip --project <project-slug> <timeline-ref> --clip-id <clip-id> --at <seconds> --expected-version <config_version>. It performs the scoped read, versioned CAS save, and returns before/after timing plus the new version in one operation; pass the context version when available.',
+  'retime-clip defaults to preserve-end because it is the safe non-rippling interpretation: the clip end and downstream cuts stay fixed. Use --preserve-duration only when the user clearly means move/slide the whole clip at the same length; use --hold only for an explicit new duration.',
+  'If the user says only "make it start at" and the intent is ambiguous, use the safe preserve-end policy and say that you kept the existing end. If they say move, slide, or keep the same length, use --preserve-duration.',
+  'For more complex edits, do one bounded summary/full read, make one in-memory patch, perform one versioned save, and do at most one focused verification read. Avoid repeating equivalent inspections or saving one field at a time.',
+  'For Reigh Elements edits, use the host operation boundary instead of hand-editing timeline JSON or claiming completion from prose. Emit each typed operation as one machine-readable block: <reigh_element_operation>{valid JSON}</reigh_element_operation>. The host executes these blocks after the turn and appends the result. For a new Remotion effect/animation/transition, emit elements.create_draft, then elements.validate, then the matching timeline operation; use the deterministic draft revision draft-<id> when pinning it. Do not publish a draft unless the user explicitly asks for a reusable published element.',
+].join('\n');
 
 type HostRuntime = {
   readonly getBuiltinModule?: (id: string) => unknown;
@@ -47,8 +73,8 @@ function requireAbsolute(value: string, name: string): string {
 export type AstridAcpLauncherOptions = {
   /** Caller-owned project cwd; never inferred from the browser. */
   readonly cwd: string;
-  /** Caller-owned OMP profile; no ambient profile discovery is performed. */
-  readonly profile: string;
+  /** Optional isolated Astrid/OMP profile; omitted uses the machine's normal profile. */
+  readonly profile?: string;
   /**
    * Optional caller-owned OMP session directory override. When omitted, OMP
    * uses its canonical cwd-derived session directory, which ACP can discover
@@ -57,7 +83,7 @@ export type AstridAcpLauncherOptions = {
   readonly sessionDir?: string;
   /** Defaults to Astrid's canonical raw prompt path. */
   readonly systemPromptFile?: string;
-  /** Defaults to the installed OMP selected for this machine. */
+  /** Defaults to the installed Astrid launcher selected on this machine. */
   readonly command?: string;
   readonly env?: Record<string, string | undefined>;
   readonly requestTimeoutMs?: number;
@@ -70,20 +96,14 @@ export type AstridAcpLauncherOptions = {
 
 /**
  * Build the one canonical Astrid ACP host. This is intentionally a host-only
- * factory: browser code cannot resolve the prompt or spawn OMP. The caller
- * must provide cwd/profile, while OMP owns session identity and storage after
- * launch. The optional sessionDir is passed only as an explicit legacy
- * override; omission preserves OMP's canonical fresh-process discovery path.
+ * factory: browser code cannot resolve the prompt or spawn a process. Astrid
+ * owns named-agent discovery, its system prompt, branded OMP selection, and
+ * identity; Reigh only asks that launcher to expose ACP over stdio. The
+ * optional sessionDir/profile are forwarded as explicit OMP launch flags.
  */
 export function createAstridAcpProcessHost(options: AstridAcpLauncherOptions): AcpProcessHost {
   const cwd = requireAbsolute(options.cwd, 'cwd');
-  const profile = options.profile.trim();
-  if (!profile) {
-    throw new AcpProcessHostError(
-      'Astrid ACP profile must be explicitly declared.',
-      { code: 'acp_unavailable' },
-    );
-  }
+  const profile = options.profile?.trim() || undefined;
   const sessionDir = options.sessionDir === undefined
     ? undefined
     : requireAbsolute(options.sessionDir, 'session directory');
@@ -99,19 +119,22 @@ export function createAstridAcpProcessHost(options: AstridAcpLauncherOptions): A
     );
   }
 
-  const command = options.command ?? options.env?.OMP_BIN ?? ASTRID_ACP_OMP_BIN;
+  const command = options.command ?? ASTRID_ACP_COMMAND;
+  const args = [
+    ASTRID_ACP_MODE_ARG,
+    ...(profile ? ['--profile', profile] : []),
+    ...(sessionDir ? ['--session-dir', sessionDir] : []),
+  ];
   const env = {
     ...(options.env ?? {}),
-    OMP_BIN: command,
     OMP_AGENT_IDENTITY: ASTRID_ACP_AGENT_IDENTITY,
     ASTRID_AGENT_IDENTITY: ASTRID_ACP_AGENT_IDENTITY,
+    ASTRID_SYSTEM_PROMPT: options.env?.ASTRID_SYSTEM_PROMPT ?? ASTRID_ACP_CONTEXT_SYSTEM_PROMPT,
   };
   return new AcpProcessHost({
     command,
+    args,
     cwd,
-    profile,
-    sessionDir,
-    systemPrompt: systemPromptFile,
     env,
     requestTimeoutMs: options.requestTimeoutMs,
     callbacks: options.callbacks,

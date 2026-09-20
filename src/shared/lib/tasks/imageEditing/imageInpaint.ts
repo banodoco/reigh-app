@@ -165,7 +165,27 @@ export async function createBoundedImageEditTask(
             primary_policy: 'preserve',
           },
         }
-      : {},
+      : {
+          effect_type: 'generation.create_with_variant',
+          target_id: project,
+          payload: {
+            generation_type: 'image',
+            metadata: {
+              params: {
+                tool_type: 'magic-edit',
+                content_type: 'image',
+                model: ASTRID_MODEL_BY_UI_ALIAS[options.qwenEditModel as SupportedBoundedEditModel],
+                mode: 'edit',
+                prompt: options.prompt.trim(),
+                size: BOUNDED_EDIT_SIZE,
+              },
+            },
+            variant_type: 'magic_edit',
+            output_name: 'generated_images',
+            output_ordinal: 0,
+            primary_policy: 'preserve',
+          },
+        },
   });
   return result;
 }
@@ -345,6 +365,27 @@ export async function createImageInpaintTask(
             primary_policy: 'preserve',
           },
         }
-      : {},
+      : {
+          effect_type: 'generation.create_with_variant',
+          target_id: params.project_id,
+          payload: {
+            generation_type: 'image',
+            metadata: {
+              params: {
+                tool_type: editKind,
+                content_type: 'image',
+                model: SUPPORTED_INPAINT_ASTRID_MODEL,
+                mode: 'inpaint',
+                prompt: params.prompt.trim(),
+                strength,
+                size: BOUNDED_EDIT_SIZE,
+              },
+            },
+            variant_type: editKind,
+            output_name: 'generated_images',
+            output_ordinal: 0,
+            primary_policy: 'preserve',
+          },
+        },
   });
 }

@@ -99,6 +99,7 @@ interface ModalFooterButtonsProps {
   isLoading?: boolean;
   destructive?: boolean;
   disabled?: boolean;
+  confirmDisabled?: boolean;
 }
 
 export function ModalFooterButtons({
@@ -109,6 +110,7 @@ export function ModalFooterButtons({
   isLoading = false,
   destructive = false,
   disabled = false,
+  confirmDisabled = false,
 }: ModalFooterButtonsProps) {
   return (
     <>
@@ -125,7 +127,7 @@ export function ModalFooterButtons({
         variant={destructive ? 'destructive' : 'retro'}
         size="retro-sm"
         onClick={onConfirm}
-        disabled={disabled || isLoading}
+        disabled={disabled || confirmDisabled || isLoading}
       >
         {isLoading ? 'Loading...' : confirmText}
       </Button>

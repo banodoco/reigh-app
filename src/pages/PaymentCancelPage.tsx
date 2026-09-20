@@ -8,7 +8,7 @@ const PaymentCancelPage: React.FC = () => {
   const navigate = useNavigate();
 
   const handleRetryPayment = () => {
-    navigate('/tools', { state: { openSettings: true, settingsTab: 'generate-locally' } });
+    navigate('/tools', { state: { openSettings: true, settingsTab: 'transactions', creditsTab: 'purchase' } });
   };
 
   const handleGoHome = () => {
@@ -57,4 +57,4 @@ const PaymentCancelPage: React.FC = () => {
   );
 };
 
-export default PaymentCancelPage; 
+export default PaymentCancelPage;

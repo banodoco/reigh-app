@@ -198,7 +198,12 @@ vi.mock('@/tools/video-editor/components/PreviewPanel/useVideoEditorPreviewSurfa
 }));
 
 vi.mock('@/tools/video-editor/components/PropertiesPanel/PropertiesPanel.tsx', () => ({
-  PropertiesPanel: () => <div data-testid="properties-panel">Properties</div>,
+  PropertiesPanel: ({ assetPanel }: { assetPanel?: ReactNode }) => (
+    <div data-testid="properties-panel">
+      Properties
+      {assetPanel}
+    </div>
+  ),
 }));
 
 vi.mock('@/tools/video-editor/components/PropertiesPanel/VideoEditorAssetPanelSurface.tsx', () => ({
@@ -207,10 +212,6 @@ vi.mock('@/tools/video-editor/components/PropertiesPanel/VideoEditorAssetPanelSu
 
 vi.mock('@/tools/video-editor/components/SequenceCreator/SequenceCreatorPanel.tsx', () => ({
   SequenceCreatorPanel: () => null,
-}));
-
-vi.mock('@/tools/video-editor/components/ThemeChip.tsx', () => ({
-  ThemeChip: () => null,
 }));
 
 /** When true the mocked timeline throws during render, standing in for one
@@ -354,7 +355,7 @@ describe('TimelineEditorShellCore surface slots', () => {
   });
 
   // ---- navigationControls placement ----------------------------------------
-  it('renders navigationControls beside the desktop Back button', () => {
+  it('renders navigationControls in the editor chrome above the time', () => {
     render(
       <TimelineEditorShellCore
         timelineId="test-timeline"
@@ -363,16 +364,14 @@ describe('TimelineEditorShellCore surface slots', () => {
       />,
     );
 
-    const back = screen.getByRole('button', { name: '← Back' });
-    const controls = screen.getByTestId('shell-navigation-controls');
+    const home = screen.getByRole('button', { name: 'Go home' });
+    const controls = screen.getByTestId('video-editor-editor-navigation-controls');
     expect(controls).toHaveTextContent('Nav Controls');
-    // Back and the controls are siblings in the desktop header row.
-    expect(back.parentElement).toBe(controls.parentElement);
+    expect(home.closest('header')).not.toContainElement(controls);
   });
 
-  it('renders navigationControls beside the condensed Back button in the toolbar', () => {
-    // `isOnEditorPage` + `isEditorPaneLocked` drive the condensed layout, whose
-    // toolbar hosts the Back button (forceCondensed suppresses it).
+  it('keeps the same shared header when the editor is condensed', () => {
+    // `isOnEditorPage` + `isEditorPaneLocked` drive the condensed layout.
     render(
       <TimelineEditorShellCore
         timelineId="test-timeline"
@@ -383,11 +382,11 @@ describe('TimelineEditorShellCore surface slots', () => {
       />,
     );
 
-    const back = screen.getByRole('button', { name: '← Back' });
-    const controls = screen.getByTestId('toolbar-navigation-controls');
+    const home = screen.getByRole('button', { name: 'Go home' });
+    const controls = screen.getByTestId('video-editor-editor-navigation-controls');
     expect(controls).toHaveTextContent('Nav Controls');
-    // Back and the controls are siblings in the toolbar's left group.
-    expect(back.parentElement).toBe(controls.parentElement);
+    expect(home.closest('header')).not.toContainElement(controls);
+    expect(screen.queryByTestId('toolbar-navigation-controls')).toBeNull();
   });
 
   it('opens the host command palette for reserved CtrlOrCmd+Shift+P', async () => {

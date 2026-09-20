@@ -29,6 +29,7 @@ import type { BridgeTaskAdmissionRequest } from '@/tools/video-editor/data/bridg
 import { AstridLocalClient } from '@/integrations/astrid/client.ts';
 import { BridgeRouteError } from '@/integrations/astrid/transport.ts';
 import { getRegisteredClipTypeDescriptor } from '@/tools/video-editor/clip-types/runtime.ts';
+import { MANAGED_RUNTIME_CLIP_TYPES } from '@/tools/video-editor/runtime/managedRuntimeClipTypes.ts';
 import {
   getGeneratedRemotionModuleStatus,
   type GeneratedRemotionModuleBlockReason,
@@ -55,6 +56,11 @@ import type { VideoEditorProcessDescriptor } from '@/tools/video-editor/runtime/
 /** Minimal clip shape we need from the resolved timeline. */
 export interface RouterClipShape extends GeneratedLaneClipShape {
   clipType?: string;
+  elementRef?: {
+    id?: unknown;
+    kind?: unknown;
+    revision?: unknown;
+  } | null;
 }
 
 /** Minimal timeline shape we need from the resolved config. */
@@ -161,6 +167,9 @@ const NATIVE_BUILTIN_CLIP_TYPES: ReadonlySet<string> = new Set([
   'audio-reactive-colour',
 ]);
 
+// `shot` is an editor authoring construct. It is expanded by the managed
+// Runtime into child timeline clips before the Astrid worker sees the frozen
+// render snapshot; it is not a Remotion component or an extension clip.
 const isNativeBuiltinClipType = (value: unknown): boolean => {
   // Treat undefined/null clipType as media-equivalent (pre-clipType
   // legacy clips). They route to the client renderer.
@@ -408,6 +417,15 @@ export function decideRenderRoute(
   clips.forEach((clip, index) => {
     if (blockedReason) return;
     const requirementId = `router.clip.${index}.${clip.clipType ?? 'legacy'}`;
+    if (clip.elementRef?.kind === 'effect' || clip.elementRef?.kind === 'animation') {
+      hasThemedClip = true;
+      requirements.push(...requirementsForWorkerOnlyClip(
+        typeof clip.elementRef.id === 'string' ? clip.elementRef.id : clip.clipType,
+        requirementId,
+        'generated_remotion_module',
+      ));
+      return;
+    }
     const moduleStatus = getGeneratedRemotionModuleStatus(clip);
     if (moduleStatus.kind === 'blocked_module') {
       requirements.push(...requirementsForBlockedClip(
@@ -434,6 +452,16 @@ export function decideRenderRoute(
     // declares browser-export capability. Worker routes are always
     // blocked for contributed code (SD1).
     const clipType = clip?.clipType;
+
+    // Managed authoring clips must take the Runtime worker route. Sending a
+    // `shot` through browser Remotion would reintroduce the unregistered
+    // dynamic clip type that Runtime admission is responsible for expanding.
+    if (typeof clipType === 'string' && MANAGED_RUNTIME_CLIP_TYPES.has(clipType)) {
+      hasThemedClip = true;
+      requirements.push(...requirementsForWorkerOnlyClip(clipType, requirementId, 'themed_only'));
+      return;
+    }
+
     if (typeof clipType === 'string') {
       const contributedRecord = contributedIndex.get(clipType);
       if (contributedRecord) {
@@ -848,7 +876,11 @@ export async function enqueueBanodocoRenderTimeline(
       capability_id: capability.capability_id,
       capability_digest: capability.definition_digest,
       schema_version: '1',
-      input_object_ids: [...(payload.input_object_ids ?? [])],
+      // Runtime owns the complete managed manifest. In particular, shot
+      // expansion can add child-timeline assets that are not present in the
+      // editor's parent registry, so a browser-provided subset must not be
+      // treated as the admission authority.
+      input_object_ids: [],
       spec: {
         family: MANAGED_RENDER_CAPABILITY_ID,
         params: {
@@ -900,20 +932,21 @@ export async function cancelAstridRenderTask(
     await client.tasks.cancel(taskId);
     return;
   } catch (error) {
-    if (!(error instanceof BridgeRouteError) || error.status !== 409) throw error;
+    // Some locally running Astrid bridge builds report an unfenced running
+    // cancel as 400, while the canonical Runtime route reports 409. Both
+    // mean that the task needs a fresh version fence before retrying.
+    if (!(error instanceof BridgeRouteError) || (error.status !== 400 && error.status !== 409)) throw error;
   }
 
+  // Stale-version fence: resync from the task read model and retry once with
+  // its current version. The Runtime cancel body carries only
+  // `expected_version`; attempt/lease identities are not part of this wire.
+  // A task that went terminal between the 409 and this read replays its
+  // state idempotently, so a cancelled/succeeded/failed read is success.
   const detail = await client.tasks.get(taskId);
-  const attempt = (detail.attempts ?? []).find((candidate) => candidate.status === 'running');
-  if (!attempt) {
-    // Neutral Runtime uses the task resource version for cancellation and
-    // deliberately does not expose the retired bridge lease projection.
-    await client.tasks.cancel(taskId, { status_version: 1 });
-    return;
+  if (detail.status === 'succeeded' || detail.status === 'failed' || detail.status === 'cancelled') return;
+  if (typeof detail.version !== 'number') {
+    throw new Error('Astrid returned an active render task without a cancellation version fence');
   }
-  await client.tasks.cancel(taskId, {
-    attempt_id: attempt.attempt_id,
-    lease_id: attempt.lease_id,
-    status_version: attempt.status_version,
-  });
+  await client.tasks.cancel(taskId, { status_version: detail.version });
 }

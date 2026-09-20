@@ -188,7 +188,27 @@ export async function createImageUpscaleTask(
       scratch_bytes: capability.estimated_scratch_bytes,
       output_bytes: capability.estimated_output_bytes,
     },
-    settlement_effect: {},
+    settlement_effect: {
+      effect_type: 'generation.create_with_variant',
+      target_id: project,
+      payload: {
+        generation_type: 'image',
+        metadata: {
+          params: {
+            tool_type: 'image-upscale',
+            content_type: 'image',
+            model: 'seedvr2-upscaler',
+            mode: 'upscale',
+            upscale_factor: scaleFactor,
+            noise_scale: noiseScale,
+          },
+        },
+        variant_type: 'image_upscale',
+        output_name: 'generated_images',
+        output_ordinal: 0,
+        primary_policy: 'preserve',
+      },
+    },
   });
 }
 
@@ -291,7 +311,26 @@ export async function createVideoEnhanceTask(
             primary_policy: 'preserve',
           },
         }
-      : {},
+      : {
+          effect_type: 'generation.create_with_variant',
+          target_id: project,
+          payload: {
+            generation_type: 'video',
+            metadata: {
+              params: {
+                tool_type: 'video-enhance',
+                content_type: 'video',
+                variant_type: 'video_enhance',
+                upscale_factor: upscaleFactor,
+                output_quality: 'maximum',
+              },
+            },
+            variant_type: 'video_enhance',
+            output_name: 'enhanced_video',
+            output_ordinal: 0,
+            primary_policy: 'preserve',
+          },
+        },
   });
 }
 

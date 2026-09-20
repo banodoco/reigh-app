@@ -728,7 +728,7 @@ describe('createTimelineReader — app data projection', () => {
     expect(reader.snapshot().app).toEqual({ 'com.example.ext': { key1: 'val1' } });
   });
 
-  it('returns a shallow clone of app data (immutability)', async () => {
+  it('returns a stable memoized snapshot per data object, isolated from source app data', async () => {
     const appData = { 'com.example.ext': { nested: true } };
     const config: TimelineConfig = {
       ...makeBaseConfig(),
@@ -740,10 +740,43 @@ describe('createTimelineReader — app data projection', () => {
     const snap1 = reader.snapshot();
     const snap2 = reader.snapshot();
 
-    // Same content, different reference
+    // Memoized: the same document projects to the same snapshot instance, so
+    // overlay renderers calling snapshot() on every React render during
+    // playback/scroll do not re-run the O(clips) fingerprint projection.
+    expect(snap1).toBe(snap2);
     expect(snap1.app).toEqual(snap2.app);
-    expect(snap1.app).not.toBe(snap2.app);
+    // Still a clone: mutating the projection must not touch the source data.
     expect(snap1.app).not.toBe(appData);
+  });
+
+  it('rebuilds the snapshot when the data object identity changes', async () => {
+    const config: TimelineConfig = makeBaseConfig();
+    const replacement = await buildTimelineData(config, emptyRegistry);
+    // Getter-based reader models poll adoption / undo replacing the document.
+    const holder = { data: await buildTimelineData(config, emptyRegistry) };
+    const reader = createTimelineReader({ data: () => holder.data });
+
+    const snap1 = reader.snapshot();
+    holder.data = replacement;
+    const snap2 = reader.snapshot();
+
+    expect(snap2).not.toBe(snap1);
+  });
+
+  it('rebuilds the snapshot when the live configVersion advances without a new data object', async () => {
+    const config: TimelineConfig = makeBaseConfig();
+    const data = await buildTimelineData(config, emptyRegistry);
+    let version = data.configVersion;
+    const reader = createTimelineReader({ data, configVersion: () => version });
+
+    const snap1 = reader.snapshot();
+    version += 1;
+    const snap2 = reader.snapshot();
+
+    // Receipt-only acks advance the canonical version without committing a
+    // new data object; extension CAS writes must observe the new version.
+    expect(snap2).not.toBe(snap1);
+    expect(snap2.baseVersion).toBe(version);
   });
 });
 

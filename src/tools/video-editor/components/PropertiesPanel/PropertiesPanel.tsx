@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useRef, useState, type ComponentType } from 'react';
+import { memo, useEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from 'react';
 import { Button } from '@/shared/components/ui/button.tsx';
 import { BulkClipPanel } from '@/tools/video-editor/components/PropertiesPanel/BulkClipPanel.tsx';
 import { ClipPanel, getVisibleClipTabs, NO_EFFECT } from '@/tools/video-editor/components/PropertiesPanel/ClipPanel.tsx';
@@ -165,9 +165,14 @@ function DataLaneSummarySection({ lane }: { lane: DataLaneView }) {
   );
 }
 
-function PropertiesPanelComponent() {
+export interface PropertiesPanelProps {
+  /** Timeline-scoped assets live behind this tab so they do not hide the editor tabs. */
+  assetPanel?: ReactNode;
+}
+
+function PropertiesPanelComponent({ assetPanel }: PropertiesPanelProps) {
   useRenderDiagnostic('PropertiesPanel');
-  const [activePanelTab, setActivePanelTab] = useState<'inspector' | 'extensions' | 'processes'>('inspector');
+  const [activePanelTab, setActivePanelTab] = useState<'assets' | 'inspector' | 'extensions' | 'processes'>('inspector');
 
   const handleManagerError = (_info: ManagerErrorInfo) => {
     // Error already logged by the boundary; could aggregate to diagnostics sink in future.
@@ -392,14 +397,20 @@ function PropertiesPanelComponent() {
     <div className="flex h-full min-h-0 flex-col gap-3" style={VIDEO_EDITOR_THEME_VARS}>
       <Tabs
         value={activePanelTab}
-        onValueChange={(value) => setActivePanelTab(value as 'inspector' | 'extensions' | 'processes')}
+        onValueChange={(value) => setActivePanelTab(value as 'assets' | 'inspector' | 'extensions' | 'processes')}
         className="flex min-h-0 flex-1 flex-col"
       >
-        <TabsList className="grid w-full grid-cols-3 bg-muted/60">
+        <TabsList className={`grid w-full bg-muted/60 ${assetPanel ? 'grid-cols-4' : 'grid-cols-3'}`}>
+          {assetPanel && <TabsTrigger value="assets">Assets</TabsTrigger>}
           <TabsTrigger value="inspector">Inspector</TabsTrigger>
           <TabsTrigger value="extensions">Extensions</TabsTrigger>
           <TabsTrigger value="processes">Processes</TabsTrigger>
         </TabsList>
+        {assetPanel && (
+          <TabsContent value="assets" className="mt-3 min-h-0 flex-1 overflow-auto">
+            {assetPanel}
+          </TabsContent>
+        )}
         <TabsContent value="inspector" className="mt-3 flex min-h-0 flex-1 flex-col gap-3">
           {showInspectorActions && (
         <div className="rounded-xl border border-[color:var(--video-editor-accent-border)] bg-[var(--video-editor-accent-bg)] p-3">

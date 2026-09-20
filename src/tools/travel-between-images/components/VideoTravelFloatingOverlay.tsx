@@ -81,7 +81,7 @@ export const VideoTravelFloatingOverlay: React.FC<VideoTravelFloatingOverlayProp
   }, []);
 
   // The header is visible/sticky when viewport is wide OR device is tablet
-  // This matches the logic in GlobalHeader.tsx
+  // This matches the visibility behavior of the canonical app header.
   const hasVisibleHeader = isWideViewport || isTablet;
 
   if (!shouldShowShotEditor || !stickyHeader.isSticky || !shotToEdit) {

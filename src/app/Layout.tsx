@@ -28,6 +28,7 @@ import { useGlobalPaneShortcuts } from './hooks/useGlobalPaneShortcuts';
 import { useSettingsModal } from './hooks/useSettingsModal';
 import { useOnboardingFlow } from './hooks/useOnboardingFlow';
 import { useResetCurrentShotOnRouteChange } from './hooks/useResetCurrentShotOnRouteChange';
+import { useTextCase } from '@/shared/hooks/useTextCase';
 import { LayoutMainContent } from './components/LayoutMainContent';
 import { usePanesStore } from '@/shared/state/panesStore';
 import { isLocalTestMode } from '@/app/localTestRuntime';
@@ -56,10 +57,8 @@ export const Layout: React.FC = () => {
   // than inventing a fake authenticated user.
   const localParams = new URLSearchParams(search);
   const localProject = localParams.get('localProject')?.trim();
-  const localTimeline = localParams.get('localTimeline')?.trim();
   const isLocalAstridDocumentTest = isLocalTestMode(import.meta.env, search)
     && Boolean(localProject)
-    && Boolean(localTimeline)
     && (isVideoEditorRoute(pathname) || pathname === '/tools/travel-between-images');
   const isRuntimeDocument = isRuntimeDocumentMode(search, pathname);
   const { isVideoEditorShellActive } = useVideoEditorRouteState();
@@ -81,6 +80,7 @@ export const Layout: React.FC = () => {
   // Extracted hooks
   const { splitViewWrapperRef } = useSplitViewScroll(isMobileSplitView);
   const { isAuthenticated, isLoading } = useAuth();
+  const { preserveUserText, setPreserveUserText } = useTextCase();
   const { isSettingsModalOpen, setIsSettingsModalOpen, settingsInitialTab, settingsCreditsTab, handleOpenSettings } = useSettingsModal();
   const { showOnboardingModal, handleOnboardingClose } = useOnboardingFlow();
   useResetCurrentShotOnRouteChange();
@@ -174,6 +174,8 @@ export const Layout: React.FC = () => {
           onOpenChange={setIsSettingsModalOpen}
           initialTab={settingsInitialTab}
           creditsTab={settingsCreditsTab}
+          preserveUserText={preserveUserText}
+          setPreserveUserText={setPreserveUserText}
         />
 
         {/* Onboarding Modal */}

@@ -25,13 +25,6 @@ vi.mock('@/shared/contexts/ProjectContext', () => ({
   useProjectIdentityContext: () => ({ userId: null }),
 }));
 
-vi.mock('@/shared/hooks/useUserUIState', () => ({
-  useUserUIState: () => ({
-    value: { onComputer: true, inCloud: true },
-    setValue: vi.fn(),
-  }),
-}));
-
 vi.mock('@/features/resources/hooks/useResources', () => ({
   usePublicLoras: () => ({ data: [] }),
 }));

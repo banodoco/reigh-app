@@ -11,6 +11,7 @@ import {
 } from '@/tools/video-editor/lib/renderRouter';
 import { executeRenderPipeline } from '@/tools/video-editor/render/renderPipeline';
 import { AstridLocalClient } from '@/integrations/astrid/client.ts';
+import { BridgeRouteError } from '@/integrations/astrid/transport.ts';
 import { createFakeBridgeRouter } from '@/test/fakeBridgeRouter.ts';
 
 const RENDER_CAPABILITY_ID = 'rendering.render';
@@ -109,6 +110,34 @@ describe('Sprint 8 render-button router (decideRenderRoute)', () => {
     const decision = decideRenderRoute({
       clips: [{ clipType: 'image-jump' }],
     });
+    expect(decision.route).toBe('worker-banodoco');
+    expect(decision.hasThemedClip).toBe(true);
+    expect(decision.hasMediaClip).toBe(false);
+    expect(decision.reason).toBe('themed_only');
+    expect(decision.planner.selectedPlannerRoute).toBe('worker-export');
+    expect(decision.planner.plannerResult.canBrowserExport).toBe(false);
+    expect(decision.planner.plannerResult.canWorkerExport).toBe(true);
+  });
+
+  it('routes managed shot authoring clips through Runtime worker expansion', () => {
+    const decision = decideRenderRoute({
+      clips: [{ clipType: 'shot' }],
+    });
+
+    expect(decision.route).toBe('worker-banodoco');
+    expect(decision.hasThemedClip).toBe(true);
+    expect(decision.hasMediaClip).toBe(false);
+    expect(decision.reason).toBe('themed_only');
+    expect(decision.planner.selectedPlannerRoute).toBe('worker-export');
+    expect(decision.planner.plannerResult.canBrowserExport).toBe(false);
+    expect(decision.planner.plannerResult.canWorkerExport).toBe(true);
+  });
+
+  it('routes Astrid pack effect clips through the Runtime worker path', () => {
+    const decision = decideRenderRoute({
+      clips: [{ clipType: 'scrolling-guide' }],
+    });
+
     expect(decision.route).toBe('worker-banodoco');
     expect(decision.hasThemedClip).toBe(true);
     expect(decision.hasMediaClip).toBe(false);
@@ -1228,6 +1257,18 @@ describe('cancelAstridRenderTask rides the common fenced task route', () => {
     expect(fence).toEqual({ expected_version: 1 });
     expect(await client.tasks.get(task.id)).toMatchObject({ status: 'cancelled' });
   });
+
+  it('recovers when a local bridge reports an unfenced cancel as 400', async () => {
+    const cancel = vi.fn()
+      .mockRejectedValueOnce(new BridgeRouteError('task cancel', 400, { detail: 'running task requires a version fence' }))
+      .mockResolvedValueOnce({ task: { status: 'cancelled' } });
+    const get = vi.fn().mockResolvedValue({ status: 'running', version: 3 });
+    const client = { tasks: { cancel, get } } as unknown as AstridLocalClient;
+
+    await expect(cancelAstridRenderTask(client, 'render-task-400')).resolves.toBeUndefined();
+    expect(get).toHaveBeenCalledWith('render-task-400');
+    expect(cancel).toHaveBeenNthCalledWith(2, 'render-task-400', { status_version: 3 });
+  });
 });
 
 describe('render-as-task journey against the binding stub (B6 smoke)', () => {
@@ -1543,7 +1584,7 @@ describe('Sprint 8 render pipeline middleware', () => {
     expect(body).toMatchObject({
       capability_id: RENDER_CAPABILITY_ID,
       capability_digest: RENDER_CAPABILITY_DIGEST,
-      input_object_ids: [`sha256:${'1'.repeat(64)}`],
+      input_object_ids: [],
       spec: {
         family: RENDER_CAPABILITY_ID,
         params: {

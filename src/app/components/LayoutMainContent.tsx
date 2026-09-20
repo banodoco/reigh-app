@@ -1,8 +1,10 @@
 import type { CSSProperties } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
-import { GlobalHeader } from '@/shared/components/GlobalHeader';
+import { AppHeader } from '@/shared/components/AppHeader.tsx';
 import { GlobalProcessingWarning } from '@/shared/components/ProcessingWarnings';
 import { useHeaderState } from '@/shared/contexts/ToolPageHeaderContext';
+import { useHomeNavigation } from '@/shared/hooks/useHomeNavigation';
+import { isHomeToolPathActive } from '@/shared/lib/tooling/homeNavigation';
 import { useViewportResponsive } from '@/shared/hooks/responsive/useViewportResponsive';
 import { cn } from '@/shared/components/ui/contracts/cn';
 import { useVideoEditorRouteState } from '@/app/hooks/useVideoEditorRouteState';
@@ -32,6 +34,7 @@ export function LayoutMainContent(props: LayoutMainContentProps) {
   const { isMobileSplitView, onOpenSettings } = props;
   const { pathname } = useLocation();
   const { isEditorRoute, isVideoEditorShellActive } = useVideoEditorRouteState();
+  const { navigateHome, targetPath } = useHomeNavigation();
   const isEditorPaneLocked = usePanesStore((state) => state.isEditorPaneLocked);
   const effectiveEditorPaneHeight = usePanesStore((state) => state.effectiveEditorPaneHeight);
   const isTasksPaneLocked = usePanesStore((state) => state.isTasksPaneLocked);
@@ -41,7 +44,7 @@ export function LayoutMainContent(props: LayoutMainContentProps) {
   const isGenerationsPaneLocked = usePanesStore((state) => state.isGenerationsPaneLocked);
   const isGenerationsPaneOpen = usePanesStore((state) => state.isGenerationsPaneOpen);
   const effectiveGenerationsPaneHeight = usePanesStore((state) => state.effectiveGenerationsPaneHeight);
-  const { header } = useHeaderState();
+  const { header, globalHeaderContent } = useHeaderState();
   const { isSm, isMd, isLg, isXl, is2Xl, contentWidth, contentHeight } = useViewportResponsive();
 
   const containerPadding = isLg ? 'px-6' : isSm ? 'px-4' : 'px-2';
@@ -67,19 +70,18 @@ export function LayoutMainContent(props: LayoutMainContentProps) {
 
   return (
     <>
-      {!isVideoEditorShellActive && (
-        <GlobalHeader
-          contentOffsetRight={isTasksPaneLocked ? tasksPaneWidth + 16 : 16}
-          contentOffsetLeft={isShotsPaneLocked ? shotsPaneWidth : 0}
-          onOpenSettings={onOpenSettings}
-        />
-      )}
+      <AppHeader
+        navigationMode={isHomeToolPathActive(pathname, targetPath) ? 'tools' : 'home'}
+        onNavigate={navigateHome}
+        navigationControls={globalHeaderContent}
+        showProjectControls
+      />
 
       <div
         className={cn(
           'relative z-10 content-container',
           isVideoEditorShellActive
-            ? 'h-screen overflow-hidden transition-[margin,padding] duration-300 ease-smooth'
+            ? 'min-h-0 flex-1 overflow-hidden transition-[margin,padding] duration-300 ease-smooth'
             : 'transition-[margin,padding] duration-300 ease-smooth',
         )}
         data-video-editor-route={isEditorRoute ? 'true' : 'false'}

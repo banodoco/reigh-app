@@ -1,4 +1,4 @@
-import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useContext, useEffect, useMemo, useRef, useState, type SetStateAction } from 'react';
 import { AstridLocalClient } from '@/integrations/astrid/client.ts';
 import { isLocalTestMode } from '@/app/localTestRuntime.ts';
 import { useClientRender } from '@/tools/video-editor/hooks/useClientRender.ts';
@@ -51,6 +51,7 @@ export type RenderStatus = 'idle' | 'rendering' | 'done' | 'error';
 export type ExportStatus = 'idle' | 'exporting' | 'done' | 'error';
 
 type RenderProgress = { current: number; total: number; percent: number; phase: string } | null;
+type RenderResult = { url: string | null; filename: string | null };
 type RenderCancellation = {
   taskId: string;
   operationId: string | null;
@@ -73,6 +74,18 @@ function newRenderOperationId(): string {
     return globalThis.crypto.randomUUID();
   }
   return `render-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+}
+
+/** Trigger one normal browser download without adding another visible preview. */
+export function triggerRenderDownload(url: string, filename: string): void {
+  if (typeof document === 'undefined') return;
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.hidden = true;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
 }
 
 /**
@@ -207,6 +220,10 @@ function getFastRenderRouteDecision(resolvedConfig: ResolvedTimelineConfig | nul
   let hasGeneratedModuleClip = false;
   let hasOtherClip = false;
   for (const clip of clips) {
+    if (clip.elementRef?.kind === 'effect' || clip.elementRef?.kind === 'animation') {
+      hasGeneratedModuleClip = true;
+      continue;
+    }
     if (clip.generation?.sequence_lane === 'remotion_module') {
       if (!clip.generation?.artifact_id) {
         return { route: 'preview-only' as const, reason: 'remotion_module_missing_artifact' };
@@ -491,6 +508,7 @@ export function useRenderState(
   const [renderDestination, setRenderDestination] = useState<RenderExportDestination>('download');
   const renderPollGenerationRef = useRef(0);
   const renderPollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const renderDownloadKeyRef = useRef<string | null>(null);
   // One export intent keeps one idempotency key across transport retries. A
   // terminal task clears it so the next explicit export is a new operation.
   const renderOperationIdRef = useRef<string | null>(null);
@@ -551,6 +569,28 @@ export function useRenderState(
     };
   }, [exportResultUrl]);
 
+  const commitRenderResult = useCallback((updater: SetStateAction<RenderResult>) => {
+    const nextValue = typeof updater === 'function'
+      ? updater({ url: renderResultUrl, filename: renderResultFilename })
+      : updater;
+
+    if (renderResultUrl?.startsWith('blob:') && renderResultUrl !== nextValue.url) {
+      URL.revokeObjectURL(renderResultUrl);
+    }
+
+    setRenderResultUrl(nextValue.url);
+    setRenderResultFilename(nextValue.filename);
+
+    if (renderDestination === 'download' && nextValue.url) {
+      const filename = nextValue.filename ?? 'timeline-render.mp4';
+      const downloadKey = `${nextValue.url}\u0000${filename}`;
+      if (renderDownloadKeyRef.current !== downloadKey) {
+        renderDownloadKeyRef.current = downloadKey;
+        triggerRenderDownload(nextValue.url, filename);
+      }
+    }
+  }, [renderDestination, renderResultFilename, renderResultUrl]);
+
   const startClientRender = useClientRender({
     resolvedConfig: renderConfig,
     metadata: renderMetadata,
@@ -558,21 +598,13 @@ export function useRenderState(
     setRenderProgress,
     setRenderLog,
     setRenderDirty,
-    setRenderResult: (updater) => {
-      const nextValue = typeof updater === 'function'
-        ? updater({ url: renderResultUrl, filename: renderResultFilename })
-        : updater;
-
-      if (renderResultUrl?.startsWith('blob:') && renderResultUrl !== nextValue.url) {
-        URL.revokeObjectURL(renderResultUrl);
-      }
-
-      setRenderResultUrl(nextValue.url);
-      setRenderResultFilename(nextValue.filename);
-    },
+    setRenderResult: commitRenderResult,
   });
 
-  const runExportGuard = useCallback((): boolean => {
+  const runExportGuard = useCallback((managedRuntimeAdmission?: {
+    readonly projectId: string;
+    readonly timelineId: string;
+  }): boolean => {
     if (renderProjectionError) {
       setRenderStatus('error');
       setRenderProgress(null);
@@ -585,13 +617,16 @@ export function useRenderState(
 
     const compositionGraph = runtimeTimelineCompositionGraph(extensionRuntime);
 
-    // Skip guard work only when there is no active extension/provider registry input.
+    // Skip guard work only when there is no active extension/provider registry
+    // input and there are no Runtime-owned authoring clips. `shot` must still
+    // be scanned in the strict browser/compile-only context.
     if (
       isExtensionRuntimeEmpty(extensionRuntime)
       && effectRegistrySnapshot.records.length === 0
       && transitionRegistrySnapshot.records.length === 0
       && clipTypeRegistrySnapshot.records.length === 0
       && !hasTimelineShaderMetadata(renderConfig, compositionGraph)
+      && (canonicalLane || !resolvedConfig?.clips.some((clip) => clip.clipType === 'shot'))
     ) {
       return true; // no blocker
     }
@@ -612,6 +647,7 @@ export function useRenderState(
       clipTypeRegistrySnapshot,
       compositionGraph,
       processResultAttachRecords,
+      managedRuntimeAdmission ? { managedRuntimeAdmission } : undefined,
     );
     const plannerResult = planFromExportGuardResult(guardResult, {
       extensionRuntime,
@@ -646,6 +682,9 @@ export function useRenderState(
     extensionRuntime,
     processResultAttachRecords,
     processStatuses,
+    canonicalLane,
+    renderConfig,
+    renderProjectionError,
     resolvedConfig,
   ]);
 
@@ -671,8 +710,10 @@ export function useRenderState(
           setActiveRenderTaskId(null);
           return;
         }
-        setRenderResultUrl(client.media.contentUrl(output.media_id));
-        setRenderResultFilename(renderConfig?.output?.file ?? `timeline-${runtimeContext?.timelineId ?? taskId}.mp4`);
+        commitRenderResult({
+          url: client.media.contentUrl(output.media_id),
+          filename: renderConfig?.output?.file ?? `timeline-${runtimeContext?.timelineId ?? taskId}.mp4`,
+        });
         setRenderProgress({ current: 1, total: 1, percent: 100, phase: 'complete' });
         renderOperationIdRef.current = null;
         setRenderStatus('done');
@@ -691,11 +732,20 @@ export function useRenderState(
         return;
       }
 
-      const progress = task.attempts?.at(-1)?.diagnostics.progress as Record<string, unknown> | undefined;
+      // Runtime task reads carry the latest bounded heartbeat progress at the
+      // top level. Keep the legacy diagnostics fallback for older Astrid
+      // bridges, but do not expect neutral Runtime reads to synthesize an
+      // executor-attempt projection.
+      const progress = asDiagnosticRecord(task.progress)
+        ?? (task.attempts?.at(-1)?.diagnostics.progress as Record<string, unknown> | undefined);
       const total = Math.max(1, progressNumber(progress, 'total') ?? renderMetadata?.durationInFrames ?? 1);
-      const current = Math.max(0, Math.min(total, progressNumber(progress, 'current') ?? 0));
+      const reportedPercent = progressNumber(progress, 'percent');
+      const current = Math.max(0, Math.min(
+        total,
+        progressNumber(progress, 'current') ?? (reportedPercent === undefined ? 0 : total * reportedPercent / 100),
+      ));
       const percent = Math.max(0, Math.min(100,
-        progressNumber(progress, 'percent') ?? Math.round((current / total) * 100),
+        reportedPercent ?? Math.round((current / total) * 100),
       ));
       setRenderStatus('rendering');
       setRenderProgress({
@@ -710,12 +760,17 @@ export function useRenderState(
       }, 2_000);
     } catch (error) {
       if (generation !== renderPollGenerationRef.current) return;
-      setRenderStatus('error');
-      setRenderProgress(null);
-      setRenderLog(`Could not read Astrid render progress: ${error instanceof Error ? error.message : String(error)}`);
-      setActiveRenderTaskId(null);
+      // A slow/aborted status read is transport noise, not a render failure.
+      // Keep the task active and retry so a large task detail cannot strand
+      // the operation with its idempotency key and make the next click return
+      // the same stale failure.
+      setRenderStatus('rendering');
+      setRenderLog(`Waiting for Astrid render status: ${error instanceof Error ? error.message : String(error)}`);
+      renderPollTimerRef.current = setTimeout(() => {
+        void pollAstridRender(client, taskId, generation);
+      }, 3_000);
     }
-  }, [renderConfig?.output?.file, renderMetadata?.durationInFrames, runtimeContext?.timelineId]);
+  }, [commitRenderResult, renderConfig?.output?.file, renderMetadata?.durationInFrames, runtimeContext?.timelineId]);
 
   const startAstridRender = useCallback(async (): Promise<boolean> => {
     const projectId = runtimeContext?.project?.projectId;
@@ -853,11 +908,6 @@ export function useRenderState(
   }, [activeRenderTaskId]);
 
   const startRender = useCallback(async () => {
-    // ---- export guard: scan for unknown IDs before routing ------------------
-    if (!runExportGuard()) {
-      return; // blocked by export guard
-    }
-
     let decision: FastRenderRouteDecision | PlannerBackedRenderRouteDecision | null =
       getFastRenderRouteDecision(renderConfig);
     if (!decision) {
@@ -885,6 +935,25 @@ export function useRenderState(
       }
       decision = importedDecision;
     }
+
+    const projectId = runtimeContext?.project?.projectId;
+    const timelineId = runtimeContext?.timelineId;
+    const managedRuntimeAdmission = decision.route !== 'preview-only'
+      && decision.route !== 'external'
+      && !isLocalBrowserRenderProof()
+      && projectId
+      && timelineId
+      ? { projectId, timelineId }
+      : undefined;
+
+    // ---- export guard: scan for unknown IDs before submission --------------
+    // Runtime-owned authoring clips are exempt only for the exact scoped
+    // Runtime path. Browser proof, compile-only export, and unsupported routes
+    // retain the strict guard.
+    if (!runExportGuard(managedRuntimeAdmission)) {
+      return; // blocked by export guard
+    }
+
     if (decision.route === 'preview-only') {
       setRenderStatus('error');
       setRenderProgress(null);
@@ -908,6 +977,11 @@ export function useRenderState(
       ));
       return;
     }
+
+    // One explicit render intent may download once. Reset this guard before
+    // dispatching the intent so a repeated render of the same media URL still
+    // produces a new browser download.
+    renderDownloadKeyRef.current = null;
 
     if (decision.route === 'worker-banodoco') {
       if (await startAstridRender()) return;
@@ -967,8 +1041,7 @@ export function useRenderState(
           setRenderStatus('done');
           setRenderDirty(false);
           if (progress.resultUrl) {
-            setRenderResultUrl(progress.resultUrl);
-            setRenderResultFilename(renderConfig.output.file);
+            commitRenderResult({ url: progress.resultUrl, filename: renderConfig.output.file });
           }
           return;
         }
@@ -991,11 +1064,13 @@ export function useRenderState(
     extensionRuntime?.processes,
     processResultAttachRecords,
     processStatuses,
+    commitRenderResult,
     renderMetadata?.durationInFrames,
     renderConfig,
     startClientRender,
     startAstridRender,
     runExportGuard,
+    runtimeContext,
   ]);
 
   // ---- M6: compile-only export ------------------------------------------------

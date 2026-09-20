@@ -49,6 +49,7 @@ type AgentSessionView = {
   id: string;
   status: AgentSessionStatus;
   turns: AgentTurn[];
+  assistantDraft?: string;
 };
 
 type AgentSessionOption = Pick<AgentSessionView, 'id' | 'status'>;
@@ -110,7 +111,10 @@ function readAgentSession(value: unknown): AgentSessionView | undefined {
 }
 
 function readSessionId(value: unknown): string | undefined {
-  return isRecord(value) && typeof value.id === 'string' ? value.id : undefined;
+  if (!isRecord(value)) return undefined;
+  if (typeof value.id === 'string') return value.id;
+  if (typeof value.sessionId === 'string') return value.sessionId;
+  return undefined;
 }
 
 function buildRenderedTurns(turns: AgentTurn[]): RenderedTurn[] {
@@ -177,7 +181,12 @@ function getTurnTimestampMs(turn: AgentTurn) {
   return Number.isNaN(timestampMs) ? 0 : timestampMs;
 }
 
-export function AgentChatPanel() {
+interface AgentChatPanelProps {
+  /** Whether chat currently fills the action pane vertically. */
+  isExpanded?: boolean;
+}
+
+export function AgentChatPanel({ isExpanded = false }: AgentChatPanelProps) {
   useRenderDiagnostic('AgentChatPanel');
 
   if (!isTimelineAgentSessionsAvailable()) {
@@ -197,12 +206,17 @@ export function AgentChatPanel() {
     );
   }
 
-  return <AvailableAgentChatPanel />;
+  return <AvailableAgentChatPanel isExpanded={isExpanded} />;
 }
 
-function AvailableAgentChatPanel() {
+function AvailableAgentChatPanel({ isExpanded }: { isExpanded: boolean }) {
 
-  const { timelineId } = useAgentChatBridge();
+  const {
+    timelineId,
+    editorContext,
+    pendingComposerPrompt,
+    clearPendingComposerPrompt,
+  } = useAgentChatBridge();
   const sessions = useAgentSessions(timelineId);
   const createSession = useCreateSession(timelineId);
   // Engagement signal: when the pane is locked the user has clearly committed to
@@ -222,11 +236,21 @@ function AvailableAgentChatPanel() {
   const lightboxRequestIdRef = useRef(0);
   const bottomAnchorRef = useRef<HTMLDivElement | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
-  const inputRef = useRef<HTMLInputElement | null>(null);
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const hasTimeline = timelineId !== null;
 
+  useEffect(() => {
+    if (!pendingComposerPrompt) return;
+    setDraft(pendingComposerPrompt);
+    clearPendingComposerPrompt?.();
+    requestAnimationFrame(() => inputRef.current?.focus());
+  }, [clearPendingComposerPrompt, pendingComposerPrompt]);
+
   const activeSession = useAgentSession(activeSessionId);
-  const sendMessage = useSendMessage(activeSessionId, timelineId);
+  // Non-editor hosts may still provide the legacy settings-backed timeline
+  // bridge. Preserve that path with a timeline-only context while the loaded
+  // editor supplies the full project/timeline snapshot above.
+  const sendMessage = useSendMessage(activeSessionId, editorContext ?? timelineId);
   const cancelSession = useCancelSession(activeSessionId);
   const sessionOptions = useMemo(() => readAgentSessions(sessions.data), [sessions.data]);
   const activeSessionData = readAgentSession(activeSession.data);
@@ -259,6 +283,8 @@ function AvailableAgentChatPanel() {
       : (isProcessing || sendMessage.isPending || hasQueuedMessages)
         ? 'Type to queue next message...'
         : 'Type or press Cmd+Shift+R to talk...';
+  const optimisticTurnAlreadyMaterialized = optimisticMessage !== null
+    && Boolean(activeSessionData?.turns.some((turn) => turn.role === 'user' && turn.content === optimisticMessage.text));
 
   const handleAttachmentPreviewClick = useCallback(async (attachment: AgentChatAttachmentPreviewItem) => {
     if (!attachment.generationId) {
@@ -380,6 +406,7 @@ function AvailableAgentChatPanel() {
     if (
       hasAutoCreatedSessionRef.current
       || sessions.isLoading
+      || sessions.isError
       || createSession.isPending
       || sessionOptions.length > 0
       || !hasTimeline
@@ -396,7 +423,7 @@ function AvailableAgentChatPanel() {
         if (sessionId) setActiveSessionId(sessionId);
       },
     });
-  }, [createSession, hasTimeline, sessionOptions.length, sessions.isLoading, isEngaged]);
+  }, [createSession, hasTimeline, sessionOptions.length, sessions.isError, sessions.isLoading, isEngaged]);
 
   const scrollToBottom = useCallback((smooth = true) => {
     const container = scrollContainerRef.current;
@@ -625,7 +652,7 @@ function AvailableAgentChatPanel() {
     <div className="flex h-full w-full flex-col overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between border-b border-border/70 px-4 py-3">
-        <div className="flex items-center gap-2">
+        <div className="flex items-end gap-2">
           <img
             src="/astrid-avatar.png"
             alt=""
@@ -675,9 +702,14 @@ function AvailableAgentChatPanel() {
           </div>
         )}
 
-        {!activeSession.isLoading && renderedTurns.length === 0 && (
+        {!activeSession.isLoading && renderedTurns.length === 0 && !isProcessing && !sendMessage.isPending && (
           <div className="py-8 text-center text-sm text-muted-foreground">
-            {showNoTimelineState ? (
+            {sessions.isError ? (
+              <>
+                <p>Local Astrid chat is unavailable.</p>
+                <p className="mt-1 text-xs">Start the Astrid ACP bridge, then reopen this pane.</p>
+              </>
+            ) : showNoTimelineState ? (
               <>
                 <p>Create a timeline to start chatting.</p>
                 <p className="mt-1 text-xs">Open the video editor to create one.</p>
@@ -704,7 +736,7 @@ function AvailableAgentChatPanel() {
             ),
           )}
 
-          {optimisticMessage && (
+          {optimisticMessage && !optimisticTurnAlreadyMaterialized && (
             <div className="flex w-full justify-end">
               <div className="max-w-[85%] rounded-2xl bg-primary px-4 py-2.5 text-sm leading-relaxed text-primary-foreground shadow-sm">
                 <div>{optimisticMessage.text}</div>
@@ -853,59 +885,68 @@ function AvailableAgentChatPanel() {
           </div>
         )}
 
-        <div className="flex items-center gap-2">
-          <input
-            ref={inputRef}
-            type="text"
-            value={draft}
-            onChange={(event) => setDraft(event.target.value)}
-            placeholder={inputPlaceholder}
-            className="h-10 flex-1 rounded-xl border border-border/70 bg-card px-3 text-sm outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-primary/50"
-            disabled={!hasTimeline || !activeSessionId || isCancelled || voice.isRecording || voice.isProcessing}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter' && !event.shiftKey) {
-                event.preventDefault();
-                void handleSend();
-              }
-            }}
-          />
+        <div className="flex items-end gap-2">
+          <div className="relative flex-1">
+            <textarea
+              ref={inputRef}
+              value={draft}
+              onChange={(event) => setDraft(event.target.value)}
+              rows={isExpanded ? 8 : 4}
+              placeholder={inputPlaceholder}
+              className="min-h-10 w-full resize-none rounded-xl border border-border/70 bg-card px-3 py-2 pr-12 text-sm leading-5 outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-primary/50"
+              disabled={!hasTimeline || !activeSessionId || isCancelled || voice.isRecording || voice.isProcessing}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' && !event.shiftKey) {
+                  event.preventDefault();
+                  void handleSend();
+                }
+              }}
+            />
 
-          <div className="relative shrink-0">
-            <Button
-              type="button"
-              size="icon"
-              variant={voice.isRecording ? 'destructive' : 'outline'}
-              className="h-10 w-10 rounded-xl"
-              onClick={() => voice.isRecording ? voice.stopRecording() : voice.startRecording()}
-              disabled={!hasTimeline || !activeSessionId || isCancelled || voice.isProcessing || sendMessage.isPending}
-              title={voice.isRecording ? 'Stop recording' : 'Voice input (Cmd+Shift+R)'}
-            >
-              {voice.isRecording ? <Square className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-            </Button>
-            {voice.isRecording && (
-              <Button
-                type="button"
-                size="icon"
-                variant="ghost"
-                className="absolute -top-2 -right-2 h-5 w-5 rounded-full bg-muted hover:bg-destructive hover:text-destructive-foreground"
-                onClick={() => voice.cancelRecording()}
-                title="Cancel recording"
-              >
-                <X className="h-3 w-3" />
-              </Button>
-            )}
+            <div className="absolute inset-y-4 right-2 z-10 flex w-8 flex-col gap-2">
+              <div className="relative flex min-h-0 flex-1 items-center justify-center">
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="ghost"
+                  className={voice.isRecording
+                    ? 'relative h-full w-full rounded-xl bg-red-500 text-white transition-colors hover:bg-red-600'
+                    : 'relative h-full w-full rounded-xl bg-muted/80 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground'}
+                  onClick={() => voice.isRecording ? voice.stopRecording() : voice.startRecording()}
+                  disabled={!hasTimeline || !activeSessionId || isCancelled || voice.isProcessing || sendMessage.isPending}
+                  title={voice.isRecording ? 'Stop recording' : 'Voice input (Cmd+Shift+R)'}
+                >
+                  {voice.isRecording ? <Square className="h-3 w-3" /> : <Mic className="h-3.5 w-3.5" />}
+                </Button>
+                {voice.isRecording && (
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="ghost"
+                    className="absolute -right-2 -top-2 h-5 w-5 rounded-full bg-muted hover:bg-destructive hover:text-destructive-foreground"
+                    onClick={() => voice.cancelRecording()}
+                    title="Cancel recording"
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                )}
+              </div>
+
+              <div className="flex min-h-0 flex-1 items-center justify-center">
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="default"
+                  className="h-full w-full rounded-xl"
+                  onClick={() => void handleSend()}
+                  disabled={!hasTimeline || !draft.trim() || !activeSessionId || isCancelled}
+                  title="Send"
+                >
+                  <Send className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
           </div>
-
-          <Button
-            type="button"
-            size="icon"
-            className="h-10 w-10 shrink-0 rounded-xl"
-            onClick={() => void handleSend()}
-            disabled={!hasTimeline || !draft.trim() || !activeSessionId || isCancelled}
-            title="Send"
-          >
-            <Send className="h-4 w-4" />
-          </Button>
         </div>
       </div>
 

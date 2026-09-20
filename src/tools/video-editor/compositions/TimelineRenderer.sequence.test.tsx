@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, render, screen } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { TimelineRenderer } from '@/tools/video-editor/compositions/TimelineRenderer';
 import type { ResolvedTimelineConfig } from '@/tools/video-editor/types';
@@ -41,8 +41,16 @@ vi.mock('remotion', async () => {
       sequenceProps.push(props);
       return <div data-testid="sequence">{children}</div>;
     },
+    Series: ({ children }: PropsWithChildren) => <div data-testid="series">{children}</div>,
     useCurrentFrame: () => currentFrame,
+    useVideoConfig: () => ({ fps: 30, width: 1920, height: 1080, durationInFrames: 30 }),
     useRemotionEnvironment: () => currentEnvironment,
+    interpolate: (value: number) => value,
+    spring: () => 0,
+    Img: ({ ...props }: Record<string, unknown>) => <img {...props} />,
+    Video: ({ ...props }: Record<string, unknown>) => <video {...props} />,
+    Audio: ({ ...props }: Record<string, unknown>) => <audio {...props} />,
+    Easing: {},
   };
 });
 
@@ -127,6 +135,7 @@ vi.mock('@banodoco/timeline-composition/theme-api', async () => {
       <ThemeContext.Provider value={toRuntimeTheme(value)}>{children}</ThemeContext.Provider>
     ),
     useTheme: () => reactModule.useContext(ThemeContext),
+    composeAnimations: () => ({}),
   };
 });
 
@@ -215,6 +224,7 @@ vi.mock('@banodoco/timeline-composition/theme-api', async () => {
       </ThemeContext.Provider>
     ),
     useTheme: () => React.useContext(ThemeContext),
+    composeAnimations: () => ({}),
   };
 });
 
@@ -225,14 +235,16 @@ vi.mock('@banodoco/timeline-composition/registry.generated', async () => {
     params,
     theme,
     fps,
+    assetEntry,
   }: {
     clip: { id: string };
     params?: { title?: string; previews?: string[]; previewAssetKeys?: string[] };
     theme: {
       color: { accent: string; bg: string };
       type: { families: { heading: string } };
-    };
+      };
     fps: number;
+    assetEntry?: { file?: string };
   }) => (
     <div
       data-testid="registered-sequence"
@@ -244,6 +256,7 @@ vi.mock('@banodoco/timeline-composition/registry.generated', async () => {
       data-fps={fps}
       data-previews={JSON.stringify(params?.previews ?? [])}
       data-preview-asset-keys={JSON.stringify(params?.previewAssetKeys ?? [])}
+      data-asset-file={assetEntry?.file ?? ''}
     />
   );
   return {
@@ -263,9 +276,15 @@ vi.mock('@banodoco/timeline-composition/registry.generated', async () => {
   };
 });
 
+type BuildConfigExtras = Partial<Pick<ResolvedTimelineConfig, 'theme' | 'theme_overrides'>> & {
+  assetEntry?: ResolvedTimelineConfig['clips'][number]['assetEntry'];
+};
+
 const buildConfig = (
-  extras: Partial<Pick<ResolvedTimelineConfig, 'theme' | 'theme_overrides'>> = {},
-): ResolvedTimelineConfig => ({
+  extras: BuildConfigExtras = {},
+): ResolvedTimelineConfig => {
+  const {assetEntry, ...configExtras} = extras;
+  return {
   output: {
     resolution: '1920x1080',
     fps: 30,
@@ -288,11 +307,13 @@ const buildConfig = (
       params: {
         title: 'Renaissance systems',
       },
+      assetEntry,
     },
   ],
   registry: {},
-  ...extras,
-});
+    ...configExtras,
+  };
+};
 
 beforeEach(() => {
   currentFrame = 0;
@@ -325,6 +346,22 @@ describe('TimelineRenderer registered sequences', () => {
       from: 30,
       durationInFrames: 90,
     });
+  });
+
+  it('passes the host-resolved asset URL to registered effects', () => {
+    render(<TimelineRenderer config={buildConfig({
+      theme: '2rp',
+      assetEntry: {
+        file: 'stale-persisted-locator',
+        src: '/media/resolved-source.mp4',
+        type: 'video/mp4',
+      },
+    })} />);
+
+    // The real registry component receives the same shape; this assertion
+    // protects the boundary where managed `src` replaces a stale persisted
+    // `file` locator for browser-only effect playback.
+    expect(screen.getByTestId('registered-sequence')).toHaveAttribute('data-asset-file', '/media/resolved-source.mp4');
   });
 
   it('dispatches audio-reactive-colour through the first-party clip-relative renderer', () => {
@@ -510,6 +547,32 @@ describe('TimelineRenderer registered sequences', () => {
     expect(screen.queryByTestId('registered-sequence')).not.toBeInTheDocument();
     expect(screen.queryByTestId('unknown-clip-placeholder')).not.toBeInTheDocument();
     expect(visualClipMock).not.toHaveBeenCalled();
+  });
+
+  it('renders a valid Remotion source inline for browser preview', async () => {
+    render(<TimelineRenderer config={{
+      ...buildConfig({ theme: '2rp' }),
+      app: {
+        elements: {
+          'draft-glow': {
+            kind: 'effect',
+            revision: 'draft-1',
+            source: 'export default function Draft({ clip }) { return <div data-testid="generated-live-preview">{clip.id}</div>; }',
+          },
+        },
+      },
+      clips: [{
+        id: 'clip-live',
+        clipType: 'media',
+        track: 'V1',
+        at: 0,
+        hold: 1,
+        elementRef: { id: 'draft-glow', kind: 'effect', revision: 'draft-1' },
+      }],
+    }} />);
+
+    await waitFor(() => expect(screen.getByTestId('generated-live-preview')).toHaveTextContent('clip-live'));
+    expect(screen.queryByTestId('generated-module-placeholder')).not.toBeInTheDocument();
   });
 
   it('keeps trusted_v1, schema_sequence, and legacy clips on their normal preview paths', () => {

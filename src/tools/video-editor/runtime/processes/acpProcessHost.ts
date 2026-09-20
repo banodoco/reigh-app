@@ -3,6 +3,7 @@ import type {
   JsonRpcReadableStreamLike,
   JsonRpcWritableStreamLike,
 } from './jsonRpcStdioTransport.ts';
+import { ASTRID_ACP_REQUEST_TIMEOUT_MS } from '../../data/astridBridgeWire.ts';
 
 export type AcpRpcId = number | string;
 
@@ -39,6 +40,13 @@ export type AcpProcessHostOptions = {
   readonly process?: JsonRpcProcessLike;
   readonly spawnProcess?: AcpProcessSpawner;
   readonly command?: string;
+  /**
+   * Complete argv after the command. When supplied, this replaces the
+   * generic `omp acp` argv construction below. It is used by named-agent
+   * launchers such as Astrid, which own their own ACP entrypoint and prompt
+   * wiring.
+   */
+  readonly args?: readonly string[];
   readonly cwd?: string;
   readonly profile?: string;
   readonly sessionDir?: string;
@@ -201,7 +209,7 @@ export class AcpProcessHost {
   constructor(options: AcpProcessHostOptions = {}) {
     this.options = options;
     this.callbacks = options.callbacks ?? {};
-    this.requestTimeoutMs = options.requestTimeoutMs ?? 30_000;
+    this.requestTimeoutMs = options.requestTimeoutMs ?? ASTRID_ACP_REQUEST_TIMEOUT_MS;
     this.process = (options.process as ChildProcessLike | undefined) ?? null;
     this.ownsProcess = options.process === undefined;
     if (this.requestTimeoutMs < 1) {
@@ -224,7 +232,7 @@ export class AcpProcessHost {
     }
 
     const command = this.options.command ?? 'omp';
-    const args = [
+    const args = this.options.args ? [...this.options.args] : [
       'acp',
       ...(this.options.profile ? ['--profile', this.options.profile] : []),
       ...(this.options.sessionDir ? ['--session-dir', this.options.sessionDir] : []),

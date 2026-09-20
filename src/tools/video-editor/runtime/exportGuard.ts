@@ -27,6 +27,7 @@ import {
   type TimelineLiveBindingRecord,
 } from '@/tools/video-editor/lib/timeline-domain.ts';
 import { TRUSTED_CLIP_TYPES } from '@/tools/video-editor/clip-types/registry.ts';
+import { isManagedRuntimeClipType } from './managedRuntimeClipTypes.ts';
 import {
   entranceEffectTypes,
   exitEffectTypes,
@@ -147,6 +148,10 @@ interface ProcessAttachEvidenceIndex {
 const LEGACY_EXPORT_GRAPH_COMPATIBILITY_WARNING_ID = 'exportGuard.compositionGraph.legacy-shader-ref-compatibility';
 const GRAPH_TARGET_BLOCKER_ROUTES: readonly RenderRoute[] = ['browser-export', 'worker-export'];
 
+// Authoring-level clip types that the editor can resolve locally but that are
+// materialized by the managed Runtime before a worker render. They are not
+// Remotion registry components and must not be reported as missing extension
+// contributions by the pre-submit guard.
 function shaderContributionKey(
   extensionId: string | undefined,
   contributionId: string | undefined,
@@ -233,7 +238,14 @@ export function collectBuiltInKnownIds(): KnownIdCollection {
   }
 
   // ---- transition types -----------------------------------------------------
-  const transitionTypes = new Set(builtInTransitionTypes);
+  // Astrid's canonical transition identity is `cross-fade`; the browser
+  // renderer still has a historical `crossfade` implementation key. Keep
+  // both accepted at the guard boundary so a canonical Astrid timeline is
+  // not rejected before the renderer's alias resolver gets a chance to run.
+  const transitionTypes = new Set([
+    ...builtInTransitionTypes,
+    'cross-fade',
+  ]);
 
   return Object.freeze({
     clipTypes: Object.freeze(clipTypes),
@@ -364,6 +376,13 @@ export function scanExportConfig(
   clipTypeRegistrySnapshot?: ClipTypeRegistrySnapshot,
   compositionGraph?: CompositionGraph,
   processResultAttachRecords?: readonly ProcessResultAttachRecord[],
+  options?: {
+    /** The only context in which Runtime-owned authoring clips are admitted. */
+    readonly managedRuntimeAdmission?: {
+      readonly projectId: string;
+      readonly timelineId: string;
+    };
+  },
 ): ExportGuardResult {
   const diagnostics: ExportDiagnostic[] = [];
   const findings: CapabilityFinding[] = [];
@@ -399,7 +418,18 @@ export function scanExportConfig(
     const allKnown = buildAllKnown(builtIn, extIds, effectRegistrySnapshot, transitionRegistrySnapshot, clipTypeRegistrySnapshot);
 
     for (const clip of config.clips) {
-      scanClip(clip, allKnown, diagnostics, findings, blockers, unknownClipTypes, unknownEffects, unknownTransitions);
+      scanClip(
+        clip,
+        allKnown,
+        diagnostics,
+        findings,
+        blockers,
+        unknownClipTypes,
+        unknownEffects,
+        unknownTransitions,
+        options?.managedRuntimeAdmission,
+        config.app,
+      );
     }
   }
 
@@ -976,11 +1006,63 @@ function scanClip(
   unknownClipTypes: Set<string>,
   unknownEffects: Set<string>,
   unknownTransitions: Set<string>,
+  managedRuntimeAdmission?: {
+    readonly projectId: string;
+    readonly timelineId: string;
+  },
+  elementRegistry?: unknown,
 ): void {
   // ---- clip type -----------------------------------------------------------
   if (clip.clipType) {
+    const isManagedShot = clip.clipType === 'shot';
+    const isManagedRuntimeClip = isManagedRuntimeClipType(clip.clipType);
+    const shotParams = clip.params;
+    const hasManagedShotReferences = typeof shotParams?.shot_id === 'string'
+      && shotParams.shot_id.trim().length > 0
+      && typeof shotParams.timeline_document_id === 'string'
+      && shotParams.timeline_document_id.trim().length > 0;
+
+    // `shot` is an editor authoring primitive, not a Remotion registry
+    // component. Admit it only for the exact project-scoped Runtime
+    // submission path, and only after its reference shape is valid. Runtime
+    // remains responsible for ownership, lookup, and expansion.
+    const managedShotAdmitted = isManagedShot
+      && Boolean(managedRuntimeAdmission?.projectId && managedRuntimeAdmission.timelineId)
+      && hasManagedShotReferences;
+
+    const managedRuntimeClipAdmitted = isManagedRuntimeClip
+      && Boolean(managedRuntimeAdmission?.projectId && managedRuntimeAdmission.timelineId)
+      && (!isManagedShot || hasManagedShotReferences);
+    // A published Astrid element is admitted by its revision-pinned
+    // elementRef; the worker resolves the id against Astrid's authoritative
+    // catalog. Draft refs still require an inline pinned source and are
+    // blocked below.
+    const pinnedAstridElementAdmitted = clip.elementRef?.kind === 'effect'
+      && !clip.elementRef.revision.startsWith('draft-');
+
+    // `shot` is reserved by the managed Runtime. A registry or inactive
+    // extension must not be able to shadow that contract and downgrade a
+    // malformed/unscoped shot to a warning.
+    if (isManagedShot && !managedShotAdmitted) {
+      const message = `Clip type "shot" requires a valid project-scoped Runtime admission and shot_id/timeline_document_id references.`;
+      diagnostics.push({
+        severity: 'error',
+        code: 'export/unknown-clip-type',
+        message,
+        detail: { clipId: clip.id, clipType: clip.clipType },
+      });
+      unknownClipTypes.add(clip.clipType);
+      pushClipTypeFindingAndBlocker(findings, blockers, {
+        id: `export.clipType.${clip.id}.shot.missing`,
+        reason: 'missing-contribution',
+        message,
+        clipId: clip.id,
+        clipType: clip.clipType,
+        route: 'browser-export',
+      });
+    }
     // 1) Built-in / trusted clip types — fast path, no registry scan needed.
-    if (known.clipTypes.has(clip.clipType)) {
+    else if (managedRuntimeClipAdmitted || known.clipTypes.has(clip.clipType) || pinnedAstridElementAdmitted) {
       // Known built-in — pass through to effect/transition scanning.
     }
     // 2) Check the clip-type registry snapshot for contributed clip types.
@@ -1019,6 +1101,8 @@ function scanClip(
       }
     }
   }
+
+  scanPinnedElementReference(clip, elementRegistry, diagnostics, findings, blockers);
 
   // ---- entrance effect -----------------------------------------------------
   scanEffect(clip, 'entrance', known, diagnostics, findings, blockers, unknownEffects);
@@ -1065,6 +1149,94 @@ function scanClip(
     if (snapshotRecord) {
       scanTransitionRecordRenderability(clip, tType, snapshotRecord, diagnostics, findings, blockers);
     }
+  }
+}
+
+function scanPinnedElementReference(
+  clip: ResolvedTimelineClip,
+  elementRegistry: unknown,
+  diagnostics: ExportDiagnostic[],
+  findings: CapabilityFinding[],
+  blockers: RenderBlocker[],
+): void {
+  const ref = clip.elementRef;
+  if (!ref || ref.kind === 'transition') return;
+
+  const app = elementRegistry && typeof elementRegistry === 'object' && !Array.isArray(elementRegistry)
+    ? elementRegistry as Record<string, unknown>
+    : {};
+  const elements = app.elements && typeof app.elements === 'object' && !Array.isArray(app.elements)
+    ? app.elements as Record<string, unknown>
+    : {};
+  const entry = elements[ref.id] && typeof elements[ref.id] === 'object' && !Array.isArray(elements[ref.id])
+    ? elements[ref.id] as Record<string, unknown>
+    : undefined;
+  if (!entry) {
+    // Published Astrid-pack elements are resolved by the authoritative
+    // worker catalog and do not need executable source copied into every
+    // timeline. Drafts are different: their source is session/timeline local
+    // and must be pinned before preview; missing it is an export blocker.
+    if (!ref.revision.startsWith('draft-')) return;
+    pushPinnedElementFindingAndBlocker(
+      diagnostics,
+      findings,
+      blockers,
+      clip,
+      `Element "${ref.id}" is a draft revision and has no executable source in the timeline's pinned registry.`,
+      'missing-material',
+    );
+    return;
+  }
+  const source = typeof entry?.source === 'string' && entry.source.trim().length > 0;
+  const revisionMatches = entry?.revision === undefined || entry.revision === ref.revision;
+  const draft = ref.revision.startsWith('draft-') || entry?.publication === 'draft';
+
+  if (!revisionMatches || (!source && draft)) {
+    const message = !revisionMatches
+      ? `Element "${ref.id}" is pinned to revision "${ref.revision}", but the timeline source registry has a different revision.`
+      : `Element "${ref.id}" has no executable source in the timeline's pinned element registry.`;
+    pushPinnedElementFindingAndBlocker(diagnostics, findings, blockers, clip, message, 'missing-material');
+    return;
+  }
+
+  if (draft) {
+    pushPinnedElementFindingAndBlocker(
+      diagnostics,
+      findings,
+      blockers,
+      clip,
+      `Element "${ref.id}" is a draft revision and is preview-only; publish it before export.`,
+      'route-unsupported',
+    );
+  }
+}
+
+function pushPinnedElementFindingAndBlocker(
+  diagnostics: ExportDiagnostic[],
+  findings: CapabilityFinding[],
+  blockers: RenderBlocker[],
+  clip: ResolvedTimelineClip,
+  message: string,
+  reason: RenderBlockerReason,
+): void {
+  diagnostics.push({
+    severity: 'error',
+    code: 'export/unrenderable-element-reference',
+    message,
+    detail: { clipId: clip.id, elementRef: clip.elementRef },
+  });
+  for (const route of ['browser-export', 'worker-export'] as const) {
+    const finding: CapabilityFinding = {
+      id: `export.element.${clip.id}.${clip.elementRef?.id ?? 'unknown'}.${route}`,
+      severity: 'error',
+      route,
+      reason,
+      message,
+      clipId: clip.id,
+      detail: { source: 'element-ref', elementRef: clip.elementRef },
+    };
+    findings.push(finding);
+    blockers.push({ ...finding, severity: 'error', route, reason });
   }
 }
 

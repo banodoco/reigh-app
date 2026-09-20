@@ -307,13 +307,16 @@ export function useProjectGenerations(
     disablePolling?: boolean; // Disable smart polling (useful for long-running tasks)
     /** Explicit Runtime gallery authority; legacy bridge behavior is unchanged when absent. */
     runtimeProjectId?: string | null;
+    /** Keep the query Runtime-owned while the canonical project id resolves. */
+    runtimeAuthority?: boolean;
   }
 ) {
   const capabilityCensus = useAstridCapabilityCensus();
   const offset = (page - 1) * limit;
   const runtimeProjectId = options?.runtimeProjectId?.trim() || null;
-  const runtimeMode = runtimeProjectId !== null;
-  const effectiveProjectId = runtimeProjectId ?? projectId ?? getProjectSelectionFallbackId();
+  const runtimeMode = options?.runtimeAuthority ?? runtimeProjectId !== null;
+  const effectiveProjectId = runtimeProjectId
+    ?? (runtimeMode ? null : projectId ?? getProjectSelectionFallbackId());
   const filtersKey = filters ? JSON.stringify(filters) : null;
   const baseQueryKey = unifiedGenerationQueryKeys.byProject(
     effectiveProjectId ?? '__no-project__',

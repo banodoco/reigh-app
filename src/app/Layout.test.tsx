@@ -202,13 +202,13 @@ describe('Layout route access', () => {
     expect(screen.queryByTestId('tools-pane')).not.toBeInTheDocument();
   });
 
-  it('does not let an incomplete local editor URL bypass auth', () => {
+  it('keeps a local project-only editor URL sessionless so it can auto-pick main', () => {
     locationPathname = '/tools/video-editor';
     locationSearch = '?localTest=1&localProject=demo-project&localTimeline=';
 
     renderLayout();
 
-    expect(screen.queryByTestId('main-content')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('tools-pane')).not.toBeInTheDocument();
+    expect(screen.getByTestId('main-content')).toBeInTheDocument();
+    expect(screen.getByTestId('tools-pane')).toBeInTheDocument();
   });
 });

@@ -2,7 +2,6 @@ import { useState, useRef, useMemo, useLayoutEffect } from 'react';
 import { shallow } from 'zustand/shallow';
 import type { GenerationRow } from '@/domains/generation/types';
 import { useProjectSelectionContext } from '@/shared/contexts/ProjectContext';
-import { useUserUIState } from '@/shared/hooks/useUserUIState';
 import { usePublicLoras } from '@/features/resources/hooks/useResources';
 import { useLoraManager } from '@/domains/lora/hooks/useLoraManager';
 import { useIsMobile } from '@/shared/hooks/mobile';
@@ -28,13 +27,8 @@ export function useImageLightboxEnvironment(props: UseImageLightboxEnvironmentPr
   const { project, selectedProjectId } = projectState;
   const projectAspectRatio = project?.aspectRatio;
 
-  const generationMethodsState = useUserUIState('generationMethods', {
-    onComputer: true,
-    inCloud: true,
-  });
-  const { value: generationMethods } = generationMethodsState;
-  const isCloudMode = generationMethods.inCloud;
-  const isLocalGeneration = generationMethods.onComputer && !generationMethods.inCloud;
+  const isCloudMode = true;
+  const isLocalGeneration = false;
 
   const panesState = usePanesStore((state) => ({
     isTasksPaneOpen: state.isTasksPaneOpen,
@@ -153,7 +147,6 @@ export function useImageLightboxEnvironment(props: UseImageLightboxEnvironmentPr
   useChangedDepsLogger('useImageLightboxEnvironment.inputs', {
     useIsMobile: isMobile,
     useProjectSelectionContext: projectState,
-    useUserUIState_generationMethods: generationMethodsState,
     usePanes: panesState,
     usePublicLoras_data: availableLoras,
     useLoraManager: editLoraManager,

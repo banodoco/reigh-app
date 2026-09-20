@@ -13,7 +13,6 @@ interface AppCustomEvents {
 
   // --- Generation / gallery ---
   'generation-star-updated': { generationId: string; shotId: string; starred: boolean };
-  'generation-settings-changed': void;
   'videogallery-cache-updated': { projectId: string; updatedUrls: string[] };
   mobileSelectionActive: boolean;
 

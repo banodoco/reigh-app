@@ -80,7 +80,7 @@ function runtimeFixture(options: { mediaEtag?: string } = {}) {
         body: method === 'HEAD' ? new Uint8Array() : new Uint8Array([1, 2, 3, 4]),
       };
     }
-    if (path === `/v1/timelines/${TIMELINE_ID}`) {
+    if (path === `/v1/projects/${PROJECT_ID}/timelines/${TIMELINE_ID}`) {
       return { status: 200, headers: {}, body: json({ timeline_id: TIMELINE_ID, project_id: PROJECT_ID, version: documentVersion, config_version: documentVersion, config, registry }) };
     }
     if (path === `/v1/projects/${PROJECT_ID}/documents/timeline%3A${TIMELINE_ID}` && method === 'GET') {

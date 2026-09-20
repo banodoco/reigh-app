@@ -231,11 +231,11 @@ function ShotCard({
             onChange={(e) => setEditName(e.target.value)}
             onKeyDown={(e) => { e.stopPropagation(); if (e.key === 'Enter') handleSaveName(); if (e.key === 'Escape') setIsEditing(false); }}
             onBlur={handleSaveName}
-            className="min-w-0 flex-1 rounded bg-background px-1 text-[10px] text-foreground outline-none ring-1 ring-border"
+            className="min-w-0 flex-1 rounded bg-background px-1 text-[10px] text-foreground outline-none ring-1 ring-border preserve-case"
             autoFocus
           />
         ) : (
-          <span className="min-w-0 flex-1 truncate text-[10px] text-foreground">{shot.name}</span>
+          <span className="min-w-0 flex-1 truncate text-[10px] text-foreground preserve-case">{shot.name}</span>
         )}
         <span className="shrink-0 text-[9px] text-muted-foreground">{imageCount}</span>
       </div>

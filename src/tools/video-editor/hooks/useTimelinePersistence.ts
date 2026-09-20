@@ -15,6 +15,7 @@ import { buildTimelineData, buildTimelineDataWithResolver, type TimelineData } f
 import { getStableConfigSignature } from '@/tools/video-editor/lib/config-utils.ts';
 import type { AssetResolver } from '@/tools/video-editor/data/AssetResolver.ts';
 import { BRIDGE_REQUEST_TIMEOUT_MS } from '@/tools/video-editor/data/bridgeContract.ts';
+import { invalidateReferencedTimelineCache } from '@/tools/video-editor/compositions/TimelineRenderer.tsx';
 import { clearTimelineDraft, saveTimelineDraft } from '@/tools/video-editor/data/timelineDraftIndexedDb.ts';
 import type { TimelineBundleEnvelope } from '@/tools/video-editor/data/typed/timelineBundle.ts';
 import type { AssetRegistry, TimelineConfig } from '@/tools/video-editor/types/index.ts';
@@ -212,7 +213,12 @@ export function useTimelinePersistence({
       /** `undefined` keeps the stored bundle; `null` clears it. */
       bundle?: TimelineBundleEnvelope | null;
     }) => {
-      return provider.saveTimeline(timelineId, config, expectedVersion, registry, bundle);
+      const saved = provider.saveTimeline(timelineId, config, expectedVersion, registry, bundle);
+      // Drop any cached resolved preview of THIS timeline used by a parent
+      // composition's shot clips, so the next boundary crossing reloads the
+      // freshly saved data instead of replaying a stale cached config.
+      void saved.then(() => invalidateReferencedTimelineCache(provider, timelineId)).catch(() => {});
+      return saved;
     },
     retry: false,
   });

@@ -96,11 +96,8 @@ export const useShotNavigation = (): ShotNavigationResult => {
     // NOTE: We intentionally do NOT call setCurrentShotId() here.
     // navigate() and setCurrentShotId() are not batched by React — the context
     // update renders before the router update, creating an intermediate frame
-    // where currentShotId is set but location.hash is empty. useUrlSync then
-    // clears currentShotId, causing a visible EDITOR → shot-list → EDITOR jolt.
-    // Instead, we let the hash drive everything: useSelectedShotResolution
-    // resolves shotToEdit from hashShotId + shotFromState, and useUrlSync/
-    // useSyncCurrentShotId set currentShotId from the hash after navigation.
+    // where currentShotId is set but location.hash is empty. The URL/deep-link
+    // selection path owns the transition and keeps the current shot coherent.
     // Local Astrid documents use query parameters as their project/timeline
     // identity. Preserve them when moving between shots; dropping the scope
     // would switch the page back to the deferred cloud surface.

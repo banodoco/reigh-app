@@ -10,6 +10,8 @@ export type GeneratedLaneClipShape = {
   generation?: {
     sequence_lane?: unknown;
     artifact_id?: unknown;
+    /** Inline source is a preview-only convenience; published elements use the timeline element registry. */
+    remotion_source?: unknown;
   } | null;
 };
 
@@ -47,4 +49,11 @@ export const getGeneratedRemotionModuleStatus = (
   }
 
   return { kind: 'valid_module', artifactId: artifactId.trim() };
+};
+
+export const getGeneratedRemotionModuleSource = (
+  clip: GeneratedLaneClipShape | null | undefined,
+): string | undefined => {
+  const source = clip?.generation?.remotion_source;
+  return typeof source === 'string' && source.trim().length > 0 ? source : undefined;
 };

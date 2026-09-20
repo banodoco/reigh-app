@@ -24,11 +24,7 @@ vi.mock('@/shared/state/panesStore', () => ({
 }));
 
 vi.mock('@/shared/hooks/useUserUIState', () => ({
-  useUserUIState: vi.fn((key: string) => (
-    key === 'generationMethods'
-      ? { value: { onComputer: true, inCloud: true }, isLoading: false }
-      : { value: { toolId: 'travel-between-images' }, isLoading: false }
-  )),
+  useUserUIState: vi.fn(() => ({ value: { toolId: 'travel-between-images' }, isLoading: false })),
 }));
 
 vi.mock('@/shared/hooks/settings/useToolSettings', () => ({

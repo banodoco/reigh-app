@@ -625,6 +625,7 @@ describe('useRenderState render routing', () => {
 
   it('admits a scoped render, polls on the declared 2s cadence, and exposes the R9 media URL', async () => {
     vi.useFakeTimers();
+    const anchorClick = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
     let reads = 0;
     const fetchMock = vi.fn(async () => {
       reads += 1;
@@ -666,9 +667,15 @@ describe('useRenderState render routing', () => {
     expect(result.current.renderStatus).toBe('done');
     expect(result.current.renderProgress?.percent).toBe(100);
     expect(result.current.renderResultUrl).toBe(`/api/astrid/v1/objects/sha256%3A${'b'.repeat(64)}`);
+    expect(anchorClick).toHaveBeenCalledTimes(1);
+    expect(anchorClick.mock.instances[0]).toMatchObject({
+      href: `http://localhost:3000/api/astrid/v1/objects/sha256%3A${'b'.repeat(64)}`,
+      download: 'out.mp4',
+    });
     expect(mocks.startClientRender).not.toHaveBeenCalled();
 
     unmount();
+    anchorClick.mockRestore();
     vi.unstubAllGlobals();
     vi.useRealTimers();
   });
@@ -712,6 +719,37 @@ describe('useRenderState render routing', () => {
     expect(result.current.renderLog).toContain('Astrid render failed: ffmpeg exited with code 7');
     expect(result.current.renderLog).toContain('code=render_export_failed');
     expect(result.current.renderLog).not.toContain('Open task details');
+
+    unmount();
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
+
+  it('consumes Runtime heartbeat progress from the neutral task read model', async () => {
+    vi.useFakeTimers();
+    const detail = renderTaskDetail('running');
+    detail.progress = { phase: 'render', percent: 42 };
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify(detail), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+    const runtimeValue = {
+      project: { projectId: 'demo-project' },
+      timelineId: 'timeline-1',
+      provider: { apiBaseUrl: '/api/astrid' },
+      telemetry: { warn: vi.fn() },
+    } as unknown as VideoEditorRuntimeContextValue;
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <VideoEditorRuntimeContext.Provider value={runtimeValue}>{children}</VideoEditorRuntimeContext.Provider>
+    );
+    const { result, unmount } = renderHook(() => useRenderState(
+      buildConfig({ id: 'clip-native', clipType: 'media', track: 'V1', at: 0, hold: 1 }),
+      { fps: 30, durationInFrames: 30, compositionWidth: 1920, compositionHeight: 1080 },
+      undefined,
+      undefined,
+      async () => 7,
+    ), { wrapper });
+
+    await act(async () => { await result.current.startRender(); });
+    expect(result.current.renderProgress).toMatchObject({ current: 12.6, total: 30, percent: 42, phase: 'render' });
 
     unmount();
     vi.unstubAllGlobals();

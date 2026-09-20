@@ -27,6 +27,7 @@ describe('AstridLocalAcpRoutes', () => {
     await expect(routes.connect()).resolves.toMatchObject({ connection_id: 'connection-1' });
     await expect(routes.createSession('connection-1', { mcpServers: [] })).resolves.toEqual({ sessionId: 'omp-session-opaque' });
     await expect(routes.resumeSession('connection-1', 'omp-session-opaque')).resolves.toEqual({ sessionId: 'omp-session-opaque' });
+    await expect(routes.promptSession('connection-1', 'omp-session-opaque', [{ type: 'text', text: 'hello' }])).resolves.toEqual({ sessionId: 'omp-session-opaque' });
     await expect(routes.cancelSession('connection-1', 'omp-session-opaque')).resolves.toEqual({
       cancelled: true,
       session_id: 'omp-session-opaque',
@@ -45,6 +46,7 @@ describe('AstridLocalAcpRoutes', () => {
       { path: '/acp/connect', method: 'POST', body: {} },
       { path: '/acp/connection-1/rpc', method: 'POST', body: { method: 'session/new', params: { mcpServers: [] } } },
       { path: '/acp/connection-1/rpc', method: 'POST', body: { method: 'session/resume', params: { sessionId: 'omp-session-opaque' } } },
+      { path: '/acp/connection-1/rpc', method: 'POST', body: { method: 'session/prompt', params: { sessionId: 'omp-session-opaque', prompt: [{ type: 'text', text: 'hello' }] } } },
       { path: '/acp/connection-1/cancel', method: 'POST', body: { sessionId: 'omp-session-opaque' } },
       { path: '/acp/connection-1/rpc', method: 'POST', body: { method: 'session/close', params: { sessionId: 'omp-session-opaque' } } },
       { path: '/acp/connection-1/events', method: 'GET', body: undefined },

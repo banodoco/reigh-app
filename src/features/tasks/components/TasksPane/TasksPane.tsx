@@ -39,6 +39,15 @@ interface TasksPaneProps {
   onOpenSettings: () => void;
 }
 
+const EXPANDED_HALF_STORAGE_KEY = 'tasksPane:expandedHalf';
+type ExpandedHalf = 'tasks' | 'chat' | null;
+
+function readPersistedExpandedHalf(): ExpandedHalf {
+  if (typeof window === 'undefined') return null;
+  const stored = window.localStorage.getItem(EXPANDED_HALF_STORAGE_KEY);
+  return stored === 'tasks' || stored === 'chat' ? stored : null;
+}
+
 const TasksPaneComponent: React.FC<TasksPaneProps> = ({ onOpenSettings }) => {
   useRenderBudget('TasksPane', 5);
   const { pathname, search } = useLocation();
@@ -183,14 +192,19 @@ const TasksPaneComponent: React.FC<TasksPaneProps> = ({ onOpenSettings }) => {
   const readyAgentChatActions = isToolRoute ? agentChatActions : null;
 
   // Expand state: which half (if any) is currently filling the entire pane.
-  // null = 50/50 split. Resets to null when the pane closes so reopening always
-  // starts in the default split layout.
-  const [expandedHalf, setExpandedHalf] = useState<'tasks' | 'chat' | null>(null);
+  // null = 50/50 split. Keep this preference outside the open/close lifecycle
+  // so reopening the sidebar restores the user's chosen working layout.
+  const [expandedHalf, setExpandedHalf] = useState<ExpandedHalf>(readPersistedExpandedHalf);
   useEffect(() => {
-    if (!isOpen && !isLocked) {
-      setExpandedHalf(null);
+    if (typeof window === 'undefined') return;
+    if (expandedHalf) {
+      window.localStorage.setItem(EXPANDED_HALF_STORAGE_KEY, expandedHalf);
+    } else {
+      // Some embedded/test storage shims only expose getItem/setItem. The
+      // preference is already absent in that case, so cleanup is optional.
+      window.localStorage.removeItem?.(EXPANDED_HALF_STORAGE_KEY);
     }
-  }, [isOpen, isLocked]);
+  }, [expandedHalf]);
   const showChatHalf = isToolRoute && expandedHalf !== 'tasks';
   const showTasksHalf = expandedHalf !== 'chat';
 
@@ -531,7 +545,7 @@ const TasksPaneComponent: React.FC<TasksPaneProps> = ({ onOpenSettings }) => {
                   expandedHalf === 'chat' ? 'flex-1' : 'flex-1 min-h-0'
                 )}
               >
-                <AgentChatPanel />
+                <AgentChatPanel isExpanded={expandedHalf === 'chat'} />
                 {/* Chat expand / restore handle — bleeds into the top of the chat */}
                 <button
                   type="button"

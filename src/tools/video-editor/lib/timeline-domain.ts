@@ -179,6 +179,10 @@ export const TIMELINE_CLIP_FIELDS = [
   'exit',
   'continuous',
   'transition',
+  // Astrid-backed Elements are persisted as a small, revision-pinned
+  // reference. Keeping this in the canonical field allow-list is what makes
+  // an applied element survive the normal editor serialize/save path.
+  'elementRef',
   'effects',
   'params',
   'pool_id',

@@ -97,27 +97,11 @@ export function buildBatchTaskParams(input: BuildBatchTaskParamsInput): BatchIma
     shot_id: input.shotId || undefined,
     model_name: input.modelName,
     ...(resolution ? { resolution } : {}),
-    execution: input.isLocalGenerationEnabled ? 'local' : 'cloud',
-    steps: input.isLocalGenerationEnabled ? input.hiresFixConfig.base_steps : undefined,
+    // Astrid's current Reigh admission route is cloud-backed. Keep the old
+    // local-generation input in the builder signature for compatibility with
+    // form state migrations, but never emit a legacy local execution request.
+    execution: 'cloud',
     // Reference params - passthrough explicit values only (already snake_case)
     ...referenceParams,
-    // Phase 1 params - only for local generation
-    ...(input.isLocalGenerationEnabled && {
-      lightning_lora_strength_phase_1: input.hiresFixConfig.lightning_lora_strength_phase_1,
-    }),
-    // Phase 2 / Hires fix params - only for local generation AND when enabled
-    ...(input.isLocalGenerationEnabled && input.hiresFixConfig.enabled && {
-      hires_scale: input.hiresFixConfig.hires_scale,
-      hires_steps: input.hiresFixConfig.hires_steps,
-      hires_denoise: input.hiresFixConfig.hires_denoise,
-      lightning_lora_strength_phase_2: input.hiresFixConfig.lightning_lora_strength_phase_2,
-      // phaseLoraStrengths is UI structure, transform to API format
-      additional_loras: Object.fromEntries(
-        (input.hiresFixConfig.phaseLoraStrengths ?? []).map(lora => [
-          lora.loraPath,
-          `${lora.pass1Strength};${lora.pass2Strength}`
-        ])
-      ),
-    }),
   };
 }

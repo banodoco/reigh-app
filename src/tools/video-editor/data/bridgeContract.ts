@@ -157,6 +157,10 @@ export const bridgeProjectsSchema = z.looseObject({
   projects: z.array(z.looseObject({
     slug: z.string(),
     name: z.string(),
+    project_id: z.string().optional(),
+    version: z.number().int().positive().optional(),
+    metadata: jsonObject.optional(),
+    default_timeline_id: z.string().optional(),
   })).optional(),
 });
 
@@ -166,7 +170,10 @@ export const bridgeTimelinesSchema = z.looseObject({
     timeline_ulid: z.string().optional(),
     slug: z.string().optional(),
     name: z.string(),
+    created_at: z.string().optional(),
+    updated_at: z.string().optional(),
     is_default: z.boolean().optional(),
+    is_shot: z.boolean().optional(),
   })).optional(),
 });
 
@@ -326,6 +333,8 @@ export const bridgeTaskSummarySchema = z.looseObject({
   project_id: z.string(),
   capability: z.string(),
   status: bridgeTaskStatusSchema,
+  /** Runtime task version used when a cancel must be retried with a fence. */
+  version: z.number().int().positive().optional(),
   spec: bridgeTaskSpecSchema.optional(),
   priority: z.number().optional(),
   max_attempts: z.number().optional(),
@@ -333,6 +342,8 @@ export const bridgeTaskSummarySchema = z.looseObject({
   updated_at: z.string(),
   finished_at: z.string().nullable().optional(),
   winning_attempt_id: z.string().nullable().optional(),
+  /** Latest bounded phase progress reported by the Astrid executor. */
+  progress: jsonObject.optional(),
   result: jsonObject.optional(),
 });
 
@@ -427,6 +438,8 @@ export const runtimeTaskResourceSchema = z.looseObject({
   updated_at: z.string().min(1),
   attempt_id: z.string().min(1).nullable(),
   runtime_epoch: z.number().int().positive(),
+  /** Latest bounded phase progress reported by the Runtime attempt heartbeat. */
+  progress: jsonObject.optional(),
   generation_intent: jsonObject.optional(),
   result: jsonObject.optional(),
 });

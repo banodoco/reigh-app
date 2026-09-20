@@ -4,16 +4,26 @@ import { useHomeNavigation } from '@/shared/hooks/useHomeNavigation.ts';
 import { usePanesStore } from '@/shared/state/panesStore.ts';
 import { CompactPreview } from '@/tools/video-editor/components/CompactPreview.tsx';
 import { TimelineEditorShellCore } from '@/tools/video-editor/components/TimelineEditorShellCore.tsx';
+import type { AppHeaderNavigationMode } from '@/shared/components/AppHeader.tsx';
 
 interface ReighVideoEditorShellProps {
   mode: 'full' | 'compact';
   timelineId?: string | null;
   onCreateTimeline?: () => void;
-  /** Host controls rendered beside the Back button (e.g. project/timeline selectors). */
+  /** Shared header controls rendered beside the navigation action. */
   navigationControls?: ReactNode;
+  navigationMode?: AppHeaderNavigationMode;
+  showHeader?: boolean;
 }
 
-function ReighVideoEditorShellComponent({ mode, timelineId, onCreateTimeline, navigationControls }: ReighVideoEditorShellProps) {
+function ReighVideoEditorShellComponent({
+  mode,
+  timelineId,
+  onCreateTimeline,
+  navigationControls,
+  navigationMode,
+  showHeader = true,
+}: ReighVideoEditorShellProps) {
   const { navigateHome } = useHomeNavigation();
   const isEditorPaneLocked = usePanesStore((state) => state.isEditorPaneLocked);
   const isGenerationsPaneLocked = usePanesStore((state) => state.isGenerationsPaneLocked);
@@ -45,6 +55,8 @@ function ReighVideoEditorShellComponent({ mode, timelineId, onCreateTimeline, na
       onNavigateHome={navigateHome}
       onOpenEditorRoute={openEditorRoute}
       navigationControls={navigationControls}
+      navigationMode={navigationMode}
+      showHeader={showHeader}
     />
   );
 }

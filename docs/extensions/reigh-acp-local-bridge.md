@@ -1,16 +1,23 @@
 # Reigh local Astrid ACP bridge
 
 The Reigh ACP bridge is a user-machine process. It keeps only ephemeral
-connection handles in memory; OMP remains the authority for profiles, opaque
-session IDs, and session storage. The browser never receives the bearer token
-or starts a child process.
+connection handles in memory; Astrid/OMP remains the authority for profiles,
+opaque session IDs, and session storage. The browser never receives the bearer
+token or starts a child process.
 
-In one terminal, start the bridge with explicit host-owned paths:
+In one terminal, start the bridge with explicit host-owned paths. The bridge
+launches the real `astrid` command, not a separate raw `omp` profile; Astrid
+therefore remains the authority for the named agent, system prompt, branded
+OMP build, credentials, and session identity:
 
 ```sh
 export ASTRID_BRIDGE_TOKEN='use-the-same-local-token-as-vite'
 ASTRID_ACP_CWD="$PWD" \
-ASTRID_ACP_PROFILE=astrid \
+npm run dev:astrid-acp
+
+# Optional: set ASTRID_ACP_PROFILE to use an isolated Astrid/OMP profile. By
+# default the real `astrid` launcher uses the machine's normal configuration.
+ASTRID_ACP_CWD="$PWD" ASTRID_ACP_PROFILE='isolated' \
 npm run dev:astrid-acp
 ```
 
@@ -44,6 +51,22 @@ The installed OMP build does not make sessions stored under a custom
 does not emulate a registry or migrate those files; the canonical no-override
 launch is the supported fresh-process path, while custom-directory sessions
 remain an explicit same-process limitation.
+
+## Editor context passed to Astrid
+
+The launcher is deliberately project-agnostic. Reigh does not put the selected
+project or timeline in a process flag because one bridge process can serve
+multiple tabs and the selection can change while a conversation remains open.
+
+Each submitted editor turn contains a bounded, machine-readable
+`<reigh_editor_context>` block with schema `reigh.editor-context/v1`. It carries
+the current project ID/slug, timeline ID/name, the Reigh deep link, a revision
+for the captured selection snapshot, and selected clip/asset references. It
+does not copy the full asset registry or private media URLs into the prompt.
+Astrid should use its project, timeline, media, task, and run tools to read
+fresh state before editing and saving. The block is refreshed on submission so
+a project or timeline switch cannot leave the next request using stale editor
+context.
 
 ## Canonical Runtime editor entry
 

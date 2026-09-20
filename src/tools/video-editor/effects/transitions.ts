@@ -10,6 +10,16 @@ export const transitions: Record<string, TransitionRenderer> = {
       extrapolateRight: 'clamp',
     }),
   }),
+  // Astrid's canonical fade transition is a fade through the composition
+  // background. The incoming clip is the transition owner in the timeline
+  // model, so its opacity ramp provides the browser-side half of that effect
+  // without inventing a second overlap clip.
+  fade: (progress) => ({
+    opacity: interpolate(progress, [0, 1], [0, 1], {
+      extrapolateLeft: 'clamp',
+      extrapolateRight: 'clamp',
+    }),
+  }),
   wipe: (progress) => ({
     clipPath: `inset(0 ${Math.max(0, (1 - progress) * 100)}% 0 0)`,
   }),

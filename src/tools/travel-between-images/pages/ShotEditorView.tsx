@@ -17,7 +17,6 @@ import { usePrimeShotImagesCache } from '@/shared/hooks/shots/useShotImages';
 import { useEnqueueGenerationsInvalidation } from '@/shared/hooks/invalidation/useGenerationInvalidation';
 import { useProjectVideoCountsCache } from '@/shared/hooks/projects/useProjectVideoCountsCache';
 import { useProjectGenerationModesCache } from '@/shared/hooks/projects/useProjectGenerationModesCache';
-import { useUserUIState } from '@/shared/hooks/useUserUIState';
 import { useVideoGalleryPreloader } from '@/shared/hooks/gallery/useVideoGalleryPreloader';
 import type { LoraModel } from '@/domains/lora/types/lora';
 import { ShotSettingsEditor } from '../components/ShotEditor';
@@ -83,9 +82,7 @@ export function ShotEditorView({
   updateShotNameMutateRef.current = updateShotNameMutation.mutate;
   const invalidateGenerations = useEnqueueGenerationsInvalidation();
 
-  // Get generation location settings to auto-disable turbo mode when not in cloud
-  const { value: generationMethods } = useUserUIState('generationMethods', { onComputer: true, inCloud: true });
-  const isCloudGenerationEnabled = generationMethods.inCloud;
+  const isCloudGenerationEnabled = true;
 
   // Project caches
   const { getFinalVideoCount, getHasStructureVideo } = useProjectVideoCountsCache(selectedProjectId);

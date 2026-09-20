@@ -1,7 +1,5 @@
 import React from "react";
 import { Sun, Moon, Mic, Wand2 } from "lucide-react";
-import { PrivacyToggle } from "@/shared/components/ui/composed/privacy-toggle";
-import { Skeleton } from "@/shared/components/ui/skeleton";
 import type { PreferencesSectionProps } from "../types";
 
 const PreferencesSection: React.FC<PreferencesSectionProps> = ({
@@ -10,9 +8,6 @@ const PreferencesSection: React.FC<PreferencesSectionProps> = ({
   setDarkMode,
   preserveUserText,
   setPreserveUserText,
-  privacyDefaults,
-  updatePrivacyDefaults,
-  isLoadingPrivacyDefaults,
   aiInputMode,
   setAIInputMode,
 }) => {
@@ -125,64 +120,6 @@ const PreferencesSection: React.FC<PreferencesSectionProps> = ({
         </div>
       </div>
 
-      {/* Privacy Subsection */}
-      <div>
-        <h3 className="text-sm font-medium text-muted-foreground mb-3">Privacy</h3>
-        {isLoadingPrivacyDefaults ? (
-          <div className="space-y-4">
-            {/* Resources Toggle skeleton */}
-            <div className={`${isMobile ? 'p-3' : 'p-4'} bg-gray-50 dark:bg-gray-900/50 rounded-lg space-y-2`}>
-              <div className={`flex ${isMobile ? 'flex-col gap-2' : 'items-center justify-between'}`}>
-                <Skeleton className="h-5 w-20" />
-                <Skeleton className="h-8 w-40 rounded-full" />
-              </div>
-              <Skeleton className="h-4 w-64" />
-            </div>
-            {/* Generations Toggle skeleton */}
-            <div className={`${isMobile ? 'p-3' : 'p-4'} bg-gray-50 dark:bg-gray-900/50 rounded-lg space-y-2`}>
-              <div className={`flex ${isMobile ? 'flex-col gap-2' : 'items-center justify-between'}`}>
-                <Skeleton className="h-5 w-24" />
-                <Skeleton className="h-8 w-40 rounded-full" />
-              </div>
-              <Skeleton className="h-4 w-72" />
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {/* Resources Toggle */}
-            <div className={`${isMobile ? 'p-3' : 'p-4'} bg-gray-50 dark:bg-gray-900/50 rounded-lg space-y-2`}>
-              <div className={`flex ${isMobile ? 'flex-col gap-2' : 'items-center justify-between'}`}>
-                <span className="font-medium">Resources:</span>
-                <PrivacyToggle
-                  isPublic={privacyDefaults.resourcesPublic}
-                  onValueChange={(isPublic) => updatePrivacyDefaults({ resourcesPublic: isPublic })}
-                  size={isMobile ? "sm" : "default"}
-                  className={isMobile ? "w-full" : "w-auto"}
-                />
-              </div>
-              <p className="text-xs text-muted-foreground">
-                LoRAs, presets, and reference images you create
-              </p>
-            </div>
-
-            {/* Generations Toggle */}
-            <div className={`${isMobile ? 'p-3' : 'p-4'} bg-gray-50 dark:bg-gray-900/50 rounded-lg space-y-2`}>
-              <div className={`flex ${isMobile ? 'flex-col gap-2' : 'items-center justify-between'}`}>
-                <span className="font-medium">Generations:</span>
-                <PrivacyToggle
-                  isPublic={privacyDefaults.generationsPublic}
-                  onValueChange={(isPublic) => updatePrivacyDefaults({ generationsPublic: isPublic })}
-                  size={isMobile ? "sm" : "default"}
-                  className={isMobile ? "w-full" : "w-auto"}
-                />
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Images and videos you generate
-              </p>
-            </div>
-          </div>
-        )}
-      </div>
     </div>
   );
 };

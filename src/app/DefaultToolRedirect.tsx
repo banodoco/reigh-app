@@ -12,24 +12,20 @@ export function DefaultToolRedirect() {
   const { value: defaultTool, isLoading: isLoadingDefaultTool } = useUserUIState('defaultTool', {
     toolId: FALLBACK_TOOL_ID,
   });
-  const { value: generationMethods, isLoading: isLoadingGenerationMethods } = useUserUIState(
-    'generationMethods',
-    { onComputer: true, inCloud: true },
-  );
 
   let env = import.meta.env.VITE_APP_ENV?.toLowerCase() || AppEnv.WEB;
   if (env === 'production' || env === 'prod') env = AppEnv.WEB;
   const currentEnv = env as AppEnvValue;
 
-  if (isLoadingDefaultTool || isLoadingGenerationMethods) {
+  if (isLoadingDefaultTool) {
     return <ReighLoading />;
   }
 
   const selectedTool = toolRuntimeManifest.find((tool) => tool.id === defaultTool.toolId);
   const resolvedToolId = selectedTool && isToolEligible(selectedTool, {
     currentEnv,
-    isCloudGenerationEnabled: generationMethods.inCloud,
-    isLoadingGenerationMethods,
+    isCloudGenerationEnabled: true,
+    isLoadingGenerationMethods: false,
   })
     ? selectedTool.id
     : FALLBACK_TOOL_ID;

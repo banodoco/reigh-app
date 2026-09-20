@@ -32,8 +32,8 @@ import { usePaneInteractionLifecycle } from '@/shared/components/panes/usePaneIn
 import { SHOT_FILTER, isSpecialFilter } from '@/shared/constants/filterConstants';
 import { useAppEventListener } from '@/shared/lib/typedEvents';
 import { withLocalModeParams } from '@/shared/dev/localModeUrl';
-import { isRuntimeDocumentMode } from '@/app/runtime/runtimeDocument';
 import { withRuntimeDocumentParams } from '@/app/runtime/runtimeDocument';
+import { useResolvedGalleryProject } from '@/app/runtime/useResolvedGalleryProject';
 import { ADD_GENERATION_QUERY_PARAM } from '@/domains/media-lightbox/hooks/addToVideoEditorConstants';
 
 // Fallback rows for pane (smaller than full page galleries)
@@ -52,6 +52,7 @@ interface GenerationDataParams {
   shouldEnableDataLoading: boolean;
   selectedProjectId: SelectedProjectId;
   runtimeProjectId: string | null;
+  runtimeAuthority: boolean;
 }
 
 const useGenerationData = ({
@@ -60,6 +61,7 @@ const useGenerationData = ({
   shouldEnableDataLoading,
   selectedProjectId,
   runtimeProjectId,
+  runtimeAuthority,
 }: GenerationDataParams) => {
   const queryClient = useQueryClient();
   const { createShot } = useShotCreation();
@@ -70,6 +72,7 @@ const useGenerationData = ({
     mediaType: mediaTypeFilter,
     enableDataLoading: shouldEnableDataLoading,
     ...(runtimeProjectId ? { runtimeProjectId } : {}),
+    runtimeAuthority,
   });
 
   const shotsForFilter = (galleryPageState.shotsData && galleryPageState.shotsData.length > 0)
@@ -304,9 +307,7 @@ export const useGenerationsPaneController = () => {
   const { projects } = useProjectCrudContext();
   const { currentShotId } = useCurrentShot();
 
-  const runtimeProjectId = isRuntimeDocumentMode(location.search, location.pathname)
-    ? new URLSearchParams(location.search).get('runtimeProject')?.trim() ?? null
-    : null;
+  const resolvedGalleryProject = useResolvedGalleryProject(location.search, location.pathname);
 
   const isOnImageGenerationPage = location.pathname === TOOL_ROUTES.IMAGE_GENERATION;
   const currentProject = projects.find((project) => project.id === selectedProjectId);
@@ -324,7 +325,8 @@ export const useGenerationsPaneController = () => {
     mediaTypeFilter,
     shouldEnableDataLoading,
     selectedProjectId,
-    runtimeProjectId,
+    runtimeProjectId: resolvedGalleryProject.projectId,
+    runtimeAuthority: resolvedGalleryProject.runtimeAuthority,
   });
 
   const filters = useGenerationFilters({
@@ -392,7 +394,7 @@ export const useGenerationsPaneController = () => {
     },
     gallery: {
       confirmDialogProps: generationData.confirmDialogProps,
-      error: generationData.error,
+      error: resolvedGalleryProject.error ?? generationData.error,
       expectedItemCount: generationData.expectedItemCount,
       handleAddToShot: generationData.handleAddToShot,
       handleAddToShotWithoutPosition: generationData.handleAddToShotWithoutPosition,
@@ -401,14 +403,14 @@ export const useGenerationsPaneController = () => {
       handleServerPageChange: generationData.handleServerPageChange,
       handleToggleStar: generationData.handleToggleStar,
       isDeleting: generationData.isDeleting,
-      isLoading: generationData.isLoading,
+      isLoading: resolvedGalleryProject.isResolving || generationData.isLoading,
       lastAffectedShotId: generationData.lastAffectedShotId,
       page: generationData.page,
       paginatedData: generationData.paginatedData,
       shotsData: generationData.shotsData,
       totalCount: generationData.totalCount,
-      readOnly: Boolean(runtimeProjectId),
-      config: runtimeProjectId ? {
+      readOnly: resolvedGalleryProject.runtimeAuthority,
+      config: resolvedGalleryProject.runtimeAuthority ? {
         showDelete: false,
         showStar: false,
         showAddToShot: false,

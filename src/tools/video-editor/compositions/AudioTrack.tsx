@@ -26,8 +26,15 @@ const AudioTrackComponent: FC<{
     <>
       {clips.map((clip) => {
         const mediaSrc = getSanitizedMediaSrc(clip.assetEntry?.src);
-        const assetType = clip.assetEntry?.type ?? '';
-        const isPlayableAudio = assetType.startsWith('audio/') || assetType.startsWith('video/');
+        const assetType = clip.assetEntry?.type?.toLowerCase() ?? '';
+        // Astrid's registry uses both MIME types (for example audio/mpeg) and
+        // the canonical media-family values (audio/video). Treat both forms
+        // as playable here; otherwise generic `audio` entries silently vanish
+        // while later clips with MIME metadata still play.
+        const isPlayableAudio = assetType === 'audio'
+          || assetType === 'video'
+          || assetType.startsWith('audio/')
+          || assetType.startsWith('video/');
         const effectiveVolume = track.muted ? 0 : getSanitizedVolume(track.volume) * getSanitizedVolume(clip.volume);
         const playbackRate = getSanitizedPlaybackRate(clip.speed);
         const trimProps = getSanitizedMediaTrimProps(clip, fps);

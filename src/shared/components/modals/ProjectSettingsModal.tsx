@@ -36,10 +36,7 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({ isOp
   const queryClient = useQueryClient();
   const [projectName, setProjectName] = useState('');
   const [aspectRatio, setAspectRatio] = useState<string>('');
-  // Persistent project-level upload settings
   const { settings: uploadSettings, update: updateUploadSettings, isLoading: isLoadingUploadSettings } = useToolSettings<{ cropToProjectSize?: boolean }>(SETTINGS_IDS.UPLOAD, { projectId: project?.id });
-  
-  // Project image settings for reference recropping
   const { settings: imageSettings, update: updateImageSettings } = useToolSettings<ProjectImageSettings>(SETTINGS_IDS.PROJECT_IMAGE_SETTINGS, { projectId: project?.id });
   const referencePointers = imageSettings?.references ?? [];
   const { hydratedReferences, isLoading: isLoadingHydratedReferences } = useHydratedReferences(referencePointers);
@@ -59,21 +56,15 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({ isOp
   const { updateProject, isUpdatingProject, deleteProject, isDeletingProject } = useProjectCrudContext();
   const [deleteConfirmText, setDeleteConfirmText] = useState<string>('');
   const [isDangerZoneOpen, setIsDangerZoneOpen] = useState(false);
-  
-  // Recrop state
   const [isReprocessing, setIsReprocessing] = useState(false);
 
   useEffect(() => {
-    if (project && isOpen) { // Also check isOpen to re-init when modal re-opens with same project
+    if (project && isOpen) {
       setProjectName(project.name);
-      setAspectRatio(project.aspectRatio || '16:9'); // Fallback if aspectRatio is undefined
+      setAspectRatio(project.aspectRatio || '16:9');
       if (!isLoadingUploadSettings) {
         setCropToProjectSize(uploadSettings?.cropToProjectSize ?? true);
       }
-    } else if (!isOpen) {
-      // Optionally reset when modal is closed, or let useEffect handle it if project becomes null
-      // setProjectName('');
-      // setAspectRatio('16:9');
     }
   }, [project, isOpen, uploadSettings, isLoadingUploadSettings]);
 
@@ -92,7 +83,6 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({ isOp
 
     const updates: { name?: string; aspectRatio?: string } = {};
     let hasChanges = false;
-
     if (projectName.trim() && projectName.trim() !== project.name) {
       updates.name = projectName.trim();
       hasChanges = true;
@@ -108,12 +98,11 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({ isOp
       return;
     }
 
-    if (!updates.name && !updates.aspectRatio) { // Should be caught by hasChanges, but as a safeguard
-        toast.error("Project name cannot be empty if it's the only change.");
-        return;
+    if (!updates.name && !updates.aspectRatio) {
+      toast.error("Project name cannot be empty if it's the only change.");
+      return;
     }
-    
-    // Check if aspect ratio changed and we have references to recrop
+
     const aspectRatioChanged = updates.aspectRatio && updates.aspectRatio !== project.aspectRatio;
     const hasReferencePointers = referencePointers.length > 0;
     const hasReferencesToRecrop = hydratedReferences.some(ref => ref.styleReferenceImageOriginal);
@@ -122,52 +111,33 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({ isOp
       toast.error('Reference data is still loading. Please try again in a moment.');
       return;
     }
-    
-    // If aspect ratio changed and we have references, show processing state
-    if (aspectRatioChanged && hasReferencesToRecrop) {
-      setIsReprocessing(true);
-    }
-    
-    // Save project updates
+    if (aspectRatioChanged && hasReferencesToRecrop) setIsReprocessing(true);
+
     const success = await updateProject(project.id, updates);
     if (success) {
-      // If aspect ratio changed, perform recropping
       if (aspectRatioChanged && hasReferencesToRecrop) {
         await performRecrop(updates.aspectRatio!);
       }
       onOpenChange(false);
     }
-    
+
     setIsReprocessing(false);
-    // Errors are handled within updateProject with toasts
   };
-  
+
   const performRecrop = async (newAspectRatio: string) => {
     if (!project?.id) return;
-    
     if (isLoadingHydratedReferences || specificResources.isLoading) {
       throw new Error('Reference data is still loading');
     }
 
     const referencesWithOriginals = hydratedReferences.filter(ref => ref.styleReferenceImageOriginal);
-    
-    if (referencesWithOriginals.length === 0) {
-      return;
-    }
-    
+    if (referencesWithOriginals.length === 0) return;
+
     try {
-      
-      // Reprocess all references (no toast, button shows wait state)
-      const recroppedReferences = await recropAllReferences(
-        referencesWithOriginals,
-        newAspectRatio
-      );
-      
+      const recroppedReferences = await recropAllReferences(referencesWithOriginals, newAspectRatio);
       for (const recroppedReference of recroppedReferences) {
         const resource = resourceById.get(recroppedReference.resourceId);
-        if (!resource) {
-          continue;
-        }
+        if (!resource) continue;
 
         const metadata = resource.metadata as StyleReferenceMetadata;
         const updatedMetadata: StyleReferenceMetadata = {
@@ -197,7 +167,6 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({ isOp
       }
 
       await queryClient.invalidateQueries({ queryKey: generationQueryKeys.byShotAll });
-      
     } catch (error) {
       normalizeAndPresentError(error, { context: 'ProjectSettingsModal', toastTitle: 'Failed to update some reference images. You may need to re-upload them.' });
     }
@@ -206,9 +175,7 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({ isOp
   const handleDeleteProject = async () => {
     if (!project) return;
     const success = await deleteProject(project.id);
-    if (success) {
-      onOpenChange(false);
-    }
+    if (success) onOpenChange(false);
   };
 
   if (!project) return null;
@@ -219,7 +186,7 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({ isOp
       onOpenChange={onOpenChange}
       size="medium"
       title="Project Settings"
-      footer={
+      footer={(
         <>
           <Button variant="retro-secondary" size="retro-sm" onClick={() => onOpenChange(false)} disabled={isUpdatingProject || isReprocessing} className="mr-auto sm:mr-0">
             Cancel
@@ -234,7 +201,7 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({ isOp
           >
             {isReprocessing ? (
               <>
-                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
                 Updating for new dimensions...
               </>
             ) : isUpdatingProject ? (
@@ -244,15 +211,14 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({ isOp
             )}
           </Button>
         </>
-      }
+      )}
     >
       <div className="grid gap-4 py-3">
         <div className="space-y-1.5">
-          <Label htmlFor="project-name-settings">
-            Name:
-          </Label>
+          <Label htmlFor="project-name-settings">Name:</Label>
           <Input
             id="project-name-settings"
+            autoComplete="off"
             value={projectName}
             onChange={(e) => setProjectName(e.target.value)}
             className="w-full"
@@ -261,15 +227,13 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({ isOp
           />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="aspect-ratio-settings">
-            Aspect Ratio:
-          </Label>
+          <Label htmlFor="aspect-ratio-settings">Aspect Ratio:</Label>
           <AspectRatioSelector
             value={aspectRatio}
             onValueChange={setAspectRatio}
             disabled={isUpdatingProject}
             id="aspect-ratio-settings"
-            showVisualizer={true}
+            showVisualizer
           />
         </div>
         <div className="flex items-center gap-x-2 pt-2">
@@ -283,24 +247,19 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({ isOp
             Crop uploaded images to project size
           </Label>
         </div>
-        {/* Danger Zone */}
         <Collapsible open={isDangerZoneOpen} onOpenChange={setIsDangerZoneOpen}>
           <div className="mt-6 border-t pt-4">
             <CollapsibleTrigger asChild>
-              <Button
-                variant="ghost"
-                className="w-full justify-between p-0 h-auto text-left hover:bg-transparent"
-                type="button"
-              >
+              <Button variant="ghost" className="h-auto w-full justify-between p-0 text-left hover:bg-transparent" type="button">
                 <div className="flex items-center gap-2">
                   <AlertTriangle className="h-4 w-4 text-red-500" />
-                  <span className="text-red-600 font-light">Delete Project</span>
+                  <span className="font-light text-red-600">Delete Project</span>
                 </div>
                 <ChevronDown className={`h-4 w-4 text-red-500 transition-transform ${isDangerZoneOpen ? 'rotate-180' : ''}`} />
               </Button>
             </CollapsibleTrigger>
             <CollapsibleContent className="mt-4">
-              <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg p-4 space-y-4">
+              <div className="space-y-4 rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-950/30">
                 <div className="space-y-3">
                   <div>
                     <Label htmlFor="delete-confirm-input" className="text-sm font-light text-red-900 dark:text-red-300">
@@ -312,7 +271,7 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({ isOp
                       value={deleteConfirmText}
                       onChange={(e) => setDeleteConfirmText(e.target.value)}
                       disabled={isDeletingProject}
-                      className="mt-1 border-red-300 dark:border-red-700 focus:border-red-500 focus:ring-red-500 dark:bg-red-950/20 dark:text-red-100 dark:placeholder:text-red-400/50"
+                      className="mt-1 border-red-300 focus:border-red-500 focus:ring-red-500 dark:border-red-700 dark:bg-red-950/20 dark:text-red-100 dark:placeholder:text-red-400/50"
                     />
                   </div>
                   <Button
@@ -331,4 +290,4 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({ isOp
       </div>
     </ModalContainer>
   );
-}; 
+};

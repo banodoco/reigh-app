@@ -8,7 +8,6 @@ const srcDir = path.join(rootDir, 'src');
 
 const rules = [
   { specifier: '@/shared/components/ActiveLoRAsDisplay', max: 0 },
-  { specifier: '@/shared/hooks/useApiTokens', max: 0 },
   { specifier: '@/shared/hooks/useAutoTopup', max: 0 },
   {
     specifier: '@/types/generationRow',

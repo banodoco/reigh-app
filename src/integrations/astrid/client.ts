@@ -25,6 +25,8 @@ export type AstridLocalClientOptions = {
   projectSlug: string;
   /** Same-origin base; must travel the per-boot-token-injecting proxy. */
   baseUrl?: string;
+  /** Optional longer deadline for ACP prompts, which may legitimately run for minutes. */
+  timeoutMs?: number;
 };
 
 export class AstridLocalClient {
@@ -40,7 +42,7 @@ export class AstridLocalClient {
   private readonly transport: AstridBridgeTransport;
 
   constructor(options: AstridLocalClientOptions) {
-    this.transport = new AstridBridgeTransport({ baseUrl: options.baseUrl });
+    this.transport = new AstridBridgeTransport({ baseUrl: options.baseUrl, timeoutMs: options.timeoutMs });
     this.projects = new AstridLocalProjectRoutes(this.transport);
     this.objects = new AstridLocalObjectRoutes(this.transport, options.projectSlug);
     this.catalog = new AstridLocalCatalogRoutes(this.transport);

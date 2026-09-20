@@ -2,9 +2,37 @@ import { createContext, useCallback, useContext, useMemo, useRef, useState, type
 import { requireContextValue } from '@/shared/contexts/contextGuard';
 import { useToolSettings } from '@/shared/hooks/settings/useToolSettings';
 import { videoEditorSettings } from '@/tools/video-editor/settings/videoEditorDefaults';
+import type { ReighAgentElementContext } from '@/tools/video-editor/runtime/element-contract.ts';
+import type { AstridElementOperationAdapter } from '@/tools/video-editor/runtime/element-adapter.ts';
+
+export type AgentChatEditorContext = {
+  tool: 'video-editor';
+  projectId: string | null;
+  projectSlug: string | null;
+  timelineId: string;
+  timelineName: string | null;
+  deepLink?: string | null;
+  /** Compact, host-owned timeline facts for agent scope display and prompts. */
+  timelineSummary?: {
+    configVersion: number;
+    trackCount: number;
+    clipCount: number;
+    assetCount: number;
+    duration: number;
+  };
+  /** Compact, serializable Elements catalog and selected-cut context. */
+  elementContext?: ReighAgentElementContext;
+  /** Host-side execution boundary; deliberately omitted from serialized prompt context. */
+  elementOperationAdapter?: AstridElementOperationAdapter;
+};
 
 export type AgentChatContextValue = {
   timelineId: string | null;
+  editorContext: AgentChatEditorContext | null;
+  /** Queue an intent for the mounted chat composer, even when its pane is closed. */
+  requestComposerPrompt?: (prompt: string) => void;
+  pendingComposerPrompt?: string | null;
+  clearPendingComposerPrompt?: () => void;
 };
 
 type AgentChatRegistryValue = {
@@ -48,9 +76,18 @@ const AgentChatActionsRegistryContext = createContext<AgentChatActionsRegistry |
 export function AgentChatProvider({ children }: { children: ReactNode }) {
   const { settings: videoSettings } = useToolSettings(videoEditorSettings.id);
   const [override, setOverride] = useState<AgentChatContextValue | null>(null);
+  const [pendingComposerPrompt, setPendingComposerPrompt] = useState<string | null>(null);
+
+  const requestComposerPrompt = useCallback((prompt: string) => {
+    setPendingComposerPrompt(prompt);
+  }, []);
+  const clearPendingComposerPrompt = useCallback(() => {
+    setPendingComposerPrompt(null);
+  }, []);
 
   const defaultValue = useMemo<AgentChatContextValue>(() => ({
     timelineId: videoSettings?.lastTimelineId ?? null,
+    editorContext: null,
   }), [videoSettings?.lastTimelineId]);
 
   const register = useCallback((value: AgentChatContextValue) => setOverride(value), []);
@@ -97,11 +134,18 @@ export function AgentChatProvider({ children }: { children: ReactNode }) {
     };
   }, [reactiveState]);
 
+  const contextValue = useMemo<AgentChatContextValue>(() => ({
+    ...(override ?? defaultValue),
+    requestComposerPrompt,
+    pendingComposerPrompt,
+    clearPendingComposerPrompt,
+  }), [clearPendingComposerPrompt, defaultValue, override, pendingComposerPrompt, requestComposerPrompt]);
+
   return (
     <AgentChatRegistryContext.Provider value={registry}>
       <AgentChatActionsRegistryContext.Provider value={actionsRegistry}>
         <AgentChatActionsContext.Provider value={actions}>
-          <AgentChatContext.Provider value={override ?? defaultValue}>
+          <AgentChatContext.Provider value={contextValue}>
             {children}
           </AgentChatContext.Provider>
         </AgentChatActionsContext.Provider>
@@ -114,6 +158,11 @@ export function AgentChatProvider({ children }: { children: ReactNode }) {
 export function useAgentChatBridge(): AgentChatContextValue {
   const context = useContext(AgentChatContext);
   return requireContextValue(context, 'useAgentChatBridge', 'AgentChatProvider');
+}
+
+/** Optional bridge for editor chrome that also renders in isolated host tests. */
+export function useOptionalAgentChatBridge(): AgentChatContextValue | null {
+  return useContext(AgentChatContext);
 }
 
 /** Consumed by VideoEditorProvider to push timeline state into the bridge. */

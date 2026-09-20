@@ -1,12 +1,13 @@
 import type { AIInputMode } from "@/shared/contexts/AIInputModeContext"
-import type { ExtensionReferenceReport, ReferenceKind, ExtensionReference } from "@/tools/video-editor/runtime/extensionReferenceReport"
-import type { WorkerLaunchConfigValues, WorkerLaunchConfigSetters } from "./hooks/useWorkerLaunchConfig"
+import type { ExtensionReferenceReport } from "@/tools/video-editor/runtime/extensionReferenceReport"
 
 // Types for SettingsModal components
 
 export interface SettingsModalProps {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
+  preserveUserText: boolean;
+  setPreserveUserText: (value: boolean) => void;
   initialTab?: string;
   creditsTab?: 'purchase' | 'history' | 'task-log';
   /** Optional extension display data for the Extensions tab. */
@@ -35,48 +36,12 @@ export interface SettingsModalProps {
   isUninstalling?: boolean;
 }
 
-export interface CommandConfig {
-  computerType: string;
-  gpuType: string;
-  memoryProfile: string;
-  windowsShell: string;
-  showDebugLogs: boolean;
-  idleReleaseMinutes: string;
-  token: string;
-}
-
-export interface GenerationSectionProps {
-  isMobile: boolean;
-  // Generation method state
-  onComputerChecked: boolean;
-  inCloudChecked: boolean;
-  updateGenerationMethodsWithNotification: (patch: { onComputer?: boolean; inCloud?: boolean }) => void;
-  isLoadingGenerationMethods: boolean;
-  // Token state
-  hasValidToken: boolean;
-  generatedToken: string | null;
-  handleGenerateToken: () => void;
-  isGenerating: boolean;
-  getActiveToken: () => { token: string; created_at: string } | undefined;
-  // Worker launch config (bundled)
-  launchConfig: WorkerLaunchConfigValues;
-  launchSetters: WorkerLaunchConfigSetters;
-  // Tab state
-  activeInstallTab: string;
-  setActiveInstallTab: (value: string) => void;
-  // Props
-  creditsTab?: 'purchase' | 'history' | 'task-log';
-}
-
 export interface PreferencesSectionProps {
   isMobile: boolean;
   darkMode: boolean;
   setDarkMode: (value: boolean) => void;
   preserveUserText: boolean;
   setPreserveUserText: (value: boolean) => void;
-  privacyDefaults: { resourcesPublic: boolean; generationsPublic: boolean };
-  updatePrivacyDefaults: (patch: { resourcesPublic?: boolean; generationsPublic?: boolean }) => void;
-  isLoadingPrivacyDefaults: boolean;
   aiInputMode: AIInputMode;
   setAIInputMode: (mode: AIInputMode) => void;
 }

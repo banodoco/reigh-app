@@ -37,13 +37,13 @@ export function useProjectImageSettings(associatedShotId: string | null) {
     return { projectAspectRatio: aspectRatio, projectResolution: resolution };
   }, [projects, selectedProjectId]);
 
-  // Access user's generation settings to detect local generation
-  const { value: generationMethods } = useUserUIState('generationMethods', { onComputer: true, inCloud: true });
-
   // Privacy defaults for new resources
   const { value: privacyDefaults } = useUserUIState('privacyDefaults', { resourcesPublic: true, generationsPublic: false });
 
-  const isLocalGenerationEnabled = generationMethods.onComputer && !generationMethods.inCloud;
+  // The current Reigh admission route is Astrid cloud generation only. Keep
+  // this compatibility value for form consumers that still use it to hide
+  // legacy local-only controls.
+  const isLocalGenerationEnabled = false;
 
   // Project-level settings for model and style reference (shared across tools)
   const {

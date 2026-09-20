@@ -1,21 +1,18 @@
 // Layer map & invariants: docs/structure_detail/tool_video_editor.md
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { CommandPalette } from '@/tools/video-editor/components/CommandPalette/CommandPalette.tsx';
-import { Eye, Maximize2, Settings, SlidersHorizontal } from 'lucide-react';
+import { Eye, Maximize2, SlidersHorizontal } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/shared/components/ui/alert-dialog.tsx';
 import { Button } from '@/shared/components/ui/button.tsx';
 import { cn } from '@/shared/components/ui/contracts/cn.ts';
 import { Slider } from '@/shared/components/ui/slider.tsx';
 import { editorReplaceTimelineSelection } from '@/shared/state/selectionStore.ts';
+import { usePanesStore } from '@/shared/state/panesStore.ts';
+import { useOptionalAgentChatBridge } from '@/shared/contexts/AgentChatContext.tsx';
 import { PreviewPanel } from '@/tools/video-editor/components/PreviewPanel/PreviewPanel.tsx';
 import { useVideoEditorPreviewSurface } from '@/tools/video-editor/components/PreviewPanel/useVideoEditorPreviewSurface.tsx';
-import {
-  LiveSourcesPanel,
-  removeLiveBindingsFromResolvedConfig,
-} from '@/tools/video-editor/components/LiveSourcesPanel/LiveSourcesPanel.tsx';
 import { PropertiesPanel } from '@/tools/video-editor/components/PropertiesPanel/PropertiesPanel.tsx';
-import { SequenceCreatorPanel } from '@/tools/video-editor/components/SequenceCreator/SequenceCreatorPanel.tsx';
-import { ThemeChip } from '@/tools/video-editor/components/ThemeChip.tsx';
+import { ElementsLibraryPanel } from '@/tools/video-editor/components/ElementsLibraryPanel.tsx';
 import {
   TimelineModeSwitcher,
   type TimelineSwitchableMode,
@@ -45,7 +42,6 @@ import {
 import { bootDiagnostics, MemoryPressureDetector } from '@/tools/video-editor/lib/perf-diagnostics.ts';
 import { shellRegionAttrs } from '@/tools/video-editor/lib/timeline-dom.ts';
 import { useRenderDiagnostic } from '@/tools/video-editor/hooks/usePerfDiagnostics.ts';
-import { dispatchAppEvent } from '@/shared/lib/typedEvents.ts'
 import { ExtensionActivityRegion, type ExtensionStatusEvent } from '@/tools/video-editor/components/ExtensionActivityRegion';
 import { ProposalPanel } from '@/tools/video-editor/components/ProposalPanel/ProposalPanel.tsx';
 import { TimelineEditorShellToolbar } from './TimelineEditorShellToolbar.tsx';
@@ -62,6 +58,10 @@ import {
 } from './useTimelineShellDividerDrag.ts';
 import { useVideoEditorShellSlots } from './useVideoEditorShellSlots.tsx';
 import { useVideoEditorRuntime } from '@/tools/video-editor/contexts/VideoEditorRuntimeContext.tsx';
+import {
+  AppHeader,
+  type AppHeaderNavigationMode,
+} from '@/shared/components/AppHeader.tsx';
 
 export interface TimelineEditorShellCoreProps {
   timelineId: string;
@@ -73,8 +73,10 @@ export interface TimelineEditorShellCoreProps {
   onSetGenerationsPaneLocked?: (locked: boolean) => void;
   onNavigateHome?: () => void;
   onOpenEditorRoute?: (timelineId: string) => void;
-  /** Host controls rendered beside the Back button (e.g. project/timeline selectors). */
+  /** Project/timeline controls rendered in the editor chrome above the time. */
   navigationControls?: ReactNode;
+  navigationMode?: AppHeaderNavigationMode;
+  showHeader?: boolean;
 }
 
 /**
@@ -120,6 +122,8 @@ function TimelineEditorShellCoreComponent({
   onNavigateHome,
   onOpenEditorRoute,
   navigationControls,
+  navigationMode,
+  showHeader = true,
 }: TimelineEditorShellCoreProps) {
   useRenderDiagnostic('TimelineEditorShellCore');
   const runtime = useVideoEditorRuntime();
@@ -139,10 +143,17 @@ function TimelineEditorShellCoreComponent({
   } = useTimelineShellDividerDrag();
   const [condensedRightPanel, setCondensedRightPanel] = useState<'preview' | 'properties'>('preview');
   const [isMobilePropertiesOpen, setIsMobilePropertiesOpen] = useState(false);
-  const [isSequenceCreatorOpen, setIsSequenceCreatorOpen] = useState(false);
+  const [isElementsOpen, setIsElementsOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   /** M1: Extension activity region status events (placeholder state). */
   const [activityEvents, setActivityEvents] = useState<readonly ExtensionStatusEvent[]>([]);
+  const agentChatBridge = useOptionalAgentChatBridge();
+  const requestComposerPrompt = agentChatBridge?.requestComposerPrompt;
+  const setIsTasksPaneOpen = usePanesStore((state) => state.setIsTasksPaneOpen);
+  const openElementCreationPrompt = useCallback((prompt: string) => {
+    requestComposerPrompt?.(prompt);
+    setIsTasksPaneOpen(true);
+  }, [requestComposerPrompt, setIsTasksPaneOpen]);
   const handleActivityDismiss = useCallback((eventId: string) => {
     setActivityEvents((prev) => prev.filter((e) => e.id !== eventId));
   }, []);
@@ -339,17 +350,6 @@ function TimelineEditorShellCoreComponent({
     return getTimelineDurationInFrames(editorData.resolvedConfig, editorData.resolvedConfig.output.fps) / editorData.resolvedConfig.output.fps;
   }, [editorData.resolvedConfig]);
 
-  const handleRemoveLiveSourceBindings = useCallback((sourceId: string) => {
-    const currentData = editorData.dataRef.current;
-    if (!currentData?.resolvedConfig) return;
-    const nextConfig = removeLiveBindingsFromResolvedConfig(currentData.resolvedConfig, sourceId);
-    if (!nextConfig) return;
-    editorOps.applyEdit(
-      { type: 'config', resolvedConfig: nextConfig },
-      { semantic: true },
-    );
-  }, [editorData.dataRef, editorOps]);
-
   const openInspector = useCallback(() => {
     editorOps.setInspectorTarget(inspectorTarget);
     editorOps.setContextTarget(inspectorTarget);
@@ -408,13 +408,11 @@ function TimelineEditorShellCoreComponent({
       syncResultMessage={syncResultMessage}
       touchChrome={touchChrome}
       condensed={condensed}
-      forceCondensed={forceCondensed}
-      onNavigateHome={onNavigateHome}
       toolbarModeSwitcher={toolbarModeSwitcher}
-      navigationControls={navigationControls}
       onDividerMouseDown={onDividerMouseDown}
       isTimelineMaximized={isTimelineMaximized}
       setIsTimelineMaximized={setIsTimelineMaximized}
+      onOpenElements={() => setIsElementsOpen(true)}
     />
   );
 
@@ -461,9 +459,20 @@ function TimelineEditorShellCoreComponent({
       )}
       data-shell-interaction="true"
     >
-      <span className="pointer-events-auto shrink-0 rounded bg-background/70 px-1.5 py-0.5 font-mono text-[11px] tracking-[0.08em] text-muted-foreground backdrop-blur-sm">{playback.formatTime(playback.currentTime)}</span>
+      <div className="pointer-events-auto flex min-w-0 max-w-[min(75%,32rem)] flex-col items-start gap-1">
+        {navigationControls && (
+          <div
+            className="flex min-w-0 max-w-full flex-wrap items-center gap-2"
+            data-testid="video-editor-editor-navigation-controls"
+          >
+            {navigationControls}
+          </div>
+        )}
+        <span className="shrink-0 rounded bg-background/70 px-1.5 py-0.5 font-mono text-[11px] tracking-[0.08em] text-muted-foreground backdrop-blur-sm">
+          {playback.formatTime(playback.currentTime)}
+        </span>
+      </div>
       <div className="pointer-events-auto flex min-w-0 flex-wrap items-center justify-end gap-1">
-        <ThemeChip timeline={editorData.data?.config} />
         {mobileSinglePane && (
           <TimelineMobileInspectorDialog
             isMobilePropertiesOpen={isMobilePropertiesOpen}
@@ -509,12 +518,6 @@ function TimelineEditorShellCoreComponent({
             Editor
           </Button>
         )}
-        <LiveSourcesPanel
-          timelineConfig={editorData.resolvedConfig}
-          onRemoveSourceBindings={handleRemoveLiveSourceBindings}
-          compact={condensed}
-          collapsible
-        />
         {hasAnyExportFormat && (
           <TimelineExportMenu
             compileOnlyExportFormats={compileOnlyExportFormats}
@@ -524,7 +527,6 @@ function TimelineEditorShellCoreComponent({
         )}
         <TimelineRenderControls
           previewActionButtonClass={previewActionButtonClass}
-          touchChrome={touchChrome}
         />
       </div>
     </div>
@@ -633,7 +635,10 @@ function TimelineEditorShellCoreComponent({
         <TimelineLoadErrorCard message={chrome.loadError.message} onRetry={chrome.retryLoad} />
       ) : (
         <TimelineErrorBoundary>
-          <TimelineEditor onOpenSequenceCreator={() => setIsSequenceCreatorOpen(true)} />
+          <TimelineEditor
+            onOpenSequenceCreator={() => openElementCreationPrompt("I'd like to create an animation.")}
+            onOpenElementCreationPrompt={openElementCreationPrompt}
+          />
         </TimelineErrorBoundary>
       )}
     </>
@@ -647,36 +652,13 @@ function TimelineEditorShellCoreComponent({
         <div className="sr-only" aria-live="polite" aria-atomic="true">
           {interactionStatusLabel}
         </div>
-        {headerSlot}
-        {!condensed && !headerSlot && (
-          <div className="flex h-10 items-center gap-3 border-b border-border bg-background px-3 text-sm text-muted-foreground">
-            {onNavigateHome && (
-              <button
-                type="button"
-                className={cn('shrink-0 transition-colors hover:text-foreground motion-reduce:transition-none', touchChrome && 'min-h-11 px-2')}
-                onClick={onNavigateHome}
-              >
-                ← Back
-              </button>
-            )}
-            {navigationControls && (
-              <div className="flex shrink-0 items-center gap-2" data-testid="shell-navigation-controls">
-                {navigationControls}
-              </div>
-            )}
-            <div className="truncate text-foreground">{chrome.timelineName ?? 'Untitled timeline'}</div>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className={cn('ml-auto text-muted-foreground', touchChrome ? 'h-11 w-11' : 'h-7 w-7')}
-              onClick={() => dispatchAppEvent('openSettings', {})}
-              title="Settings"
-            >
-              <Settings className="h-3.5 w-3.5" />
-            </Button>
-          </div>
-        )}
+        {headerSlot ?? (showHeader ? (
+          <AppHeader
+            navigationMode={navigationMode}
+            onNavigate={onNavigateHome}
+            navigationControls={navigationControls}
+          />
+        ) : null)}
 
         {mobileSinglePane ? (
           <main
@@ -773,7 +755,7 @@ function TimelineEditorShellCoreComponent({
                 className={cn('min-h-0 flex-1 overflow-auto p-3', condensedRightPanel !== 'properties' && 'hidden')}
                 aria-hidden={condensedRightPanel !== 'properties'}
               >
-                <PropertiesPanel />
+                <PropertiesPanel assetPanel={assetPanelSlot} />
               </div>
             </div>
 
@@ -810,12 +792,7 @@ function TimelineEditorShellCoreComponent({
             </div>
 
             <div className="row-span-2 min-h-0 overflow-hidden" {...shellRegionAttrs('rightPanel')}>
-              {rightPanelSlot ?? (
-                <>
-                  {assetPanelSlot}
-                  {inspectorPanelSlot ?? <PropertiesPanel />}
-                </>
-              )}
+              {rightPanelSlot ?? inspectorPanelSlot ?? <PropertiesPanel assetPanel={assetPanelSlot} />}
             </div>
 
             <div ref={dividerRef} className="col-span-1">
@@ -858,10 +835,11 @@ function TimelineEditorShellCoreComponent({
       {condensed && !mobileSinglePane && previewPortal}
       {/* Extension-contributed dialog slot */}
       {dialogsSlot}
-      {isSequenceCreatorOpen && (
-        <SequenceCreatorPanel
-          open={isSequenceCreatorOpen}
-          onOpenChange={setIsSequenceCreatorOpen}
+      {isElementsOpen && (
+        <ElementsLibraryPanel
+          open={isElementsOpen}
+          onOpenChange={setIsElementsOpen}
+          onOpenCreationPrompt={() => openElementCreationPrompt("I'd like to create a new Remotion element.")}
         />
       )}
 

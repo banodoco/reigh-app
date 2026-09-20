@@ -22,6 +22,7 @@ const mocks = vi.hoisted(() => ({
   usePaneInteractionLifecycle: vi.fn(),
   isSpecialFilter: vi.fn(),
   useAppEventListener: vi.fn(),
+  useResolvedGalleryProject: vi.fn(),
   eventHandlers: {} as Record<string, () => void>,
 }));
 
@@ -100,6 +101,10 @@ vi.mock('@/shared/constants/filterConstants', () => ({
 
 vi.mock('@/shared/lib/typedEvents', () => ({
   useAppEventListener: (...args: unknown[]) => mocks.useAppEventListener(...args),
+}));
+
+vi.mock('@/app/runtime/useResolvedGalleryProject', () => ({
+  useResolvedGalleryProject: (...args: unknown[]) => mocks.useResolvedGalleryProject(...args),
 }));
 
 vi.mock('@/shared/lib/queryKeys/shots', () => ({
@@ -199,6 +204,14 @@ describe('useGenerationsPaneController', () => {
     mocks.useShotCreation.mockReturnValue({ createShot: vi.fn() });
     mocks.useGalleryPageState.mockReturnValue(buildGalleryPageState());
     mocks.useQueryClient.mockReturnValue({ invalidateQueries: vi.fn() });
+    mocks.useResolvedGalleryProject.mockReturnValue({
+      projectId: null,
+      runtimeAuthority: false,
+      status: 'not-applicable',
+      isResolving: false,
+      error: null,
+      selector: null,
+    });
   });
 
   it('composes pane/filter/gallery state and wires event handlers plus navigation', async () => {
@@ -236,6 +249,7 @@ describe('useGenerationsPaneController', () => {
       itemsPerPage: 6,
       mediaType: 'image',
       enableDataLoading: true,
+      runtimeAuthority: false,
     });
     expect(result.current.layout.paneLayout.itemsPerPage).toBe(6);
     expect(result.current.layout.projectAspectRatio).toBe(1.6);
@@ -349,11 +363,21 @@ describe('useGenerationsPaneController', () => {
       isOpen: true,
       isLocked: true,
     }));
+    mocks.useResolvedGalleryProject.mockReturnValue({
+      projectId: 'project-1',
+      runtimeAuthority: true,
+      status: 'resolved',
+      isResolving: false,
+      error: null,
+      selector: null,
+    });
 
     renderHook(() => useGenerationsPaneController());
 
     expect(mocks.useGalleryPageState).toHaveBeenCalledWith(expect.objectContaining({
       enableDataLoading: true,
+      runtimeProjectId: 'project-1',
+      runtimeAuthority: true,
     }));
   });
 });

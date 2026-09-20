@@ -97,6 +97,20 @@ describe('AudioTrack', () => {
     expect(mediaAudioProps[0]?.pauseWhenBuffering).toBe(false);
   });
 
+  it('plays Astrid registry entries that use the generic audio family type', () => {
+    const genericAudioClip: ResolvedTimelineClip = {
+      ...clip,
+      assetEntry: {
+        ...clip.assetEntry!,
+        type: 'audio',
+      },
+    };
+
+    render(<AudioTrack track={track} clips={[genericAudioClip]} fps={30} />);
+
+    expect(screen.getByTestId('html5-audio')).toBeInTheDocument();
+  });
+
   it('remounts the audio sequence when a clip moves mid-playback (keyed on at)', () => {
     const { rerender } = render(<AudioTrack track={track} clips={[clip]} fps={30} />);
 

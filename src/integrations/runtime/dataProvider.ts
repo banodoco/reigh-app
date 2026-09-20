@@ -12,6 +12,7 @@ import {
   TimelineVersionConflictError,
   type DataProvider,
   type LoadedTimeline,
+  type LoadedReferencedTimeline,
   type UploadedAssetResult,
   type UploadAssetOptions,
 } from '@/tools/video-editor/data/DataProvider.ts';
@@ -39,6 +40,7 @@ import {
   stableOutputIdentity,
   StaleWriteError,
 } from '@/tools/video-editor/data/shotComposition.ts';
+import { generateUUID } from '@/shared/lib/taskCreation/ids.ts';
 
 type RuntimeRecord = Record<string, unknown>;
 
@@ -187,6 +189,37 @@ export class RuntimeDataProvider implements DataProvider {
     return registry;
   }
 
+  async loadReferencedTimeline(timelineId: string): Promise<LoadedReferencedTimeline> {
+    const record = await this.readTimeline(timelineId);
+    const configRecord = asRecord(record.config);
+    if (!configRecord) {
+      throw new TimelineSchemaIncompatibleError('Workspace Runtime timeline has no config object');
+    }
+    const bundle = configRecord.bundle;
+    if (bundle !== undefined && bundle !== null) parseTimelineBundle(bundle);
+    const { bundle: _storedBundle, ...configWithoutBundle } = configRecord;
+    return {
+      timeline: {
+        config: withDefaultTimelineOutput(configWithoutBundle as Partial<TimelineConfig>),
+        configVersion: runtimeVersion(record),
+        ...(bundle === null ? { bundle: null } : bundle === undefined ? {} : { bundle: bundle as TimelineBundleEnvelope }),
+      },
+      registry: normalizeRegistry(record.registry),
+      resolveAssetUrl: async (file: string) => this.resolveAssetUrlFromRegistry(file, normalizeRegistry(record.registry)),
+    };
+  }
+
+  async setPrimaryTimeline(timelineId: string): Promise<void> {
+    const project = await this.client.getProject(this.projectId);
+    await this.client.updateProject(
+      this.projectId,
+      generateUUID(),
+      project.version,
+      undefined,
+      { ...project.metadata, default_timeline_id: timelineId },
+    );
+  }
+
   async saveTimeline(
     timelineId: string,
     config: TimelineConfig,
@@ -221,10 +254,7 @@ export class RuntimeDataProvider implements DataProvider {
   }
 
   async resolveAssetUrl(file: string): Promise<string> {
-    const candidate = file.trim();
-    if (!candidate) throw new Error('Cannot resolve a Runtime asset URL for an empty file path');
-    if (/^https?:\/\//i.test(candidate)) return candidate;
-    return this.client.objectContentUrl(this.findManagedAsset(candidate).objectId);
+    return this.resolveAssetUrlFromRegistry(file, this.activeRegistry);
   }
 
   /** Resolve a Runtime generation into the editor's existing lightbox row shape. */
@@ -324,7 +354,7 @@ export class RuntimeDataProvider implements DataProvider {
 
   private async readTimeline(timelineId: string): Promise<RuntimeRecord> {
     try {
-      const record = await this.client.getTimeline(timelineId);
+      const record = await this.client.getProjectTimeline(this.projectId, timelineId);
       if (record.project_id !== undefined && record.project_id !== this.projectId) {
         throw new Error(`Workspace Runtime timeline belongs to project ${String(record.project_id)}, not ${this.projectId}`);
       }
@@ -340,8 +370,9 @@ export class RuntimeDataProvider implements DataProvider {
   private findManagedAsset(
     candidate: string,
     requireDigest = false,
+    registry: AssetRegistry | null = this.activeRegistry,
   ): { objectId: string; expectedDigest: string } {
-    const entry = Object.entries(this.activeRegistry?.assets ?? {}).find(([assetId, value]) => (
+    const entry = Object.entries(registry?.assets ?? {}).find(([assetId, value]) => (
       assetId === candidate || value.file === candidate || value.media_id === candidate
     ))?.[1];
     const objectId = entry?.media_id;
@@ -353,6 +384,16 @@ export class RuntimeDataProvider implements DataProvider {
       throw new Error(`Workspace Runtime registry has no digest identity for managed object ${objectId}`);
     }
     return { objectId, expectedDigest };
+  }
+
+  private async resolveAssetUrlFromRegistry(
+    file: string,
+    registry: AssetRegistry | null,
+  ): Promise<string> {
+    const candidate = file.trim();
+    if (!candidate) throw new Error('Cannot resolve a Runtime asset URL for an empty file path');
+    if (/^https?:\/\//i.test(candidate)) return candidate;
+    return this.client.objectContentUrl(this.findManagedAsset(candidate, false, registry).objectId);
   }
 
   private toProviderError(error: unknown, timelineId: string, expectedVersion?: number): Error {
@@ -392,7 +433,18 @@ function normalizeRegistry(value: unknown): AssetRegistry {
   const record = asRecord(value);
   const assets = asRecord(record?.assets);
   if (!assets) return { assets: {} };
-  return { assets: assets as Record<string, AssetRegistryEntry> };
+  return {
+    assets: Object.fromEntries(Object.entries(assets).map(([assetKey, rawEntry]) => {
+      const entry = asRecord(rawEntry) as AssetRegistryEntry | null;
+      if (!entry || entry.media_id || typeof entry.content_sha256 !== 'string') {
+        return [assetKey, rawEntry];
+      }
+      const digest = entry.content_sha256.replace(/^sha256:/, '').trim();
+      return /^[0-9a-f]{64}$/.test(digest)
+        ? [assetKey, { ...entry, media_id: `sha256:${digest}` }]
+        : [assetKey, rawEntry];
+    })) as Record<string, AssetRegistryEntry>,
+  };
 }
 
 function runtimeVersion(record: RuntimeRecord): number {

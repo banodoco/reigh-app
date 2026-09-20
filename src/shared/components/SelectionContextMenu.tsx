@@ -135,7 +135,7 @@ export function SelectionContextMenu({
     >
       {visibleExistingShots.map((shot) => (
         <div key={shot.id} className="flex w-full items-center gap-1 rounded-sm px-2 py-1.5 text-sm">
-          <span className="min-w-0 flex-1 truncate">{shot.name}</span>
+          <span className="min-w-0 flex-1 truncate preserve-case">{shot.name}</span>
           {onOpenGenerateVideo && (
             <button type="button" className="flex h-5 w-5 shrink-0 items-center justify-center rounded hover:bg-accent hover:text-accent-foreground" onClick={() => { onOpenGenerateVideo(shot); onClose(); }} title="Generate Video">
               <Clapperboard className="h-3.5 w-3.5" />

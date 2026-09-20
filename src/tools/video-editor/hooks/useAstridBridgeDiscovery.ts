@@ -1,12 +1,13 @@
 import { useEffect } from 'react';
 import { useQuery, type UseQueryResult } from '@tanstack/react-query';
-import type { z, ZodType } from 'zod';
+import { z, type ZodType } from 'zod';
 import {
   BRIDGE_REQUEST_TIMEOUT_MS,
   bridgeHealthSchema,
   bridgeProjectsSchema,
   bridgeTimelinesSchema,
   parseBridgePayload,
+  runtimeProjectPageSchema,
 } from '@/tools/video-editor/data/bridgeContract.ts';
 import type {
   BridgeHealthPayload,
@@ -14,6 +15,11 @@ import type {
   BridgeTimelinesPayload,
 } from '@/tools/video-editor/data/bridgeContract.ts';
 import type { AstridBridgeRequestObservation } from '@/tools/video-editor/data/AstridBridgeDataProvider.ts';
+import {
+  astridProjectCollectionPath,
+  astridTimelineCollectionPath,
+  isAstridWorkspaceV1,
+} from '@/integrations/astrid/workspaceV1.ts';
 
 /**
  * Astrid local-bridge discovery: health + projects + the selected local
@@ -36,6 +42,62 @@ import type { AstridBridgeRequestObservation } from '@/tools/video-editor/data/A
 export const LOCAL_BRIDGE_BASE_URL = '/api/astrid';
 
 export const BRIDGE_DISCOVERY_POLL_MS = 3_000;
+
+/** Runtime timeline list items are the same identity fields as the legacy
+ * bridge rows, but are wrapped in the neutral Runtime page envelope. */
+const runtimeTimelinePageSchema = z.strictObject({
+  items: z.array(z.looseObject({
+    timeline_id: z.string().min(1),
+    timeline_ulid: z.string().optional(),
+    slug: z.string().optional(),
+    name: z.string().min(1),
+    created_at: z.string().optional(),
+    updated_at: z.string().optional(),
+    is_default: z.boolean().optional(),
+    is_shot: z.boolean().optional(),
+  })),
+  next_cursor: z.string().min(1).nullable(),
+});
+
+const runtimeHealthSchema = z.looseObject({
+  status: z.literal('ok'),
+});
+
+function annotateAstridTimelines<T extends {
+  timeline_id: string;
+  timeline_ulid?: string;
+  slug?: string;
+  created_at?: string;
+  updated_at?: string;
+  is_default?: boolean;
+}>(timelines: T[], defaultTimelineRef?: string) {
+  const hasExplicitDefault = typeof defaultTimelineRef === 'string' && defaultTimelineRef.length > 0;
+  return timelines.map((timeline) => ({
+    ...timeline,
+    is_shot: timeline.slug?.startsWith('shot-') === true,
+    // Project metadata is authoritative when present. In particular, do not
+    // retain a stale server-side flag or infer `slug === "main"` as a second
+    // primary alongside the project default.
+    is_default: hasExplicitDefault
+      ? (
+          timeline.timeline_id === defaultTimelineRef
+          || timeline.timeline_ulid === defaultTimelineRef
+        )
+      : timeline.is_default === true
+        || (timeline.is_default === undefined && timeline.slug === 'main'),
+  }));
+}
+
+function projectDefaultTimelineRef(project: {
+  default_timeline_id?: string;
+  metadata?: Record<string, unknown>;
+} | undefined): string | undefined {
+  if (project?.default_timeline_id) return project.default_timeline_id;
+  const metadataValue = project?.metadata?.default_timeline_id;
+  return typeof metadataValue === 'string' && metadataValue.length > 0
+    ? metadataValue
+    : undefined;
+}
 
 async function fetchBridgeJson<Schema extends ZodType>(
   path: string,
@@ -116,6 +178,15 @@ export function useAstridBridgeDiscovery({
   const healthQuery = useQuery({
     queryKey: ['astrid-bridge', 'health'],
     queryFn: async () => {
+      if (isAstridWorkspaceV1) {
+        const payload = await fetchBridgeJson(
+          '/v1/health',
+          runtimeHealthSchema,
+          'health response',
+          onBridgeRequest,
+        );
+        return payload.status === 'ok';
+      }
       const payload = await fetchBridgeJson(
         '/health',
         bridgeHealthSchema,
@@ -140,12 +211,31 @@ export function useAstridBridgeDiscovery({
 
   const projectsQuery = useQuery({
     queryKey: ['astrid-bridge', 'projects'],
-    queryFn: async () => fetchBridgeJson(
-      '/projects',
-      bridgeProjectsSchema,
-      'projects list',
-      onBridgeRequest,
-    ),
+    queryFn: async () => {
+      if (isAstridWorkspaceV1) {
+        const payload = await fetchBridgeJson(
+          `${astridProjectCollectionPath()}?limit=200`,
+          runtimeProjectPageSchema,
+          'projects list',
+          onBridgeRequest,
+        );
+        return {
+          projects: payload.items.map((project) => ({
+            slug: project.slug,
+            name: project.name,
+            project_id: project.project_id,
+            version: project.version,
+            metadata: project.metadata,
+          })),
+        };
+      }
+      return fetchBridgeJson(
+        '/projects',
+        bridgeProjectsSchema,
+        'projects list',
+        onBridgeRequest,
+      );
+    },
     enabled: (currentLocal || open) && bridgeHealthy,
     staleTime: 0,
     retry: 0,
@@ -160,16 +250,41 @@ export function useAstridBridgeDiscovery({
   });
 
   const projectsEmpty = (projectsQuery.data?.projects?.length ?? 0) === 0;
+  const selectedProject = projectsQuery.data?.projects?.find(
+    (project) => project.slug === selectedProjectSlug,
+  );
+  const selectedProjectDefaultTimeline = projectDefaultTimelineRef(selectedProject);
 
   const timelinesQuery = useQuery({
-    queryKey: ['astrid-bridge', 'projects', selectedProjectSlug ?? null, 'timelines'],
-    queryFn: async () =>
-      fetchBridgeJson(
+    queryKey: [
+      'astrid-bridge',
+      'projects',
+      selectedProjectSlug ?? null,
+      'timelines',
+      selectedProjectDefaultTimeline ?? null,
+    ],
+    queryFn: async () => {
+      if (isAstridWorkspaceV1) {
+        const payload = await fetchBridgeJson(
+          `${astridTimelineCollectionPath(selectedProjectSlug!)}?limit=200`,
+          runtimeTimelinePageSchema,
+          'timelines list',
+          onBridgeRequest,
+        );
+        return {
+          timelines: annotateAstridTimelines(payload.items, selectedProjectDefaultTimeline),
+        };
+      }
+      const payload = await fetchBridgeJson(
         `/projects/${encodeURIComponent(selectedProjectSlug!)}/timelines`,
         bridgeTimelinesSchema,
         'timelines list',
         onBridgeRequest,
-      ),
+      );
+      return {
+        timelines: annotateAstridTimelines(payload.timelines ?? [], selectedProjectDefaultTimeline),
+      };
+    },
     enabled: bridgeHealthy && Boolean(selectedProjectSlug),
     staleTime: 0,
     retry: 0,

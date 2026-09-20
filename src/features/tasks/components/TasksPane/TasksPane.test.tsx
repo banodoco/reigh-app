@@ -94,7 +94,9 @@ vi.mock('@/shared/contexts/AgentChatContext', () => ({
 }));
 
 vi.mock('@/tools/video-editor/components/AgentChat', () => ({
-  AgentChatPanel: () => <div data-testid="agent-chat-panel" />,
+  AgentChatPanel: ({ isExpanded }: { isExpanded?: boolean }) => (
+    <div data-testid="agent-chat-panel" data-expanded={String(Boolean(isExpanded))} />
+  ),
 }));
 
 vi.mock('@/shared/contexts/ProjectContext', () => ({
@@ -260,6 +262,7 @@ describe('TasksPane', () => {
         clear: vi.fn(),
         getItem: vi.fn().mockReturnValue(null),
         setItem: vi.fn(),
+        removeItem: vi.fn(),
       },
     });
     window.localStorage.clear();
@@ -348,6 +351,17 @@ describe('TasksPane', () => {
     expect(toggleRecording).not.toHaveBeenCalled();
     expect(callOrder).toEqual(['mark', 'open', 'focus']);
     expect(paneControlProps.actions.splitButton.primary.ariaLabel).toBe('Open message composer');
+  });
+
+  it('restores the chat-filled layout preference and persists it when toggled', () => {
+    (window.localStorage.getItem as ReturnType<typeof vi.fn>).mockReturnValue('chat');
+
+    renderTasksPane();
+
+    expect(screen.getByTestId('agent-chat-panel')).toHaveAttribute('data-expanded', 'true');
+    expect(window.localStorage.setItem).toHaveBeenCalledWith('tasksPane:expandedHalf', 'chat');
+    fireEvent.click(screen.getByRole('button', { name: 'Restore split layout' }));
+    expect(window.localStorage.removeItem).toHaveBeenCalledWith('tasksPane:expandedHalf');
   });
 
   it('routes the explicit Runtime editor identity to the Runtime task list', () => {

@@ -1,7 +1,8 @@
 import { AbsoluteFill, Sequence, useCurrentFrame, useRemotionEnvironment } from 'remotion';
-import { Component, memo, useContext, useMemo, useSyncExternalStore, type FC, type ReactNode } from 'react';
+import { Component, memo, useContext, useEffect, useMemo, useState, useSyncExternalStore, type FC, type ReactNode } from 'react';
+import type { DataProvider } from '@/tools/video-editor/data/DataProvider.ts';
 import { getAudioTracks, getVisualTracks } from '@/tools/video-editor/lib/editor-utils.ts';
-import { getClipDurationInFrames, getTimelineDurationInFrames, secondsToFrames } from '@/tools/video-editor/lib/config-utils.ts';
+import { getClipDurationInFrames, getTimelineDurationInFrames, resolveTimelineConfig, secondsToFrames } from '@/tools/video-editor/lib/config-utils.ts';
 import { BUILTIN_CLIP_TYPES } from '@/sdk/video/timeline/clipTypes.ts';
 import {
   type ParameterSchema,
@@ -15,10 +16,11 @@ import { AudioAnalysisProvider } from '@/tools/video-editor/compositions/AudioAn
 import { EffectLayerSequence } from '@/tools/video-editor/compositions/EffectLayerSequence.tsx';
 import { TextClipSequence } from '@/tools/video-editor/compositions/TextClip.tsx';
 import { AudioReactiveColourSequence } from '@/tools/video-editor/compositions/AudioReactiveColour.tsx';
-import { VisualClipSequence } from '@/tools/video-editor/compositions/VisualClip.tsx';
+import { VisualClip, VisualClipSequence } from '@/tools/video-editor/compositions/VisualClip.tsx';
 import { UnknownClipPlaceholderSequence } from '@/tools/video-editor/compositions/UnknownClipPlaceholder.tsx';
 import { resolveTimelineRenderTheme } from '@/tools/video-editor/compositions/installed-themes.ts';
 import {
+  getGeneratedRemotionModuleSource,
   getGeneratedRemotionModuleStatus,
   isGeneratedRemotionModuleClip,
 } from '@/tools/video-editor/lib/generated-lanes.ts';
@@ -55,6 +57,8 @@ import type { LiveDataRegistry, LiveDataRegistrySnapshot } from '@/tools/video-e
 import type { LiveChannelDescriptor, LiveChannelMetadata, LiveSample, LiveSource } from '@reigh/editor-sdk';
 import { PostprocessShaderPreviewCanvas } from '@/tools/video-editor/shaders/preview/PostprocessShaderPreviewCanvas.tsx';
 import { useShaderEffectRegistrySnapshot } from '@/tools/video-editor/shaders/registry/index.ts';
+import { tryCompileSequenceComponentAsync } from '@/tools/video-editor/sequences/compileSequenceComponent.tsx';
+import { resolveAstridElementComponent } from '@/tools/video-editor/runtime/astrid-element-components.tsx';
 
 // Phase 4d (Sprint 5): EFFECT_REGISTRY dispatch.
 //
@@ -72,6 +76,7 @@ const isBuiltinClipType = (value: string | undefined): boolean => {
   if (typeof value !== 'string') {
     return true; // legacy clips with no clipType default to media-equivalent dispatch
   }
+  if (value === 'image') return true;
   return (BUILTIN_CLIP_TYPES as readonly string[]).includes(value);
 };
 
@@ -87,6 +92,179 @@ const isSequenceComponentClipType = (
   if (typeof value !== 'string') return false;
   if (resolveSequenceClipEntry(value, dynamicEntries)) return true;
   return Object.prototype.hasOwnProperty.call(SEQUENCE_COMPONENT_REGISTRY, value);
+};
+
+const isRecord = (value: unknown): value is Record<string, unknown> => (
+  value !== null && typeof value === 'object' && !Array.isArray(value)
+);
+
+/**
+ * Resolved-child-config cache for nested `clipType: 'shot'` clips.
+ *
+ * Playback previously blinked black at every shot boundary because
+ * ShotClipSequence cleared `childConfig` and reloaded the referenced timeline
+ * asynchronously on every mount. The cache fixes this at two levels:
+ *
+ * 1. `loadReferencedTimelineIntoCache` deduplicates: repeated and concurrent
+ *    loads of the same (provider, timeline) pair share one in-flight promise,
+ *    and the resolved config is memoized so remounts resolve synchronously.
+ * 2. `useSyncExternalStore` exposes the cached value during the FIRST render,
+ *    so a remount at a shot boundary reuses the cached child config without a
+ *    loading-placeholder frame.
+ *
+ * Invalidation semantics:
+ * - The cache key is the provider instance itself (WeakMap): a fresh provider
+ *   (different editor document, session, or save target) never sees a stale
+ *   entry.
+ * - `invalidateReferencedTimelineCache` drops a specific timeline (after a
+ *   child save) or the whole provider entry (no argument). The editor save
+ *   path calls this so the next boundary crossing reloads fresh data.
+ */
+type ShotChildCacheEntry = {
+  readonly subscribe: (listener: () => void) => () => void;
+  /** Notify all subscribers (used after the entry resolves or is dropped). */
+  readonly notify: () => void;
+  /** Latest settled outcome: resolved config, or `null` when the load failed. */
+  resolved: ResolvedTimelineConfig | null;
+  settled: boolean;
+};
+
+const shotChildCacheByProvider = new WeakMap<object, Map<string, ShotChildCacheEntry>>();
+
+const loadReferencedTimelineIntoCache = (
+  provider: DataProvider,
+  timelineId: string,
+): ShotChildCacheEntry => {
+  let byTimeline = shotChildCacheByProvider.get(provider);
+  if (!byTimeline) {
+    byTimeline = new Map();
+    shotChildCacheByProvider.set(provider, byTimeline);
+  }
+
+  const listeners = new Set<() => void>();
+  const entry: ShotChildCacheEntry = {
+    subscribe: (listener) => {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+    notify: () => {
+      for (const listener of listeners) listener();
+    },
+    resolved: null,
+    settled: false,
+  };
+  // Register BEFORE kicking the load: concurrent mounts dedupe against this
+  // entry from the moment creation starts.
+  byTimeline.set(timelineId, entry);
+
+  // Note: `promise` is intentionally not returned — dedup relies on the
+  // entry living in the cache Map from the moment creation starts.
+  provider.loadReferencedTimeline?.(timelineId).then(async ({ timeline, registry, resolveAssetUrl }) => {
+    const resolved = await resolveTimelineConfig(timeline.config, registry, resolveAssetUrl);
+    entry.resolved = resolved;
+    entry.settled = true;
+    entry.notify();
+    return resolved;
+  }).catch((error) => {
+    // A missing child should not replace the whole parent preview with an
+    // unsupported-clip banner. The slot remains empty until it is fixed;
+    // the failed entry is dropped so a later mount can retry the load.
+    console.error('[ShotClipSequence] referenced timeline load failed:', error);
+    byTimeline.delete(timelineId);
+    entry.settled = true;
+    entry.notify();
+    return null;
+  });
+
+  return entry;
+};
+
+export const invalidateReferencedTimelineCache = (
+  provider: DataProvider,
+  timelineId?: string,
+): void => {
+  const byTimeline = shotChildCacheByProvider.get(provider);
+  if (!byTimeline) return;
+  if (timelineId === undefined) {
+    // Notify every subscriber before dropping, so components re-run their
+    // getSnapshot (now a miss) and re-kick a fresh load on re-subscribe.
+    for (const entry of byTimeline.values()) entry.notify();
+    shotChildCacheByProvider.delete(provider);
+    return;
+  }
+  const entry = byTimeline.get(timelineId);
+  if (!entry) return;
+  byTimeline.delete(timelineId);
+  entry.notify();
+};
+
+const getShotChildSnapshot = (entry: ShotChildCacheEntry | null): ResolvedTimelineConfig | null => (
+  entry?.settled ? entry.resolved : null
+);
+
+const ShotClipSequence: FC<{ clip: ResolvedTimelineClip; fps: number }> = ({ clip, fps }) => {
+  const runtime = useContext(VideoEditorRuntimeContext);
+  const timelineDocumentId = isRecord(clip.params) && typeof clip.params.timeline_document_id === 'string'
+    ? clip.params.timeline_document_id
+    : null;
+  const durationInFrames = getClipDurationInFrames(clip, fps);
+  const provider = runtime?.provider ?? null;
+
+  // useSyncExternalStore reuses a settled cache entry synchronously on the
+  // FIRST render — no effect round-trip, no loading placeholder on remount.
+  // The subscribe callback also guarantees an entry exists: on a cache miss
+  // it kicks off the (deduplicated) load and then subscribes to that entry,
+  // so the arriving config triggers the re-render. Concurrent/repeated
+  // mounts of the same (provider, timeline) pair share one entry.
+  const childConfig = useSyncExternalStore(
+    provider && timelineDocumentId && provider.loadReferencedTimeline
+      ? (listener) => {
+          const byTimeline = shotChildCacheByProvider.get(provider);
+          let entry = byTimeline?.get(timelineDocumentId);
+          if (!entry) {
+            entry = loadReferencedTimelineIntoCache(provider, timelineDocumentId);
+          }
+          return entry.subscribe(listener);
+        }
+      : () => () => {},
+    () => {
+      if (!provider || !timelineDocumentId) return null;
+      const existing = shotChildCacheByProvider.get(provider)?.get(timelineDocumentId);
+      return existing ? getShotChildSnapshot(existing) : null;
+    },
+    () => null,
+  );
+
+  return (
+    <Sequence
+      key={clip.id}
+      from={Math.max(0, Math.round(clip.at * fps))}
+      durationInFrames={durationInFrames}
+      // Premount so the next shot's cached child config is mounted (hidden,
+      // audio muted) BEFORE the playhead crosses the boundary — the crossing
+      // renders cached content immediately instead of a dark placeholder.
+      premountFor={fps * 2}
+    >
+      {childConfig ? (
+        <TimelineRenderer config={childConfig} />
+      ) : (
+        <AbsoluteFill
+          data-testid="shot-preview-loading"
+          style={{
+            alignItems: 'center',
+            backgroundColor: '#0b0b0b',
+            color: '#9ca3af',
+            display: 'flex',
+            fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+            fontSize: 12,
+            justifyContent: 'center',
+          }}
+        >
+          Loading shot…
+        </AbsoluteFill>
+      )}
+    </Sequence>
+  );
 };
 
 const sortClipsByAt = (clips: ResolvedTimelineClip[]): ResolvedTimelineClip[] => {
@@ -106,12 +284,19 @@ const ThemePackageComponent: FC<{
     params: unknown;
     theme: RuntimeTheme;
     fps: number;
+    assetEntry?: ResolvedTimelineClip['assetEntry'];
   }>;
   clip: ResolvedTimelineClip;
   fps: number;
 }> = ({ component: Component, clip, fps }) => {
   const theme = useTheme();
-  return <Component clip={clip} params={clip.params} theme={theme} fps={fps} />;
+  // `file` is the persisted locator; `src` is the host-resolved browser URL.
+  // Pack effects consume the component contract's `assetEntry.file`, so make
+  // the resolved URL the file presented to them without mutating timeline data.
+  const assetEntry = clip.assetEntry?.src
+    ? { ...clip.assetEntry, file: clip.assetEntry.src }
+    : clip.assetEntry;
+  return <Component clip={clip} params={clip.params} theme={theme} fps={fps} assetEntry={assetEntry} />;
 };
 
 const ThemeEffectSequence: FC<ThemeEffectSequenceProps> = ({ clip, fps, theme, dynamicEntries }) => {
@@ -120,7 +305,13 @@ const ThemeEffectSequence: FC<ThemeEffectSequenceProps> = ({ clip, fps, theme, d
   const dynamicEntry = resolveSequenceClipEntry(clip.clipType, dynamicEntries);
   const staticEntry = SEQUENCE_COMPONENT_REGISTRY[clip.clipType as keyof typeof SEQUENCE_COMPONENT_REGISTRY];
   const Component = (dynamicEntry?.component ?? staticEntry?.component) as
-    | FC<{ clip: ResolvedTimelineClip; params: unknown; theme: RuntimeTheme; fps: number }>
+    | FC<{
+      clip: ResolvedTimelineClip;
+      params: unknown;
+      theme: RuntimeTheme;
+      fps: number;
+      assetEntry?: ResolvedTimelineClip['assetEntry'];
+    }>
     | undefined;
   // Defensive: if neither registry has the component, fall back to the loud
   // placeholder. This is the second layer of the SD-025 "loud placeholder"
@@ -143,14 +334,174 @@ const ThemeEffectSequence: FC<ThemeEffectSequenceProps> = ({ clip, fps, theme, d
   );
 };
 
+type GeneratedElementSource = {
+  revision?: unknown;
+  source?: unknown;
+};
+
+function getGeneratedElementSource(
+  clip: ResolvedTimelineClip,
+  config: ResolvedTimelineConfig,
+): string | undefined {
+  const inline = getGeneratedRemotionModuleSource(clip);
+  if (inline) return inline;
+  const artifactId = getGeneratedRemotionModuleStatus(clip);
+  if (artifactId.kind !== 'valid_module') return undefined;
+  const elements = (config.app as Record<string, unknown> | undefined)?.elements;
+  if (!elements || typeof elements !== 'object' || Array.isArray(elements)) return undefined;
+  const entry = (elements as Record<string, GeneratedElementSource>)[artifactId.artifactId];
+  return typeof entry?.source === 'string' && entry.source.trim().length > 0
+    ? entry.source
+    : undefined;
+}
+
+/**
+ * Resolve a revision-pinned Astrid element written by the typed operation
+ * adapter. This is the canonical path for new effects/animations: the clip
+ * carries the identity, while the timeline app registry carries the validated
+ * source. The old generation/remotion_module path below remains readable for
+ * legacy documents only.
+ */
+function getPinnedElementSource(
+  clip: ResolvedTimelineClip,
+  config: ResolvedTimelineConfig,
+): string | undefined {
+  const ref = clip.elementRef;
+  if (!ref || ref.kind === 'transition') return undefined;
+  const elements = (config.app as Record<string, unknown> | undefined)?.elements;
+  if (!isRecord(elements)) return undefined;
+  const entry = elements[ref.id];
+  if (!isRecord(entry)) return undefined;
+  if (typeof entry.revision === 'string' && entry.revision !== ref.revision) return undefined;
+  return typeof entry.source === 'string' && entry.source.trim().length > 0
+    ? entry.source
+    : undefined;
+}
+
+const GeneratedModulePreviewSequence: FC<{
+  clip: ResolvedTimelineClip;
+  fps: number;
+  theme: RuntimeTheme;
+  source: string;
+  elementId?: string | null;
+}> = ({ clip, fps, source, theme, elementId }) => {
+  const [state, setState] = useState<
+    | { status: 'loading' }
+    | { status: 'ready'; component: FC<{ clip: ResolvedTimelineClip; params?: Record<string, unknown>; theme?: RuntimeTheme; fps: number }> }
+    | { status: 'error'; message: string }
+  >({ status: 'loading' });
+
+  useEffect(() => {
+    let cancelled = false;
+    setState({ status: 'loading' });
+    void tryCompileSequenceComponentAsync(source).then((result) => {
+      if (cancelled) return;
+      setState(result.ok
+        ? { status: 'ready', component: result.component }
+        : { status: 'error', message: result.error });
+    });
+    return () => { cancelled = true; };
+  }, [source]);
+
+  const moduleStatus = getGeneratedRemotionModuleStatus(clip);
+  const durationInFrames = getClipDurationInFrames(clip, fps);
+  const artifactId = elementId ?? (moduleStatus.kind === 'valid_module' ? moduleStatus.artifactId : null);
+  return (
+    <Sequence
+      key={clip.id}
+      from={Math.max(0, Math.round(clip.at * fps))}
+      durationInFrames={durationInFrames}
+    >
+      {state.status === 'ready' ? (
+        <ThemeProvider value={theme}>
+          {(() => {
+            const Component = state.component;
+            return <Component clip={clip} params={clip.params} theme={theme} fps={fps} />;
+          })()}
+        </ThemeProvider>
+      ) : (
+        <GeneratedModulePlaceholderSequence
+          clip={clip}
+          fps={fps}
+          artifactId={artifactId}
+          reason={state.status === 'error' ? 'invalid_source' : 'compiling'}
+          detail={state.status === 'error' ? state.message : 'Compiling Remotion preview…'}
+        />
+      )}
+    </Sequence>
+  );
+};
+
+const AstridEffectPreviewSequence: FC<{
+  clip: ResolvedTimelineClip;
+  fps: number;
+  theme: RuntimeTheme;
+}> = ({ clip, fps, theme }) => {
+  const Component = clip.elementRef
+    ? resolveAstridElementComponent(clip.elementRef.id, clip.elementRef.kind)
+    : undefined;
+  const durationInFrames = getClipDurationInFrames(clip, fps);
+  if (!Component) return null;
+  return (
+    <Sequence
+      key={clip.id}
+      from={Math.max(0, Math.round(clip.at * fps))}
+      durationInFrames={durationInFrames}
+    >
+      <ThemeProvider value={theme}>
+        <Component clip={clip} params={clip.params ?? {}} theme={theme} fps={fps} />
+      </ThemeProvider>
+    </Sequence>
+  );
+};
+
+const AstridAnimationPreviewSequence: FC<{
+  clip: ResolvedTimelineClip;
+  track: TrackDefinition;
+  fps: number;
+  theme: RuntimeTheme;
+  predecessor?: ResolvedTimelineClip | null;
+}> = ({ clip, track, fps, theme, predecessor }) => {
+  const Component = clip.elementRef
+    ? resolveAstridElementComponent(clip.elementRef.id, clip.elementRef.kind)
+    : undefined;
+  const durationInFrames = getClipDurationInFrames(clip, fps);
+  const transitionFrames = predecessor && clip.transition
+    ? secondsToFrames(clip.transition.duration, fps)
+    : 0;
+  const from = Math.max(0, secondsToFrames(clip.at, fps) - transitionFrames);
+  const effectiveDuration = durationInFrames + transitionFrames + 1;
+  if (!Component) return null;
+  return (
+    <Sequence key={clip.id} from={from} durationInFrames={effectiveDuration}>
+      <ThemeProvider value={theme}>
+        <Component
+          clip={clip}
+          params={clip.params ?? {}}
+          theme={theme}
+          fps={fps}
+          children={(
+            <VisualClip
+              clip={clip}
+              track={track}
+              fps={fps}
+              predecessor={predecessor}
+            />
+          )}
+        />
+      </ThemeProvider>
+    </Sequence>
+  );
+};
+
 const GeneratedModulePlaceholderSequence: FC<{
   clip: ResolvedTimelineClip;
   fps: number;
-}> = ({ clip, fps }) => {
-  const moduleStatus = getGeneratedRemotionModuleStatus(clip);
+  artifactId?: string | null;
+  reason: string;
+  detail: string;
+}> = ({ clip, fps, artifactId, reason, detail }) => {
   const durationInFrames = getClipDurationInFrames(clip, fps);
-  const artifactId = moduleStatus.kind === 'valid_module' ? moduleStatus.artifactId : null;
-  const reason = moduleStatus.kind === 'blocked_module' ? moduleStatus.reason : 'worker_only';
   return (
     <Sequence
       key={clip.id}
@@ -178,15 +529,8 @@ const GeneratedModulePlaceholderSequence: FC<{
           letterSpacing: '0.04em',
         }}
       >
-        <div
-          style={{
-            maxWidth: '80%',
-            padding: '8px 16px',
-            borderRadius: 4,
-            background: 'rgba(0, 0, 0, 0.45)',
-          }}
-        >
-          Generated Remotion module previews only in worker render infrastructure.
+        <div style={{ maxWidth: '80%', padding: '8px 16px', borderRadius: 4, background: 'rgba(0, 0, 0, 0.45)' }}>
+          {detail}
         </div>
       </AbsoluteFill>
     </Sequence>
@@ -312,10 +656,6 @@ function toRendererLiveBinding(record: TimelineLiveBindingRecord): ClipRendererL
     }))),
   });
 }
-
-const isRecord = (value: unknown): value is Record<string, unknown> => (
-  value !== null && typeof value === 'object' && !Array.isArray(value)
-);
 
 function numericValue(value: unknown): number | undefined {
   if (typeof value === 'number' && Number.isFinite(value)) return value;
@@ -963,6 +1303,7 @@ const ExtensionClipSequence: FC<ExtensionClipSequenceProps> = ({
 interface VisualTrackProps {
   track: TrackDefinition;
   clips: ResolvedTimelineClip[];
+  renderConfig: ResolvedTimelineConfig;
   fps: number;
   theme: Theme;
   resolution: string;
@@ -978,6 +1319,7 @@ interface VisualTrackProps {
 const VisualTrack: FC<VisualTrackProps> = ({
   track,
   clips,
+  renderConfig,
   fps,
   theme,
   resolution,
@@ -1050,8 +1392,82 @@ const VisualTrack: FC<VisualTrackProps> = ({
         // components surface workerRender:false through this path.
         const descriptor = describeClipCapabilityWith(clip, dynamicEntries);
 
+        if (clip.elementRef && clip.elementRef.kind !== 'transition') {
+          const source = getPinnedElementSource(clip, renderConfig);
+          if (source) {
+            return (
+              <GeneratedModulePreviewSequence
+                key={clip.id}
+                clip={clip}
+                fps={fps}
+                theme={theme}
+                source={source}
+                elementId={clip.elementRef.id}
+              />
+            );
+          }
+          const astridComponent = resolveAstridElementComponent(
+            clip.elementRef.id,
+            clip.elementRef.kind,
+          );
+          if (astridComponent && clip.elementRef.kind === 'effect') {
+            return (
+              <AstridEffectPreviewSequence
+                key={clip.id}
+                clip={clip}
+                fps={fps}
+                theme={theme}
+              />
+            );
+          }
+          if (astridComponent && clip.elementRef.kind === 'animation') {
+            return (
+              <AstridAnimationPreviewSequence
+                key={clip.id}
+                clip={clip}
+                track={track}
+                fps={fps}
+                theme={theme}
+                predecessor={index > 0 ? sortedClips[index - 1] : null}
+              />
+            );
+          }
+          return (
+            <GeneratedModulePlaceholderSequence
+              key={clip.id}
+              clip={clip}
+              fps={fps}
+              artifactId={clip.elementRef.id}
+              reason="element_source_missing"
+              detail={`Astrid element ${clip.elementRef.id}@${clip.elementRef.revision} has no source in this timeline.`}
+            />
+          );
+        }
+
         if (descriptor?.source === 'generated-module' || isGeneratedRemotionModuleClip(clip)) {
-          return <GeneratedModulePlaceholderSequence key={clip.id} clip={clip} fps={fps} />;
+          const moduleStatus = getGeneratedRemotionModuleStatus(clip);
+          const source = getGeneratedElementSource(clip, renderConfig);
+          if (source && moduleStatus.kind === 'valid_module') {
+            return (
+              <GeneratedModulePreviewSequence
+                key={clip.id}
+                clip={clip}
+                fps={fps}
+                theme={theme}
+                source={source}
+              />
+            );
+          }
+          return (
+            <GeneratedModulePlaceholderSequence
+              key={clip.id}
+              clip={clip}
+              fps={fps}
+              artifactId={moduleStatus.kind === 'valid_module' ? moduleStatus.artifactId : null}
+              reason={moduleStatus.kind === 'blocked_module' ? moduleStatus.reason : 'worker_only'}
+              detail="This Remotion element has no browser source yet; Astrid remains the export renderer."
+            />
+          );
         }
 
         if (clip.clipType === 'effect-layer') {
@@ -1060,6 +1476,10 @@ const VisualTrack: FC<VisualTrackProps> = ({
 
         if (clip.clipType === 'text') {
           return <TextClipSequence key={clip.id} clip={clip} track={track} fps={fps} />;
+        }
+
+        if (clip.clipType === 'shot') {
+          return <ShotClipSequence key={clip.id} clip={clip} fps={fps} />;
         }
 
         // First-party Astrid parity renderer. This is deliberately dispatched
@@ -1272,6 +1692,7 @@ export const TimelineRenderer: FC<{ config: ResolvedTimelineConfig }> = memo(({ 
               key={track.id}
               track={track}
               clips={trackClips}
+              renderConfig={renderConfig}
               fps={fps}
               theme={theme}
               resolution={resolution}
@@ -1306,8 +1727,7 @@ export const TimelineRenderer: FC<{ config: ResolvedTimelineConfig }> = memo(({ 
     fps,
     liveBindingRecordsByClip,
     liveDataRegistry,
-    renderConfig.clips,
-    renderConfig.output.resolution,
+    renderConfig,
     theme,
     visualTracks,
   ]);

@@ -42,6 +42,16 @@ export const determineProjectIdToSelect = (
   return projects[0].id;
 };
 
+function projectSlugFromName(name: string): string {
+  const slug = name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 64);
+  return slug || 'new-project';
+}
+
 interface UseProjectCRUDOptions {
   userId: string | null;
   selectedProjectId: string | null;
@@ -59,7 +69,7 @@ export function useProjectCRUD({
   userId,
   selectedProjectId,
   onProjectsLoaded,
-  onProjectCreated: _onProjectCreated,
+  onProjectCreated,
   onProjectDeleted: _onProjectDeleted,
   updateUserSettings: _updateUserSettings,
 }: UseProjectCRUDOptions) {
@@ -137,19 +147,33 @@ export function useProjectCRUD({
     }
     setIsCreatingProject(true);
     try {
+      if (isUrlOwnedMode) {
+        const created = await new AstridLocalClient({ projectSlug: '__discovery__' }).projects.create({
+          name: projectData.name.trim(),
+          slug: projectSlugFromName(projectData.name),
+          metadata: { aspect_ratio: projectData.aspectRatio },
+        });
+        const createdProject = mapDbProjectToProject({
+          id: created.data.slug,
+          name: created.data.name,
+          user_id: 'local-user',
+          aspect_ratio: created.data.metadata.aspect_ratio,
+          created_at: created.data.created_at,
+        });
+        setProjects((current) => [...current.filter((project) => project.id !== createdProject.id), createdProject]);
+        onProjectCreated(createdProject);
+        return createdProject;
+      }
       if (!userId) throw new Error('Not authenticated');
       void selectedProjectId;
-      throw bridgeCapabilityUnavailable(
-        'create project',
-        'Create the project with the Astrid CLI, then refresh this page.',
-      );
+      throw bridgeCapabilityUnavailable('create project', 'Create the project with the Astrid CLI, then refresh this page.');
     } catch (err: unknown) {
       normalizeAndPresentError(err, { context: 'ProjectContext', toastTitle: 'Failed to create project' });
       return null;
     } finally {
       setIsCreatingProject(false);
     }
-  }, [userId, selectedProjectId]);
+  }, [isUrlOwnedMode, onProjectCreated, userId, selectedProjectId]);
 
   const updateProject = useCallback(async (projectId: string, updates: ProjectUpdate): Promise<boolean> => {
     if (!updates.name?.trim() && !updates.aspectRatio) {
@@ -158,20 +182,43 @@ export function useProjectCRUD({
     }
     setIsUpdatingProject(true);
     try {
+      if (isUrlOwnedMode) {
+        const client = new AstridLocalClient({ projectSlug: projectId });
+        const current = (await client.projects.list()).find((project) => project.slug === projectId);
+        if (!current?.project_id || current.version === undefined) {
+          throw new Error('Astrid did not return the project version required to save settings.');
+        }
+        const metadata = { ...(current.metadata ?? {}) };
+        if (updates.aspectRatio) metadata.aspect_ratio = updates.aspectRatio;
+        const updated = await client.projects.update({
+          projectId: current.project_id,
+          expectedVersion: current.version,
+          name: updates.name,
+          metadata,
+        });
+        const updatedProject = mapDbProjectToProject({
+          id: updated.slug,
+          name: updated.name,
+          user_id: 'local-user',
+          aspect_ratio: updated.metadata.aspect_ratio,
+          created_at: updated.created_at,
+        });
+        setProjects((currentProjects) => currentProjects.map((project) => (
+          project.id === updatedProject.id ? updatedProject : project
+        )));
+        return true;
+      }
       if (!userId) throw new Error('Not authenticated');
       void projectId;
       void updates;
-      throw bridgeCapabilityUnavailable(
-        'update project',
-        'Update the project with the Astrid CLI, then refresh this page.',
-      );
+      throw bridgeCapabilityUnavailable('update project', 'Update the project with the Astrid CLI, then refresh this page.');
     } catch (err: unknown) {
       normalizeAndPresentError(err, { context: 'ProjectContext', toastTitle: 'Failed to update project' });
       return false;
     } finally {
       setIsUpdatingProject(false);
     }
-  }, [userId]);
+  }, [isUrlOwnedMode, userId]);
 
   const deleteProject = useCallback(async (_projectId: string): Promise<boolean> => {
     setIsDeletingProject(true);

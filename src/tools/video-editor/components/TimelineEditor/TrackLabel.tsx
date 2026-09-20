@@ -39,6 +39,8 @@ interface TrackLabelProps {
 
 interface TrackLabelContentProps {
   track: TrackDefinition;
+  /** Read-only context shown in the label without changing the persisted name. */
+  displayLabel?: string;
   isSelected: boolean;
   hasClips: boolean;
   deviceClass?: TimelineDeviceClass;
@@ -303,6 +305,7 @@ function TrackDefaultsDialog({
 
 export function TrackLabelContent({
   track,
+  displayLabel,
   isSelected,
   hasClips,
   deviceClass = 'desktop',
@@ -395,8 +398,11 @@ export function TrackLabelContent({
         </span>
 
         {/* Full label shown at rest; on pointer devices it fades out for the hover overlay */}
-        <span className={cn('min-w-0 flex-1 truncate', !pinActions && 'transition-opacity group-hover:opacity-0')}>
-          {track.label}
+        <span
+          className={cn('min-w-0 flex-1 truncate', !pinActions && 'transition-opacity group-hover:opacity-0')}
+          title={displayLabel ?? track.label}
+        >
+          {displayLabel ?? track.label}
         </span>
 
         {pinActions ? (

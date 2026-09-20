@@ -10,7 +10,6 @@ import { GenerationRow } from '@/domains/generation/types';
 import { isVideoAny } from '@/shared/lib/typeGuards';
 import { useIsMobile } from '@/shared/hooks/mobile';
 import { useProjectSelectionContext } from '@/shared/contexts/ProjectContext';
-import { useUserUIState } from '@/shared/hooks/useUserUIState';
 import { usePublicLoras } from '@/features/resources/hooks/useResources';
 import { TOOL_IDS } from '@/shared/lib/tooling/toolIds';
 import { useUpscale } from '@/domains/media-lightbox/hooks/useUpscale';
@@ -124,8 +123,7 @@ export function useInlineEditState(
   const [createAsGeneration, setCreateAsGeneration] = useState(false);
   const isMobile = useIsMobile();
   const { selectedProjectId } = useProjectSelectionContext();
-  const { value: generationMethods } = useUserUIState('generationMethods', { onComputer: true, inCloud: true });
-  const isCloudMode = generationMethods.inCloud;
+  const isCloudMode = true;
   const isVideo = isVideoAny(media);
   const actualGenerationId = resolveActualGenerationId(media);
   const { effectiveImageUrl: upscaleImageUrl, isUpscaling, handleUpscale, setActiveVariant: setUpscaleActiveVariant } = useUpscale({

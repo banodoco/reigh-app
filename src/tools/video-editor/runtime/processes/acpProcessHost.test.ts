@@ -6,7 +6,8 @@ import {
 } from './acpProcessHost.ts';
 import {
   ASTRID_ACP_AGENT_IDENTITY,
-  ASTRID_ACP_OMP_BIN,
+  ASTRID_ACP_COMMAND,
+  ASTRID_ACP_CONTEXT_SYSTEM_PROMPT,
   createAstridAcpProcessHost,
 } from './astridAcpLauncher.ts';
 
@@ -188,7 +189,7 @@ describe('AcpProcessHost', () => {
     await host.dispose();
   });
 
-  it('builds the named Astrid launch with exact prompt, identity, cwd, and session custody', async () => {
+  it('builds the real Astrid launcher command with identity, cwd, and session custody', async () => {
     const process = new FakeProcess();
     let spawnOptions: AcpProcessSpawnOptions | undefined;
     const host = createAstridAcpProcessHost({
@@ -207,18 +208,17 @@ describe('AcpProcessHost', () => {
     const pending = host.listSessions();
     await flush();
     expect(spawnOptions).toEqual({
-      command: ASTRID_ACP_OMP_BIN,
+      command: ASTRID_ACP_COMMAND,
       args: [
-        'acp',
+        '--mode=acp',
         '--profile', 'astrid',
         '--session-dir', '/tmp/reigh-sessions',
-        '--system-prompt', '/tmp/astrid.md',
       ],
       cwd: '/tmp/reigh-project',
       env: {
-        OMP_BIN: ASTRID_ACP_OMP_BIN,
         OMP_AGENT_IDENTITY: ASTRID_ACP_AGENT_IDENTITY,
         ASTRID_AGENT_IDENTITY: ASTRID_ACP_AGENT_IDENTITY,
+        ASTRID_SYSTEM_PROMPT: ASTRID_ACP_CONTEXT_SYSTEM_PROMPT,
       },
     });
     const request = lastRequest(process);
@@ -245,13 +245,13 @@ describe('AcpProcessHost', () => {
     const pending = host.listSessions();
     await flush();
     expect(spawnOptions).toEqual({
-      command: ASTRID_ACP_OMP_BIN,
-      args: ['acp', '--profile', 'astrid', '--system-prompt', '/tmp/astrid.md'],
+      command: ASTRID_ACP_COMMAND,
+      args: ['--mode=acp', '--profile', 'astrid'],
       cwd: '/tmp/reigh-canonical-project',
       env: {
-        OMP_BIN: ASTRID_ACP_OMP_BIN,
         OMP_AGENT_IDENTITY: ASTRID_ACP_AGENT_IDENTITY,
         ASTRID_AGENT_IDENTITY: ASTRID_ACP_AGENT_IDENTITY,
+        ASTRID_SYSTEM_PROMPT: ASTRID_ACP_CONTEXT_SYSTEM_PROMPT,
       },
     });
     const request = lastRequest(process);

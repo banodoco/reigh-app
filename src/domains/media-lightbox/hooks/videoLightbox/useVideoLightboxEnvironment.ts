@@ -1,7 +1,6 @@
 import { useState, useRef, useLayoutEffect, useCallback } from 'react';
 import { useProjectSelectionContext } from '@/shared/contexts/ProjectContext';
 import { useTaskStatusCounts } from '@/shared/hooks/tasks/useTaskStatusCounts';
-import { useUserUIState } from '@/shared/hooks/useUserUIState';
 import { useIsMobile } from '@/shared/hooks/mobile';
 import { useEditSettingsPersistence } from '../persistence/useEditSettingsPersistence';
 import { extractDimensionsFromMedia } from '../../utils/dimensions';
@@ -124,8 +123,7 @@ export function useVideoLightboxEnvironment(
   const isMobile = useIsMobile();
   const { project, selectedProjectId } = useProjectSelectionContext();
   const projectAspectRatio = project?.aspectRatio;
-  const { value: generationMethods } = useUserUIState('generationMethods', { onComputer: true, inCloud: true });
-  const isCloudMode = generationMethods.inCloud;
+  const isCloudMode = true;
 
   const tasksPaneOpenContext = usePanesStore((state) => state.isTasksPaneOpen);
   const tasksPaneWidthContext = usePanesStore((state) => state.tasksPaneWidth);

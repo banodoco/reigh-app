@@ -1,6 +1,7 @@
 import type { Connect, Plugin, ProxyOptions } from 'vite';
 
 import {
+  ASTRID_ACP_REQUEST_TIMEOUT_MS,
   ASTRID_BRIDGE_PROTOCOL_HEADER,
   ASTRID_BRIDGE_PROTOCOL_VERSION,
   ASTRID_BRIDGE_REQUEST_TIMEOUT_MS,
@@ -108,8 +109,8 @@ export function createAstridAcpBridgeProxyOptions(
     target: `http://127.0.0.1:${port}`,
     changeOrigin: true,
     headers: astridBridgeUpstreamHeaders(policy, policy.acpToken),
-    timeout: ASTRID_BRIDGE_REQUEST_TIMEOUT_MS,
-    proxyTimeout: ASTRID_BRIDGE_REQUEST_TIMEOUT_MS,
+    timeout: ASTRID_ACP_REQUEST_TIMEOUT_MS,
+    proxyTimeout: ASTRID_ACP_REQUEST_TIMEOUT_MS,
     rewrite: (incomingPath) => incomingPath.replace(/^\/api\/astrid\/acp/, ''),
     configure: (proxy) => {
       proxy.on('proxyReq', (proxyRequest, incomingRequest) => {

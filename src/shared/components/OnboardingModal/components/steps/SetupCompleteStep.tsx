@@ -12,7 +12,7 @@ import {
 import { getBridgeRecoveryGuidance } from '@/integrations/astrid/bridgeRecovery.ts';
 
 export function SetupCompleteStep({ onClose }: OnboardingStepProps) {
-  const colors = getStepColors(6);
+  const colors = getStepColors(5);
   const [availability, setAvailability] = useState<AstridDoctorAvailability>({
     status: 'checking',
   });

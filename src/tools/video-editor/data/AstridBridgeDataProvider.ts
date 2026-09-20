@@ -7,6 +7,7 @@ import type { Checkpoint } from '@/tools/video-editor/types/history.ts';
 import {
   type DataProvider,
   type LoadedTimeline,
+  type LoadedReferencedTimeline,
   TimelineNotFoundError,
   TimelineSchemaIncompatibleError,
   TimelineVersionConflictError,
@@ -18,6 +19,7 @@ import {
   BRIDGE_VERSION_CONFLICT_CODE,
   BridgeContractError,
   bridgeTimelinePayloadSchema,
+  runtimeProjectResourceSchema,
 } from '@/tools/video-editor/data/bridgeContract.ts';
 import {
   AstridBridgeTransport,
@@ -183,7 +185,25 @@ const normalizeRegistry = (value: unknown): AssetRegistry => {
   if (value === undefined || value === null) {
     return { assets: {} };
   }
-  return clone(value as AssetRegistry);
+  const registry = clone(value as AssetRegistry);
+  if (!isAstridWorkspaceV1) return registry;
+
+  // Runtime v1's imported Astrid documents carry the immutable CAS digest as
+  // `content_sha256` rather than the editor's older `media_id` field. Promote
+  // that digest to the canonical Runtime object identity so asset resolution
+  // uses `/v1/objects/:object_id` instead of the retired file-path route.
+  return {
+    ...registry,
+    assets: Object.fromEntries(Object.entries(registry.assets ?? {}).map(([assetKey, entry]) => {
+      if (entry?.media_id || typeof entry?.content_sha256 !== 'string') {
+        return [assetKey, entry];
+      }
+      const digest = entry.content_sha256.replace(/^sha256:/, '').trim();
+      return /^[0-9a-f]{64}$/.test(digest)
+        ? [assetKey, { ...entry, media_id: `sha256:${digest}` }]
+        : [assetKey, entry];
+    })),
+  };
 };
 
 const normalizeConfig = (value: unknown): TimelineConfig => {
@@ -251,7 +271,10 @@ const getShowDirectoryPicker = (): ShowDirectoryPicker | null => {
 };
 
 export class AstridBridgeDataProvider implements DataProvider {
-  readonly persistenceEnabled = true;
+  // workspace.v1 reads are served through this compatibility adapter for
+  // discovery, but its legacy POST save route is intentionally read-only.
+  // Do not let the editor advertise autosave against that provider.
+  readonly persistenceEnabled = !isAstridWorkspaceV1;
   /** No cloud sync in local mode: sync UI stays hidden. */
   readonly supportsEditorSync = false;
   /** Direct all-file asset upload is the Local provider's core surface. */
@@ -400,6 +423,60 @@ export class AstridBridgeDataProvider implements DataProvider {
     return registry;
   }
 
+  async loadReferencedTimeline(timelineId: string): Promise<LoadedReferencedTimeline> {
+    // A provider instance is scoped to the selected editor timeline. Use a
+    // short-lived read-only provider for a child document so loading a shot
+    // cannot change the parent provider's CAS identity or save target.
+    const childProvider = new AstridBridgeDataProvider({
+      projectSlug: this.projectSlug,
+      timelineRef: timelineId,
+      timelineId,
+      apiBaseUrl: this.apiBaseUrl,
+      assetBaseUrl: this.assetBaseUrl,
+      registeredParsers: this.registeredParsers,
+      onBridgeRequest: this.onBridgeRequest,
+    });
+    const [timeline, registry] = await Promise.all([
+      childProvider.loadTimeline(timelineId),
+      childProvider.loadAssetRegistry(timelineId),
+    ]);
+    return {
+      timeline,
+      registry,
+      resolveAssetUrl: childProvider.resolveAssetUrl.bind(childProvider),
+    };
+  }
+
+  async setPrimaryTimeline(timelineId: string): Promise<void> {
+    if (!isAstridWorkspaceV1) {
+      throw new AstridBridgeReadOnlyError('Primary timeline selection requires workspace.v1');
+    }
+
+    const project = await this.transport.requestJson(
+      `/v1/projects/${encodeURIComponent(this.projectSlug)}`,
+      {},
+      runtimeProjectResourceSchema,
+      'project resource',
+    );
+    const metadata = {
+      ...project.metadata,
+      default_timeline_id: timelineId,
+    };
+    await this.transport.requestJson(
+      `/v1/projects/${encodeURIComponent(this.projectSlug)}`,
+      {
+        method: 'PATCH',
+        body: {
+          expected_version: project.version,
+          metadata,
+        },
+        headers: { 'Idempotency-Key': generateUUID() },
+      },
+      runtimeProjectResourceSchema,
+      'project primary timeline update',
+    );
+  }
+
   getMaterializationSummary(): AssetMaterializationSummary {
     const states: Record<string, AssetMaterializationState> = {};
     const diagnostics: AssetMaterializationDiagnostic[] = [];
@@ -488,7 +565,7 @@ export class AstridBridgeDataProvider implements DataProvider {
     bundle?: TimelineBundleEnvelope | null,
   ): Promise<number> {
     if (isAstridWorkspaceV1) {
-      throw new Error('This live Astrid workspace preview is read-only; timeline saving is not enabled.');
+      throw new AstridBridgeReadOnlyError('timeline saving');
     }
     // Validate before the pre-read, materialization, or any network/FSA IO.
     if (bundle !== undefined && bundle !== null) {
@@ -507,7 +584,7 @@ export class AstridBridgeDataProvider implements DataProvider {
     // always travel through this versioned bridge save (one writer, one file).
     await this.ensureLocalAssetHandles();
     const materializedRegistry = await this.materializeGenerationAssets(timelineId, nextRegistry);
-    validateAssetRegistryMediaIds(materializedRegistry);
+    this.validateAssetRegistry(materializedRegistry);
 
     let savePayload: BridgeTimelinePayload;
     const bridgeStartedAt = performance.now();
@@ -819,7 +896,7 @@ export class AstridBridgeDataProvider implements DataProvider {
 
 
   private rebuildAssetMaps(registry: AssetRegistry): void {
-    validateAssetRegistryMediaIds(registry);
+    this.validateAssetRegistry(registry);
     this.assetKeyToFile.clear();
     this.fileToAssetKey.clear();
     this.mediaIdToAssetKey.clear();
@@ -842,6 +919,15 @@ export class AstridBridgeDataProvider implements DataProvider {
         this.mediaIdToAssetKey.set(mediaId, assetKey);
         this.assetKeyToMediaId.set(assetKey, mediaId);
       }
+    }
+  }
+
+  private validateAssetRegistry(registry: AssetRegistry): void {
+    // Runtime v1 may intentionally expose multiple authored asset names for
+    // one immutable CAS object. The clip's asset key disambiguates the alias;
+    // the old bridge contract still needs the stricter metadata comparison.
+    if (!isAstridWorkspaceV1) {
+      validateAssetRegistryMediaIds(registry);
     }
   }
 

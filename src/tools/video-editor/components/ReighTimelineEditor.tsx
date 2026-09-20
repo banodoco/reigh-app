@@ -47,11 +47,12 @@ import type { ClipMeta } from '@/tools/video-editor/lib/timeline-data.ts';
 
 interface ReighTimelineEditorProps {
   onOpenSequenceCreator?: () => void;
+  onOpenElementCreationPrompt?: (prompt: string) => void;
 }
 
 const EMPTY_ASSET_GENERATION_MAP: Record<string, string> = {};
 
-function ReighTimelineEditorComponent({ onOpenSequenceCreator }: ReighTimelineEditorProps) {
+function ReighTimelineEditorComponent({ onOpenSequenceCreator, onOpenElementCreationPrompt }: ReighTimelineEditorProps) {
   const [videoModalShot, setVideoModalShot] = useState<Shot | null>(null);
   const [videoModalShowImages, setVideoModalShowImages] = useState(false);
   const [duplicatingClipId, setDuplicatingClipId] = useState<string | null>(null);
@@ -535,6 +536,7 @@ function ReighTimelineEditorComponent({ onOpenSequenceCreator }: ReighTimelineEd
     <>
       <TimelineEditorCore
         onOpenSequenceCreator={onOpenSequenceCreator}
+        onOpenElementCreationPrompt={onOpenElementCreationPrompt}
         finalVideoMap={finalVideoMap}
         shotGroups={shotGroups}
         staleShotGroupIds={staleShotGroupIds}

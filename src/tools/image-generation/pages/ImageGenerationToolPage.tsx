@@ -16,6 +16,7 @@ import { ChevronDown, ChevronLeft, Sparkles, Settings2 } from 'lucide-react';
 import { DeleteGenerationConfirmDialog } from '@/shared/components/dialogs/DeleteGenerationConfirmDialog';
 import { getProjectSelectionFallbackId } from '@/shared/contexts/projectSelectionStore';
 import { getRuntimeDocumentProjectId } from '@/app/runtime/runtimeDocument';
+import { useResolvedGalleryProject } from '@/app/runtime/useResolvedGalleryProject';
 
 import { useImageGenGallery } from "../hooks/useImageGenGallery";
 import { useImageGenActions } from "../hooks/useImageGenActions";
@@ -78,12 +79,17 @@ const ImageGenerationToolPage: React.FC = React.memo(() => {
   const formContainerRef = useRef<HTMLDivElement>(null);
   const collapsibleContainerRef = useRef<HTMLDivElement>(null);
   const [searchParams] = useSearchParams();
-  const runtimeProjectId = getRuntimeDocumentProjectId(searchParams.toString(), pathname);
+  const explicitRuntimeProjectId = getRuntimeDocumentProjectId(searchParams.toString(), pathname);
+  const resolvedGalleryProject = useResolvedGalleryProject(searchParams.toString(), pathname);
+  const galleryProjectId = resolvedGalleryProject.runtimeAuthority
+    ? resolvedGalleryProject.projectId
+    : effectiveProjectId;
 
   const gallery = useImageGenGallery({
-    projectId: selectedProjectId ?? runtimeProjectId,
-    effectiveProjectId,
-    runtimeProjectId,
+    projectId: selectedProjectId ?? explicitRuntimeProjectId,
+    effectiveProjectId: galleryProjectId,
+    runtimeProjectId: resolvedGalleryProject.projectId,
+    runtimeAuthority: resolvedGalleryProject.runtimeAuthority,
     projectAspectRatio,
     formAssociatedShotId,
     isFormExpanded,
@@ -95,8 +101,8 @@ const ImageGenerationToolPage: React.FC = React.memo(() => {
   });
 
   const actions = useImageGenActions({
-    projectId: selectedProjectId ?? runtimeProjectId,
-    effectiveProjectId,
+    projectId: selectedProjectId ?? explicitRuntimeProjectId,
+    effectiveProjectId: galleryProjectId,
     selectedShotFilter: gallery.galleryFilters.shotFilter,
     excludePositioned: gallery.galleryFilters.excludePositioned,
     generationsFilters: gallery.generationsFilters,
@@ -105,8 +111,8 @@ const ImageGenerationToolPage: React.FC = React.memo(() => {
   });
 
   const form = useImageGenSubmit({
-    projectId: selectedProjectId ?? runtimeProjectId,
-    effectiveProjectId,
+    projectId: selectedProjectId ?? explicitRuntimeProjectId,
+    effectiveProjectId: galleryProjectId,
   });
 
   const { setLastAffectedShotId } = actions;
@@ -189,7 +195,11 @@ const ImageGenerationToolPage: React.FC = React.memo(() => {
         </div>
 
         <div ref={gallery.galleryRef as React.RefObject<HTMLDivElement>} className="pt-0">
-          {(!effectiveProjectId || (gallery.isLoadingGenerations && gallery.imagesToShow.length === 0)) ? (
+          {resolvedGalleryProject.error ? (
+            <div role="alert" className="rounded-lg border border-destructive/40 bg-destructive/10 p-6 text-sm text-destructive">
+              Unable to resolve the local Astrid project: {resolvedGalleryProject.error.message}
+            </div>
+          ) : (!galleryProjectId || resolvedGalleryProject.isResolving || (gallery.isLoadingGenerations && gallery.imagesToShow.length === 0)) ? (
             <SkeletonGallery
               count={gallery.skeletonItemsPerPage}
               fixedColumns={gallery.skeletonColumns}

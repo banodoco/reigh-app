@@ -34,6 +34,20 @@ logger.warn = (msg, options) => {
   originalWarn(msg, options);
 };
 
+function readRuntimeProxyToken(tokenFile: string | null): string | null {
+  if (!tokenFile || !fs.existsSync(tokenFile)) return null;
+  const raw = fs.readFileSync(tokenFile, 'utf8').trim();
+  if (!raw.startsWith('{')) return raw || null;
+  try {
+    const credential = JSON.parse(raw) as { token?: unknown };
+    return typeof credential.token === 'string' && credential.token.trim()
+      ? credential.token.trim()
+      : null;
+  } catch (error) {
+    throw new Error(`WORKSPACE_RUNTIME_TOKEN_FILE is not valid token text or credential JSON: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
 export default defineConfig(() => {
   const port = resolveVitePort(process.env.PORT);
   const astridBridgePort = resolveAstridBridgePort(process.env.VITE_ASTRID_BRIDGE_PORT);
@@ -60,9 +74,7 @@ export default defineConfig(() => {
   };
   const runtimeTarget = process.env.VITE_WORKSPACE_RUNTIME_URL?.trim() || null;
   const runtimeTokenFile = process.env[RUNTIME_TOKEN_FILE_ENV]?.trim() || null;
-  const runtimeToken = runtimeTokenFile && fs.existsSync(runtimeTokenFile)
-    ? fs.readFileSync(runtimeTokenFile, 'utf8').trim()
-    : null;
+  const runtimeToken = readRuntimeProxyToken(runtimeTokenFile);
   const runtimeProxy: Record<string, string | ProxyOptions> = runtimeTarget
     ? { "/api/runtime": createWorkspaceRuntimeProxyOptions(runtimeTarget, runtimeToken) }
     : {};

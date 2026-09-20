@@ -61,6 +61,7 @@ export interface ClipMeta {
   exit?: TimelineClip['exit'];
   continuous?: TimelineClip['continuous'];
   transition?: TimelineClip['transition'];
+  elementRef?: TimelineClip['elementRef'];
   effects?: TimelineClip['effects'];
   params?: TimelineClip['params'];
   pool_id?: TimelineClip['pool_id'];
@@ -179,6 +180,7 @@ const getDefaultClipMeta = (clip: TimelineClip): ClipMeta => {
     exit: clip.exit,
     continuous: clip.continuous,
     transition: clip.transition,
+    elementRef: clip.elementRef,
     effects: clip.effects,
     params: clip.params,
     pool_id: clip.pool_id,
@@ -328,6 +330,7 @@ export const rowsToConfig = (
         exit: clipMeta.exit,
         continuous: clipMeta.continuous,
         transition: clipMeta.transition,
+        elementRef: clipMeta.elementRef,
         effects: clipMeta.effects,
         params: clipMeta.params,
         pool_id: clipMeta.pool_id,

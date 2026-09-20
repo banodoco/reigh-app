@@ -369,7 +369,28 @@ export async function createImageToImageTask(
       scratch_bytes: capability.estimated_scratch_bytes,
       output_bytes: capability.estimated_output_bytes,
     },
-    settlement_effect: {},
+    settlement_effect: {
+      effect_type: 'generation.create_with_variant',
+      target_id: project,
+      payload: {
+        generation_type: 'image',
+        metadata: {
+          params: {
+            tool_type: 'image-to-image',
+            content_type: 'image',
+            model: 'z-image',
+            mode: 'i2i',
+            prompt: options.prompt.trim(),
+            strength: options.strength,
+            size: BOUNDED_CLOUD_I2I_SIZE,
+          },
+        },
+        variant_type: 'image_to_image',
+        output_name: 'generated_images',
+        output_ordinal: 0,
+        primary_policy: 'preserve',
+      },
+    },
   });
   const taskIds = result.task_ids ?? [result.task_id];
   return {

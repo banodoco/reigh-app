@@ -29,6 +29,8 @@ interface UseImageGenGalleryParams {
   formContainerRef: RefObject<HTMLDivElement | null>;
   /** Explicit Runtime authority carried from the editor's document URL. */
   runtimeProjectId?: string | null;
+  /** Keep the gallery Runtime-owned while a local project is resolving. */
+  runtimeAuthority?: boolean;
 }
 
 export function useImageGenGallery({
@@ -43,6 +45,7 @@ export function useImageGenGallery({
   collapsibleContainerRef,
   formContainerRef,
   runtimeProjectId = null,
+  runtimeAuthority = runtimeProjectId !== null,
 }: UseImageGenGalleryParams) {
   const [galleryFilters, setGalleryFilters] = useState<GalleryFilterState>({
     ...DEFAULT_GALLERY_FILTERS,
@@ -119,7 +122,7 @@ export function useImageGenGallery({
     itemsPerPage,
     !!effectiveProjectId,
     generationsFilters,
-    { runtimeProjectId },
+    { runtimeProjectId, runtimeAuthority },
   );
 
   const imagesToShow = useMemo(() => {

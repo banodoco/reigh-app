@@ -32,6 +32,7 @@ function makeBuiltInRecord(
   transitionId: string,
   renderer: TransitionRenderer,
 ): TransitionRegistryRecord {
+  const browserExportSupported = !new Set(['wipe', 'slide-push', 'zoom-through']).has(transitionId);
   return Object.freeze({
     transitionId,
     contributionId: `${BUILT_IN_CONTRIBUTION_ID_PREFIX}${transitionId}`,
@@ -53,8 +54,9 @@ function makeBuiltInRecord(
         }),
         Object.freeze({
           route: 'browser-export',
-          status: 'supported',
+          status: browserExportSupported ? 'supported' : 'blocked',
           determinism: 'deterministic',
+          ...(browserExportSupported ? {} : { blockerReason: 'route-unsupported' as const }),
         }),
         Object.freeze({
           route: 'worker-export',
@@ -84,13 +86,22 @@ const BUILT_IN_IDS: ReadonlySet<string> = new Set(
   BUILT_IN_TRANSITION_RECORDS.map((r) => r.transitionId),
 );
 
+/** Stable Astrid IDs may have a legacy browser-renderer alias. */
+const BUILT_IN_ID_ALIASES: Readonly<Record<string, string>> = Object.freeze({
+  'cross-fade': 'crossfade',
+});
+
+function browserTransitionId(transitionId: string): string {
+  return BUILT_IN_ID_ALIASES[transitionId] ?? transitionId;
+}
+
 // ---------------------------------------------------------------------------
 // Public helpers
 // ---------------------------------------------------------------------------
 
 /** Check whether a transition ID belongs to a host-owned built-in transition. */
 export function isBuiltInTransition(transitionId: string): boolean {
-  return BUILT_IN_IDS.has(transitionId);
+  return BUILT_IN_IDS.has(browserTransitionId(transitionId));
 }
 
 /** Get a frozen set of all built-in transition IDs. */
@@ -126,9 +137,10 @@ export function resolveTransition(
   registrySnapshot?: TransitionRegistrySnapshot,
   diagnostics?: ExtensionDiagnostic[],
 ): TransitionRegistryRecord | undefined {
+  const lookupId = browserTransitionId(transitionId);
   // Built-ins always take priority
   const builtIn = BUILT_IN_TRANSITION_RECORDS.find(
-    (r) => r.transitionId === transitionId,
+    (r) => r.transitionId === lookupId,
   );
   if (builtIn) {
     // If the registry also has a record for this built-in ID, surface a

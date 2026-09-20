@@ -220,32 +220,6 @@ describe('useUserUIState', () => {
     expect(result.current.isLoading).toBe(false);
   });
 
-  it('normalizes generationMethods when both are true', async () => {
-    mockSingle.mockResolvedValue({
-      data: {
-        settings: {
-          ui: {
-            generationMethods: { inCloud: true, onComputer: true },
-          },
-        },
-      },
-      error: null,
-    });
-
-    const fallback = { inCloud: true, onComputer: false };
-    const { result } = renderHook(() =>
-      useUserUIState('generationMethods', fallback)
-    );
-
-    await act(async () => {
-      await vi.runAllTimersAsync();
-    });
-
-    // Should normalize: both true → inCloud: true, onComputer: false
-    expect(result.current.value.inCloud).toBe(true);
-    expect(result.current.value.onComputer).toBe(false);
-  });
-
   it('falls back when persisted aiInputMode JSON is invalid', async () => {
     mockSingle.mockResolvedValue({
       data: {

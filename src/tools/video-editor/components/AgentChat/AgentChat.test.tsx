@@ -196,12 +196,12 @@ function mockFromState(state: ReturnType<typeof createState>) {
   mocks.useAgentVoice.mockImplementation(() => state.voice);
 }
 
-function renderAgentChat() {
-  return render(<AgentChatPanel />);
+function renderAgentChat(isExpanded = false) {
+  return render(<AgentChatPanel isExpanded={isExpanded} />);
 }
 
-function rerenderAgentChat(rerender: ReturnType<typeof render>['rerender']) {
-  rerender(<AgentChatPanel />);
+function rerenderAgentChat(rerender: ReturnType<typeof render>['rerender'], isExpanded = false) {
+  rerender(<AgentChatPanel isExpanded={isExpanded} />);
 }
 
 async function getInput() {
@@ -213,7 +213,7 @@ async function getInput() {
 async function queueMessage(textbox: HTMLElement, text: string) {
   fireEvent.change(textbox, { target: { value: text } });
   fireEvent.keyDown(textbox, { key: 'Enter' });
-  await waitFor(() => expect((textbox as HTMLInputElement).value).toBe(''));
+  await waitFor(() => expect((textbox as HTMLTextAreaElement).value).toBe(''));
 }
 
 function getQueuedTexts() {
@@ -281,6 +281,19 @@ describe('AgentChat', () => {
 
     expect(await screen.findByText('Create a timeline to start chatting.')).toBeInTheDocument();
     await waitFor(() => expect(state.createSession.mutate).not.toHaveBeenCalled());
+  });
+
+  it('uses four composer rows in split view and eight when chat fills the pane', async () => {
+    const state = createState();
+    mockFromState(state);
+
+    const view = renderAgentChat();
+    const textbox = await getInput();
+    expect(textbox.tagName).toBe('TEXTAREA');
+    expect(textbox).toHaveAttribute('rows', '4');
+
+    view.rerender(<AgentChatPanel isExpanded />);
+    expect(await screen.findByRole('textbox')).toHaveAttribute('rows', '8');
   });
 
   it('auto-creates a session when the engagement gate fires (pane locked) with a timeline available', async () => {

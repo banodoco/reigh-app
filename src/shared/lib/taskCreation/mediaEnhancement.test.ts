@@ -60,7 +60,27 @@ describe('typed media producer admission', () => {
       capability_id: IMAGE_UPSCALE_CAPABILITY_ID,
       capability_digest: digest('a'),
       input_object_ids: [digest('b')],
-      settlement_effect: {},
+      settlement_effect: {
+        effect_type: 'generation.create_with_variant',
+        target_id: 'project-1',
+        payload: {
+          generation_type: 'image',
+          metadata: {
+            params: {
+              tool_type: 'image-upscale',
+              content_type: 'image',
+              model: 'seedvr2-upscaler',
+              mode: 'upscale',
+              upscale_factor: 2,
+              noise_scale: 0.1,
+            },
+          },
+          variant_type: 'image_upscale',
+          output_name: 'generated_images',
+          output_ordinal: 0,
+          primary_policy: 'preserve',
+        },
+      },
     }));
     const request = mocks.createTask.mock.calls[0]?.[0];
     expect(request.spec.params).toMatchObject({
@@ -107,6 +127,26 @@ describe('typed media producer admission', () => {
       enable_interpolation: false, enable_upscale: true,
       interpolation_frames: 1, upscale_factor: 2,
       color_fix: false, output_quality: 'maximum',
+    });
+    expect(request.settlement_effect).toEqual({
+      effect_type: 'generation.create_with_variant',
+      target_id: 'project-1',
+      payload: {
+        generation_type: 'video',
+        metadata: {
+          params: {
+            tool_type: 'video-enhance',
+            content_type: 'video',
+            variant_type: 'video_enhance',
+            upscale_factor: 2,
+            output_quality: 'maximum',
+          },
+        },
+        variant_type: 'video_enhance',
+        output_name: 'enhanced_video',
+        output_ordinal: 0,
+        primary_policy: 'preserve',
+      },
     });
   });
 

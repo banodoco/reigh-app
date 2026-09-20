@@ -269,10 +269,9 @@ const ToolsPaneComponent: React.FC = () => {
   if (env === 'production' || env === 'prod') env = AppEnv.WEB;
   const currentEnv = env as AppEnvValue;
 
-  // Get generation method preferences for character-animate visibility
-  const { value: generationMethods, isLoading: isLoadingGenerationMethods } = useUserUIState('generationMethods', { onComputer: true, inCloud: true });
   const { value: defaultTool, update: updateDefaultTool } = useUserUIState('defaultTool', { toolId: 'travel-between-images' });
-  const isCloudGenerationEnabled = generationMethods.inCloud;
+  const isCloudGenerationEnabled = true;
+  const isLoadingGenerationMethods = false;
   const { settings } = useToolSettings(videoEditorSettings.id, {
     projectId: selectedProjectId ?? undefined,
     enabled: Boolean(selectedProjectId),

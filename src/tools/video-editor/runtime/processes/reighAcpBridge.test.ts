@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { JsonRpcProcessLike } from './jsonRpcStdioTransport.ts';
 import {
-  ASTRID_ACP_OMP_BIN,
+  ASTRID_ACP_COMMAND,
   createAstridAcpProcessHost,
 } from './astridAcpLauncher.ts';
 import {
@@ -129,7 +129,7 @@ describe('Reigh ACP HTTP bridge', () => {
       profile: 'astrid',
       sessionDir: '/tmp/reigh-sessions',
       systemPromptFile: '/tmp/astrid.md',
-      command: ASTRID_ACP_OMP_BIN,
+      command: ASTRID_ACP_COMMAND,
     };
     const { bridge, server } = createReighAcpHttpServer({
       config,
@@ -193,11 +193,28 @@ describe('Reigh ACP HTTP bridge', () => {
     respond(first, resume.id, { sessionId: 'omp-session-opaque' });
     await expect((await resuming).json()).resolves.toEqual({ result: { sessionId: 'omp-session-opaque' } });
 
-    const afterCreate = first.stdin.writes.length;
+    const afterResume = first.stdin.writes.length;
+    const prompting = fetch(`${base}/connection-1/rpc`, {
+      method: 'POST', headers: headers(),
+      body: JSON.stringify({
+        method: 'session/prompt',
+        params: { sessionId: 'omp-session-opaque', prompt: [{ type: 'text', text: 'hello Astrid' }] },
+      }),
+    });
+    await waitForRequest(first, afterResume);
+    const prompt = lastRequest(first);
+    expect(prompt).toMatchObject({
+      method: 'session/prompt',
+      params: { sessionId: 'omp-session-opaque', prompt: [{ type: 'text', text: 'hello Astrid' }] },
+    });
+    respond(first, prompt.id, { stopReason: 'end_turn' });
+    await expect((await prompting).json()).resolves.toEqual({ result: { stopReason: 'end_turn' } });
+
+    const afterPrompt = first.stdin.writes.length;
     const cancelling = fetch(`${base}/connection-1/cancel`, {
       method: 'POST', headers: headers(), body: JSON.stringify({ sessionId: 'omp-session-opaque' }),
     });
-    await waitForRequest(first, afterCreate);
+    await waitForRequest(first, afterPrompt);
     const cancel = lastRequest(first);
     expect(cancel).toMatchObject({ method: 'session/cancel', params: { sessionId: 'omp-session-opaque' } });
     const cancelResponse = await cancelling;
@@ -224,6 +241,76 @@ describe('Reigh ACP HTTP bridge', () => {
     const disconnected = await fetch(`${base}/connection-1`, { method: 'DELETE', headers: headers() });
     expect(disconnected.status).toBe(200);
     expect(await disconnected.json()).toEqual({ connection_id: 'connection-1', closed: true });
+
+    await bridge.close();
+    await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  });
+
+  it('answers local permission and terminal callbacks instead of forcing ACP fallback retries', async () => {
+    const fakeProcess = new FakeProcess();
+    const config: ReighAcpBridgeConfig = {
+      token: 'test-token',
+      port: 0,
+      cwd: globalThis.process.cwd(),
+      profile: 'astrid',
+      systemPromptFile: '/tmp/astrid.md',
+      command: ASTRID_ACP_COMMAND,
+    };
+    const { bridge, server } = createReighAcpHttpServer({
+      config,
+      hostFactory: (options) => createAstridAcpProcessHost({
+        ...options,
+        fileIsRegularFile: () => true,
+        spawnProcess: () => fakeProcess.asProcess(),
+      }),
+    });
+    const port = await listen(server);
+    const base = `http://127.0.0.1:${port}`;
+
+    const connecting = fetch(`${base}/connect`, { method: 'POST', headers: headers(), body: '{}' });
+    await waitForRequest(fakeProcess);
+    const initialize = lastRequest(fakeProcess);
+    respond(fakeProcess, initialize.id, { agentCapabilities: { loadSession: true } });
+    await connecting;
+
+    const afterInitialize = fakeProcess.stdin.writes.length;
+    fakeProcess.stdout.emit('data', `${JSON.stringify({
+      jsonrpc: '2.0',
+      id: 'permission-1',
+      method: 'session/request_permission',
+      params: { toolCall: { title: 'astrid-tools timelines show --summary', kind: 'execute' } },
+    })}\n`);
+    await waitForRequest(fakeProcess, afterInitialize);
+    expect(lastRequest(fakeProcess)).toMatchObject({
+      id: 'permission-1',
+      result: { outcome: { outcome: 'selected', optionId: 'allow_always' } },
+    });
+
+    const afterPermission = fakeProcess.stdin.writes.length;
+    fakeProcess.stdout.emit('data', `${JSON.stringify({
+      jsonrpc: '2.0',
+      id: 'terminal-1',
+      method: 'terminal/create',
+      params: { command: '/bin/echo', args: ['bridge-ok'], cwd: globalThis.process.cwd() },
+    })}\n`);
+    await waitForRequest(fakeProcess, afterPermission);
+    const terminalCreate = lastRequest(fakeProcess) as { result?: { terminalId?: string } };
+    expect(terminalCreate.result?.terminalId).toEqual(expect.any(String));
+    const terminalId = terminalCreate.result!.terminalId!;
+
+    await new Promise<void>((resolve) => setTimeout(resolve, 20));
+    const afterCreate = fakeProcess.stdin.writes.length;
+    fakeProcess.stdout.emit('data', `${JSON.stringify({
+      jsonrpc: '2.0',
+      id: 'terminal-output-1',
+      method: 'terminal/output',
+      params: { terminalId },
+    })}\n`);
+    await waitForRequest(fakeProcess, afterCreate);
+    expect(lastRequest(fakeProcess)).toMatchObject({
+      id: 'terminal-output-1',
+      result: { output: 'bridge-ok\n', truncated: false, exitStatus: { exitCode: 0, signal: null } },
+    });
 
     await bridge.close();
     await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));

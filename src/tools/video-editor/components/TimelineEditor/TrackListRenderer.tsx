@@ -106,6 +106,7 @@ export function computeActionVerticalPlacements({
 interface SortableRowProps {
   row: TimelineRow;
   track: TrackDefinition;
+  displayLabel?: string;
   rowHeight: number;
   startLeft: number;
   pixelsPerSecond: number;
@@ -136,6 +137,8 @@ interface RowActionLayerProps {
 interface TrackListRendererProps {
   rows: TimelineRow[];
   tracks: TrackDefinition[];
+  /** Audio lanes whose clips are owned by nested shot timelines. */
+  nestedAudioTrackIds?: ReadonlySet<string>;
   rowHeight: number;
   startLeft: number;
   pixelsPerSecond: number;
@@ -156,6 +159,7 @@ interface TrackListRendererProps {
 function SortableRow({
   row,
   track,
+  displayLabel,
   rowHeight,
   startLeft,
   pixelsPerSecond,
@@ -194,6 +198,7 @@ function SortableRow({
       >
         <TrackLabelContent
           track={track}
+          displayLabel={displayLabel}
           isSelected={isSelected}
           hasClips={row.actions.length > 0}
           deviceClass={deviceClass}
@@ -311,6 +316,7 @@ function areSortableRowPropsEqual(left: SortableRowProps, right: SortableRowProp
   return (
     left.row === right.row
     && left.track === right.track
+    && left.displayLabel === right.displayLabel
     && left.rowHeight === right.rowHeight
     && left.startLeft === right.startLeft
     && left.pixelsPerSecond === right.pixelsPerSecond
@@ -334,6 +340,7 @@ MemoizedSortableRow.displayName = 'SortableRow';
 export function TrackListRenderer({
   rows,
   tracks,
+  nestedAudioTrackIds,
   rowHeight,
   startLeft,
   pixelsPerSecond,
@@ -380,6 +387,7 @@ export function TrackListRenderer({
               key={track.id}
               row={row}
               track={track}
+              displayLabel={nestedAudioTrackIds?.has(track.id) ? `${track.label} · nested shots` : undefined}
               rowHeight={rowHeight}
               startLeft={startLeft}
               pixelsPerSecond={pixelsPerSecond}

@@ -20,7 +20,7 @@ const panesState = vi.hoisted(() => ({
 const useHeaderStateMock = vi.fn();
 const useViewportResponsiveMock = vi.fn();
 const useVideoEditorRouteStateMock = vi.fn();
-const globalHeaderMock = vi.fn();
+const appHeaderMock = vi.fn();
 const globalProcessingWarningMock = vi.fn();
 const isDeferredCloudDataAuthorityMock = vi.fn();
 
@@ -40,11 +40,18 @@ vi.mock('react-router-dom', () => ({
   useLocation: () => ({ pathname: locationPathname }),
 }));
 
-vi.mock('@/shared/components/GlobalHeader', () => ({
-  GlobalHeader: (props: unknown) => {
-    globalHeaderMock(props);
+vi.mock('@/shared/components/AppHeader.tsx', () => ({
+  AppHeader: (props: unknown) => {
+    appHeaderMock(props);
     return <div data-testid="global-header" />;
   },
+}));
+
+vi.mock('@/shared/hooks/useHomeNavigation', () => ({
+  useHomeNavigation: () => ({
+    navigateHome: vi.fn(),
+    targetPath: '/tools/travel-between-images',
+  }),
 }));
 
 vi.mock('@/shared/components/ProcessingWarnings', () => ({
@@ -112,11 +119,9 @@ describe('LayoutMainContent', () => {
     expect(screen.getByTestId('processing-warning')).toBeInTheDocument();
     expect(screen.getByTestId('tool-header')).toBeInTheDocument();
     expect(screen.getByTestId('layout-outlet')).toBeInTheDocument();
-    expect(globalHeaderMock).toHaveBeenCalledWith(
+    expect(appHeaderMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        contentOffsetRight: 336,
-        contentOffsetLeft: 260,
-        onOpenSettings,
+        navigationMode: 'home',
       })
     );
     expect(globalProcessingWarningMock).toHaveBeenCalledWith(
@@ -157,6 +162,19 @@ describe('LayoutMainContent', () => {
 
     expect(screen.getByTestId('processing-warning')).toBeInTheDocument();
     expect(globalProcessingWarningMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the canonical app header on the editor fallback route', () => {
+    useVideoEditorRouteStateMock.mockReturnValue({
+      isEditorRoute: true,
+      isVideoEditorShellActive: false,
+    });
+
+    render(
+      <LayoutMainContent isMobileSplitView={false} onOpenSettings={vi.fn()} />
+    );
+
+    expect(screen.getByTestId('global-header')).toBeInTheDocument();
   });
 
   it('does not apply top padding when the editor pane is hidden', () => {

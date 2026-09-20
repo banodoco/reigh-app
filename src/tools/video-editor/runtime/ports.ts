@@ -7,6 +7,8 @@ import type {
   PreparedShotComposition,
   ShotCompositionAdapter,
 } from '@/tools/video-editor/data/shotCompositionAdapter.ts';
+import type { ReighAgentElementContext } from '@/tools/video-editor/runtime/element-contract.ts';
+import type { AstridElementOperationAdapter } from '@/tools/video-editor/runtime/element-adapter.ts';
 
 /**
  * Checklist-backed runtime inventory for the host surfaces Sprint 2 is
@@ -34,6 +36,8 @@ export interface VideoEditorAuthHost {
 
 export interface VideoEditorProjectHost {
   projectId: string | null;
+  /** Human-friendly/local workspace reference when it differs from projectId. */
+  projectSlug?: string | null;
 }
 
 export interface VideoEditorShotsHost {
@@ -57,7 +61,21 @@ export interface VideoEditorMediaLightboxHost {
 }
 
 export interface VideoEditorAgentChatHost {
-  registerTimeline: (value: { timelineId: string | null }) => void;
+  registerTimeline: (value: {
+    timelineId: string | null;
+    projectId: string | null;
+    projectSlug?: string | null;
+    timelineName?: string | null;
+    timelineSummary?: {
+      configVersion: number;
+      trackCount: number;
+      clipCount: number;
+      assetCount: number;
+      duration: number;
+    };
+    elementContext?: ReighAgentElementContext;
+    elementOperationAdapter?: AstridElementOperationAdapter;
+  }) => void;
   unregisterTimeline: () => void;
 }
 

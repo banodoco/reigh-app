@@ -1,6 +1,6 @@
 import type { Dispatch, MouseEvent as ReactMouseEvent, ReactNode, SetStateAction } from 'react';
 import { formatDistanceToNow } from 'date-fns';
-import { GripHorizontal, History, Maximize2, Minimize2, Redo2, RefreshCw, Undo2, ZoomIn, ZoomOut } from 'lucide-react';
+import { GripHorizontal, History, Maximize2, Minimize2, Redo2, RefreshCw, Sparkles, Undo2, ZoomIn, ZoomOut } from 'lucide-react';
 import { Badge } from '@/shared/components/ui/badge.tsx';
 import { Button } from '@/shared/components/ui/button.tsx';
 import { cn } from '@/shared/components/ui/contracts/cn.ts';
@@ -40,25 +40,21 @@ export function TimelineEditorShellToolbar({
   syncResultMessage,
   touchChrome,
   condensed,
-  forceCondensed,
-  onNavigateHome,
   toolbarModeSwitcher,
-  navigationControls,
   onDividerMouseDown,
   isTimelineMaximized,
   setIsTimelineMaximized,
+  onOpenElements,
 }: {
   sync: ReturnType<typeof useEditorSync>;
   syncResultMessage: string | null;
   touchChrome: boolean;
   condensed: boolean;
-  forceCondensed: boolean;
-  onNavigateHome?: () => void;
   toolbarModeSwitcher: ReactNode;
-  navigationControls?: ReactNode;
   onDividerMouseDown: (event: ReactMouseEvent) => void;
   isTimelineMaximized: boolean;
   setIsTimelineMaximized: Dispatch<SetStateAction<boolean>>;
+  onOpenElements: () => void;
 }) {
   const chrome = useTimelineChromeContext();
   const toolbarButtonSizeClass = touchChrome ? 'h-11 w-11' : 'h-6 w-6';
@@ -185,21 +181,18 @@ export function TimelineEditorShellToolbar({
       )}
     >
       <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
-        {condensed && !forceCondensed && onNavigateHome && (
-          <button
-            type="button"
-            className="mr-2 min-h-11 shrink-0 px-2 text-[11px] transition-colors hover:text-foreground motion-reduce:transition-none"
-            onClick={onNavigateHome}
-          >
-            ← Back
-          </button>
-        )}
-        {condensed && navigationControls && (
-          <div className="mr-2 flex min-w-0 max-w-full flex-1 flex-wrap items-center gap-2" data-testid="toolbar-navigation-controls">
-            {navigationControls}
-          </div>
-        )}
         {saveBadge}
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className={toolbarButtonSizeClass}
+          onClick={onOpenElements}
+          title="Elements"
+          aria-label="Elements"
+        >
+          <Sparkles className="h-3.5 w-3.5" />
+        </Button>
         {syncButton}
         {historyControls}
       </div>

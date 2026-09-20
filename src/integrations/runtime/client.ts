@@ -140,6 +140,26 @@ export class ReighRuntimeClient {
     });
   }
 
+  async getProject(projectId: string): Promise<Project> {
+    return this.withSession(() => this.client.getProject(projectId));
+  }
+
+  async updateProject(
+    projectId: string,
+    idempotencyKey: string,
+    expectedVersion: number,
+    name: string | undefined,
+    metadata: Record<string, unknown>,
+  ): Promise<Project> {
+    return this.withSession(() => this.client.updateProject(
+      projectId,
+      idempotencyKey,
+      expectedVersion,
+      name,
+      metadata,
+    ));
+  }
+
   async listTimelines(projectId: string): Promise<Record<string, unknown>[]> {
     return this.withSession(async () => {
       const timelines: Record<string, unknown>[] = [];

@@ -106,6 +106,8 @@ import {
 export interface TimelineCanvasProps {
   rows: TimelineRow[];
   tracks: TrackDefinition[];
+  /** Empty parent audio lanes whose actual clips are owned by nested shots. */
+  nestedAudioTrackIds?: ReadonlySet<string>;
   deviceClass: TimelineDeviceClass;
   inputModality: TimelineInputModality;
   interactionMode: TimelineInteractionMode;
@@ -161,6 +163,7 @@ export interface TimelineCanvasProps {
   onAddTextAt?: (trackId: string, time: number) => void;
   onAddEffectLayerAt?: (trackId: string, time: number) => void;
   onOpenSequenceCreator?: () => void;
+  onOpenElementCreationPrompt?: (prompt: string) => void;
   /** Applies a new timeline zoom (px per `scale` seconds); drives the touch pinch gesture. */
   onScaleWidthChange?: (scaleWidth: number) => void;
   unusedTrackCount?: number;
@@ -302,6 +305,7 @@ function TimelineAreaExtensionContextMenu({
 export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasProps>(function TimelineCanvas({
   rows,
   tracks,
+  nestedAudioTrackIds,
   deviceClass,
   inputModality,
   interactionMode,
@@ -352,6 +356,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
   onAddTextAt,
   onAddEffectLayerAt,
   onOpenSequenceCreator,
+  onOpenElementCreationPrompt,
   onScaleWidthChange,
   unusedTrackCount = 0,
   onClearUnusedTracks,
@@ -902,8 +907,9 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
   const tapToolButtons = shouldTapTimelineToolButtons(deviceClass);
   /** On touch the tool cluster docks over the ruler's right end; tell the ruler
    *  how much of its right edge is covered so it stops drawing labels there. */
+  const hasEffectCreationTool = Boolean(onOpenElementCreationPrompt || onAddEffectLayerAt || onAddTextAt);
   const touchToolButtonCount = tapToolButtons
-    ? (onAddTextAt ? 2 : 0) + (onOpenSequenceCreator ? 1 : 0)
+    ? (onAddTextAt ? 1 : 0) + (hasEffectCreationTool ? 1 : 0) + (onOpenSequenceCreator ? 1 : 0)
     : 0;
   const rulerLabelRightInsetPx = touchToolButtonCount === 0
     ? 0
@@ -919,9 +925,21 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
   const handleTapAddText = useCallback(() => {
     onAddTextAt?.(firstVisualTrackId, timeRef.current);
   }, [firstVisualTrackId, onAddTextAt]);
-  const handleTapAddEffectLayer = useCallback(() => {
+  const handleCreateEffect = useCallback(() => {
+    if (onOpenElementCreationPrompt) {
+      onOpenElementCreationPrompt("I'd like to create a new effect.");
+      return;
+    }
     onAddEffectLayerAt?.(firstVisualTrackId, timeRef.current);
-  }, [firstVisualTrackId, onAddEffectLayerAt]);
+  }, [firstVisualTrackId, onAddEffectLayerAt, onOpenElementCreationPrompt]);
+
+  const handleCreateAnimation = useCallback(() => {
+    if (onOpenElementCreationPrompt) {
+      onOpenElementCreationPrompt("I'd like to create an animation.");
+      return;
+    }
+    onOpenSequenceCreator?.();
+  }, [onOpenElementCreationPrompt, onOpenSequenceCreator]);
 
   // ── Touch: two-finger pinch zoom ───────────────────────────────────────
   const pinchSessionRef = useRef<{ startDistance: number; startScaleWidth: number; time: number; offsetX: number } | null>(null);
@@ -1192,6 +1210,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
           <TrackListRenderer
             rows={rows}
             tracks={tracks}
+            nestedAudioTrackIds={nestedAudioTrackIds}
             rowHeight={rowHeight}
             startLeft={startLeft}
             pixelsPerSecond={pixelsPerSecond}
@@ -1290,7 +1309,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
       {/* Floating tool buttons — bottom-left of timeline viewport. Touch-sized
           buttons would blank out a whole 36px track row down there, so on touch
           the cluster docks to the ruler strip at top-right instead. */}
-      {(onAddTextAt || onOpenSequenceCreator) && (
+      {(onAddTextAt || hasEffectCreationTool || onOpenSequenceCreator) && (
         <div
           className={cn(
             'pointer-events-none absolute z-30 flex gap-1.5',
@@ -1299,70 +1318,82 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
           style={tapToolButtons ? undefined : { left: LABEL_WIDTH + 8 }}
         >
           {onAddTextAt && (tapToolButtons ? (
-            <>
-              <button
-                type="button"
-                className={`${TOOL_BUTTON_BASE_CLASS} ${TOUCH_TOOL_BUTTON_SIZE_CLASS} ${TEXT_TOOL_TONE_CLASS}`}
-                title="New text"
-                aria-label="New text at playhead"
-                onClick={handleTapAddText}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
-              </button>
-              <button
-                type="button"
-                className={`${TOOL_BUTTON_BASE_CLASS} ${TOUCH_TOOL_BUTTON_SIZE_CLASS} ${EFFECT_TOOL_TONE_CLASS}`}
-                title="New effect"
-                aria-label="New effect layer at playhead"
-                onClick={handleTapAddEffectLayer}
-              >
-                <Layers className="h-4 w-4" />
-              </button>
-            </>
+            <button
+              type="button"
+              className={`${TOOL_BUTTON_BASE_CLASS} ${TOUCH_TOOL_BUTTON_SIZE_CLASS} ${TEXT_TOOL_TONE_CLASS}`}
+              title="New text"
+              aria-label="New text at playhead"
+              onClick={handleTapAddText}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
+            </button>
           ) : (
-            <>
-              <div
-                draggable
-                onDragStart={(event) => {
-                  event.dataTransfer.setData('text-tool', 'true');
-                  event.dataTransfer.effectAllowed = 'copy';
-                }}
-                className={`group/tool ${TOOL_BUTTON_BASE_CLASS} ${POINTER_TOOL_BUTTON_SIZE_CLASS} cursor-grab active:cursor-grabbing ${TEXT_TOOL_TONE_CLASS}`}
-                title="Drag onto timeline to add text"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
-                <span aria-hidden="true" className={TOOL_TOOLTIP_CLASS}>
-                  New text
-                </span>
-              </div>
-              <div
-                draggable
-                onDragStart={(event) => {
-                  event.dataTransfer.setData('effect-layer', 'true');
-                  event.dataTransfer.effectAllowed = 'copy';
-                }}
-                className={`group/tool ${TOOL_BUTTON_BASE_CLASS} ${POINTER_TOOL_BUTTON_SIZE_CLASS} cursor-grab active:cursor-grabbing ${EFFECT_TOOL_TONE_CLASS}`}
-                title="Drag onto timeline to add an effect layer"
-              >
-                <Layers className="h-3 w-3" />
-                <span aria-hidden="true" className={TOOL_TOOLTIP_CLASS}>
-                  New effect
-                </span>
-              </div>
-            </>
+            <div
+              draggable
+              onDragStart={(event) => {
+                event.dataTransfer.setData('text-tool', 'true');
+                event.dataTransfer.effectAllowed = 'copy';
+              }}
+              className={`group/tool ${TOOL_BUTTON_BASE_CLASS} ${POINTER_TOOL_BUTTON_SIZE_CLASS} cursor-grab active:cursor-grabbing ${TEXT_TOOL_TONE_CLASS}`}
+              title="Drag onto timeline to add text"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
+              <span aria-hidden="true" className={TOOL_TOOLTIP_CLASS}>
+                New text
+              </span>
+            </div>
+          ))}
+          {hasEffectCreationTool && (tapToolButtons ? (
+            <button
+              type="button"
+              className={`${TOOL_BUTTON_BASE_CLASS} ${TOUCH_TOOL_BUTTON_SIZE_CLASS} ${EFFECT_TOOL_TONE_CLASS}`}
+              title="New effect"
+              aria-label={onOpenElementCreationPrompt ? 'Create new effect' : 'New effect layer at playhead'}
+              onClick={handleCreateEffect}
+            >
+              <Layers className="h-4 w-4" />
+            </button>
+          ) : onOpenElementCreationPrompt ? (
+            <button
+              type="button"
+              className={`group/tool ${TOOL_BUTTON_BASE_CLASS} ${POINTER_TOOL_BUTTON_SIZE_CLASS} ${EFFECT_TOOL_TONE_CLASS} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--video-editor-effect-ring-strong)]`}
+              title="New effect"
+              aria-label="Create new effect"
+              onClick={handleCreateEffect}
+            >
+              <Layers className="h-3 w-3" />
+              <span aria-hidden="true" className={`${TOOL_TOOLTIP_CLASS} group-focus-visible/tool:opacity-100`}>
+                New effect
+              </span>
+            </button>
+          ) : (
+            <div
+              draggable
+              onDragStart={(event) => {
+                event.dataTransfer.setData('effect-layer', 'true');
+                event.dataTransfer.effectAllowed = 'copy';
+              }}
+              className={`group/tool ${TOOL_BUTTON_BASE_CLASS} ${POINTER_TOOL_BUTTON_SIZE_CLASS} cursor-grab active:cursor-grabbing ${EFFECT_TOOL_TONE_CLASS}`}
+              title="Drag onto timeline to add an effect layer"
+            >
+              <Layers className="h-3 w-3" />
+              <span aria-hidden="true" className={TOOL_TOOLTIP_CLASS}>
+                New effect
+              </span>
+            </div>
           ))}
           {onOpenSequenceCreator && (
             <button
               type="button"
-              className={`group/tool ${TOOL_BUTTON_BASE_CLASS} ${tapToolButtons ? TOUCH_TOOL_BUTTON_SIZE_CLASS : POINTER_TOOL_BUTTON_SIZE_CLASS} ${SEQUENCE_TOOL_TONE_CLASS} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--video-editor-success-focus-ring)]`}
-              title="Create animation sequence"
-              aria-label="Create animation sequence"
-              onClick={onOpenSequenceCreator}
+              className={`${TOOL_BUTTON_BASE_CLASS} ${tapToolButtons ? TOUCH_TOOL_BUTTON_SIZE_CLASS : POINTER_TOOL_BUTTON_SIZE_CLASS} ${SEQUENCE_TOOL_TONE_CLASS} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--video-editor-success-focus-ring)]`}
+              title={onOpenElementCreationPrompt ? 'Create animation' : 'Create animation sequence'}
+              aria-label={onOpenElementCreationPrompt ? 'Create animation' : 'Create animation sequence'}
+              onClick={handleCreateAnimation}
             >
               <Sparkles className={tapToolButtons ? 'h-4 w-4' : 'h-3 w-3'} />
               {!tapToolButtons && (
                 <span aria-hidden="true" className={`${TOOL_TOOLTIP_CLASS} group-focus-visible/tool:opacity-100`}>
-                  Create animation sequence
+                  {onOpenElementCreationPrompt ? 'Create animation' : 'Create animation sequence'}
                 </span>
               )}
             </button>
