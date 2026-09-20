@@ -24,17 +24,19 @@ export function CompactPreviewCore({ timelineId, onCreateTimeline, onOpenEditor 
   useRenderDiagnostic('CompactPreviewCore');
   const { resolvedConfig } = useTimelineEditorData();
   const runtime = useOptionalVideoEditorRuntime();
-  const canonicalComposition = runtime?.userId === null
+  const canonicalLane = runtime?.userId === null && Boolean(runtime.shots.shotComposition);
+  const canonicalComposition = canonicalLane
     ? runtime.shots.canonicalComposition
     : null;
   const previewConfig = useMemo(() => {
-    if (!canonicalComposition) return resolvedConfig;
+    if (!canonicalLane) return resolvedConfig;
+    if (!canonicalComposition) return null;
     try {
       return projectCanonicalComposition(canonicalComposition, resolvedConfig).config;
     } catch {
       return null;
     }
-  }, [canonicalComposition, resolvedConfig]);
+  }, [canonicalComposition, canonicalLane, resolvedConfig]);
   const { saveStatus } = useTimelineChromeContext();
   const { previewRef, playerContainerRef, currentTime, onPreviewTimeUpdate } = useTimelinePlaybackContext();
 

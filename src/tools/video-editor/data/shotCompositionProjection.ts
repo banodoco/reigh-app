@@ -59,6 +59,28 @@ function finiteNumber(value: unknown, fallback: number): number {
   return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
 }
 
+function optionalFiniteNumber(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+}
+
+function mediaTypeForAsset(asset: JsonObject): string | undefined {
+  const source = record(asset.source);
+  const candidates = [
+    asset.media_type,
+    asset.type,
+    source?.media_type,
+    source?.type,
+    asset.role,
+  ];
+  return candidates
+    .map((value) => text(value))
+    .find((value) => value !== undefined && /^(image|video|audio)(?:\/|$)/i.test(value));
+}
+
+function isMediaType(value: unknown): value is string {
+  return typeof value === 'string' && /^(image|video|audio)(?:\/|$)/i.test(value);
+}
+
 function positiveNumber(value: unknown, fallback: number): number {
   const candidate = finiteNumber(value, fallback);
   return candidate > 0 ? candidate : fallback;
@@ -144,21 +166,37 @@ function assetRegistryFor(
       const asset = record(rawAsset);
       const assetId = text(asset?.asset_id);
       const objectId = text(asset?.object_id);
-      if (!assetId || !objectId || registry[assetId]) continue;
-      const mediaType = text(asset?.media_type) ?? 'image';
+      if (!assetId || !objectId) continue;
+      const canonicalMediaType = mediaTypeForAsset(asset);
+      const existing = registry[assetId];
+      const sameObject = existing?.media_id === objectId || existing?.file === objectId;
       registry[assetId] = {
-        file: objectId,
-        media_id: objectId,
-        content_sha256: text(asset?.digest),
-        type: mediaType,
-        origin: 'immutable-public',
-        metadata: {
+        ...existing,
+        file: sameObject ? existing?.file ?? objectId : objectId,
+        media_id: sameObject ? existing?.media_id ?? objectId : objectId,
+        content_sha256: sameObject
+          ? existing?.content_sha256 ?? text(asset.digest)
+          : text(asset.digest) ?? existing?.content_sha256,
+        // Canonical shot assets are authoritative for the media kind. Some
+        // older parent registries omitted it or incorrectly described a
+        // video object as an image, which makes the browser mount an MP4 as
+        // <img> and leaves a blank frame.
+        type: canonicalMediaType ?? (sameObject && isMediaType(existing?.type) ? existing.type : 'image'),
+        origin: sameObject ? existing?.origin ?? 'immutable-public' : 'immutable-public',
+        metadata: sameObject ? existing?.metadata ?? {
+          provenance: {
+            sourceProvider: 'canonical-shot-composition',
+            originalFilename: assetId,
+          },
+        } : {
           provenance: {
             sourceProvider: 'canonical-shot-composition',
             originalFilename: assetId,
           },
         },
-        src: bridgeMediaUrl(composition.projectId, objectId),
+        src: sameObject && existing?.src
+          ? existing.src
+          : bridgeMediaUrl(composition.projectId, objectId),
       };
     }
   }
@@ -208,9 +246,29 @@ function projectClip(
   const identity = identityForOccurrence(occurrence);
   const clipId = text(rawClip.id) ?? `child-${clipIndex}`;
   const id = `${occurrence.occurrenceId}:${clipId}`;
-  const atMs = Math.max(0, finiteNumber(rawClip.at_ms ?? rawClip.at, 0));
-  const durationMs = Math.max(1, finiteNumber(rawClip.duration_ms ?? rawClip.duration, occurrence.durationMs));
+  // Runtime canonical revisions use one of two timeline encodings:
+  // - the transport form (`at_ms`/`duration_ms`), or
+  // - the editor form (`at`/`from`/`to`/`hold`), whose times are seconds.
+  // Do not treat editor seconds as milliseconds: a 1/24s frame at `at: 0.0417`
+  // otherwise collapses to the start of the parent shot and every frame gets
+  // the occurrence's full duration, creating a large overlapping render tree.
+  const atMs = rawClip.at_ms !== undefined
+    ? Math.max(0, finiteNumber(rawClip.at_ms, 0))
+    : Math.max(0, finiteNumber(rawClip.at, 0) * 1000);
+  const rawFrom = optionalFiniteNumber(rawClip.from);
+  const rawTo = optionalFiniteNumber(rawClip.to);
+  const hasTrim = rawFrom !== undefined && rawTo !== undefined && rawTo > rawFrom;
+  const durationMs = rawClip.duration_ms !== undefined
+    ? Math.max(1, finiteNumber(rawClip.duration_ms, occurrence.durationMs))
+    : rawClip.duration !== undefined
+      ? Math.max(1, finiteNumber(rawClip.duration, occurrence.durationMs / 1000) * 1000)
+      : rawClip.hold !== undefined
+        ? Math.max(1, finiteNumber(rawClip.hold, occurrence.durationMs / 1000) * 1000)
+        : hasTrim
+          ? Math.max(1, (rawTo - rawFrom) * 1000)
+          : Math.max(1, occurrence.durationMs);
   const sourceOffsetMs = Math.max(0, occurrence.sourceOffsetMs ?? 0);
+  const sourceOffsetSeconds = sourceOffsetMs / 1000;
   const speed = positiveNumber(rawClip.speed, positiveNumber(occurrence.speed, 1));
   const gain = finiteNumber(rawClip.gain ?? rawClip.volume, occurrence.gain ?? 1);
   const muted = rawClip.muted === true || rawClip.mute === true || occurrence.muted === true;
@@ -218,6 +276,14 @@ function projectClip(
   const clipType = text(rawClip.clip_type) ?? text(rawClip.clipType) ?? 'media';
   const asset = text(rawClip.asset_id) ?? text(rawClip.asset);
   const params = record(rawClip.params);
+  const numberField = (key: string): number | undefined => optionalFiniteNumber(rawClip[key]);
+  const preservedGeometry = Object.fromEntries(
+    ['x', 'y', 'width', 'height', 'cropTop', 'cropBottom', 'cropLeft', 'cropRight', 'opacity']
+      .flatMap((key) => {
+        const value = numberField(key);
+        return value === undefined ? [] : [[key, value]];
+      }),
+  );
   const app = record(rawClip.app) ?? {};
   const projected: TimelineClip = {
     id,
@@ -226,12 +292,16 @@ function projectClip(
     clipType,
     ...(text(rawClip.label) ? { label: text(rawClip.label) } : {}),
     ...(asset ? { asset } : {}),
-    ...(sourceOffsetMs > 0 ? { from: sourceOffsetMs / 1000 } : {}),
+    ...(hasTrim
+      ? { from: Math.max(0, rawFrom + sourceOffsetSeconds), to: Math.max(0, rawTo + sourceOffsetSeconds) }
+      : sourceOffsetMs > 0 ? { from: sourceOffsetSeconds } : {}),
     ...(speed !== 1 ? { speed } : {}),
-    // Canonical child timelines currently expose duration without a media
-    // probe. Hold is the deterministic duration-preserving renderer input.
-    hold: durationMs / 1000,
+    // Transport clips expose duration_ms; editor-form clips with `from`/`to`
+    // retain those trim bounds instead of being converted to a parent-sized
+    // hold. Hold remains the deterministic fallback for duration-only clips.
+    ...(hasTrim ? {} : { hold: durationMs / 1000 }),
     volume: muted ? 0 : gain,
+    ...preservedGeometry,
     ...(params ? { params } : {}),
     app: {
       ...app,

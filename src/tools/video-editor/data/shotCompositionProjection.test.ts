@@ -103,6 +103,196 @@ describe('canonical shot-composition downstream projection', () => {
       .toBe(projection.occurrenceIdentities.get('occ-2')?.revisionId);
   });
 
+  it('preserves editor-form seconds and child trim windows when flattening a shot', () => {
+    const source = withOccurrenceRevision(prepared, 0, (timeline) => ({
+      ...timeline,
+      clips: [{
+        id: 'editor-form-frame',
+        asset: 'alpha-image',
+        clipType: 'image',
+        track: 'video',
+        at: 0.5,
+        from: 12.25,
+        to: 12.75,
+        x: 10,
+        y: 20,
+        width: 640,
+        height: 360,
+      }],
+    }));
+    const projection = projectCanonicalComposition(source);
+    const clip = projection.config.clips.find((candidate) => candidate.id === 'occ-1:editor-form-frame');
+
+    expect(clip).toMatchObject({
+      at: 0.5,
+      from: 12.25,
+      to: 12.75,
+      x: 10,
+      y: 20,
+      width: 640,
+      height: 360,
+    });
+    expect(clip?.hold).toBeUndefined();
+  });
+
+  it('uses canonical asset media kinds when the parent registry omitted them', () => {
+    const source = withOccurrenceRevision(prepared, 0, (timeline) => ({
+      ...timeline,
+      clips: [{
+        id: 'child-video',
+        asset: 'child-video-asset',
+        clipType: 'media',
+        track: 'video',
+        at: 0,
+        from: 0,
+        to: 1,
+      }],
+    }));
+    const occurrence = source.occurrences[0]!;
+    const withVideoAsset: PreparedShotComposition = {
+      ...source,
+      occurrences: source.occurrences.map((candidate, index) => index === 0
+        ? {
+            ...candidate,
+            revision: {
+              ...candidate.revision,
+              assets: [
+                ...(candidate.revision.assets as Array<Record<string, unknown>>),
+                {
+                  asset_id: 'child-video-asset',
+                  object_id: 'object-child-video',
+                  digest: 'sha256:4444444444444444444444444444444444444444444444444444444444444444',
+                  role: 'video',
+                  source: { type: 'video' },
+                },
+              ],
+            },
+          }
+        : candidate),
+    };
+    const projection = projectCanonicalComposition(withVideoAsset, {
+      output: { resolution: '1280x720', fps: 24, file: 'canonical.mp4' },
+      tracks: [{ id: 'video', kind: 'visual', label: 'Video' }],
+      clips: [],
+      registry: {
+        'child-video-asset': { file: 'stale-image.png', type: 'image/png' },
+      },
+    });
+    const clip = projection.config.clips.find((candidate) => candidate.id === `${occurrence.occurrenceId}:child-video`);
+
+    expect(clip?.assetEntry).toMatchObject({ type: 'video', file: 'object-child-video' });
+  });
+
+  it('preserves a valid existing media kind and URL for an untyped canonical asset', () => {
+    const source = withOccurrenceRevision(prepared, 0, (timeline) => ({
+      ...timeline,
+      clips: [{
+        id: 'existing-video',
+        asset: 'existing-video-asset',
+        clipType: 'media',
+        track: 'video',
+        at: 0,
+        from: 0,
+        to: 1,
+      }],
+    }));
+    const withUntypedAsset: PreparedShotComposition = {
+      ...source,
+      occurrences: source.occurrences.map((candidate, index) => index === 0
+        ? {
+            ...candidate,
+            revision: {
+              ...candidate.revision,
+              assets: [
+                ...(candidate.revision.assets as Array<Record<string, unknown>>),
+                {
+                  asset_id: 'existing-video-asset',
+                  object_id: 'object-existing-video',
+                  digest: 'sha256:5555555555555555555555555555555555555555555555555555555555555555',
+                  role: 'source',
+                },
+              ],
+            },
+          }
+        : candidate),
+    };
+    const projection = projectCanonicalComposition(withUntypedAsset, {
+      output: { resolution: '1280x720', fps: 24, file: 'canonical.mp4' },
+      tracks: [{ id: 'video', kind: 'visual', label: 'Video' }],
+      clips: [],
+      registry: {
+        'existing-video-asset': {
+          file: 'object-existing-video',
+          media_id: 'object-existing-video',
+          src: '/existing-video.mp4',
+          type: 'video/mp4',
+        },
+      },
+    });
+    const clip = projection.config.clips.find((candidate) => candidate.id === 'occ-1:existing-video');
+
+    expect(clip?.assetEntry).toMatchObject({
+      type: 'video/mp4',
+      file: 'object-existing-video',
+      src: '/existing-video.mp4',
+    });
+  });
+
+  it('does not inherit a media kind from an unrelated object with the same asset id', () => {
+    const source = withOccurrenceRevision(prepared, 0, (timeline) => ({
+      ...timeline,
+      clips: [{
+        id: 'replaced-video',
+        asset: 'replaced-video-asset',
+        clipType: 'media',
+        track: 'video',
+        at: 0,
+        from: 0,
+        to: 1,
+      }],
+    }));
+    const withUntypedReplacement: PreparedShotComposition = {
+      ...source,
+      occurrences: source.occurrences.map((candidate, index) => index === 0
+        ? {
+            ...candidate,
+            revision: {
+              ...candidate.revision,
+              assets: [
+                ...(candidate.revision.assets as Array<Record<string, unknown>>),
+                {
+                  asset_id: 'replaced-video-asset',
+                  object_id: 'object-replaced-video',
+                  digest: 'sha256:6666666666666666666666666666666666666666666666666666666666666666',
+                  role: 'source',
+                },
+              ],
+            },
+          }
+        : candidate),
+    };
+    const projection = projectCanonicalComposition(withUntypedReplacement, {
+      output: { resolution: '1280x720', fps: 24, file: 'canonical.mp4' },
+      tracks: [{ id: 'video', kind: 'visual', label: 'Video' }],
+      clips: [],
+      registry: {
+        'replaced-video-asset': {
+          file: 'stale-object',
+          media_id: 'stale-object',
+          src: '/stale-video.mp4',
+          type: 'video/mp4',
+        },
+      },
+    });
+    const clip = projection.config.clips.find((candidate) => candidate.id === 'occ-1:replaced-video');
+
+    expect(clip?.assetEntry).toMatchObject({
+      type: 'image',
+      file: 'object-replaced-video',
+    });
+    expect(clip?.assetEntry?.src).not.toBe('/stale-video.mp4');
+  });
+
   it('rejects missing dependencies before downstream projection', () => {
     const contract = {
       ...prepared.contract,

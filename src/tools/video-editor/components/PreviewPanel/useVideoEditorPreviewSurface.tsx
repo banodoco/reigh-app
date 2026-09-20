@@ -28,11 +28,12 @@ export function useVideoEditorPreviewSurface({
 } = {}): VideoEditorPreviewSurface {
   const resolvedConfig = useTimelineDataSelector((timeline) => timeline.resolvedConfig);
   const runtime = useOptionalVideoEditorRuntime();
-  const canonicalComposition = runtime?.userId === null
+  const canonicalLane = runtime?.userId === null && Boolean(runtime.shots.shotComposition);
+  const canonicalComposition = canonicalLane
     ? runtime.shots.canonicalComposition
     : null;
   const projectedConfig = useMemo(() => {
-    if (!canonicalComposition) return undefined;
+    if (!canonicalLane || !canonicalComposition) return null;
     try {
       return projectCanonicalComposition(canonicalComposition, resolvedConfig).config;
     } catch {
@@ -40,8 +41,8 @@ export function useVideoEditorPreviewSurface({
       // never fall back to the legacy timeline projection.
       return null;
     }
-  }, [canonicalComposition, resolvedConfig]);
-  const previewConfig = canonicalComposition ? projectedConfig ?? null : resolvedConfig;
+  }, [canonicalComposition, canonicalLane, resolvedConfig]);
+  const previewConfig = canonicalLane ? projectedConfig : resolvedConfig;
   const {
     currentTime,
     previewRef,
