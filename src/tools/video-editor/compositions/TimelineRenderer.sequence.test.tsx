@@ -20,6 +20,7 @@ const textClipMock = vi.hoisted(() => vi.fn());
 const postprocessPreviewMock = vi.hoisted(() => vi.fn());
 const mockShaderRegistryGet = vi.hoisted(() => vi.fn());
 const mockShaderRegistryHas = vi.hoisted(() => vi.fn());
+const astridElementComponentMock = vi.hoisted(() => vi.fn());
 let currentFrame = 0;
 let currentEnvironment = {
   isRendering: false,
@@ -159,6 +160,10 @@ vi.mock('@/tools/video-editor/compositions/TextClip', () => ({
     textClipMock(props);
     return <div data-testid="text-clip-sequence" />;
   },
+}));
+
+vi.mock('@/tools/video-editor/runtime/astrid-element-components.tsx', () => ({
+  resolveAstridElementComponent: astridElementComponentMock,
 }));
 
 vi.mock('@/tools/video-editor/shaders/preview/PostprocessShaderPreviewCanvas.tsx', () => ({
@@ -324,6 +329,7 @@ beforeEach(() => {
   postprocessPreviewMock.mockClear();
   mockShaderRegistryGet.mockReset();
   mockShaderRegistryHas.mockReset();
+  astridElementComponentMock.mockReset();
 });
 
 describe('TimelineRenderer registered sequences', () => {
@@ -387,6 +393,36 @@ describe('TimelineRenderer registered sequences', () => {
       backgroundColor: '#405060',
     });
     expect(sequenceProps[0]).toMatchObject({ from: 60, durationInFrames: 90 });
+  });
+
+  it('dispatches legacy Astrid effect clipTypes through the bundled effect renderer', () => {
+    const ScrollingGuideMock: FC<{ clip: { id: string }; params?: Record<string, unknown> }> = ({ clip, params }) => (
+      <div
+        data-testid="astrid-effect-renderer"
+        data-clip-id={clip.id}
+        data-side={String(params?.side ?? '')}
+      />
+    );
+    astridElementComponentMock.mockImplementation((elementId: string, kind: string) => (
+      elementId === 'scrolling-guide' && kind === 'effect' ? ScrollingGuideMock : undefined
+    ));
+
+    render(<TimelineRenderer config={{
+      ...buildConfig(),
+      clips: [{
+        id: 'closing-v6-scrolling-guide',
+        clipType: 'scrolling-guide',
+        track: 'V1',
+        at: 1,
+        hold: 3,
+        params: { side: 'left' },
+      }],
+    }} />);
+
+    expect(screen.queryByTestId('unknown-clip-placeholder')).not.toBeInTheDocument();
+    expect(screen.getByTestId('astrid-effect-renderer')).toHaveAttribute('data-clip-id', 'closing-v6-scrolling-guide');
+    expect(screen.getByTestId('astrid-effect-renderer')).toHaveAttribute('data-side', 'left');
+    expect(sequenceProps[0]).toMatchObject({ from: 30, durationInFrames: 90 });
   });
 
   it('uses shared duration helpers for speed-adjusted registered sequence clips', () => {

@@ -1,5 +1,5 @@
 import { AbsoluteFill, Sequence, useCurrentFrame, useRemotionEnvironment } from 'remotion';
-import { Component, memo, useContext, useEffect, useMemo, useState, useSyncExternalStore, type FC, type ReactNode } from 'react';
+import { Component, memo, useContext, useEffect, useMemo, useState, useSyncExternalStore, type ComponentType, type FC, type ReactNode } from 'react';
 import type { DataProvider } from '@/tools/video-editor/data/DataProvider.ts';
 import { getAudioTracks, getVisualTracks } from '@/tools/video-editor/lib/editor-utils.ts';
 import { getClipDurationInFrames, getTimelineDurationInFrames, resolveTimelineConfig, secondsToFrames } from '@/tools/video-editor/lib/config-utils.ts';
@@ -436,10 +436,16 @@ const AstridEffectPreviewSequence: FC<{
   clip: ResolvedTimelineClip;
   fps: number;
   theme: RuntimeTheme;
-}> = ({ clip, fps, theme }) => {
-  const Component = clip.elementRef
+  component?: ComponentType<{
+    clip: ResolvedTimelineClip;
+    params: Record<string, unknown>;
+    theme: RuntimeTheme;
+    fps: number;
+  }>;
+}> = ({ clip, fps, theme, component }) => {
+  const Component = component ?? (clip.elementRef
     ? resolveAstridElementComponent(clip.elementRef.id, clip.elementRef.kind)
-    : undefined;
+    : undefined);
   const durationInFrames = getClipDurationInFrames(clip, fps);
   if (!Component) return null;
   return (
@@ -1488,6 +1494,26 @@ const VisualTrack: FC<VisualTrackProps> = ({
         // render/export.
         if (clip.clipType === 'audio-reactive-colour') {
           return <AudioReactiveColourSequence key={clip.id} clip={clip} fps={fps} />;
+        }
+
+        // Older Astrid-authored timelines identify first-party effects by
+        // their clipType alone. Newer typed operations also carry an
+        // elementRef, but requiring it here made valid legacy effects such as
+        // scrolling-guide fall through to the unsupported placeholder even
+        // though their checked-out Astrid component was bundled.
+        if (!clip.elementRef && clip.clipType) {
+          const astridEffect = resolveAstridElementComponent(clip.clipType, 'effect');
+          if (astridEffect) {
+            return (
+              <AstridEffectPreviewSequence
+                key={clip.id}
+                clip={clip}
+                fps={fps}
+                theme={theme}
+                component={astridEffect}
+              />
+            );
+          }
         }
 
         // EFFECT_REGISTRY dispatch (Sprint 5 / SD-026): if the clipType

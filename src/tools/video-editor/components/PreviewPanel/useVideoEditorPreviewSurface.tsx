@@ -28,7 +28,12 @@ export function useVideoEditorPreviewSurface({
 } = {}): VideoEditorPreviewSurface {
   const resolvedConfig = useTimelineDataSelector((timeline) => timeline.resolvedConfig);
   const runtime = useOptionalVideoEditorRuntime();
-  const canonicalLane = runtime?.userId === null && Boolean(runtime.shots.shotComposition);
+  // The Runtime provider exposes the shot-composition port for every document,
+  // including ordinary media timelines. Only replace the legacy resolved
+  // config when this particular document actually has a prepared canonical
+  // shot composition; otherwise a non-shot timeline would lose its preview
+  // surface even though its normal config is valid.
+  const canonicalLane = runtime?.userId === null && Boolean(runtime.shots.canonicalComposition);
   const canonicalComposition = canonicalLane
     ? runtime.shots.canonicalComposition
     : null;
