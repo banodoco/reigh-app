@@ -3,6 +3,8 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { AlertCircle } from 'lucide-react';
 import { AstridBridgeDataProvider } from '@/tools/video-editor/data/AstridBridgeDataProvider.ts';
+import { RuntimeDataProvider } from '@/integrations/runtime/dataProvider.ts';
+import { isAstridWorkspaceV1 } from '@/integrations/astrid/workspaceV1.ts';
 import { resolveTimelineConfig } from '@/tools/video-editor/lib/config-utils.ts';
 import type { AssetRegistry } from '@/tools/video-editor/types/index.ts';
 import { bridgeMediaUrl } from '@/shared/lib/media/bridgeMediaUrl.ts';
@@ -21,6 +23,7 @@ import {
 
 type LocalTimelineShotBrowserProps = {
   projectSlug: string;
+  projectId?: string;
   timelineRef: string;
   shotCompositionPort?: ShotCompositionPort;
 };
@@ -31,12 +34,23 @@ type LocalTimelineDocument = {
   compositionAdapter: ReturnType<typeof createShotCompositionAdapter>;
 };
 
-function useLocalTimelineDocument(projectSlug: string, timelineRef: string, shotCompositionPort?: ShotCompositionPort) {
-  const provider = useMemo(() => new AstridBridgeDataProvider({
-    projectSlug,
-    timelineRef,
-    timelineId: timelineRef,
-  }), [projectSlug, timelineRef]);
+function useLocalTimelineDocument(
+  projectSlug: string,
+  projectId: string | undefined,
+  timelineRef: string,
+  shotCompositionPort?: ShotCompositionPort,
+) {
+  const provider = useMemo(() => {
+    if (isAstridWorkspaceV1 && projectId) {
+      return new RuntimeDataProvider({ projectId });
+    }
+    return new AstridBridgeDataProvider({
+      projectSlug,
+      timelineRef,
+      timelineId: timelineRef,
+    });
+  }, [projectId, projectSlug, timelineRef]);
+  const identityProjectId = projectId ?? projectSlug;
   const canonicalPort = shotCompositionPort ?? provider.shotComposition;
   const compositionAdapter = useMemo(
     () => canonicalPort ? createShotCompositionAdapter(canonicalPort) : null,
@@ -44,7 +58,7 @@ function useLocalTimelineDocument(projectSlug: string, timelineRef: string, shot
   );
 
   return useQuery<LocalTimelineDocument>({
-    queryKey: ['canonical-local-timeline-shot-browser', projectSlug, timelineRef, shotCompositionPort],
+    queryKey: ['canonical-local-timeline-shot-browser', identityProjectId, timelineRef, shotCompositionPort],
     queryFn: async () => {
       if (!compositionAdapter) {
         throw new Error('Canonical shot-composition provider is unavailable for this timeline.');
@@ -71,24 +85,25 @@ function useLocalTimelineDocument(projectSlug: string, timelineRef: string, shot
         registry: {
           assets: Object.fromEntries(Object.entries(resolved.registry).map(([key, entry]) => [key, entry])),
         },
-        composition: await compositionAdapter.load({ projectId: projectSlug, parentDocumentId: timelineRef }),
+        composition: await compositionAdapter.load({ projectId: identityProjectId, parentDocumentId: timelineRef }),
         compositionAdapter,
       };
     },
   });
 }
 
-export function LocalTimelineShotBrowser({ projectSlug, timelineRef, shotCompositionPort }: LocalTimelineShotBrowserProps) {
+export function LocalTimelineShotBrowser({ projectSlug, projectId, timelineRef, shotCompositionPort }: LocalTimelineShotBrowserProps) {
   const location = useLocation();
   const navigate = useNavigate();
-  const documentQuery = useLocalTimelineDocument(projectSlug, timelineRef, shotCompositionPort);
+  const identityProjectId = projectId ?? projectSlug;
+  const documentQuery = useLocalTimelineDocument(projectSlug, projectId, timelineRef, shotCompositionPort);
   const shots = useMemo(
-    () => selectCanonicalShotOccurrences(documentQuery.data?.composition, documentQuery.data?.registry, projectSlug),
-    [documentQuery.data, projectSlug],
+    () => selectCanonicalShotOccurrences(documentQuery.data?.composition, documentQuery.data?.registry, identityProjectId),
+    [documentQuery.data, identityProjectId],
   );
   const shotModels = useMemo(
-    () => selectCanonicalShotModels(documentQuery.data?.composition, documentQuery.data?.registry, projectSlug),
-    [documentQuery.data, projectSlug],
+    () => selectCanonicalShotModels(documentQuery.data?.composition, documentQuery.data?.registry, identityProjectId),
+    [documentQuery.data, identityProjectId],
   );
   const hashShotId = useMemo(() => {
     const encoded = location.hash.startsWith('#') ? location.hash.slice(1) : location.hash;
@@ -183,7 +198,7 @@ export function LocalTimelineShotBrowser({ projectSlug, timelineRef, shotComposi
           </div>
           <ShotListDisplay
             readOnly
-            projectId={projectSlug}
+            projectId={identityProjectId}
             shots={shotModels}
             onSelectShot={selectShot}
             sortMode="ordered"
