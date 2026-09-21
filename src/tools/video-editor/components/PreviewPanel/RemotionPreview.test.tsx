@@ -5,8 +5,12 @@ import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { RemotionPreview, type PreviewHandle } from '@/tools/video-editor/components/PreviewPanel/RemotionPreview';
 import type { ResolvedTimelineConfig } from '@/tools/video-editor/types';
 
+vi.mock('@/tools/video-editor/compositions/TimelineRenderer', () => ({
+  TimelineRenderer: () => null,
+}));
+
 const playerListeners = new Map<string, Set<(...args: any[]) => void>>();
-const playerPropsHistory: Array<{ config: ResolvedTimelineConfig }> = [];
+const playerPropsHistory: Array<{ config: ResolvedTimelineConfig; numberOfSharedAudioTags?: number }> = [];
 const playerHandles: Array<{
   seekTo: ReturnType<typeof vi.fn>;
   getCurrentFrame: ReturnType<typeof vi.fn>;
@@ -19,10 +23,13 @@ vi.mock('@remotion/player', async () => {
 
   return {
     Player: React.forwardRef(function MockPlayer(
-      props: { inputProps: { config: ResolvedTimelineConfig } },
+      props: { inputProps: { config: ResolvedTimelineConfig }; numberOfSharedAudioTags?: number },
       ref: React.Ref<unknown>,
     ) {
-      playerPropsHistory.push({ config: props.inputProps.config });
+      playerPropsHistory.push({
+        config: props.inputProps.config,
+        numberOfSharedAudioTags: props.numberOfSharedAudioTags,
+      });
       React.useImperativeHandle(ref, () => {
         const seekTo = vi.fn();
         const getCurrentFrame = vi.fn(() => 0);
@@ -83,6 +90,30 @@ function makeConfig(label: string, hold = 1): ResolvedTimelineConfig {
   };
 }
 
+function makeAudioConfig(audioClipCount: number): ResolvedTimelineConfig {
+  return {
+    output: {
+      fps: 30,
+      resolution: '1280x720',
+      file: 'audio.mp4',
+    },
+    tracks: [{ id: 'VO', kind: 'audio', label: 'VO' }],
+    clips: Array.from({ length: audioClipCount }, (_, index) => ({
+      id: `audio-${index}`,
+      at: index,
+      track: 'VO',
+      clipType: 'media' as const,
+      asset: `asset-${index}`,
+      assetEntry: {
+        src: `/audio-${index}.mp3`,
+        type: 'audio/mpeg' as const,
+      },
+      hold: 1,
+    })),
+    registry: {},
+  };
+}
+
 describe('RemotionPreview', () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -135,6 +166,18 @@ describe('RemotionPreview', () => {
 
     // The edit reaches the Player on the next animation frame — no pause needed.
     expect(playerPropsHistory.at(-1)?.config).toBe(nextConfig);
+  });
+
+  it('disables Remotion shared audio pooling for long canonical timelines', () => {
+    render(
+      <RemotionPreview
+        config={makeAudioConfig(16)}
+        onTimeUpdate={vi.fn()}
+        playerContainerRef={createRef<HTMLDivElement>()}
+      />,
+    );
+
+    expect(playerPropsHistory.at(-1)?.numberOfSharedAudioTags).toBe(0);
   });
 
   it('coalesces rapid config updates while playing into one player update per frame', () => {

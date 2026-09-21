@@ -183,6 +183,33 @@ describe('canonical shot-composition downstream projection', () => {
     expect(clip?.assetEntry).toMatchObject({ type: 'video', file: 'object-child-video' });
   });
 
+  it('resolves audio assets declared by the child timeline when the shot manifest is incomplete', () => {
+    const source = withOccurrenceRevision(prepared, 0, (timeline) => ({
+      ...timeline,
+      assets: {
+        'alpha-audio': {
+          content_sha256: '3333333333333333333333333333333333333333333333333333333333333333',
+          media_id: 'object-alpha-audio',
+          type: 'audio',
+        },
+      },
+    }));
+    const projection = projectCanonicalComposition(source, {
+      output: { resolution: '1280x720', fps: 24, file: 'canonical.mp4' },
+      tracks: [{ id: 'audio', kind: 'audio', label: 'Audio' }],
+      clips: [],
+      registry: {},
+    });
+    const clip = projection.config.clips.find((candidate) => candidate.id === 'occ-1:alpha-audio');
+
+    expect(clip?.assetEntry).toMatchObject({
+      file: 'object-alpha-audio',
+      media_id: 'object-alpha-audio',
+      type: 'audio',
+      src: '/api/astrid/projects/project-001/media/object-alpha-audio/content',
+    });
+  });
+
   it('preserves a valid existing media kind and URL for an untyped canonical asset', () => {
     const source = withOccurrenceRevision(prepared, 0, (timeline) => ({
       ...timeline,

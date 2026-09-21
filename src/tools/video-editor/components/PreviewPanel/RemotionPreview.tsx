@@ -19,6 +19,13 @@ export interface PreviewHandle {
 }
 
 const TRANSPORT_BUTTON_CLASS = 'pointer-events-auto rounded-full border-[color:var(--video-editor-stage-control-border)] bg-[var(--video-editor-stage-control-bg)] text-[color:var(--video-editor-stage-fg)] hover:bg-[var(--video-editor-stage-control-bg-hover)]';
+// The editor preview flattens every shot's internal audio clip into the
+// parent composition. Remotion's shared-tag scheduler is optimized for a
+// small number of simultaneously mounted tags and can reuse a tag with the
+// wrong clip while a long timeline is being sought. Let each active Sequence
+// own its media element instead; this keeps source identity and timing local
+// to the clip and avoids a lifetime-fixed shared-pool prop during config swaps.
+const PREVIEW_SHARED_AUDIO_TAGS = 0;
 
 interface RemotionPreviewProps {
   config: ResolvedTimelineConfig;
@@ -212,6 +219,7 @@ const RemotionPreviewComponent = forwardRef<PreviewHandle, RemotionPreviewProps>
         fps={metadata.fps}
         compositionWidth={metadata.compositionWidth}
         compositionHeight={metadata.compositionHeight}
+        numberOfSharedAudioTags={PREVIEW_SHARED_AUDIO_TAGS}
         initialFrame={Math.min(Math.max(0, Math.round(initialTime * metadata.fps)), Math.max(0, metadata.durationInFrames - 1))}
         controls={false}
         clickToPlay={false}

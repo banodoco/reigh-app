@@ -160,6 +160,41 @@ function assetRegistryFor(
   const registry: Record<string, ResolvedAssetRegistryEntry> = {
     ...(baseConfig?.registry ?? {}),
   };
+
+  const mergeAsset = (assetId: string, rawAsset: JsonObject, objectId: string): void => {
+    const canonicalMediaType = mediaTypeForAsset(rawAsset);
+    const existing = registry[assetId];
+    const sameObject = existing?.media_id === objectId || existing?.file === objectId;
+    registry[assetId] = {
+      ...existing,
+      file: sameObject ? existing?.file ?? objectId : objectId,
+      media_id: sameObject ? existing?.media_id ?? objectId : objectId,
+      content_sha256: sameObject
+        ? existing?.content_sha256 ?? text(rawAsset.digest) ?? text(rawAsset.content_sha256)
+        : text(rawAsset.digest) ?? text(rawAsset.content_sha256) ?? existing?.content_sha256,
+      // Canonical shot assets are authoritative for the media kind. Some
+      // older parent registries omitted it or incorrectly described a
+      // video object as an image, which makes the browser mount an MP4 as
+      // <img> and leaves a blank frame.
+      type: canonicalMediaType ?? (sameObject && isMediaType(existing?.type) ? existing.type : 'image'),
+      origin: sameObject ? existing?.origin ?? 'immutable-public' : 'immutable-public',
+      metadata: sameObject ? existing?.metadata ?? {
+        provenance: {
+          sourceProvider: 'canonical-shot-composition',
+          originalFilename: assetId,
+        },
+      } : {
+        provenance: {
+          sourceProvider: 'canonical-shot-composition',
+          originalFilename: assetId,
+        },
+      },
+      src: sameObject && existing?.src
+        ? existing.src
+        : bridgeMediaUrl(composition.projectId, objectId),
+    };
+  };
+
   for (const occurrence of composition.occurrences) {
     const assets = Array.isArray(occurrence.revision.assets) ? occurrence.revision.assets : [];
     for (const rawAsset of assets) {
@@ -167,37 +202,26 @@ function assetRegistryFor(
       const assetId = text(asset?.asset_id);
       const objectId = text(asset?.object_id);
       if (!assetId || !objectId) continue;
-      const canonicalMediaType = mediaTypeForAsset(asset);
-      const existing = registry[assetId];
-      const sameObject = existing?.media_id === objectId || existing?.file === objectId;
-      registry[assetId] = {
-        ...existing,
-        file: sameObject ? existing?.file ?? objectId : objectId,
-        media_id: sameObject ? existing?.media_id ?? objectId : objectId,
-        content_sha256: sameObject
-          ? existing?.content_sha256 ?? text(asset.digest)
-          : text(asset.digest) ?? existing?.content_sha256,
-        // Canonical shot assets are authoritative for the media kind. Some
-        // older parent registries omitted it or incorrectly described a
-        // video object as an image, which makes the browser mount an MP4 as
-        // <img> and leaves a blank frame.
-        type: canonicalMediaType ?? (sameObject && isMediaType(existing?.type) ? existing.type : 'image'),
-        origin: sameObject ? existing?.origin ?? 'immutable-public' : 'immutable-public',
-        metadata: sameObject ? existing?.metadata ?? {
-          provenance: {
-            sourceProvider: 'canonical-shot-composition',
-            originalFilename: assetId,
-          },
-        } : {
-          provenance: {
-            sourceProvider: 'canonical-shot-composition',
-            originalFilename: assetId,
-          },
-        },
-        src: sameObject && existing?.src
-          ? existing.src
-          : bridgeMediaUrl(composition.projectId, objectId),
-      };
+      mergeAsset(assetId, asset, objectId);
+    }
+
+    // A child timeline may carry its own immutable asset map even when the
+    // shot revision manifest is incomplete (older Runtime revisions and
+    // imported timelines do this). Keep the child timeline self-contained:
+    // its asset declarations are valid inputs to the same projection.
+    const timeline = childTimeline(occurrence);
+    const timelineAssets = [
+      record(timeline.assets),
+      record(record(timeline.registry)?.assets),
+    ];
+    for (const assetMap of timelineAssets) {
+      if (!assetMap) continue;
+      for (const [childAssetId, rawChildAsset] of Object.entries(assetMap)) {
+        const childAsset = record(rawChildAsset);
+        const childObjectId = text(childAsset?.object_id) ?? text(childAsset?.media_id);
+        if (!childObjectId) continue;
+        mergeAsset(childAssetId, childAsset, childObjectId);
+      }
     }
   }
   return registry;

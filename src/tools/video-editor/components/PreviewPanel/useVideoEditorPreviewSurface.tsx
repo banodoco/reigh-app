@@ -28,15 +28,28 @@ export function useVideoEditorPreviewSurface({
 } = {}): VideoEditorPreviewSurface {
   const resolvedConfig = useTimelineDataSelector((timeline) => timeline.resolvedConfig);
   const runtime = useOptionalVideoEditorRuntime();
+  const hasShotClips = Boolean(resolvedConfig?.clips.some((clip) => clip.clipType === 'shot'));
+  const canonicalProviderActive = runtime?.userId === null
+    && Boolean(runtime.shots.shotComposition)
+    && hasShotClips;
+  const canonicalComposition = runtime?.userId === null
+    ? runtime.shots.canonicalComposition
+    : null;
+  // Do not briefly mount the legacy parent config while Runtime is still
+  // loading the pinned child timelines. That config contains the shot shells
+  // but not their internal media, so switching a live Player from it to the
+  // flattened canonical config can leave Remotion with the old duration and
+  // audio lifecycle. Ordinary media timelines continue to use their legacy
+  // config because they have no shot clips to hydrate.
+  const canonicalCompositionPending = canonicalProviderActive
+    && !canonicalComposition
+    && !runtime.shots.canonicalCompositionError;
   // The Runtime provider exposes the shot-composition port for every document,
   // including ordinary media timelines. Only replace the legacy resolved
   // config when this particular document actually has a prepared canonical
   // shot composition; otherwise a non-shot timeline would lose its preview
   // surface even though its normal config is valid.
-  const canonicalLane = runtime?.userId === null && Boolean(runtime.shots.canonicalComposition);
-  const canonicalComposition = canonicalLane
-    ? runtime.shots.canonicalComposition
-    : null;
+  const canonicalLane = runtime?.userId === null && Boolean(canonicalComposition);
   const projectedConfig = useMemo(() => {
     if (!canonicalLane || !canonicalComposition) return null;
     try {
@@ -47,7 +60,12 @@ export function useVideoEditorPreviewSurface({
       return null;
     }
   }, [canonicalComposition, canonicalLane, resolvedConfig]);
-  const previewConfig = canonicalLane ? projectedConfig : resolvedConfig;
+  const previewConfig = canonicalCompositionPending
+    ? null
+    : canonicalLane
+      ? projectedConfig
+      : resolvedConfig;
+  const previewSource = canonicalLane ? 'canonical' : 'legacy';
   const {
     currentTime,
     previewRef,
@@ -102,6 +120,7 @@ export function useVideoEditorPreviewSurface({
 
     return createPortal(
       <RemotionPreview
+        key={previewSource}
         ref={previewRef}
         config={previewConfig}
         compact={compact}
@@ -122,6 +141,7 @@ export function useVideoEditorPreviewSurface({
     playerContainerRef,
     previewRef,
     previewConfig,
+    previewSource,
   ]);
 
   return useMemo(() => ({
