@@ -75,6 +75,24 @@ describe('useHomeNavigation', () => {
     expect(navigate).toHaveBeenCalledWith('/tools/travel-between-images?localTimeline=abc');
   });
 
+  it('clears a local shot hash without dropping the selected project and timeline', () => {
+    currentLocation = {
+      pathname: '/tools/travel-between-images',
+      search: '?localProject=demo&localTimeline=abc',
+      hash: '#project%2Fdemo%2Fdocument%2Fabc%2Fshot%2Fshot-1',
+    };
+    const { result } = renderHook(() => useHomeNavigation());
+
+    act(() => {
+      result.current.navigateHome();
+    });
+
+    expect(navigate).toHaveBeenCalledWith(
+      { pathname: '/tools/travel-between-images', search: '?localProject=demo&localTimeline=abc', hash: '' },
+      { replace: true, state: { fromShotClick: false } },
+    );
+  });
+
   it('navigates to the home tool path outside local mode', () => {
     currentLocation = { pathname: '/tools/video-editor', search: '?timeline=app-timeline', hash: '' };
     const { result } = renderHook(() => useHomeNavigation());

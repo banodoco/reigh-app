@@ -80,6 +80,10 @@ vi.mock('@/shared/hooks/shots/useShotNavigation', () => ({
   }),
 }));
 
+vi.mock('react-router-dom', () => ({
+  useNavigate: () => vi.fn(),
+}));
+
 vi.mock('@/shared/contexts/ProjectContext', () => ({
   useProjectSelectionContext: () => ({ selectedProjectId: mocks.selectedProjectId }),
 }));

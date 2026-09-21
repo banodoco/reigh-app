@@ -19,10 +19,16 @@ vi.mock('@/shared/hooks/mobile', () => ({
   useIsMobile: () => false,
 }));
 
-vi.mock('@/shared/lib/tooling/toolRoutes', () => ({
-  TOOL_ROUTES: { TRAVEL_BETWEEN_IMAGES: '/travel' },
-  travelShotUrl: (shotId: string) => `/travel#shot=${shotId}`,
-}));
+vi.mock('@/shared/lib/tooling/toolRoutes', async () => {
+  const actual = await vi.importActual<typeof import('@/shared/lib/tooling/toolRoutes')>(
+    '@/shared/lib/tooling/toolRoutes',
+  );
+  return {
+    ...actual,
+    TOOL_ROUTES: { TRAVEL_BETWEEN_IMAGES: '/travel' },
+    travelShotUrl: (shotId: string) => `/travel#shot=${shotId}`,
+  };
+});
 
 import { useShotNavigation } from '@/shared/hooks/shots/useShotNavigation';
 import type { Shot } from '@/domains/generation/types';
@@ -30,6 +36,7 @@ import type { Shot } from '@/domains/generation/types';
 describe('useShotNavigation', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    window.history.replaceState({}, '', '/tools/image-generation');
   });
 
   const makeShot = (id: string): Shot => ({
@@ -65,6 +72,24 @@ describe('useShotNavigation', () => {
       expect.objectContaining({
         state: expect.objectContaining({ fromShotClick: true }),
       })
+    );
+  });
+
+  it('preserves local project scope when navigating between shots', () => {
+    window.history.replaceState(
+      {},
+      '',
+      '/tools/travel-between-images?localProject=demo&localTimeline=timeline-1',
+    );
+    const { result } = renderHook(() => useShotNavigation());
+
+    act(() => {
+      result.current.navigateToShot(makeShot('shot-local'));
+    });
+
+    expect(mockNavigate).toHaveBeenCalledWith(
+      '/tools/travel-between-images?localProject=demo&localTimeline=timeline-1#shot-local',
+      expect.objectContaining({ state: expect.objectContaining({ fromShotClick: true }) }),
     );
   });
 

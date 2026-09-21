@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useCurrentShot } from '@/shared/state/selectionStore';
 import { useIsMobile } from '@/shared/hooks/mobile';
 import { Shot } from '@/domains/generation/types';
-import { TOOL_ROUTES, travelShotUrl } from '@/shared/lib/tooling/toolRoutes';
+import { shotUrl, TOOL_ROUTES, travelShotUrl } from '@/shared/lib/tooling/toolRoutes';
 import { dispatchAppEvent } from '@/shared/lib/typedEvents';
 import { hasLocalModeUrlParams } from '@/shared/dev/devSession';
 
@@ -102,7 +102,7 @@ export const useShotNavigation = (): ShotNavigationResult => {
     // identity. Preserve them when moving between shots; dropping the scope
     // would switch the page back to the deferred cloud surface.
     const targetUrl = typeof window !== 'undefined' && hasLocalModeUrlParams(window.location.search)
-      ? `${window.location.pathname}${window.location.search}#${encodeURIComponent(shot.id)}`
+      ? shotUrl(window.location.pathname, window.location.search, shot.id)
       : travelShotUrl(shot.id);
     navigateRef.current(targetUrl, {
       state: {

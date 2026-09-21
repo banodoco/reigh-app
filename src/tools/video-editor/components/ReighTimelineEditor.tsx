@@ -1,5 +1,6 @@
 import { memo, useCallback, useMemo, useState } from 'react';
 import { shallow } from 'zustand/shallow';
+import { useNavigate } from 'react-router-dom';
 import type { Shot } from '@/domains/generation/types/index.ts';
 import { toast } from '@/shared/components/ui/runtime/sonner.tsx';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError.ts';
@@ -7,6 +8,7 @@ import { useProjectSelectionContext } from '@/shared/contexts/ProjectContext.tsx
 import { useShots } from '@/shared/contexts/ShotsContext.tsx';
 import { useShotCreation } from '@/shared/hooks/shotCreation/useShotCreation.ts';
 import { useShotNavigation } from '@/shared/hooks/shots/useShotNavigation.ts';
+import { astridShotUrl } from '@/shared/lib/tooling/toolRoutes.ts';
 import { VideoGenerationModal } from '@/tools/travel-between-images/components/VideoGenerationModal.tsx';
 import { AstridLocalClient } from '@/integrations/astrid/client.ts';
 import { useVideoEditorRuntime } from '@/tools/video-editor/contexts/VideoEditorRuntimeContext.tsx';
@@ -56,6 +58,7 @@ function ReighTimelineEditorComponent({ onOpenSequenceCreator, onOpenElementCrea
   const [videoModalShot, setVideoModalShot] = useState<Shot | null>(null);
   const [videoModalShowImages, setVideoModalShowImages] = useState(false);
   const [duplicatingClipId, setDuplicatingClipId] = useState<string | null>(null);
+  const navigate = useNavigate();
   const { createShot, isCreating } = useShotCreation();
   const { navigateToShot } = useShotNavigation();
   const { selectedProjectId } = useProjectSelectionContext();
@@ -284,12 +287,12 @@ function ReighTimelineEditorComponent({ onOpenSequenceCreator, onOpenElementCrea
     // identity pair intact in state, but address the route with the slug so
     // opening a shot from the editor resolves through Astrid discovery.
     const projectSlug = runtime.project.projectSlug ?? runtime.project.projectId ?? occurrence.projectId;
-    const url = `/tools/travel-between-images?localProject=${encodeURIComponent(projectSlug)}&localTimeline=${encodeURIComponent(occurrence.parentDocumentId)}#${encodeURIComponent(occurrence.stableDeepLink)}`;
-    // This boundary crosses between independently mounted tools. Use a real
-    // deep-link navigation so the destination receives the same discovery and
-    // bootstrap path as a refreshed browser tab.
-    globalThis.location.assign(url);
-  }, [runtime.project.projectId, runtime.project.projectSlug]);
+    const url = astridShotUrl(projectSlug, occurrence.parentDocumentId, occurrence.stableDeepLink);
+    // Both tools live under the same React Router app shell. Keep the
+    // deep-link navigation in-app so the destination can reuse the already
+    // bootstrapped workspace instead of reloading the whole document.
+    navigate(url);
+  }, [navigate, runtime.project.projectId, runtime.project.projectSlug]);
 
   const handleDuplicateDocumentShotGroup = useCallback(async (locator: { shotId: string; trackId: string; canonicalIdentity?: CanonicalShotOccurrence }) => {
     if (locator.canonicalIdentity && runtime.shots?.shotComposition && runtime.shots.canonicalComposition) {

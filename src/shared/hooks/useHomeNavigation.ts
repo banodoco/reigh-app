@@ -2,7 +2,9 @@ import { useCallback, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import { useProjectSelectionContext } from '@/shared/contexts/ProjectContext';
+import { hasLocalModeUrlParams } from '@/shared/dev/devSession.ts';
 import { withLocalModeParams } from '@/shared/dev/localModeUrl.ts';
+import { shotListLocation } from '@/shared/lib/tooling/toolRoutes.ts';
 import { useToolSettings } from '@/shared/hooks/settings/useToolSettings';
 import { useUserUIState } from '@/shared/hooks/useUserUIState';
 import {
@@ -49,7 +51,15 @@ export function useHomeNavigation() {
       location.pathname === '/tools/travel-between-images' &&
       location.hash
     ) {
-      navigate(location.pathname, { replace: true, state: { fromShotClick: false } });
+      // Local Astrid project/timeline identity lives in the query string.
+      // Clear only the shot deep-link; dropping the query here loses the
+      // selected project when returning to the travel overview.
+      navigate(
+        hasLocalModeUrlParams(location.search)
+          ? shotListLocation(location.pathname, location.search)
+          : location.pathname,
+        { replace: true, state: { fromShotClick: false } },
+      );
       return;
     }
 

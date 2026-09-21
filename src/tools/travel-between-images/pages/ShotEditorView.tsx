@@ -14,6 +14,7 @@ import { useIsMobile } from '@/shared/hooks/mobile';
 import { useShotNavigation } from '@/shared/hooks/shots/useShotNavigation';
 import { useUpdateShotName } from '@/shared/hooks/shots';
 import { usePrimeShotImagesCache } from '@/shared/hooks/shots/useShotImages';
+import { shotListLocation } from '@/shared/lib/tooling/toolRoutes.ts';
 import { useEnqueueGenerationsInvalidation } from '@/shared/hooks/invalidation/useGenerationInvalidation';
 import { useProjectVideoCountsCache } from '@/shared/hooks/projects/useProjectVideoCountsCache';
 import { useProjectGenerationModesCache } from '@/shared/hooks/projects/useProjectGenerationModesCache';
@@ -166,7 +167,7 @@ export function ShotEditorView({
     const localScope = hasLocalModeUrlParams(location.search);
     navigate(
       localScope
-        ? { pathname: location.pathname, search: location.search, hash: '' }
+        ? shotListLocation(location.pathname, location.search)
         : location.pathname,
       { replace: true, state: { fromShotClick: false } },
     );

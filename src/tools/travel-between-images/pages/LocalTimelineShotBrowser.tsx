@@ -9,6 +9,7 @@ import { resolveTimelineConfig } from '@/tools/video-editor/lib/config-utils.ts'
 import type { AssetRegistry } from '@/tools/video-editor/types/index.ts';
 import { bridgeMediaUrl } from '@/shared/lib/media/bridgeMediaUrl.ts';
 import { ShotsContextProvider } from '@/shared/contexts/ShotsContext.tsx';
+import { shotListLocation, shotLocation } from '@/shared/lib/tooling/toolRoutes.ts';
 import { ShotListDisplay } from '../components/VideoGallery/ShotListDisplay.tsx';
 import { ShotEditorView } from './ShotEditorView.tsx';
 import type { Shot } from '@/domains/generation/types';
@@ -127,17 +128,13 @@ export function LocalTimelineShotBrowser({ projectSlug, projectId, timelineRef, 
     // A stale or malformed deep link should land safely on the overview once
     // the document is available. Keep the local project/timeline query intact.
     if (documentQuery.isLoading || documentQuery.error || !location.hash || selectedShot) return;
-    navigate({ pathname: location.pathname, search: location.search, hash: '' }, { replace: true });
+    navigate(shotListLocation(location.pathname, location.search), { replace: true });
   }, [documentQuery.error, documentQuery.isLoading, location.hash, location.pathname, location.search, navigate, selectedShot]);
 
   const selectShot = (shot: Shot & { stableDeepLink?: string }) => {
     if (!shot.stableDeepLink) return;
     // The hash is the canonical occurrence deep link, not a reusable shot id.
-    navigate({
-      pathname: location.pathname,
-      search: location.search,
-      hash: encodeURIComponent(shot.stableDeepLink),
-    }, {
+    navigate(shotLocation(location.pathname, location.search, shot.stableDeepLink), {
       state: {
         fromShotClick: true,
         shotData: { id: shot.stableDeepLink, name: shot.name, settings: {}, images: [] },
