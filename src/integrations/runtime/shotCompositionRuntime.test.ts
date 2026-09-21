@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import fixture from '@/tools/video-editor/data/shotComposition.fixture.json';
 import { RuntimeDataProvider } from './dataProvider.ts';
 import { StaleWriteError } from '@/tools/video-editor/data/shotComposition.ts';
+import { createShotCompositionAdapter } from '@/tools/video-editor/data/shotCompositionAdapter.ts';
+import { projectCanonicalComposition } from '@/tools/video-editor/data/shotCompositionProjection.ts';
 
 const PROJECT_ID = 'project-001';
 const TIMELINE_ID = 'document-primary';
@@ -13,6 +15,7 @@ function json(value: unknown): Uint8Array {
 function runtimeResponses(options: {
   headRevisionId?: string;
   childAssets?: Record<string, Record<string, unknown>>;
+  manifestAudioAsset?: boolean;
 } = {}) {
   const headRevisionId = options.headRevisionId ?? 'timeline-rev-2';
   const graph = fixture as Record<string, any>;
@@ -50,7 +53,15 @@ function runtimeResponses(options: {
       internal_timeline_revision_id: revision.internal_timeline_revision.revision_id,
       content_digest: revision.content_digest,
       payload: {
-        assets: revision.assets,
+        assets: revision.shot_id === 'shot-alpha' && options.manifestAudioAsset
+          ? [...revision.assets, {
+              asset_id: 'alpha-audio',
+              object_id: 'object-alpha-audio',
+              digest: 'sha256:3333333333333333333333333333333333333333333333333333333333333333',
+              role: 'audio',
+              scope: { project_id: PROJECT_ID },
+            }]
+          : revision.assets,
         generation_inputs: revision.generation_inputs,
         timing: revision.timing,
         audio: revision.audio,
@@ -78,8 +89,12 @@ function fixtureTransport(options: {
   initialHeadRevisionId?: string | null;
   legacyInternalScope?: boolean;
   childAssets?: Record<string, Record<string, unknown>>;
+  manifestAudioAsset?: boolean;
 } = {}) {
-  const responses = runtimeResponses({ childAssets: options.childAssets });
+  const responses = runtimeResponses({
+    childAssets: options.childAssets,
+    manifestAudioAsset: options.manifestAudioAsset,
+  });
   let currentHeadRevisionId = options.initialHeadRevisionId === undefined
     ? responses.parent.revision_id
     : options.initialHeadRevisionId;
@@ -173,6 +188,28 @@ describe('Runtime shot-composition port', () => {
 
     await expect(provider.shotComposition.load({ projectId: PROJECT_ID, parentDocumentId: TIMELINE_ID }))
       .rejects.toThrow(/conflicts with object object-alpha-image/);
+  });
+
+  it('preserves an explicit manifest audio role when the child registry omits its type', async () => {
+    const fixtureRuntime = fixtureTransport({
+      manifestAudioAsset: true,
+      childAssets: {
+        'alpha-audio': {
+          media_id: 'object-alpha-audio',
+          content_sha256: '3333333333333333333333333333333333333333333333333333333333333333',
+        },
+      },
+    });
+    const provider = new RuntimeDataProvider({ projectId: PROJECT_ID, transport: fixtureRuntime.transport });
+    const raw = await provider.shotComposition.load({ projectId: PROJECT_ID, parentDocumentId: TIMELINE_ID });
+    const composition = createShotCompositionAdapter({ load: async () => raw }).prepare(raw);
+    const projection = projectCanonicalComposition(composition);
+    const audioClip = projection.config.clips.find((clip) => clip.asset === 'alpha-audio');
+
+    expect(audioClip?.assetEntry).toMatchObject({
+      file: 'object-alpha-audio',
+      type: 'audio',
+    });
   });
 
   it('publishes the complete Runtime body and reloads the committed graph', async () => {

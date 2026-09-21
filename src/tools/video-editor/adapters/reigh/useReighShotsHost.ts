@@ -22,7 +22,6 @@ export function useReighShotsHost(
     () => shotCompositionPort ? createShotCompositionAdapter(shotCompositionPort) : null,
     [shotCompositionPort],
   );
-  const [canonicalOccurrences, setCanonicalOccurrences] = useState<VideoEditorShotsHost['canonicalOccurrences']>([]);
   const [canonicalCompositionError, setCanonicalCompositionError] = useState<Error | null>(null);
   const [preparedComposition, setPreparedComposition] = useState<Awaited<ReturnType<NonNullable<typeof shotComposition>['load']>> | null>(null);
   const [canonicalLoading, setCanonicalLoading] = useState(false);
@@ -31,7 +30,6 @@ export function useReighShotsHost(
   useEffect(() => {
     let active = true;
     if (!projectId || !parentDocumentId || !shotComposition) {
-      setCanonicalOccurrences([]);
       setPreparedComposition(null);
       setCanonicalLoading(false);
       setCanonicalCompositionError(new ShotCompositionUnavailableError(
@@ -45,14 +43,12 @@ export function useReighShotsHost(
       .then((composition) => {
         if (!active) return;
         setPreparedComposition(composition);
-        setCanonicalOccurrences(composition.occurrences);
         setCanonicalLoading(false);
         setCanonicalCompositionError(null);
       })
       .catch((loadError: unknown) => {
         if (!active) return;
         setPreparedComposition(null);
-        setCanonicalOccurrences([]);
         setCanonicalLoading(false);
         setCanonicalCompositionError(loadError instanceof Error ? loadError : new Error(String(loadError)));
       });
@@ -104,7 +100,7 @@ export function useReighShotsHost(
     finalVideoMap: visibleFinalVideoMap,
     dismissFinalVideo,
     shotComposition,
-    canonicalOccurrences,
+    canonicalOccurrences: scopedComposition?.occurrences ?? [],
     canonicalComposition: scopedComposition,
     canonicalCompositionError,
   }), [
@@ -114,7 +110,6 @@ export function useReighShotsHost(
     shots,
     visibleFinalVideoMap,
     shotComposition,
-    canonicalOccurrences,
     scopedComposition,
     canonicalCompositionError,
   ]);

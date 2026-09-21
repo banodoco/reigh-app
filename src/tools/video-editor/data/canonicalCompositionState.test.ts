@@ -53,6 +53,21 @@ describe('canonical composition readiness', () => {
     expect(result.config?.clips.some((clip) => clip.clipType === 'shot')).toBe(false);
   });
 
+  it('lets a prepared canonical graph win when the legacy config has no shot shells', () => {
+    const result = resolveCanonicalComposition({
+      userId: null,
+      hasShotClips: false,
+      hasShotComposition: true,
+      composition,
+      compositionError: null,
+      baseConfig: { ...baseConfig, clips: [] },
+    });
+
+    expect(result.source).toBe('canonical');
+    expect(result.status).toBe('ready');
+    expect(result.config?.clips.length).toBeGreaterThan(0);
+  });
+
   it('fails closed with a canonical error instead of reviving the legacy graph', () => {
     const error = new Error('canonical graph unavailable');
     const result = resolveCanonicalComposition({

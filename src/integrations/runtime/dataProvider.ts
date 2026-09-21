@@ -576,11 +576,11 @@ function canonicalAssetDigest(rawAsset: RuntimeRecord, objectId: string, label: 
   throw new Error(`Workspace Runtime ${label} has an invalid immutable asset digest`);
 }
 
-function canonicalAssetRole(rawAsset: RuntimeRecord): string {
+function canonicalAssetRole(rawAsset: RuntimeRecord, fallback?: string): string {
   const source = asRecord(rawAsset.source);
   const role = [rawAsset.role, rawAsset.media_type, rawAsset.type, source?.media_type, source?.type]
     .find((value): value is string => typeof value === 'string' && value.length > 0);
-  return role ?? 'source';
+  return role ?? fallback ?? 'source';
 }
 
 /**
@@ -611,7 +611,7 @@ function normalizeShotRevisionAssets(
       asset_id: assetId,
       object_id: objectId,
       digest: canonicalAssetDigest(rawAsset, objectId, label),
-      role: canonicalAssetRole(rawAsset),
+      role: canonicalAssetRole(rawAsset, typeof assets.get(assetId)?.role === 'string' ? String(assets.get(assetId)?.role) : undefined),
       scope: { ...(asRecord(rawAsset.scope) ?? {}), project_id: projectId },
     };
     const existing = assets.get(assetId);

@@ -30,7 +30,12 @@ export function resolveCanonicalComposition({
   compositionError: Error | null | undefined;
   baseConfig: ResolvedTimelineConfig | null | undefined;
 }): CanonicalCompositionResolution {
-  const canonicalLane = userId === null && hasShotComposition && hasShotClips;
+  // A prepared graph is authoritative even when the legacy parent has no
+  // shot shells at all. Shells are only useful while deciding whether a graph
+  // is expected but has not arrived yet.
+  const canonicalLane = userId === null
+    && hasShotComposition
+    && (hasShotClips || Boolean(composition));
   if (!canonicalLane) {
     return {
       source: 'legacy',
