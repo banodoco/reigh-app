@@ -3026,7 +3026,7 @@ describe('useRenderState export guard — clip-type registry snapshot', () => {
 
     expect(guardMocks.scanExportConfig).toHaveBeenCalledTimes(1);
     const callArgs = guardMocks.scanExportConfig.mock.calls[0];
-    expect(callArgs).toHaveLength(8);
+    expect(callArgs).toHaveLength(9);
     expect(callArgs[5]).toBeDefined();
     expect(callArgs[7]).toBeUndefined();
   });

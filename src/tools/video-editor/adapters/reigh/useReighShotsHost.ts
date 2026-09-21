@@ -59,7 +59,16 @@ export function useReighShotsHost(
     return () => { active = false; };
   }, [parentDocumentId, projectId, reloadToken, shotComposition]);
 
-  const shots = useMemo(() => selectCanonicalShotViewModels(preparedComposition), [preparedComposition]);
+  // A previous document's prepared graph may remain in React state for one
+  // render while the next Runtime read is in flight. Scope the exposed graph
+  // before it reaches preview/export so a new document can never borrow the
+  // old document's child timelines.
+  const scopedComposition = preparedComposition
+    && preparedComposition.projectId === projectId
+    && preparedComposition.parentDocumentId === parentDocumentId
+    ? preparedComposition
+    : null;
+  const shots = useMemo(() => selectCanonicalShotViewModels(scopedComposition), [scopedComposition]);
   const refetchShots = useCallback(() => setReloadToken((value) => value + 1), []);
 
   const dismissFinalVideo = useCallback((finalVideoId: string) => {
@@ -96,7 +105,7 @@ export function useReighShotsHost(
     dismissFinalVideo,
     shotComposition,
     canonicalOccurrences,
-    canonicalComposition: preparedComposition,
+    canonicalComposition: scopedComposition,
     canonicalCompositionError,
   }), [
     canonicalLoading,
@@ -106,7 +115,7 @@ export function useReighShotsHost(
     visibleFinalVideoMap,
     shotComposition,
     canonicalOccurrences,
-    preparedComposition,
+    scopedComposition,
     canonicalCompositionError,
   ]);
 }

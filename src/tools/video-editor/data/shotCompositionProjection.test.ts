@@ -183,17 +183,28 @@ describe('canonical shot-composition downstream projection', () => {
     expect(clip?.assetEntry).toMatchObject({ type: 'video', file: 'object-child-video' });
   });
 
-  it('resolves audio assets declared by the child timeline when the shot manifest is incomplete', () => {
-    const source = withOccurrenceRevision(prepared, 0, (timeline) => ({
-      ...timeline,
-      assets: {
-        'alpha-audio': {
-          content_sha256: '3333333333333333333333333333333333333333333333333333333333333333',
-          media_id: 'object-alpha-audio',
-          type: 'audio',
-        },
-      },
-    }));
+  it('projects normalized revision assets with their canonical media kind', () => {
+    const source: PreparedShotComposition = {
+      ...prepared,
+      occurrences: prepared.occurrences.map((candidate, index) => index === 0
+        ? {
+            ...candidate,
+            revision: {
+              ...candidate.revision,
+              assets: [
+                ...(candidate.revision.assets as Array<Record<string, unknown>>),
+                {
+                  asset_id: 'alpha-audio',
+                  object_id: 'object-alpha-audio',
+                  digest: 'sha256:3333333333333333333333333333333333333333333333333333333333333333',
+                  role: 'audio',
+                  scope: { project_id: 'project-001' },
+                },
+              ],
+            },
+          }
+        : candidate),
+    };
     const projection = projectCanonicalComposition(source, {
       output: { resolution: '1280x720', fps: 24, file: 'canonical.mp4' },
       tracks: [{ id: 'audio', kind: 'audio', label: 'Audio' }],

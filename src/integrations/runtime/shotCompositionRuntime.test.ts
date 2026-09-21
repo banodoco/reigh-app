@@ -10,7 +10,11 @@ function json(value: unknown): Uint8Array {
   return new TextEncoder().encode(JSON.stringify(value));
 }
 
-function runtimeResponses(headRevisionId = 'timeline-rev-2') {
+function runtimeResponses(options: {
+  headRevisionId?: string;
+  childAssets?: Record<string, Record<string, unknown>>;
+} = {}) {
+  const headRevisionId = options.headRevisionId ?? 'timeline-rev-2';
   const graph = fixture as Record<string, any>;
   const revisions = graph.shot_revisions as Array<Record<string, any>>;
   const occurrences = (graph.occurrences as Array<Record<string, any>>).map((occurrence) => ({
@@ -60,15 +64,22 @@ function runtimeResponses(headRevisionId = 'timeline-rev-2') {
       project_id: PROJECT_ID,
       timeline_id: TIMELINE_ID,
       content_digest: revision.internal_timeline_revision.content_digest,
-      payload: revision.internal_timeline_revision.timeline,
+      payload: revision.shot_id === 'shot-alpha' && options.childAssets
+        ? { ...revision.internal_timeline_revision.timeline, assets: options.childAssets }
+        : revision.internal_timeline_revision.timeline,
       created_at: '2026-09-19T00:00:00Z',
     });
   }
   return { graph, parent, occurrences, shots, internals };
 }
 
-function fixtureTransport(options: { conflict?: boolean; initialHeadRevisionId?: string | null; legacyInternalScope?: boolean } = {}) {
-  const responses = runtimeResponses();
+function fixtureTransport(options: {
+  conflict?: boolean;
+  initialHeadRevisionId?: string | null;
+  legacyInternalScope?: boolean;
+  childAssets?: Record<string, Record<string, unknown>>;
+} = {}) {
+  const responses = runtimeResponses({ childAssets: options.childAssets });
   let currentHeadRevisionId = options.initialHeadRevisionId === undefined
     ? responses.parent.revision_id
     : options.initialHeadRevisionId;
@@ -120,6 +131,48 @@ describe('Runtime shot-composition port', () => {
       `GET /v1/projects/${PROJECT_ID}/timelines/${TIMELINE_ID}/revisions/timeline-alpha-a`,
     ]));
     expect(fixtureRuntime.requests.some(({ path }) => path.includes('/documents/'))).toBe(false);
+  });
+
+  it('normalizes child timeline assets into the pinned revision at the Runtime boundary', async () => {
+    const fixtureRuntime = fixtureTransport({
+      childAssets: {
+        'alpha-audio': {
+          media_id: 'object-alpha-audio',
+          content_sha256: '3333333333333333333333333333333333333333333333333333333333333333',
+          type: 'audio',
+        },
+      },
+    });
+    const provider = new RuntimeDataProvider({ projectId: PROJECT_ID, transport: fixtureRuntime.transport });
+
+    const loaded = await provider.shotComposition.load({ projectId: PROJECT_ID, parentDocumentId: TIMELINE_ID }) as {
+      shot_revisions: Array<Record<string, any>>;
+    };
+    const alpha = loaded.shot_revisions.find((revision) => revision.shot_id === 'shot-alpha');
+
+    expect(alpha?.assets).toContainEqual(expect.objectContaining({
+      asset_id: 'alpha-audio',
+      object_id: 'object-alpha-audio',
+      digest: 'sha256:3333333333333333333333333333333333333333333333333333333333333333',
+      role: 'audio',
+      scope: { project_id: PROJECT_ID },
+    }));
+  });
+
+  it('rejects conflicting child and shot asset bindings before projection', async () => {
+    const fixtureRuntime = fixtureTransport({
+      childAssets: {
+        'alpha-image': {
+          media_id: 'object-conflicting-image',
+          content_sha256: '4444444444444444444444444444444444444444444444444444444444444444',
+          type: 'image',
+        },
+      },
+    });
+    const provider = new RuntimeDataProvider({ projectId: PROJECT_ID, transport: fixtureRuntime.transport });
+
+    await expect(provider.shotComposition.load({ projectId: PROJECT_ID, parentDocumentId: TIMELINE_ID }))
+      .rejects.toThrow(/conflicts with object object-alpha-image/);
   });
 
   it('publishes the complete Runtime body and reloads the committed graph', async () => {

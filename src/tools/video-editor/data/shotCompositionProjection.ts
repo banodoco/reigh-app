@@ -15,7 +15,8 @@ type JsonObject = Record<string, unknown>;
 export type CanonicalProjectionFailureCode =
   | 'missing_dependency'
   | 'unsupported_nesting'
-  | 'blank_child_output';
+  | 'blank_child_output'
+  | 'asset_conflict';
 
 export class CanonicalCompositionProjectionError extends Error {
   readonly code: CanonicalProjectionFailureCode;
@@ -160,8 +161,19 @@ function assetRegistryFor(
   const registry: Record<string, ResolvedAssetRegistryEntry> = {
     ...(baseConfig?.registry ?? {}),
   };
+  const canonicalObjectIds = new Map<string, string>();
 
-  const mergeAsset = (assetId: string, rawAsset: JsonObject, objectId: string): void => {
+  const mergeAsset = (assetId: string, rawAsset: JsonObject, objectId: string, canonical: boolean): void => {
+    if (canonical) {
+      const existingCanonicalObjectId = canonicalObjectIds.get(assetId);
+      if (existingCanonicalObjectId && existingCanonicalObjectId !== objectId) {
+        throw new CanonicalCompositionProjectionError(
+          'asset_conflict',
+          `Canonical asset ${assetId} resolves to both ${existingCanonicalObjectId} and ${objectId}`,
+        );
+      }
+      canonicalObjectIds.set(assetId, objectId);
+    }
     const canonicalMediaType = mediaTypeForAsset(rawAsset);
     const existing = registry[assetId];
     const sameObject = existing?.media_id === objectId || existing?.file === objectId;
@@ -202,26 +214,7 @@ function assetRegistryFor(
       const assetId = text(asset?.asset_id);
       const objectId = text(asset?.object_id);
       if (!assetId || !objectId) continue;
-      mergeAsset(assetId, asset, objectId);
-    }
-
-    // A child timeline may carry its own immutable asset map even when the
-    // shot revision manifest is incomplete (older Runtime revisions and
-    // imported timelines do this). Keep the child timeline self-contained:
-    // its asset declarations are valid inputs to the same projection.
-    const timeline = childTimeline(occurrence);
-    const timelineAssets = [
-      record(timeline.assets),
-      record(record(timeline.registry)?.assets),
-    ];
-    for (const assetMap of timelineAssets) {
-      if (!assetMap) continue;
-      for (const [childAssetId, rawChildAsset] of Object.entries(assetMap)) {
-        const childAsset = record(rawChildAsset);
-        const childObjectId = text(childAsset?.object_id) ?? text(childAsset?.media_id);
-        if (!childObjectId) continue;
-        mergeAsset(childAssetId, childAsset, childObjectId);
-      }
+      mergeAsset(assetId, asset, objectId, true);
     }
   }
   return registry;

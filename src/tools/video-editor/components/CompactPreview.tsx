@@ -12,7 +12,7 @@ import {
   useTimelinePlaybackContext,
 } from '@/tools/video-editor/hooks/timelineStore.ts';
 import { useOptionalVideoEditorRuntime } from '@/tools/video-editor/contexts/VideoEditorRuntimeContext.tsx';
-import { projectCanonicalComposition } from '@/tools/video-editor/data/shotCompositionProjection.ts';
+import { resolveCanonicalComposition } from '@/tools/video-editor/data/canonicalCompositionState.ts';
 
 interface CompactPreviewCoreProps {
   timelineId?: string | null;
@@ -24,19 +24,16 @@ export function CompactPreviewCore({ timelineId, onCreateTimeline, onOpenEditor 
   useRenderDiagnostic('CompactPreviewCore');
   const { resolvedConfig } = useTimelineEditorData();
   const runtime = useOptionalVideoEditorRuntime();
-  const canonicalLane = runtime?.userId === null && Boolean(runtime.shots.shotComposition);
-  const canonicalComposition = canonicalLane
-    ? runtime.shots.canonicalComposition
-    : null;
-  const previewConfig = useMemo(() => {
-    if (!canonicalLane) return resolvedConfig;
-    if (!canonicalComposition) return null;
-    try {
-      return projectCanonicalComposition(canonicalComposition, resolvedConfig).config;
-    } catch {
-      return null;
-    }
-  }, [canonicalComposition, canonicalLane, resolvedConfig]);
+  const hasShotClips = Boolean(resolvedConfig?.clips.some((clip) => clip.clipType === 'shot'));
+  const compositionResolution = useMemo(() => resolveCanonicalComposition({
+    userId: runtime?.userId,
+    hasShotClips,
+    hasShotComposition: Boolean(runtime?.shots?.shotComposition),
+    composition: runtime?.userId === null ? runtime.shots?.canonicalComposition : null,
+    compositionError: runtime?.userId === null ? runtime.shots?.canonicalCompositionError : null,
+    baseConfig: resolvedConfig,
+  }), [hasShotClips, resolvedConfig, runtime]);
+  const previewConfig = compositionResolution.config;
   const { saveStatus } = useTimelineChromeContext();
   const { previewRef, playerContainerRef, currentTime, onPreviewTimeUpdate } = useTimelinePlaybackContext();
 

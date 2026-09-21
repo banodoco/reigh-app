@@ -33,7 +33,7 @@ import {
 import { syncPlannerDiagnosticsToCollection } from '@/tools/video-editor/runtime/diagnosticCollectionSync.ts';
 import type { PlannerBackedRenderRouteDecision } from '@/tools/video-editor/lib/renderRouter.ts';
 import type { RenderExportDestination } from '@/tools/video-editor/lib/renderRouter.ts';
-import { projectCanonicalComposition } from '@/tools/video-editor/data/shotCompositionProjection.ts';
+import { resolveCanonicalComposition } from '@/tools/video-editor/data/canonicalCompositionState.ts';
 import type { BridgeTaskDetailPayload } from '@/tools/video-editor/data/bridgeContract.ts';
 import type {
   CapabilityFinding,
@@ -528,25 +528,18 @@ export function useRenderState(
     return categorizeExportFormats(outputFormats);
   }, [extensionRuntime]);
   const runtimeContext = useContext(VideoEditorRuntimeContext);
-  const canonicalLane = runtimeContext?.userId === null && Boolean(runtimeContext.shots.shotComposition);
-  const canonicalComposition = canonicalLane ? runtimeContext?.shots.canonicalComposition : null;
-  const canonicalProjection = useMemo(() => {
-    if (!canonicalComposition) return null;
-    try {
-      return projectCanonicalComposition(canonicalComposition, resolvedConfig);
-    } catch (error) {
-      return { error: error instanceof Error ? error : new Error(String(error)) };
-    }
-  }, [canonicalComposition, resolvedConfig]);
-  // In the Reigh document lane the prepared graph is the only preview/export
-  // input. While it is loading, or when it cannot be projected, stay blank and
-  // surface the projection error instead of reviving the legacy timeline.
-  const renderConfig = canonicalLane
-    ? (canonicalProjection && 'config' in canonicalProjection ? canonicalProjection.config : null)
-    : resolvedConfig;
-  const renderProjectionError = canonicalLane && canonicalProjection && 'error' in canonicalProjection
-    ? canonicalProjection.error
-    : null;
+  const hasShotClips = Boolean(resolvedConfig?.clips.some((clip) => clip.clipType === 'shot'));
+  const compositionResolution = useMemo(() => resolveCanonicalComposition({
+    userId: runtimeContext?.userId,
+    hasShotClips,
+    hasShotComposition: Boolean(runtimeContext?.shots?.shotComposition),
+    composition: runtimeContext?.userId === null ? runtimeContext.shots?.canonicalComposition : null,
+    compositionError: runtimeContext?.userId === null ? runtimeContext.shots?.canonicalCompositionError : null,
+    baseConfig: resolvedConfig,
+  }), [hasShotClips, resolvedConfig, runtimeContext]);
+  const canonicalLane = compositionResolution.source === 'canonical';
+  const renderConfig = compositionResolution.config;
+  const renderProjectionError = compositionResolution.error;
   const diagnosticCollection = runtimeContext?.diagnosticCollection;
   const processStatuses = runtimeContext?.processStatuses;
   const processResultAttachRecords = runtimeContext?.processResultAttachRecords;

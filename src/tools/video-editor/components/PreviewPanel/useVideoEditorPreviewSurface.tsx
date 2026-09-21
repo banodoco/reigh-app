@@ -11,7 +11,7 @@ import { shallow } from 'zustand/shallow';
 import { RemotionPreview } from '@/tools/video-editor/components/PreviewPanel/RemotionPreview.tsx';
 import { useTimelineDataSelector, useTimelinePlaybackSelector } from '@/tools/video-editor/hooks/timelineStore.ts';
 import { useOptionalVideoEditorRuntime } from '@/tools/video-editor/contexts/VideoEditorRuntimeContext.tsx';
-import { projectCanonicalComposition } from '@/tools/video-editor/data/shotCompositionProjection.ts';
+import { resolveCanonicalComposition } from '@/tools/video-editor/data/canonicalCompositionState.ts';
 
 export interface VideoEditorPreviewSurface {
   slotRef: RefCallback<HTMLDivElement>;
@@ -29,43 +29,16 @@ export function useVideoEditorPreviewSurface({
   const resolvedConfig = useTimelineDataSelector((timeline) => timeline.resolvedConfig);
   const runtime = useOptionalVideoEditorRuntime();
   const hasShotClips = Boolean(resolvedConfig?.clips.some((clip) => clip.clipType === 'shot'));
-  const canonicalProviderActive = runtime?.userId === null
-    && Boolean(runtime.shots.shotComposition)
-    && hasShotClips;
-  const canonicalComposition = runtime?.userId === null
-    ? runtime.shots.canonicalComposition
-    : null;
-  // Do not briefly mount the legacy parent config while Runtime is still
-  // loading the pinned child timelines. That config contains the shot shells
-  // but not their internal media, so switching a live Player from it to the
-  // flattened canonical config can leave Remotion with the old duration and
-  // audio lifecycle. Ordinary media timelines continue to use their legacy
-  // config because they have no shot clips to hydrate.
-  const canonicalCompositionPending = canonicalProviderActive
-    && !canonicalComposition
-    && !runtime.shots.canonicalCompositionError;
-  // The Runtime provider exposes the shot-composition port for every document,
-  // including ordinary media timelines. Only replace the legacy resolved
-  // config when this particular document actually has a prepared canonical
-  // shot composition; otherwise a non-shot timeline would lose its preview
-  // surface even though its normal config is valid.
-  const canonicalLane = runtime?.userId === null && Boolean(canonicalComposition);
-  const projectedConfig = useMemo(() => {
-    if (!canonicalLane || !canonicalComposition) return null;
-    try {
-      return projectCanonicalComposition(canonicalComposition, resolvedConfig).config;
-    } catch {
-      // Canonical preview is fail-closed. A malformed/unsupported child must
-      // never fall back to the legacy timeline projection.
-      return null;
-    }
-  }, [canonicalComposition, canonicalLane, resolvedConfig]);
-  const previewConfig = canonicalCompositionPending
-    ? null
-    : canonicalLane
-      ? projectedConfig
-      : resolvedConfig;
-  const previewSource = canonicalLane ? 'canonical' : 'legacy';
+  const compositionResolution = useMemo(() => resolveCanonicalComposition({
+    userId: runtime?.userId,
+    hasShotClips,
+    hasShotComposition: Boolean(runtime?.shots?.shotComposition),
+    composition: runtime?.userId === null ? runtime.shots?.canonicalComposition : null,
+    compositionError: runtime?.userId === null ? runtime.shots?.canonicalCompositionError : null,
+    baseConfig: resolvedConfig,
+  }), [hasShotClips, resolvedConfig, runtime]);
+  const previewConfig = compositionResolution.config;
+  const previewSource = compositionResolution.source;
   const {
     currentTime,
     previewRef,

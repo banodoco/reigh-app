@@ -563,6 +563,87 @@ function canonicalAudio(payload: RuntimeRecord, projectId: string, shotId: strin
   return { ...audio, scope: { ...scope, project_id: projectId } };
 }
 
+const SHA256_DIGEST = /^sha256:[0-9a-f]{64}$/i;
+
+function canonicalAssetDigest(rawAsset: RuntimeRecord, objectId: string, label: string): string {
+  const candidate = [rawAsset.digest, rawAsset.content_sha256, rawAsset.sha256, objectId]
+    .find((value): value is string => typeof value === 'string' && value.length > 0);
+  if (!candidate) {
+    throw new Error(`Workspace Runtime ${label} has no immutable asset digest`);
+  }
+  if (SHA256_DIGEST.test(candidate)) return candidate.toLowerCase();
+  if (/^[0-9a-f]{64}$/i.test(candidate)) return `sha256:${candidate.toLowerCase()}`;
+  throw new Error(`Workspace Runtime ${label} has an invalid immutable asset digest`);
+}
+
+function canonicalAssetRole(rawAsset: RuntimeRecord): string {
+  const source = asRecord(rawAsset.source);
+  const role = [rawAsset.role, rawAsset.media_type, rawAsset.type, source?.media_type, source?.type]
+    .find((value): value is string => typeof value === 'string' && value.length > 0);
+  return role ?? 'source';
+}
+
+/**
+ * Normalize all media declarations for one pinned shot revision at the
+ * Runtime boundary. A child timeline can carry an immutable registry even when
+ * the older shot manifest omitted the same declaration; after this boundary
+ * the canonical contract has one revision-scoped asset list and projection
+ * does not need to understand transport-specific fallbacks.
+ */
+function normalizeShotRevisionAssets(
+  projectId: string,
+  shotId: string,
+  revisionId: string,
+  shotPayload: RuntimeRecord,
+  timelinePayload: RuntimeRecord,
+): RuntimeRecord[] {
+  const assets = new Map<string, RuntimeRecord>();
+  const add = (assetId: string, rawAsset: RuntimeRecord, sourceLabel: string): void => {
+    const objectId = typeof rawAsset.object_id === 'string' && rawAsset.object_id.length > 0
+      ? rawAsset.object_id
+      : typeof rawAsset.media_id === 'string' && rawAsset.media_id.length > 0
+        ? rawAsset.media_id
+        : undefined;
+    if (!objectId) return;
+    const label = `${sourceLabel} ${shotId}/${revisionId} asset ${assetId}`;
+    const normalized: RuntimeRecord = {
+      ...rawAsset,
+      asset_id: assetId,
+      object_id: objectId,
+      digest: canonicalAssetDigest(rawAsset, objectId, label),
+      role: canonicalAssetRole(rawAsset),
+      scope: { ...(asRecord(rawAsset.scope) ?? {}), project_id: projectId },
+    };
+    const existing = assets.get(assetId);
+    if (existing && existing.object_id !== objectId) {
+      throw new Error(
+        `Workspace Runtime ${label} conflicts with object ${String(existing.object_id)}`,
+      );
+    }
+    assets.set(assetId, { ...existing, ...normalized });
+  };
+
+  for (const rawAsset of canonicalArray(shotPayload.assets)) {
+    const asset = asRecord(rawAsset);
+    const assetId = typeof asset?.asset_id === 'string' && asset.asset_id.length > 0 ? asset.asset_id : undefined;
+    if (asset && assetId) add(assetId, asset, 'shot revision');
+  }
+
+  const childAssetMaps = [
+    asRecord(timelinePayload.assets),
+    asRecord(asRecord(timelinePayload.registry)?.assets),
+  ];
+  for (const assetMap of childAssetMaps) {
+    if (!assetMap) continue;
+    for (const [assetId, rawAsset] of Object.entries(assetMap)) {
+      const asset = asRecord(rawAsset);
+      if (asset) add(assetId, asset, 'internal timeline');
+    }
+  }
+
+  return [...assets.values()];
+}
+
 function runtimeGraphToContract(
   projectId: string,
   timelineId: string,
@@ -605,7 +686,7 @@ function runtimeGraphToContract(
         timeline: timelinePayload,
       },
       dependencies: canonicalArray(shotPayload.dependencies),
-      assets: canonicalArray(shotPayload.assets),
+      assets: normalizeShotRevisionAssets(projectId, String(shot.shot_id), String(shot.revision_id), shotPayload, timelinePayload),
       generation_inputs: canonicalArray(shotPayload.generation_inputs),
       timing,
       audio: canonicalAudio(shotPayload, projectId, String(shot.shot_id), String(shot.revision_id)),
