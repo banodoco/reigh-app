@@ -44,6 +44,9 @@ describe('ShotGroupLabels', () => {
     expect(label.getAttribute(ACTION_ID_ATTR)).toBe(SHOT_GROUP_LABEL_ACTION_ID);
     expect(label.getAttribute(SHOT_GROUP_DRAG_ANCHOR_CLIP_ID_ATTR)).toBe('clip-1');
     expect(label.getAttribute(SHOT_GROUP_DRAG_ANCHOR_ROW_ID_ATTR)).toBe('V1');
+    expect(label.className).toContain('opacity-30');
+    expect(label.className).toContain('hover:opacity-100');
+    expect(label.style.zIndex).toBe('10');
   });
 
   it('lets pointerdown bubble so label drags reach the shared drag listener', () => {

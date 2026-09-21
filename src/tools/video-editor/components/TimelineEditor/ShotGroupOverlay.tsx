@@ -6,6 +6,7 @@ import {
   SHOT_GROUP_LABEL_HEIGHT,
   TIME_RULER_HEIGHT,
 } from './timeline-canvas-constants.ts';
+import { LABEL_WIDTH } from '@/tools/video-editor/lib/coordinate-utils.ts';
 import type { CanonicalShotOccurrence } from '@/tools/video-editor/data/shotCompositionAdapter.ts';
 
 export interface PositionedShotGroup {
@@ -63,112 +64,120 @@ export const ShotGroupLabels = React.memo(function ShotGroupLabels({
 
   return (
     <>
-      {positionedShotGroups.map((group) => (
-        <div
-          key={`${group.key}:label`}
-          className={cn(
-            'absolute cursor-pointer select-none rounded-t-sm transition-opacity',
-            showTouchActions || group.canonicalIdentity ? 'opacity-100' : 'opacity-0 hover:opacity-100',
-          )}
-          title={group.shotName}
-          {...shotGroupLabelAttrs(group.clipIds[0] ?? '', group.rowId)}
-          onClick={(event) => {
-            event.stopPropagation();
-            onSelectClips?.(group.clipIds);
-          }}
-          onDoubleClick={(event) => {
-            event.stopPropagation();
-            if (onShotGroupNavigate) {
+      {positionedShotGroups.map((group) => {
+        const labelLeft = group.left - scrollLeft;
+        const clippedLeft = Math.max(0, LABEL_WIDTH - labelLeft);
+        return (
+          <div
+            key={`${group.key}:label`}
+            className={cn(
+              'absolute cursor-pointer select-none rounded-t-sm transition-opacity',
+              showTouchActions ? 'opacity-100' : 'opacity-30 hover:opacity-100',
+            )}
+            title={group.shotName}
+            {...shotGroupLabelAttrs(group.clipIds[0] ?? '', group.rowId)}
+            onClick={(event) => {
+              event.stopPropagation();
+              onSelectClips?.(group.clipIds);
+            }}
+            onDoubleClick={(event) => {
+              event.stopPropagation();
+              if (onShotGroupNavigate) {
+                if (group.canonicalIdentity && onShotGroupOpen) {
+                  onShotGroupOpen(group.canonicalIdentity);
+                  return;
+                }
+                onShotGroupNavigate(group.shotId);
+                return;
+              }
               if (group.canonicalIdentity && onShotGroupOpen) {
                 onShotGroupOpen(group.canonicalIdentity);
                 return;
               }
-              onShotGroupNavigate(group.shotId);
-              return;
-            }
-            if (group.canonicalIdentity && onShotGroupOpen) {
-              onShotGroupOpen(group.canonicalIdentity);
-              return;
-            }
-            onSelectClips?.(group.clipIds);
-          }}
-          onContextMenu={(event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            openShotGroupMenu(event.clientX, event.clientY, group);
-          }}
-          style={{
-            left: group.left - scrollLeft,
-            top: TIME_RULER_HEIGHT + group.top - SHOT_GROUP_LABEL_HEIGHT - scrollTop,
-            width: group.width,
-            height: SHOT_GROUP_LABEL_HEIGHT,
-            zIndex: 25,
-            pointerEvents: 'auto',
-            background: `color-mix(in srgb, ${group.color} 78%, transparent)`,
-          }}
-        >
-          <span
-            className="pointer-events-none absolute inset-x-2 top-1/2 -translate-y-1/2 truncate text-[10px] font-medium"
-            style={{ color: `color-mix(in srgb, white 92%, ${group.color})` }}
+              onSelectClips?.(group.clipIds);
+            }}
+            onContextMenu={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              openShotGroupMenu(event.clientX, event.clientY, group);
+            }}
+            style={{
+              left: labelLeft,
+              top: TIME_RULER_HEIGHT + group.top - SHOT_GROUP_LABEL_HEIGHT - scrollTop,
+              width: group.width,
+              height: SHOT_GROUP_LABEL_HEIGHT,
+              // Keep the floating label below the sticky track-label column.
+              // Clip the scrolled portion as well so it cannot intercept the
+              // reorder/settings controls at the left edge of the timeline.
+              zIndex: 10,
+              pointerEvents: 'auto',
+              ...(clippedLeft > 0 ? { clipPath: `inset(0 0 0 ${Math.min(clippedLeft, group.width)}px)` } : {}),
+              background: `color-mix(in srgb, ${group.color} 78%, transparent)`,
+            }}
           >
-            {group.shotName}
-          </span>
-          <div className="pointer-events-none absolute right-1 top-1/2 flex -translate-y-1/2 items-center gap-1">
-            {showTouchActions && (
-              <button
-                type="button"
-                className="pointer-events-auto flex h-10 w-10 items-center justify-center rounded-full bg-card/90 text-foreground shadow-sm transition-colors hover:bg-accent"
-                title="Open shot actions"
-                aria-label={`Open actions for ${group.shotName}`}
-                onClick={(event) => {
-                  event.preventDefault();
-                  event.stopPropagation();
-                  openShotGroupMenu(event.clientX, event.clientY, group);
-                }}
-              >
-                <Ellipsis className="h-4 w-4" />
-              </button>
-            )}
-            {group.hasFinalVideo && (
-              <button
-                type="button"
-                className="pointer-events-auto flex h-4 w-4 items-center justify-center rounded-full bg-sky-500 text-white shadow-sm transition-transform hover:scale-110 hover:bg-sky-400"
-                title="Final video available"
-                onClick={(event) => {
-                  event.preventDefault();
-                  event.stopPropagation();
-                  openShotGroupMenu(event.clientX, event.clientY, { ...group, hasFinalVideo: true });
-                }}
-              >
-                <Video className="h-2.5 w-2.5" />
-              </button>
-            )}
-            {group.hasStaleVideo && !group.hasActiveTask && (
-              <button
-                type="button"
-                className="pointer-events-auto flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-white shadow-sm transition-transform hover:scale-110 hover:bg-amber-400"
-                title="New video available"
-                onClick={(event) => {
-                  event.preventDefault();
-                  event.stopPropagation();
-                  openShotGroupMenu(event.clientX, event.clientY, group);
-                }}
-              >
-                <RefreshCw className="h-2.5 w-2.5" />
-              </button>
-            )}
-            {group.hasActiveTask && (
-              <div
-                className="flex h-4 w-4 items-center justify-center rounded-full shadow-sm"
-                title="Task in progress"
-                style={{ backgroundColor: 'rgba(255,255,255,0.9)' }}
-              >
-                <Loader2 className="h-2.5 w-2.5 animate-spin" style={{ color: group.color }} />
-              </div>
-            )}
+            <span
+              className="pointer-events-none absolute inset-x-2 top-1/2 -translate-y-1/2 truncate text-[10px] font-medium"
+              style={{ color: `color-mix(in srgb, white 92%, ${group.color})` }}
+            >
+              {group.shotName}
+            </span>
+            <div className="pointer-events-none absolute right-1 top-1/2 flex -translate-y-1/2 items-center gap-1">
+              {showTouchActions && (
+                <button
+                  type="button"
+                  className="pointer-events-auto flex h-10 w-10 items-center justify-center rounded-full bg-card/90 text-foreground shadow-sm transition-colors hover:bg-accent"
+                  title="Open shot actions"
+                  aria-label={`Open actions for ${group.shotName}`}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    openShotGroupMenu(event.clientX, event.clientY, group);
+                  }}
+                >
+                  <Ellipsis className="h-4 w-4" />
+                </button>
+              )}
+              {group.hasFinalVideo && (
+                <button
+                  type="button"
+                  className="pointer-events-auto flex h-4 w-4 items-center justify-center rounded-full bg-sky-500 text-white shadow-sm transition-transform hover:scale-110 hover:bg-sky-400"
+                  title="Final video available"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    openShotGroupMenu(event.clientX, event.clientY, { ...group, hasFinalVideo: true });
+                  }}
+                >
+                  <Video className="h-2.5 w-2.5" />
+                </button>
+              )}
+              {group.hasStaleVideo && !group.hasActiveTask && (
+                <button
+                  type="button"
+                  className="pointer-events-auto flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-white shadow-sm transition-transform hover:scale-110 hover:bg-amber-400"
+                  title="New video available"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    openShotGroupMenu(event.clientX, event.clientY, group);
+                  }}
+                >
+                  <RefreshCw className="h-2.5 w-2.5" />
+                </button>
+              )}
+              {group.hasActiveTask && (
+                <div
+                  className="flex h-4 w-4 items-center justify-center rounded-full shadow-sm"
+                  title="Task in progress"
+                  style={{ backgroundColor: 'rgba(255,255,255,0.9)' }}
+                >
+                  <Loader2 className="h-2.5 w-2.5 animate-spin" style={{ color: group.color }} />
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </>
   );
 });
