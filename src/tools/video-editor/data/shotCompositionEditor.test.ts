@@ -6,6 +6,7 @@ import {
   duplicateLinkedOccurrence,
   moveCanonicalOccurrence,
   trimCanonicalOccurrence,
+  updateCanonicalShotTimeline,
   updateCanonicalShotSettings,
 } from './shotCompositionEditor.ts';
 import { parseShotComposition } from './shotComposition.ts';
@@ -72,10 +73,30 @@ describe('canonical shot-composition editor operations', () => {
     expect(oldRevision).toBeDefined();
     expect(newRevision).toMatchObject({
       shot_id: 'shot-alpha',
+      publish: true,
       settings: { generationMode: 'timeline', prompt: 'A revised prompt' },
     });
     expect(newRevision?.content_digest).toMatch(/^sha256:[0-9a-f]{64}$/);
     expect(updated.primary_timeline.head.revision_id).not.toBe('timeline-rev-2');
+    expect(() => parseShotComposition(updated)).not.toThrow();
+  });
+
+  it('publishes shot-local timeline edits as a new immutable internal revision', async () => {
+    const graph = parseShotComposition(fixture);
+    const updated = await updateCanonicalShotTimeline(graph, 'occ-1', {
+      tracks: [{ id: 'video', kind: 'visual' }],
+      clips: [{ id: 'alpha-video', clip_type: 'media', track: 'video', at: 1.5, hold: 2 }],
+    });
+    const occurrence = updated.occurrences.find((candidate) => candidate.occurrence_id === 'occ-1');
+    const revision = updated.shot_revisions.find((candidate) => candidate.revision_id === occurrence?.revision_id);
+    const internal = revision?.internal_timeline_revision as Record<string, any> | undefined;
+
+    expect(occurrence?.revision_id).not.toBe('rev-a');
+    expect(internal?.revision_id).not.toBe('timeline-alpha-a');
+    expect(internal?.publish).toBe(true);
+    expect(internal?.timeline).toEqual(expect.objectContaining({
+      clips: [expect.objectContaining({ id: 'alpha-video', at: 1.5 })],
+    }));
     expect(() => parseShotComposition(updated)).not.toThrow();
   });
 });

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { AlertCircle } from 'lucide-react';
@@ -150,6 +150,10 @@ export function LocalTimelineShotBrowser({ projectSlug, projectId, timelineRef, 
     () => selectedShot ? shotModels.find((shot) => shot.id === selectedShot.id) : undefined,
     [selectedShot, shotModels],
   );
+  const handleCanonicalCompositionPublished = useCallback((nextComposition: PreparedShotComposition) => {
+    setCompositionOverride(nextComposition);
+    onCanonicalCompositionPublished?.(nextComposition);
+  }, [onCanonicalCompositionPublished]);
 
   useEffect(() => {
     // A stale or malformed deep link should land safely on the overview once
@@ -212,10 +216,7 @@ export function LocalTimelineShotBrowser({ projectSlug, projectId, timelineRef, 
           availableLoras={[]}
           shotSortMode="ordered"
           onClose={onClose}
-          onCanonicalCompositionPublished={(nextComposition) => {
-            setCompositionOverride(nextComposition);
-            onCanonicalCompositionPublished?.(nextComposition);
-          }}
+          onCanonicalCompositionPublished={handleCanonicalCompositionPublished}
         />
       ) : (
         <section className="mx-auto w-full max-w-7xl" aria-label="Timeline shots">

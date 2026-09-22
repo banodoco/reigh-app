@@ -227,6 +227,48 @@ describe('createEntityStore', () => {
     expect(store.getState().isDirty('entity-1')).toBe(false);
   });
 
+  it('serializes overlapping explicit and debounced saves for one entity', async () => {
+    let releaseFirstSave!: () => void;
+    const firstSaveFinished = new Promise<void>((resolve) => {
+      releaseFirstSave = resolve;
+    });
+    const save = vi
+      .fn<(_: string, __: TestSettings) => Promise<void>>()
+      .mockImplementationOnce(async () => {
+        await firstSaveFinished;
+      })
+      .mockResolvedValue(undefined);
+    const { store } = createTestStore({
+      save,
+      persistenceDebounceMs: 60_000,
+    });
+
+    store.getState().bootstrapEntity({
+      entityId: 'entity-1',
+      db: null,
+      lastUsed: null,
+    });
+
+    store.getState().updateField('entity-1', 'count', 1);
+    const first = store.getState().saveImmediate('entity-1');
+    await Promise.resolve();
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(save).toHaveBeenNthCalledWith(1, 'entity-1', { count: 1, text: '' });
+
+    store.getState().updateField('entity-1', 'count', 2);
+    const second = store.getState().saveImmediate('entity-1');
+    await Promise.resolve();
+    expect(save).toHaveBeenCalledTimes(1);
+
+    releaseFirstSave();
+    await first;
+    await second;
+
+    expect(save).toHaveBeenCalledTimes(2);
+    expect(save).toHaveBeenNthCalledWith(2, 'entity-1', { count: 2, text: '' });
+    expect(store.getState().entities['entity-1'].savedSettings).toEqual({ count: 2, text: '' });
+  });
+
   it('refuses external sync while local edits or pending persistence exist', async () => {
     vi.useFakeTimers();
     const { store, save } = createTestStore();

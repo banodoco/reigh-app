@@ -47,6 +47,7 @@ export interface UseShotSettingsReturn {
 
 export interface ShotSettingsPersistenceOptions {
   customLoadSave?: CustomLoadSave<VideoTravelSettings>;
+  bootstrapData?: VideoTravelSettings | null;
 }
 
 /**
@@ -101,6 +102,7 @@ export const useShotSettings = (
     enabled: !!shotId,
     debounceMs: 300,
     customLoadSave: options.customLoadSave,
+    bootstrapData: options.bootstrapData,
   });
   const {
     settings,

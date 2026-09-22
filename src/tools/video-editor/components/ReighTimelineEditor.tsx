@@ -67,6 +67,9 @@ function ReighTimelineEditorComponent({ onOpenSequenceCreator, onOpenElementCrea
   const isDocumentShotMode = runtime.userId === null;
   const canonicalOccurrences = runtime.shots?.canonicalOccurrences ?? [];
   const isCanonicalEditor = isDocumentShotMode && canonicalOccurrences.length > 0;
+  const handleCanonicalCompositionPublished = useCallback(() => {
+    runtime.shots?.refetchShots();
+  }, [runtime.shots]);
   const configVersion = useTimelineConfigVersion();
   const reloadFromServer = useTimelineChromeSelector((chrome) => chrome.reloadFromServer);
   const {
@@ -601,7 +604,7 @@ function ReighTimelineEditorComponent({ onOpenSequenceCreator, onOpenElementCrea
                 shotCompositionAdapter={runtime.shots.shotComposition ?? undefined}
                 shotRef={canonicalShotEditor.stableDeepLink}
                 onClose={() => setCanonicalShotEditor(null)}
-                onCanonicalCompositionPublished={() => runtime.shots?.refetchShots()}
+                onCanonicalCompositionPublished={handleCanonicalCompositionPublished}
               />
             </div>
           )}

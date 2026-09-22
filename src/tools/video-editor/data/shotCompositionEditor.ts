@@ -6,10 +6,41 @@ import {
 
 type JsonObject = Record<string, unknown>;
 
+const canonicalPublishQueues = new Map<string, Promise<unknown>>();
+
+/** Serialize all canonical edits for one project/timeline CAS head. */
+export function enqueueCanonicalShotPublish<T>(
+  projectId: string,
+  parentDocumentId: string,
+  operation: () => Promise<T>,
+): Promise<T> {
+  const key = `${projectId}\u0000${parentDocumentId}`;
+  const previous = canonicalPublishQueues.get(key);
+  const queued = previous
+    ? previous.catch(() => {}).then(operation)
+    : operation();
+  canonicalPublishQueues.set(key, queued);
+  void queued.then(
+    () => {
+      if (canonicalPublishQueues.get(key) === queued) canonicalPublishQueues.delete(key);
+    },
+    () => {
+      if (canonicalPublishQueues.get(key) === queued) canonicalPublishQueues.delete(key);
+    },
+  );
+  return queued;
+}
+
 export type CanonicalOccurrenceEdit = Readonly<{
   occurrenceId: string;
   atMs?: number;
   durationMs?: number;
+}>;
+
+export type CanonicalShotRevisionPatch = Readonly<{
+  settings?: JsonObject;
+  provenance?: JsonObject;
+  timeline?: JsonObject;
 }>;
 
 function clone<T>(value: T): T {
@@ -76,6 +107,14 @@ function revisionPayload(revision: JsonObject): JsonObject {
   ].includes(key)));
 }
 
+function internalTimelinePayload(internal: JsonObject): JsonObject {
+  return Object.fromEntries(Object.entries(internal).filter(([key]) => ![
+    'revision_id',
+    'content_digest',
+    'publish',
+  ].includes(key)));
+}
+
 function record(value: unknown): JsonObject | null {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
     ? value as JsonObject
@@ -94,10 +133,7 @@ function record(value: unknown): JsonObject | null {
 export async function updateCanonicalShotRevision(
   graph: ShotCompositionContract,
   occurrenceId: string,
-  patch: Readonly<{
-    settings?: JsonObject;
-    provenance?: JsonObject;
-  }>,
+  patch: CanonicalShotRevisionPatch,
 ): Promise<ShotCompositionContract> {
   const next = clone(graph);
   const occurrenceIndex = next.occurrences.findIndex((occurrence) => occurrence.occurrence_id === occurrenceId);
@@ -112,12 +148,27 @@ export async function updateCanonicalShotRevision(
 
   const sourceRevision = next.shot_revisions[sourceRevisionIndex];
   const revisionId = newIdentity(`shot-revision-${String(sourceOccurrence.shot_id)}`);
+  const sourceInternal = record(sourceRevision.internal_timeline_revision);
+  if (!sourceInternal) throw new Error('canonical shot revision internal timeline is missing');
+  const updatedInternal = patch.timeline
+    ? {
+        ...sourceInternal,
+        revision_id: newIdentity(`timeline-${String(sourceOccurrence.shot_id)}`),
+        publish: true,
+        timeline: clone(patch.timeline),
+      }
+    : undefined;
   const updatedRevision: JsonObject = {
     ...sourceRevision,
     revision_id: revisionId,
+    publish: true,
     ...(patch.settings ? { settings: clone(patch.settings) } : {}),
     ...(patch.provenance ? { provenance: clone(patch.provenance) } : {}),
+    ...(updatedInternal ? { internal_timeline_revision: updatedInternal } : {}),
   };
+  if (updatedInternal) {
+    updatedInternal.content_digest = await digestJson(internalTimelinePayload(updatedInternal));
+  }
   updatedRevision.content_digest = await digestJson(revisionPayload(updatedRevision));
   // Keep the source revision in the graph. Runtime revisions are immutable;
   // the new revision is appended as a child rather than replacing history.
@@ -179,6 +230,14 @@ export function updateCanonicalShotSettings(
   settings: JsonObject,
 ): Promise<ShotCompositionContract> {
   return updateCanonicalShotRevision(graph, occurrenceId, { settings });
+}
+
+export function updateCanonicalShotTimeline(
+  graph: ShotCompositionContract,
+  occurrenceId: string,
+  timeline: JsonObject,
+): Promise<ShotCompositionContract> {
+  return updateCanonicalShotRevision(graph, occurrenceId, { timeline });
 }
 
 export function updateCanonicalShotName(
@@ -266,8 +325,9 @@ export function duplicateIndependentShot(
   const independentRevision = clone(sourceRevision);
   independentRevision.shot_id = ids.shotId;
   independentRevision.revision_id = ids.revisionId;
+  independentRevision.publish = true;
   const internal = independentRevision.internal_timeline_revision as JsonObject;
-  independentRevision.internal_timeline_revision = { ...internal, revision_id: ids.internalTimelineRevisionId };
+  independentRevision.internal_timeline_revision = { ...internal, revision_id: ids.internalTimelineRevisionId, publish: true };
   next.shot_revisions.push(independentRevision);
   next.occurrences.push(withOccurrenceIdentity(next, {
     ...sourceOccurrence,

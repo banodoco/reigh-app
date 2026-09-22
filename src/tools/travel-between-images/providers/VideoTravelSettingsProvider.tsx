@@ -170,8 +170,18 @@ export const VideoTravelSettingsProvider: React.FC<VideoTravelSettingsProviderPr
   useSeedSettingsCache(shotId, projectId, selectedShot);
 
   // Core settings hook - manages state + persistence
+  const canonicalBootstrapSettings = useMemo(() => {
+    if (!shotSettingsPersistence || !selectedShot?.settings || typeof selectedShot.settings !== 'object') {
+      return null;
+    }
+    const raw = (selectedShot.settings as Record<string, unknown>)[TOOL_IDS.TRAVEL_BETWEEN_IMAGES];
+    return raw && typeof raw === 'object' && !Array.isArray(raw)
+      ? normalizeVideoTravelSettings(raw)
+      : null;
+  }, [selectedShot, shotSettingsPersistence]);
   const shotSettings = useShotSettings(shotId, projectId, {
     customLoadSave: shotSettingsPersistence,
+    bootstrapData: canonicalBootstrapSettings,
   });
 
   console.log('[ModeDebug][SettingsProvider] shotId=%s status=%s generationMode=%s', shotId, shotSettings.status, shotSettings.settings?.generationMode ?? 'NOT SET');

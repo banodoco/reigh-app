@@ -298,7 +298,12 @@ export function useAutoSaveSettings<T extends object>(
     }
 
     const currentEntity = store.getState().entities[activeEntityId];
-    if (!currentEntity || currentEntity.status === 'loading' || currentEntity.hasPersistedData) {
+    // A canonical shot already carries its settings in the prepared graph.
+    // Seed that snapshot immediately, even while the slower authoritative
+    // custom load is still in flight, so the editor cannot flash defaults and
+    // then appear to undo the user's first edit.  The load completion below
+    // still replaces it when a persisted record exists.
+    if (!currentEntity || currentEntity.hasPersistedData) {
       return;
     }
 
@@ -318,6 +323,8 @@ export function useAutoSaveSettings<T extends object>(
     bootstrapEntity,
     isCustomMode,
     isEntityValid,
+    localEntity.hasPersistedData,
+    localEntity.status,
     store,
   ]);
 

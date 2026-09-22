@@ -6,6 +6,7 @@ import { MemoryRouter, useLocation, useNavigate } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LocalTimelineShotBrowser } from './LocalTimelineShotBrowser';
 import fixture from '@/tools/video-editor/data/shotComposition.fixture.json';
+import { createShotCompositionAdapter } from '@/tools/video-editor/data/shotCompositionAdapter.ts';
 
 // The production list/editor are integration-tested separately. These focused
 // tests keep the document-to-shot adapter and URL contract deterministic without
@@ -23,14 +24,14 @@ vi.mock('../components/VideoGallery/ShotListDisplay.tsx', () => ({
 }));
 
 vi.mock('./ShotEditorView.tsx', () => ({
-  ShotEditorView: ({ shotToEdit, canonicalOccurrence, canonicalShotComposition }: { shotToEdit: { name: string; images?: Array<{ id: string }> }; canonicalOccurrence?: { occurrenceId: string; stableDeepLink: string }; canonicalShotComposition?: unknown }) => {
+  ShotEditorView: ({ shotToEdit, canonicalOccurrence, canonicalShotComposition, onClose }: { shotToEdit: { name: string; images?: Array<{ id: string }> }; canonicalOccurrence?: { occurrenceId: string; stableDeepLink: string }; canonicalShotComposition?: unknown; onClose?: () => void }) => {
     const navigate = useNavigate();
     const location = useLocation();
     return (
       <div data-testid="production-shot-editor">
         <button
           type="button"
-          onClick={() => navigate({ pathname: location.pathname, search: location.search, hash: '' })}
+          onClick={() => onClose?.() ?? navigate({ pathname: location.pathname, search: location.search, hash: '' })}
         >Back to all shots</button>
         <h1>{shotToEdit.name}</h1>
         <div data-testid="canonical-occurrence">{canonicalOccurrence?.occurrenceId}:{canonicalOccurrence?.stableDeepLink}</div>
@@ -131,6 +132,34 @@ describe('LocalTimelineShotBrowser', () => {
     expect(screen.getByTestId('location')).toHaveTextContent(
       '/tools/travel-between-images?localProject=project-001&localTimeline=document-primary#project%2Fproject-001%2Fdocument%2Fdocument-primary%2Fshot%2Fshot-alpha%2Frevision%2Frev-a%2Foccurrence%2Focc-1',
     );
+  });
+
+  it('opens an embedded shot ref without changing the parent URL', async () => {
+    const onClose = vi.fn();
+    const shotCompositionAdapter = createShotCompositionAdapter({
+      load: async () => fixture,
+    });
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <MemoryRouter initialEntries={['/tools/video-editor?localProject=project-001&localTimeline=document-primary']}>
+          <LocalTimelineShotBrowser
+            projectSlug="project-001"
+            timelineRef="document-primary"
+            shotCompositionAdapter={shotCompositionAdapter}
+            shotRef="project/project-001/document/document-primary/shot/shot-alpha/revision/rev-a/occurrence/occ-1"
+            onClose={onClose}
+          />
+          <LocationProbe />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    expect(await screen.findByRole('heading', { name: 'shot-alpha' })).toBeInTheDocument();
+    expect(screen.getByTestId('location')).toHaveTextContent('/tools/video-editor?localProject=project-001&localTimeline=document-primary');
+
+    fireEvent.click(screen.getByRole('button', { name: /Back to all shots/i }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId('location')).toHaveTextContent('/tools/video-editor?localProject=project-001&localTimeline=document-primary');
   });
 
   it.each([

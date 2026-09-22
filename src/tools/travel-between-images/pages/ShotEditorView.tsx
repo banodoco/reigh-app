@@ -40,6 +40,7 @@ import type {
   ShotCompositionAdapter,
 } from '@/tools/video-editor/data/shotCompositionAdapter.ts';
 import {
+  enqueueCanonicalShotPublish,
   updateCanonicalShotName,
   updateCanonicalShotSettings,
 } from '@/tools/video-editor/data/shotCompositionEditor.ts';
@@ -123,15 +124,17 @@ export function ShotEditorView({
       },
       save: async (_entityId: string, settings: Parameters<typeof normalizeVideoTravelSettings>[0]) => {
         if (!publish) throw new Error('The canonical shot-composition provider is read-only');
-        const current = await canonicalShotComposition.load({ projectId, parentDocumentId });
-        const graph = await updateCanonicalShotSettings(current.contract, occurrenceId, settings as Record<string, unknown>);
-        const published = await publish({
-          projectId,
-          parentDocumentId,
-          expectedHeadRevisionId: current.headRevisionId,
-          graph,
+        await enqueueCanonicalShotPublish(projectId, parentDocumentId, async () => {
+          const current = await canonicalShotComposition.load({ projectId, parentDocumentId });
+          const graph = await updateCanonicalShotSettings(current.contract, occurrenceId, settings as Record<string, unknown>);
+          const published = await publish({
+            projectId,
+            parentDocumentId,
+            expectedHeadRevisionId: current.headRevisionId,
+            graph,
+          });
+          onCanonicalCompositionPublished?.(published);
         });
-        onCanonicalCompositionPublished?.(published);
       },
     };
   }, [canEditCanonicalShot, canonicalComposition, canonicalOccurrence, canonicalShotComposition, onCanonicalCompositionPublished, shotToEdit.id]);
@@ -256,20 +259,24 @@ export function ShotEditorView({
 
   const handleUpdateShotName = useCallback((newName: string) => {
     if (canonicalSettingsPersistence && canonicalShotComposition && canonicalComposition && canonicalOccurrence) {
-      void (async () => {
-        const current = await canonicalShotComposition.load({
-          projectId: canonicalComposition.projectId,
-          parentDocumentId: canonicalComposition.parentDocumentId,
-        });
-        const graph = await updateCanonicalShotName(current.contract, canonicalOccurrence.occurrenceId, newName);
-        const published = await canonicalShotComposition.publish?.({
-          projectId: current.projectId,
-          parentDocumentId: current.parentDocumentId,
-          expectedHeadRevisionId: current.headRevisionId,
-          graph,
-        });
-        if (published) onCanonicalCompositionPublished?.(published);
-      })().catch((error: unknown) => {
+      void enqueueCanonicalShotPublish(
+        canonicalComposition.projectId,
+        canonicalComposition.parentDocumentId,
+        async () => {
+          const current = await canonicalShotComposition.load({
+            projectId: canonicalComposition.projectId,
+            parentDocumentId: canonicalComposition.parentDocumentId,
+          });
+          const graph = await updateCanonicalShotName(current.contract, canonicalOccurrence.occurrenceId, newName);
+          const published = await canonicalShotComposition.publish?.({
+            projectId: current.projectId,
+            parentDocumentId: current.parentDocumentId,
+            expectedHeadRevisionId: current.headRevisionId,
+            graph,
+          });
+          if (published) onCanonicalCompositionPublished?.(published);
+        },
+      ).catch((error: unknown) => {
         normalizeAndPresentError(error, {
           context: 'canonical-shot:update-name',
           toastTitle: 'Failed to save shot name',
@@ -321,6 +328,8 @@ export function ShotEditorView({
           <ShotTimelinePreview
             composition={canonicalComposition}
             occurrenceId={canonicalOccurrence.occurrenceId}
+            shotCompositionAdapter={canonicalShotComposition}
+            onCanonicalCompositionPublished={onCanonicalCompositionPublished}
           />
         ) : null}
         <Suspense fallback={<LoadingSkeleton type="editor" />}>

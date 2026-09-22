@@ -226,9 +226,9 @@ describe('Runtime shot-composition port', () => {
       parent_composition: expect.any(Object),
       shot_revisions: expect.any(Array),
       internal_timeline_revisions: expect.any(Array),
-      dependency_manifest: { shots: expect.any(Array), internal_timelines: expect.any(Array), media: expect.any(Array) },
     });
-    expect(publication?.content_digest).toMatch(/^sha256:[0-9a-f]{64}$/);
+    expect(publication?.content_digest).toBeUndefined();
+    expect(publication?.dependency_manifest).toBeUndefined();
   });
 
   it('publishes a prepared graph against a null initial Runtime head', async () => {

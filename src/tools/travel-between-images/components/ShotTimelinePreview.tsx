@@ -8,7 +8,14 @@ import { getTimelineDurationInFrames } from '@/tools/video-editor/lib/config-uti
 import { useTimelinePlaybackContext } from '@/tools/video-editor/hooks/timelineStore.ts';
 import { createTimelineEditability } from '@/tools/video-editor/lib/timeline-editability.ts';
 import type { DataProvider } from '@/tools/video-editor/data/DataProvider.ts';
-import type { PreparedShotComposition } from '@/tools/video-editor/data/shotCompositionAdapter.ts';
+import type {
+  PreparedShotComposition,
+  ShotCompositionAdapter,
+} from '@/tools/video-editor/data/shotCompositionAdapter.ts';
+import {
+  enqueueCanonicalShotPublish,
+  updateCanonicalShotTimeline,
+} from '@/tools/video-editor/data/shotCompositionEditor.ts';
 import type {
   AssetRegistry,
   ResolvedTimelineConfig,
@@ -18,6 +25,8 @@ import type {
 type ShotTimelinePreviewProps = {
   composition: PreparedShotComposition;
   occurrenceId: string;
+  shotCompositionAdapter?: ShotCompositionAdapter;
+  onCanonicalCompositionPublished?: (composition: PreparedShotComposition) => void;
 };
 
 type ProjectionState = {
@@ -60,7 +69,48 @@ function projectShotTimeline(composition: PreparedShotComposition, occurrenceId:
   }
 }
 
-function createReadOnlyDataProvider(config: ResolvedTimelineConfig): DataProvider {
+function createShotTimelineConfig(config: ResolvedTimelineConfig): TimelineConfig {
+  return {
+    output: config.output,
+    clips: config.clips,
+    tracks: config.tracks,
+    ...(config.theme ? { theme: config.theme } : {}),
+    ...(config.theme_overrides ? { theme_overrides: config.theme_overrides } : {}),
+    ...(config.generation_defaults ? { generation_defaults: config.generation_defaults } : {}),
+    ...(config.app ? { app: config.app } : {}),
+  };
+}
+
+function createCanonicalTimeline(config: TimelineConfig, occurrenceId: string): Record<string, unknown> {
+  const clipPrefix = `${occurrenceId}:`;
+  const clips = (config.clips ?? []).map((clip) => {
+    const app = clip.app && typeof clip.app === 'object' && !Array.isArray(clip.app)
+      ? Object.fromEntries(Object.entries(clip.app).filter(([key]) => !['canonical', 'canonicalTiming'].includes(key)))
+      : clip.app;
+    const { assetEntry: _assetEntry, ...persistedClip } = clip as typeof clip & { assetEntry?: unknown };
+    return {
+      ...persistedClip,
+      id: persistedClip.id.startsWith(clipPrefix) ? persistedClip.id.slice(clipPrefix.length) : persistedClip.id,
+      ...(app && typeof app === 'object' ? { app } : {}),
+    };
+  });
+  return {
+    tracks: config.tracks ?? [],
+    clips,
+    ...(config.theme ? { theme: config.theme } : {}),
+    ...(config.theme_overrides ? { theme_overrides: config.theme_overrides } : {}),
+    ...(config.generation_defaults ? { generation_defaults: config.generation_defaults } : {}),
+    ...(config.app ? { app: config.app } : {}),
+  };
+}
+
+function createShotTimelineDataProvider(
+  config: ResolvedTimelineConfig,
+  composition: PreparedShotComposition,
+  occurrenceId: string,
+  shotCompositionAdapter?: ShotCompositionAdapter,
+  onCanonicalCompositionPublished?: (composition: PreparedShotComposition) => void,
+): DataProvider {
   const registry: AssetRegistry = {
     assets: Object.fromEntries(Object.entries(config.registry).map(([assetId, entry]) => ([assetId, {
       ...entry,
@@ -73,25 +123,44 @@ function createReadOnlyDataProvider(config: ResolvedTimelineConfig): DataProvide
     ));
     return entry?.src ?? file;
   };
-  const timelineConfig: TimelineConfig = {
-    output: config.output,
-    clips: config.clips,
-    tracks: config.tracks,
-    ...(config.theme ? { theme: config.theme } : {}),
-    ...(config.theme_overrides ? { theme_overrides: config.theme_overrides } : {}),
-    ...(config.generation_defaults ? { generation_defaults: config.generation_defaults } : {}),
-    ...(config.app ? { app: config.app } : {}),
-  };
+  const timelineConfig = createShotTimelineConfig(config);
+  let configVersion = 1;
 
   return {
-    persistenceEnabled: false,
+    persistenceEnabled: Boolean(shotCompositionAdapter?.publish),
     supportsEditorSync: false,
     resolveAssetUrl: resolve,
     onResolve: async ({ file }) => resolve(file),
-    loadTimeline: async () => ({ config: timelineConfig, configVersion: 1 }),
+    loadTimeline: async () => ({ config: timelineConfig, configVersion }),
     loadAssetRegistry: async () => registry,
-    saveTimeline: async () => {
-      throw new Error('Shot timeline preview is read-only until canonical shot revision publishing is enabled.');
+    saveTimeline: async (_timelineId, nextConfig) => {
+      if (!shotCompositionAdapter?.publish) {
+        throw new Error('The canonical shot-composition provider is read-only');
+      }
+      const published = await enqueueCanonicalShotPublish(
+        composition.projectId,
+        composition.parentDocumentId,
+        async () => {
+          const current = await shotCompositionAdapter.load({
+            projectId: composition.projectId,
+            parentDocumentId: composition.parentDocumentId,
+          });
+          const graph = await updateCanonicalShotTimeline(
+            current.contract,
+            occurrenceId,
+            createCanonicalTimeline(nextConfig, occurrenceId),
+          );
+          return shotCompositionAdapter.publish!({
+            projectId: current.projectId,
+            parentDocumentId: current.parentDocumentId,
+            expectedHeadRevisionId: current.headRevisionId,
+            graph,
+          });
+        },
+      );
+      onCanonicalCompositionPublished?.(published);
+      configVersion += 1;
+      return configVersion;
     },
   };
 }
@@ -131,12 +200,26 @@ function ShotTimelineEditorSurface({ config }: { config: ResolvedTimelineConfig 
   );
 }
 
-export function ShotTimelinePreview({ composition, occurrenceId }: ShotTimelinePreviewProps) {
+export function ShotTimelinePreview({
+  composition,
+  occurrenceId,
+  shotCompositionAdapter,
+  onCanonicalCompositionPublished,
+}: ShotTimelinePreviewProps) {
   const projection = useMemo(() => projectShotTimeline(composition, occurrenceId), [composition, occurrenceId]);
   const dataProvider = useMemo(
-    () => projection.config ? createReadOnlyDataProvider(projection.config) : null,
-    [projection.config],
+    () => projection.config
+      ? createShotTimelineDataProvider(
+          projection.config,
+          composition,
+          occurrenceId,
+          shotCompositionAdapter,
+          onCanonicalCompositionPublished,
+        )
+      : null,
+    [composition, occurrenceId, onCanonicalCompositionPublished, projection.config, shotCompositionAdapter],
   );
+  const canEdit = Boolean(shotCompositionAdapter?.publish);
 
   if (!projection.config) {
     return (
@@ -174,7 +257,9 @@ export function ShotTimelinePreview({ composition, occurrenceId }: ShotTimelineP
           <Film className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
           <div className="min-w-0">
             <h2 className="truncate text-sm font-medium text-foreground">Shot timeline</h2>
-            <p className="text-[11px] text-muted-foreground">Pinned internal timeline revision · shot-local time</p>
+            <p className="text-[11px] text-muted-foreground">
+              {canEdit ? 'Editable canonical revision · shot-local time' : 'Pinned internal timeline revision · shot-local time'}
+            </p>
           </div>
         </div>
         <span className="shrink-0 font-mono text-[11px] text-muted-foreground">{projection.config.output.fps} fps</span>
@@ -187,7 +272,7 @@ export function ShotTimelinePreview({ composition, occurrenceId }: ShotTimelineP
         timelineId={`${composition.parentDocumentId}:shot:${occurrenceId}`}
         timelineName="Shot timeline"
         userId={null}
-        timelineEditability={createTimelineEditability({ readOnly: true })}
+        timelineEditability={createTimelineEditability({ readOnly: !canEdit })}
         extensionHostEnabled={false}
       >
         <ShotTimelineEditorSurface config={projection.config} />

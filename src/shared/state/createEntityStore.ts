@@ -109,6 +109,7 @@ export function createEntityStore<T extends object>(
   const textFieldKeySet = new Set<keyof T>(config.textFieldKeys ?? []);
   const pendingTimers = new Map<string, TimeoutHandle>();
   const loadPromises = new Map<string, Promise<void>>();
+  const persistenceQueues = new Map<string, Promise<void>>();
   const placeholderEntities = new Map<string, EntityRecord<T>>();
 
   const createRecord = (seed: T, overrides?: Partial<EntityRecord<T>>): EntityRecord<T> => ({
@@ -276,13 +277,40 @@ export function createEntityStore<T extends object>(
       }
     };
 
+    // A debounced save and an explicit save (for example, on editor close) can
+    // target the same entity at nearly the same time.  Canonical shot saves
+    // use compare-and-swap revisions, so overlapping requests can make the
+    // second request fail against the head written by the first one.  Keep
+    // saves for each entity ordered while allowing different entities to save
+    // independently.
+    const enqueuePersist = (entityId: string): Promise<void> => {
+      const previous = persistenceQueues.get(entityId);
+      const queued = previous
+        ? previous.catch(() => {}).then(() => persistEntity(entityId))
+        : persistEntity(entityId);
+      persistenceQueues.set(entityId, queued);
+      void queued.then(
+        () => {
+          if (persistenceQueues.get(entityId) === queued) {
+            persistenceQueues.delete(entityId);
+          }
+        },
+        () => {
+          if (persistenceQueues.get(entityId) === queued) {
+            persistenceQueues.delete(entityId);
+          }
+        },
+      );
+      return queued;
+    };
+
     const scheduleSave = (entityId: string): void => {
       clearPendingTimer(entityId);
       pendingTimers.set(
         entityId,
         setTimeout(() => {
           pendingTimers.delete(entityId);
-          void persistEntity(entityId);
+          void enqueuePersist(entityId).catch(() => {});
         }, debounceMs)
       );
     };
@@ -504,15 +532,15 @@ export function createEntityStore<T extends object>(
           return;
         }
 
-        await persistEntity(entityId);
+        await enqueuePersist(entityId);
       },
 
       save: async (entityId) => {
-        await persistEntity(entityId);
+        await enqueuePersist(entityId);
       },
 
       saveImmediate: async (entityId) => {
-        await persistEntity(entityId);
+        await enqueuePersist(entityId);
       },
 
       revert: (entityId) => {

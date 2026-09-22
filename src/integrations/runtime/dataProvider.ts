@@ -753,22 +753,8 @@ function runtimeGraphToContract(
   };
 }
 
-function stableStringify(value: unknown): string {
-  if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
-  if (value !== null && typeof value === 'object') {
-    return `{${Object.entries(value as RuntimeRecord).sort(([left], [right]) => left.localeCompare(right)).map(([key, item]) => `${JSON.stringify(key)}:${stableStringify(item)}`).join(',')}}`;
-  }
-  return JSON.stringify(value);
-}
-
-async function sha256(value: unknown): Promise<string> {
-  const bytes = new TextEncoder().encode(stableStringify(value));
-  const digest = await crypto.subtle.digest('SHA-256', bytes);
-  return `sha256:${Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('')}`;
-}
-
 function runtimePayloadWithoutCanonicalEnvelope(revision: RuntimeRecord): RuntimeRecord {
-  const { shot_id: _shotId, revision_id: _revisionId, document_role: _role, content_digest: _digest, internal_timeline_revision: _internal, ...payload } = revision;
+  const { shot_id: _shotId, revision_id: _revisionId, document_role: _role, content_digest: _digest, internal_timeline_revision: _internal, publish: _publish, ...payload } = revision;
   return payload;
 }
 
@@ -792,7 +778,7 @@ async function toRuntimePublication(
     const revision = revisionByKey.get(key);
     if (!revision) throw new Error(`Canonical graph is missing shot revision ${key}`);
     return revision;
-  });
+  }).filter((revision) => revision.publish === true);
   const internalByKey = new Map<string, RuntimeRecord>();
   const shotRevisions = used.map((revision) => {
     const internal = requiredRecord(revision.internal_timeline_revision, `shot revision ${String(revision.revision_id)}.internal_timeline_revision`);
@@ -804,15 +790,15 @@ async function toRuntimePublication(
     const timelineRevision = {
       timeline_id: internalTimelineId,
       revision_id: internalRevisionId,
-      content_digest: requiredString(internal.content_digest, `internal timeline revision ${internalRevisionId}.content_digest`),
       payload: internalTimeline,
     };
-    internalByKey.set(`${internalTimelineId}\u0000${internalRevisionId}`, timelineRevision);
+    if (internal.publish === true) {
+      internalByKey.set(`${internalTimelineId}\u0000${internalRevisionId}`, timelineRevision);
+    }
     return {
       shot_id: requiredString(revision.shot_id, 'shot revision.shot_id'),
       revision_id: requiredString(revision.revision_id, 'shot revision.revision_id'),
       internal_timeline_revision_id: internalRevisionId,
-      content_digest: requiredString(revision.content_digest, 'shot revision.content_digest'),
       payload: runtimePayloadWithoutCanonicalEnvelope(revision),
     };
   });
@@ -848,29 +834,13 @@ async function toRuntimePublication(
   collectMedia(shotRevisions.map((revision) => revision.payload));
   collectMedia([...internalByKey.values()].map((revision) => revision.payload));
   collectMedia(parentComposition);
-  const dependencyManifest = {
-    shots: shotRevisions.map((revision) => ({
-      shot_id: revision.shot_id,
-      revision_id: revision.revision_id,
-      internal_timeline_revision_id: revision.internal_timeline_revision_id,
-      content_digest: revision.content_digest,
-    })),
-    internal_timelines: [...internalByKey.values()].map((revision) => ({
-      timeline_id: revision.timeline_id,
-      revision_id: revision.revision_id,
-      content_digest: revision.content_digest,
-    })),
-    media: [...mediaDigests].sort().map((digest) => ({ media_id: digest, content_digest: digest })),
-  };
   return {
     project_id: projectId,
     timeline_id: timelineId,
     expected_head: expectedHead,
     parent_revision_id: parentRevisionId,
-    content_digest: await sha256(parentComposition),
     parent_composition: parentComposition,
     shot_revisions: shotRevisions,
     internal_timeline_revisions: [...internalByKey.values()],
-    dependency_manifest: dependencyManifest,
   };
 }
