@@ -96,6 +96,38 @@ export interface AssetDropTargetResolution {
   trackId: string;
   snappedTime?: number;
 }
+
+export function buildPlacePreparedMediaCommand({
+  prepared,
+  trackId,
+  selectedTrackId,
+  time,
+  forceNewTrack,
+  insertAtTop,
+  removeClipId,
+}: {
+  prepared: TimelineProvisionedAsset;
+  trackId?: string;
+  selectedTrackId?: string | null;
+  time: number;
+  forceNewTrack: boolean;
+  insertAtTop: boolean;
+  removeClipId?: string;
+}): PlacePreparedMediaCommand {
+  return {
+    type: 'place-prepared-media',
+    payload: {
+      asset: prepared,
+      ...(trackId !== undefined ? { trackId } : {}),
+      ...(selectedTrackId !== undefined ? { selectedTrackId } : {}),
+      at: time,
+      forceNewTrack,
+      insertAtTop,
+      ...(removeClipId !== undefined ? { removeClipId } : {}),
+    },
+  };
+}
+
 export { buildAssetDropEdit };
 export type { BuildAssetDropEditResult } from '@/tools/video-editor/lib/timeline-asset-plans.ts';
 
@@ -254,18 +286,15 @@ export function useAssetManagement({
       return false;
     }
 
-    const command: PlacePreparedMediaCommand = {
-      type: 'place-prepared-media',
-      payload: {
-        asset: prepared,
-        trackId,
-        selectedTrackId: getSelectedTrackId(),
-        at: time,
-        forceNewTrack,
-        insertAtTop,
-        removeClipId,
-      },
-    };
+    const command = buildPlacePreparedMediaCommand({
+      prepared,
+      trackId,
+      selectedTrackId: getSelectedTrackId(),
+      time,
+      forceNewTrack,
+      insertAtTop,
+      removeClipId,
+    });
     const preview = previewPreparedMediaCommand(current, command);
     if (!preview?.commandResult?.detail) {
       return false;

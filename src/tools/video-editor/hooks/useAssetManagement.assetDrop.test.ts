@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { buildAssetDropEdit } from '@/tools/video-editor/hooks/useAssetManagement';
+import {
+  buildAssetDropEdit,
+  buildPlacePreparedMediaCommand,
+} from '@/tools/video-editor/hooks/useAssetManagement';
+import { applyPreparedMediaCommand } from '@/tools/video-editor/commands/media';
 import {
   EXTERNAL_DROP_VISIBLE_VIDEO_FALLBACK_SECONDS,
   getDroppedGenerationDurationContract,
@@ -50,6 +54,30 @@ const createTimelineData = (assetType: string, file: string): TimelineData => ({
 });
 
 describe('buildAssetDropEdit media kind validation', () => {
+  it('builds JSON-safe prepared-media commands when optional placement fields are absent', () => {
+    const command = buildPlacePreparedMediaCommand({
+      prepared: {
+        assetKey: 'asset-prepared',
+        mediaType: 'video',
+        durationSeconds: null,
+        entry: { file: 'prepared.mp4', type: 'video/mp4' },
+        source: 'registered',
+      },
+      selectedTrackId: null,
+      time: 0,
+      forceNewTrack: true,
+      insertAtTop: false,
+    });
+
+    expect(command.payload).not.toHaveProperty('trackId');
+    expect(command.payload).not.toHaveProperty('removeClipId');
+    expect(() => JSON.stringify(command)).not.toThrow();
+    expect(applyPreparedMediaCommand(
+      createTimelineData('video/mp4', 'https://example.com/fallback.mp4'),
+      command,
+    )).not.toBeNull();
+  });
+
   it('rejects text assets instead of adding them as visual video clips', () => {
     const edit = buildAssetDropEdit({
       current: createTimelineData('text/plain', 'https://example.com/script.txt'),
