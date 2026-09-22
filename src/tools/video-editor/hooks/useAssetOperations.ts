@@ -2,6 +2,7 @@ import type { QueryClient } from '@tanstack/react-query';
 import { useCallback, type MutableRefObject } from 'react';
 import { assetRegistryQueryKey, timelineQueryKey } from '@/tools/video-editor/hooks/useTimeline.ts';
 import {
+  prepareAssetWithResolver,
   transcodeAssetWithResolver,
   uploadAssetWithResolver,
   type AssetResolver,
@@ -52,7 +53,38 @@ export function useAssetOperations(
     } finally {
       pendingOpsRef.current -= 1;
     }
-    }, [pendingOpsRef, provider, timelineId, userId, registeredParsers]);
+  }, [pendingOpsRef, provider, timelineId, userId, registeredParsers]);
+
+  const prepareAssetUpload = useCallback(async (file: File) => {
+    pendingOpsRef.current += 1;
+    try {
+      const preparedFile = await transcodeAssetWithResolver(provider, {
+        file,
+        timelineId,
+        userId: userId!,
+        intent: 'asset-upload',
+      });
+
+      const result = await prepareAssetWithResolver(provider, {
+        file: preparedFile,
+        options: { timelineId, userId: userId! },
+      });
+
+      if (registeredParsers && registeredParsers.length > 0) {
+        const enriched = await enrichRegistryEntryWithParsers(
+          preparedFile,
+          result.entry,
+          result.assetId,
+          registeredParsers,
+        );
+        return { assetId: result.assetId, entry: enriched.entry };
+      }
+
+      return result;
+    } finally {
+      pendingOpsRef.current -= 1;
+    }
+  }, [pendingOpsRef, provider, registeredParsers, timelineId, userId]);
 
   const registerAsset = useCallback(async (assetId: string, entry: AssetRegistryEntry) => {
     if (!provider.registerAsset) {
@@ -82,6 +114,7 @@ export function useAssetOperations(
 
   return {
     uploadAsset,
+    prepareAssetUpload,
     registerAsset,
     uploadFiles,
     invalidateAssetRegistry,

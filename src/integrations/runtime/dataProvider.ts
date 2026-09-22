@@ -332,7 +332,7 @@ export class RuntimeDataProvider implements DataProvider {
     );
   }
 
-  async uploadAsset(file: File, options: UploadAssetOptions): Promise<UploadedAssetResult> {
+  async prepareAsset(file: File, options: UploadAssetOptions): Promise<UploadedAssetResult> {
     const object = await this.client.ingestProjectObject(
       this.projectId,
       new Uint8Array(await file.arrayBuffer()),
@@ -352,8 +352,13 @@ export class RuntimeDataProvider implements DataProvider {
         },
       },
     };
-    await this.registerAsset(options.timelineId, object.object_id, entry);
     return { assetId: object.object_id, entry };
+  }
+
+  async uploadAsset(file: File, options: UploadAssetOptions): Promise<UploadedAssetResult> {
+    const result = await this.prepareAsset(file, options);
+    await this.registerAsset(options.timelineId, result.assetId, result.entry);
+    return result;
   }
 
   async onUpload(request: AssetUploadRequest): Promise<UploadedAssetResult> {

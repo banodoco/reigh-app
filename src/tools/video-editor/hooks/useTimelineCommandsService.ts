@@ -35,6 +35,11 @@ import type {
 import type { AssetRegistryEntry, TimelineClip, TrackKind } from '@/tools/video-editor/types/index.ts';
 import type { ManagedObjectGuard, ManagedObjectInfo } from '@/tools/video-editor/lib/managed-object-guard';
 import { detachManagedApp } from '@/tools/video-editor/lib/managed-object-guard';
+import {
+  applyPreparedMediaCommand,
+  type PlacePreparedMediaCommand,
+} from '@/tools/video-editor/commands/media.ts';
+import type { TimelineProvisionedAsset } from '@/tools/video-editor/commands/provisioning.ts';
 
 export type TimelineCommandErrorCode =
   | 'editor_not_mounted'
@@ -64,7 +69,8 @@ export type TimelineCommandResult<T> =
   | { ok: false; error: TimelineCommandError };
 
 export interface AddClipCommandInput {
-  assetId: string;
+  assetId?: string;
+  preparedAsset?: TimelineProvisionedAsset;
   time?: number;
   trackId?: string;
   forceNewTrack?: boolean;
@@ -408,7 +414,7 @@ export function createTimelineCommands(
   };
 
   const commands: TimelineCommands = {
-  addClip(input) {
+    addClip(input) {
       const state = getMountedState();
       if (!state) {
         return failure('editor_not_mounted', 'Timeline commands are only available in a mounted editor.');
@@ -417,6 +423,39 @@ export function createTimelineCommands(
       const current = getCurrentData(state);
       if (!current) {
         return failure('timeline_unavailable', 'Timeline data is not loaded.');
+      }
+
+      if (input.preparedAsset) {
+        if (input.afterClipId || typeof input.time !== 'number') {
+          return failure('invalid_argument', 'A prepared asset requires a target time and cannot use afterClipId.');
+        }
+        const command: PlacePreparedMediaCommand = {
+          type: 'place-prepared-media',
+          payload: {
+            asset: input.preparedAsset,
+            trackId: input.trackId,
+            selectedTrackId: state.data.selectedTrackId,
+            at: Math.max(0, input.time),
+            forceNewTrack: input.forceNewTrack ?? false,
+            insertAtTop: input.insertAtTop ?? false,
+            clipSpanSeconds: input.clipSpanSeconds,
+          },
+        };
+        const preview = applyPreparedMediaCommand(current, command);
+        const detail = preview?.commandResult?.detail;
+        if (!detail || typeof detail.clipId !== 'string' || typeof detail.trackId !== 'string') {
+          return failure('mutation_failed', 'Failed to place the prepared asset on the timeline.');
+        }
+        state.ops.applyEdit({ type: 'prepared-media', command }, {
+          selectedClipId: detail.clipId,
+          selectedTrackId: detail.trackId,
+          semantic: true,
+        });
+        return success({ clipId: detail.clipId, trackId: detail.trackId });
+      }
+
+      if (!input.assetId) {
+        return failure('invalid_argument', 'addClip requires assetId or preparedAsset.');
       }
 
       const assetEntry = current.registry.assets[input.assetId];

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
+  applyPreparedMediaCommand,
   createTimelineCommandRunner,
+  type PlacePreparedMediaCommand,
   type TimelineCommand,
   type TimelineCommandContext,
   type TimelineCommandDescriptor,
@@ -229,6 +231,70 @@ const buildCommandTestData = () => {
 };
 
 describe('timeline save utils regression coverage', () => {
+  it.each(['registration-first', 'clip-first'] as const)(
+    'keeps the %s split-writer race reproducible while the prepared command uses one CAS write',
+    (firstWriter) => {
+      const current = buildCommandTestData();
+      const entry = { file: 'generated.png', type: 'image/png', generationId: 'generation-1' };
+      const command: PlacePreparedMediaCommand = {
+        type: 'place-prepared-media',
+        payload: {
+          asset: {
+            assetKey: 'asset-generated',
+            mediaType: 'image',
+            durationSeconds: null,
+            entry,
+            source: 'registered',
+          },
+          trackId: 'V1',
+          selectedTrackId: 'V1',
+          at: 3,
+        },
+      };
+      const prepared = applyPreparedMediaCommand(current, command);
+      expect(prepared).not.toBeNull();
+
+      const nextData = prepared!.nextData;
+      expect(nextData.registry.assets['asset-generated']).toEqual(entry);
+      expect(nextData.config.clips).toEqual(expect.arrayContaining([
+        expect.objectContaining({ asset: 'asset-generated' }),
+      ]));
+
+      let version = current.configVersion;
+      const writes: Array<{ config: TimelineConfig; registry: AssetRegistry; expectedVersion: number }> = [];
+      const save = (config: TimelineConfig, registry: AssetRegistry, expectedVersion: number) => {
+        if (expectedVersion !== version) {
+          throw new Error(`stale expected version ${expectedVersion}; current version is ${version}`);
+        }
+        writes.push({ config, registry, expectedVersion });
+        version += 1;
+      };
+
+      const splitWrites = firstWriter === 'registration-first'
+        ? [
+            [current.config, nextData.registry],
+            [nextData.config, nextData.registry],
+          ]
+        : [
+            [nextData.config, current.registry],
+            [nextData.config, nextData.registry],
+          ];
+      save(splitWrites[0]![0], splitWrites[0]![1], current.configVersion);
+      expect(() => save(splitWrites[1]![0], splitWrites[1]![1], current.configVersion)).toThrow(/stale expected version/);
+      expect(writes).toHaveLength(1);
+
+      version = current.configVersion;
+      writes.length = 0;
+      save(nextData.config, nextData.registry, current.configVersion);
+      expect(writes).toHaveLength(1);
+      expect(writes[0]).toMatchObject({
+        expectedVersion: current.configVersion,
+        config: nextData.config,
+        registry: nextData.registry,
+      });
+    },
+  );
+
   it('assembleTimelineData produces consistent output with the resolved-config signature', () => {
     const config: TimelineConfig = {
       output: { resolution: '1920x1080', fps: 30, file: 'out.mp4' },

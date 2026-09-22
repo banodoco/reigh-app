@@ -1,9 +1,11 @@
 import { updateClipOrder } from '@/tools/video-editor/lib/coordinate-utils.ts';
-import { getNextClipId, type TimelineData } from '@/tools/video-editor/lib/timeline-data.ts';
+import { getNextClipId, rowsToConfig, type TimelineData } from '@/tools/video-editor/lib/timeline-data.ts';
+import { buildAssetDropEdit, planAssetDropTarget } from '@/tools/video-editor/lib/timeline-asset-plans.ts';
+import { getAssetResolvedSource } from '@/tools/video-editor/lib/asset-registry.ts';
+import { buildDataFromCurrentRegistry } from '@/tools/video-editor/lib/timeline-save-utils.ts';
 import type { AssetRegistry, TimelineClip, ResolvedTimelineConfig } from '@/tools/video-editor/types/index.ts';
 import { applyTimelineCommandEffect, createTimelineCommandRunner } from './runner.ts';
 import { buildTimelineCommandData } from './timelineData.ts';
-import { getAssetResolvedSource } from '@/tools/video-editor/lib/asset-registry.ts';
 import type {
   TimelineCommand,
   TimelineCommandDescriptor,
@@ -31,6 +33,21 @@ type SwapMediaPayload = {
 
 export type SwapMediaCommand = Omit<TimelineCommand<'swap', SwapMediaPayload>, 'payload'> & {
   payload: SwapMediaPayload;
+};
+
+export type PlacePreparedMediaPayload = {
+  asset: TimelineProvisionedAsset;
+  trackId?: string;
+  selectedTrackId?: string | null;
+  at: number;
+  forceNewTrack?: boolean;
+  insertAtTop?: boolean;
+  clipSpanSeconds?: number | null;
+  removeClipId?: string;
+};
+
+export type PlacePreparedMediaCommand = Omit<TimelineCommand<'place-prepared-media', PlacePreparedMediaPayload>, 'payload'> & {
+  payload: PlacePreparedMediaPayload;
 };
 
 const roundSeconds = (value: number): number => Math.round(value * 1000) / 1000;
@@ -405,14 +422,148 @@ export const SWAP_MEDIA_COMMAND_DESCRIPTOR: TimelineCommandDescriptor<SwapMediaC
   },
 };
 
+const removeClipFromWorkingData = (current: TimelineData, clipId: string | undefined): TimelineData => {
+  if (!clipId) {
+    return current;
+  }
+
+  const nextMeta = { ...current.meta };
+  delete nextMeta[clipId];
+  return {
+    ...current,
+    rows: current.rows.map((row) => ({
+      ...row,
+      actions: row.actions.filter((action) => action.id !== clipId),
+    })),
+    meta: nextMeta,
+    clipOrder: Object.fromEntries(
+      Object.entries(current.clipOrder).map(([trackId, clipIds]) => [
+        trackId,
+        clipIds.filter((candidate) => candidate !== clipId),
+      ]),
+    ),
+  };
+};
+
+const buildPlacePreparedMediaEffect = (
+  currentData: TimelineData,
+  payload: PlacePreparedMediaCommand['payload'],
+): TimelineCommandEffect => {
+  const assetKind = payload.asset.mediaType === 'audio' ? 'audio' : 'visual';
+  const duration = payload.clipSpanSeconds
+    ?? estimateProvisionedAssetDuration(payload.asset);
+  const workingData = removeClipFromWorkingData(currentData, payload.removeClipId);
+  const targetPlan = planAssetDropTarget({
+    current: workingData,
+    assetKind,
+    trackId: payload.trackId,
+    selectedTrackId: payload.selectedTrackId ?? null,
+    forceNewTrack: payload.forceNewTrack ?? false,
+    insertAtTop: payload.insertAtTop ?? false,
+    time: Math.max(0, payload.at),
+    duration,
+  });
+  if (!targetPlan.ok) {
+    throw new Error('Timeline data is not available for prepared media placement.');
+  }
+
+  const nextEdit = buildAssetDropEdit({
+    current: targetPlan.preparedCurrent,
+    assetKey: payload.asset.assetKey,
+    assetEntry: payload.asset.entry,
+    trackId: targetPlan.trackId,
+    time: targetPlan.snappedTime ?? Math.max(0, payload.at),
+    clipSpanSeconds: payload.clipSpanSeconds,
+  });
+  if (!nextEdit) {
+    throw new Error(`Cannot place prepared asset '${payload.asset.assetKey}' on the requested track.`);
+  }
+
+  const source = getAssetResolvedSource(payload.asset.entry);
+  if (!source) {
+    throw new Error(`Prepared asset '${payload.asset.assetKey}' has no file locator or media identity.`);
+  }
+
+  const nextRegistry: AssetRegistry = {
+    ...workingData.registry,
+    assets: {
+      ...workingData.registry.assets,
+      [payload.asset.assetKey]: payload.asset.entry,
+    },
+  };
+  const nextResolvedRegistry = {
+    ...workingData.resolvedConfig.registry,
+    [payload.asset.assetKey]: {
+      ...payload.asset.entry,
+      src: source,
+    },
+  };
+  const nextMeta = { ...targetPlan.preparedCurrent.meta, ...nextEdit.metaUpdates };
+  const nextConfig = rowsToConfig(
+    nextEdit.rows,
+    nextMeta,
+    targetPlan.preparedCurrent.output,
+    nextEdit.clipOrderOverride,
+    targetPlan.preparedCurrent.tracks,
+    targetPlan.preparedCurrent.config.pinnedShotGroups,
+    targetPlan.preparedCurrent.config,
+  );
+  const nextData = buildDataFromCurrentRegistry(nextConfig, targetPlan.preparedCurrent, {
+    registry: nextRegistry,
+    resolvedRegistry: nextResolvedRegistry,
+  });
+
+  return {
+    mutation: { type: 'data', data: nextData },
+    summary: `Placed prepared asset ${payload.asset.assetKey} on track ${targetPlan.trackId}.`,
+    detail: {
+      assetKey: payload.asset.assetKey,
+      clipId: nextEdit.clipId,
+      trackId: targetPlan.trackId,
+    },
+  };
+};
+
+export const PLACE_PREPARED_MEDIA_COMMAND_DESCRIPTOR: TimelineCommandDescriptor<PlacePreparedMediaCommand> = {
+  type: 'place-prepared-media',
+  validate: (context) => {
+    const { asset, at } = context.command.payload;
+    const errors = validateProvisionedAsset(asset, `$.commands[${context.commandIndex}].payload.asset`);
+    if (typeof at !== 'number' || !Number.isFinite(at) || at < 0) {
+      errors.push({
+        path: `$.commands[${context.commandIndex}].payload.at`,
+        code: 'invalid_at',
+        message: 'at must be a finite non-negative number.',
+      });
+    }
+    if (asset) {
+      try {
+        buildPlacePreparedMediaEffect(context.currentData, context.command.payload);
+      } catch (error) {
+        errors.push({
+          path: `$.commands[${context.commandIndex}].payload`,
+          code: 'invalid_placement',
+          message: error instanceof Error ? error.message : 'Prepared media placement is invalid.',
+        });
+      }
+    }
+    return errors;
+  },
+  dryRun: (context) => buildPlacePreparedMediaEffect(context.currentData, context.command.payload),
+  apply: (context) => buildPlacePreparedMediaEffect(context.currentData, context.command.payload),
+  invert: () => null,
+};
+
 export const MEDIA_COMMAND_DESCRIPTORS = [
   ADD_MEDIA_COMMAND_DESCRIPTOR,
   SWAP_MEDIA_COMMAND_DESCRIPTOR,
+  PLACE_PREPARED_MEDIA_COMMAND_DESCRIPTOR,
 ] as const;
 
-const mediaCommandRunner = createTimelineCommandRunner<AddMediaCommand | SwapMediaCommand>([
+const mediaCommandRunner = createTimelineCommandRunner<AddMediaCommand | SwapMediaCommand | PlacePreparedMediaCommand>([
   ADD_MEDIA_COMMAND_DESCRIPTOR,
   SWAP_MEDIA_COMMAND_DESCRIPTOR,
+  PLACE_PREPARED_MEDIA_COMMAND_DESCRIPTOR,
 ]);
 
 const getFailureMessage = (
@@ -467,3 +618,21 @@ export const materializeProvisionedMediaCommand = (
 ) => {
   return applyTimelineCommandEffect(currentData, effect);
 };
+
+export const applyPreparedMediaCommand = (
+  currentData: TimelineData,
+  command: PlacePreparedMediaCommand,
+) => {
+  const result = mediaCommandRunner.apply(currentData, { commands: [command] });
+  if (result.status === 'rejected') {
+    return null;
+  }
+
+  return {
+    nextData: result.nextData,
+    commandResult: result.commandResults[0],
+    history: result.history,
+  };
+};
+
+export const previewPreparedMediaCommand = applyPreparedMediaCommand;

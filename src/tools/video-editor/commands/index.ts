@@ -13,6 +13,9 @@ export {
   dryRunProvisionedMediaCommand,
   materializeProvisionedMediaCommand,
   MEDIA_COMMAND_DESCRIPTORS,
+  PLACE_PREPARED_MEDIA_COMMAND_DESCRIPTOR,
+  applyPreparedMediaCommand,
+  previewPreparedMediaCommand,
 } from './media.ts';
 export {
   buildExternalTimelineAssetEntry,
@@ -51,6 +54,7 @@ export type {
 } from './types.ts';
 export type {
   AddMediaCommand,
+  PlacePreparedMediaCommand,
   SwapMediaCommand,
 } from './media.ts';
 export type {

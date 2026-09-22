@@ -69,10 +69,12 @@ async function dispatchTimelineDrop({
   selectedTrackId,
   applyEdit,
   patchRegistry,
+  prepareAssetUpload,
   uploadAsset,
   invalidateAssetRegistry,
   resolveAssetUrl,
   registerGenerationAsset,
+  prepareGenerationAsset,
   uploadImageGeneration,
   uploadVideoGeneration,
   dropAsset,
@@ -89,10 +91,12 @@ async function dispatchTimelineDrop({
   selectedTrackId: string | null;
   applyEdit: TimelineApplyEdit;
   patchRegistry: TimelinePatchRegistry;
+  prepareAssetUpload?: TimelineUploadAsset;
   uploadAsset: TimelineUploadAsset;
   invalidateAssetRegistry: TimelineInvalidateAssetRegistry;
   resolveAssetUrl: (file: string) => Promise<string>;
   registerGenerationAsset: UseAssetManagementResult['registerGenerationAsset'];
+  prepareGenerationAsset?: UseAssetManagementResult['prepareGenerationAsset'];
   uploadImageGeneration: UseAssetManagementResult['uploadImageGeneration'];
   uploadVideoGeneration: UseAssetManagementResult['uploadVideoGeneration'];
   dropAsset: UseAssetManagementResult['handleAssetDrop'];
@@ -123,10 +127,12 @@ async function dispatchTimelineDrop({
     selectedTrackId,
     applyEdit,
     patchRegistry,
+    prepareAssetUpload,
     uploadAsset,
     invalidateAssetRegistry,
     resolveAssetUrl,
     registerGenerationAsset,
+    prepareGenerationAsset,
     uploadImageGeneration,
     uploadVideoGeneration,
     dropAsset,
@@ -348,6 +354,7 @@ async function dispatchTimelineDrop({
       dropPosition,
       insertAtTop,
       registerGenerationAsset,
+      prepareGenerationAsset,
       selectedTrackId,
       dropAsset,
     });
@@ -362,6 +369,7 @@ async function dispatchTimelineDrop({
       dropPosition,
       insertAtTop,
       registerGenerationAsset,
+      prepareGenerationAsset,
       selectedTrackId,
       dropAsset,
     });
@@ -388,11 +396,13 @@ export interface UseExternalDropArgs {
   selectedTrackId: string | null;
   applyEdit: TimelineApplyEdit;
   patchRegistry: TimelinePatchRegistry;
+  prepareAssetUpload?: TimelineUploadAsset;
   uploadAsset: TimelineUploadAsset;
   invalidateAssetRegistry: TimelineInvalidateAssetRegistry;
   resolveAssetUrl: (file: string) => Promise<string>;
   coordinator: DragCoordinator;
   registerGenerationAsset: UseAssetManagementResult['registerGenerationAsset'];
+  prepareGenerationAsset?: UseAssetManagementResult['prepareGenerationAsset'];
   uploadImageGeneration: UseAssetManagementResult['uploadImageGeneration'];
   uploadVideoGeneration: UseAssetManagementResult['uploadVideoGeneration'];
   handleAssetDrop: UseAssetManagementResult['handleAssetDrop'];
@@ -415,11 +425,13 @@ export function useExternalDrop({
   selectedTrackId,
   applyEdit,
   patchRegistry,
+  prepareAssetUpload,
   uploadAsset,
   invalidateAssetRegistry,
   resolveAssetUrl,
   coordinator,
   registerGenerationAsset,
+  prepareGenerationAsset,
   uploadImageGeneration,
   uploadVideoGeneration,
   handleAssetDrop: dropAsset,
@@ -558,10 +570,12 @@ export function useExternalDrop({
       selectedTrackId: getSelectedTrackId(),
       applyEdit: getApplyEdit(),
       patchRegistry: getPatchRegistry(),
+      prepareAssetUpload,
       uploadAsset,
       invalidateAssetRegistry,
       resolveAssetUrl,
       registerGenerationAsset,
+      prepareGenerationAsset,
       uploadImageGeneration,
       uploadVideoGeneration,
       dropAsset,
@@ -586,6 +600,8 @@ export function useExternalDrop({
     getSelectedTrackId,
     invalidateAssetRegistry,
     registerGenerationAsset,
+    prepareAssetUpload,
+    prepareGenerationAsset,
     resolveAssetUrl,
     directAssetUploadAllFiles,
     runtime.toast,

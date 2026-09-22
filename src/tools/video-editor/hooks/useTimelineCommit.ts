@@ -31,6 +31,10 @@ import type {
   TimelineCommandHistoryMetadata,
   TimelineCommandTransaction,
 } from '@/tools/video-editor/commands/index.ts';
+import {
+  applyPreparedMediaCommand,
+  type PlacePreparedMediaCommand,
+} from '@/tools/video-editor/commands/media.ts';
 import type { TimelineRow } from '@/tools/video-editor/types/timeline-canvas.ts';
 import type { AssetRegistryEntry } from '@/tools/video-editor/types/index.ts';
 
@@ -111,6 +115,10 @@ export type TimelineEditMutation =
   | {
       type: 'pinnedShotGroups';
       pinnedShotGroups: NonNullable<TimelineData['config']['pinnedShotGroups']>;
+    }
+  | {
+      type: 'prepared-media';
+      command: PlacePreparedMediaCommand;
     };
 
 export type ApplyEditOptions = {
@@ -309,6 +317,28 @@ export function useTimelineCommit({
       // user's edit vanished with no signal. Surface it so the write-ack
       // watchdog can make the loss visible.
       eventBus.emit('lostEdit');
+      return;
+    }
+
+    if (mutation.type === 'prepared-media') {
+      const prepared = applyPreparedMediaCommand(current, mutation.command);
+      if (!prepared) {
+        eventBus.emit('lostEdit');
+        return;
+      }
+
+      commitData(prepared.nextData, {
+        save: options?.save,
+        selectedClipId: options?.selectedClipId,
+        selectedTrackId: options?.selectedTrackId,
+        transactionId: options?.transactionId,
+        semantic: options?.semantic,
+        skipHistory: options?.skipHistory,
+        commandHistory: {
+          transaction: { commands: [mutation.command] },
+          history: prepared.history,
+        },
+      });
       return;
     }
 

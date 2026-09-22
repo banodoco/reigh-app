@@ -24,6 +24,7 @@ import {
 } from '@/tools/video-editor/lib/timeline-data.ts';
 import { getAssetResolutionToken } from '@/tools/video-editor/lib/asset-registry.ts';
 import type { UseAssetManagementResult } from '@/tools/video-editor/hooks/useAssetManagement.ts';
+import type { TimelineProvisionedAsset } from '@/tools/video-editor/commands/provisioning.ts';
 import type { DragCoordinator } from '@/tools/video-editor/hooks/useDragCoordinator.ts';
 import type {
   TimelineApplyEdit,
@@ -35,6 +36,33 @@ import type { TrackKind } from '@/tools/video-editor/types/index.ts';
 import type { TimelineAction } from '@/tools/video-editor/types/timeline-canvas.ts';
 
 export type TimelineDropPosition = NonNullable<ReturnType<DragCoordinator['update']>>;
+
+type PreparedGenerationDropData = Parameters<UseAssetManagementResult['prepareGenerationAsset']>[0];
+
+function prepareGenerationForDrop(
+  generationData: PreparedGenerationDropData,
+  dataRef: MutableRefObject<TimelineData | null>,
+  registerGenerationAsset: UseAssetManagementResult['registerGenerationAsset'],
+  prepareGenerationAsset?: UseAssetManagementResult['prepareGenerationAsset'],
+): TimelineProvisionedAsset | null {
+  const prepared = prepareGenerationAsset?.(generationData);
+  if (prepared) {
+    return prepared;
+  }
+  const assetKey = registerGenerationAsset(generationData);
+  const entry = assetKey ? dataRef.current?.registry.assets[assetKey] : undefined;
+  const mediaType = getPlayableAssetKind(entry);
+  if (!assetKey || !entry || !mediaType) {
+    return null;
+  }
+  return {
+    assetKey,
+    mediaType,
+    durationSeconds: entry.duration ?? null,
+    entry,
+    source: 'registered',
+  };
+}
 
 export function isGenerationDragType(dragType: ReturnType<typeof getDragType>) {
   return dragType === 'generation' || dragType === 'generation-multi';
@@ -249,11 +277,13 @@ export async function handleFileDrop({
   insertAtTop,
   selectedTrackId,
   applyEdit,
-  patchRegistry,
+  patchRegistry: _patchRegistry,
+  prepareAssetUpload,
   uploadAsset,
   invalidateAssetRegistry,
   resolveAssetUrl,
   registerGenerationAsset,
+  prepareGenerationAsset,
   uploadImageGeneration,
   uploadVideoGeneration,
   dropAsset,
@@ -268,10 +298,12 @@ export async function handleFileDrop({
   selectedTrackId: string | null;
   applyEdit: TimelineApplyEdit;
   patchRegistry: TimelinePatchRegistry;
+  prepareAssetUpload?: TimelineUploadAsset;
   uploadAsset: TimelineUploadAsset;
   invalidateAssetRegistry: TimelineInvalidateAssetRegistry;
   resolveAssetUrl: (file: string) => Promise<string>;
   registerGenerationAsset: UseAssetManagementResult['registerGenerationAsset'];
+  prepareGenerationAsset?: UseAssetManagementResult['prepareGenerationAsset'];
   uploadImageGeneration: UseAssetManagementResult['uploadImageGeneration'];
   uploadVideoGeneration: UseAssetManagementResult['uploadVideoGeneration'];
   dropAsset: UseAssetManagementResult['handleAssetDrop'];
@@ -297,17 +329,26 @@ export async function handleFileDrop({
 
     if (directAssetUploadAllFiles) {
       try {
-        const result = await uploadAsset(file);
+        const result = await (prepareAssetUpload ?? uploadAsset)(file);
         const sourceReference = getAssetResolutionToken(result.entry);
         if (!sourceReference) throw new Error('Uploaded asset has no file locator or media identity');
-        const sourceUrl = await resolveAssetUrl(sourceReference);
-        patchRegistry(result.assetId, result.entry, sourceUrl);
+        await resolveAssetUrl(sourceReference);
+        const playableKind = getPlayableAssetKind(result.entry);
+        if (!playableKind) throw new Error('Uploaded asset is not playable media');
+        const preparedAsset: TimelineProvisionedAsset = {
+          assetKey: result.assetId,
+          mediaType: playableKind,
+          durationSeconds: result.entry.duration ?? null,
+          entry: result.entry,
+          source: 'registered',
+        };
         dropAsset(
           result.assetId,
           compatibleTrackId ?? targetTrackId,
           dropPosition.time + timeOffset,
           forceNewTrack,
           forceNewTrack ? insertAtTop : false,
+          preparedAsset,
         );
         void invalidateAssetRegistry();
 
@@ -379,14 +420,9 @@ export async function handleFileDrop({
             return;
           }
 
-          applyEdit({
-            type: 'rows',
-            rows: removeAction(current.rows, skeletonId),
-            metaDeletes: [skeletonId],
-          });
-          const assetId = registerGenerationAsset(generationData);
-          if (assetId) {
-            dropAsset(assetId, compatibleTrackId ?? undefined, clipTime);
+          const preparedAsset = prepareGenerationForDrop(generationData, dataRef, registerGenerationAsset, prepareGenerationAsset);
+          if (preparedAsset) {
+            dropAsset(preparedAsset.assetKey, compatibleTrackId ?? undefined, clipTime, false, false, preparedAsset, skeletonId);
           }
           return;
         }
@@ -398,14 +434,9 @@ export async function handleFileDrop({
             return;
           }
 
-          applyEdit({
-            type: 'rows',
-            rows: removeAction(current.rows, skeletonId),
-            metaDeletes: [skeletonId],
-          });
-          const assetId = registerGenerationAsset(generationData);
-          if (assetId) {
-            dropAsset(assetId, compatibleTrackId ?? undefined, clipTime);
+          const preparedAsset = prepareGenerationForDrop(generationData, dataRef, registerGenerationAsset, prepareGenerationAsset);
+          if (preparedAsset) {
+            dropAsset(preparedAsset.assetKey, compatibleTrackId ?? undefined, clipTime, false, false, preparedAsset, skeletonId);
           }
           return;
         }
@@ -413,20 +444,17 @@ export async function handleFileDrop({
         const result = await uploadAsset(file);
         const sourceReference = getAssetResolutionToken(result.entry);
         if (!sourceReference) throw new Error('Uploaded asset has no file locator or media identity');
-        const sourceUrl = await resolveAssetUrl(sourceReference);
-        patchRegistry(result.assetId, result.entry, sourceUrl);
-
-        const current = dataRef.current;
-        if (!current) {
-          return;
-        }
-
-        applyEdit({
-          type: 'rows',
-          rows: removeAction(current.rows, skeletonId),
-          metaDeletes: [skeletonId],
-        });
-        dropAsset(result.assetId, compatibleTrackId ?? undefined, clipTime);
+        await resolveAssetUrl(sourceReference);
+        const playableKind = getPlayableAssetKind(result.entry);
+        if (!playableKind) throw new Error('Uploaded asset is not playable media');
+        const preparedAsset: TimelineProvisionedAsset = {
+          assetKey: result.assetId,
+          mediaType: playableKind,
+          durationSeconds: result.entry.duration ?? null,
+          entry: result.entry,
+          source: 'registered',
+        };
+        dropAsset(result.assetId, compatibleTrackId ?? undefined, clipTime, false, false, preparedAsset, skeletonId);
         void invalidateAssetRegistry();
       } catch (error) {
         console.error('[drop] Upload failed:', error);
@@ -456,6 +484,7 @@ export function handleMultiGenerationDrop({
   dropPosition,
   insertAtTop,
   registerGenerationAsset,
+  prepareGenerationAsset,
   selectedTrackId,
   dropAsset,
 }: {
@@ -464,6 +493,7 @@ export function handleMultiGenerationDrop({
   dropPosition: TimelineDropPosition;
   insertAtTop: boolean;
   registerGenerationAsset: UseAssetManagementResult['registerGenerationAsset'];
+  prepareGenerationAsset?: UseAssetManagementResult['prepareGenerationAsset'];
   selectedTrackId: string | null;
   dropAsset: UseAssetManagementResult['handleAssetDrop'];
 }): boolean {
@@ -523,22 +553,23 @@ export function handleMultiGenerationDrop({
     }
 
     const trackIdsBeforeDrop = new Set(dataRef.current.tracks.map((track) => track.id));
-    const assetId = registerGenerationAsset({
+    const preparedAsset = prepareGenerationForDrop({
       ...generationData,
       assetId: registrationPlan.assetId,
       ...(assetDurationSeconds !== null ? { durationSeconds: assetDurationSeconds } : {}),
-    });
+    }, dataRef, registerGenerationAsset, prepareGenerationAsset);
 
-    if (!assetId) {
+    if (!preparedAsset) {
       continue;
     }
 
     dropAsset(
-      assetId,
+      preparedAsset.assetKey,
       targetTrackId,
       dropPosition.time + timeOffset,
       forceNewTrack,
       forceNewTrack ? insertAtTop : false,
+      preparedAsset,
     );
 
     timeOffset += previewEdit.duration;
@@ -564,6 +595,7 @@ export function handleSingleGenerationDrop({
   dropPosition,
   insertAtTop,
   registerGenerationAsset,
+  prepareGenerationAsset,
   selectedTrackId,
   dropAsset,
 }: {
@@ -572,6 +604,7 @@ export function handleSingleGenerationDrop({
   dropPosition: TimelineDropPosition;
   insertAtTop: boolean;
   registerGenerationAsset: UseAssetManagementResult['registerGenerationAsset'];
+  prepareGenerationAsset?: UseAssetManagementResult['prepareGenerationAsset'];
   selectedTrackId: string | null;
   dropAsset: UseAssetManagementResult['handleAssetDrop'];
 }): boolean {
@@ -624,21 +657,22 @@ export function handleSingleGenerationDrop({
     return true;
   }
 
-  const assetId = registerGenerationAsset({
+  const preparedAsset = prepareGenerationForDrop({
     ...generationData,
     assetId: registrationPlan.assetId,
     ...(assetDurationSeconds !== null ? { durationSeconds: assetDurationSeconds } : {}),
-  });
-  if (!assetId) {
+  }, dataRef, registerGenerationAsset, prepareGenerationAsset);
+  if (!preparedAsset) {
     return true;
   }
 
   dropAsset(
-    assetId,
+    preparedAsset.assetKey,
     dropPosition.isNewTrack ? undefined : dropPosition.trackId,
     dropPosition.time,
     dropPosition.isNewTrack,
     insertAtTop,
+    preparedAsset,
   );
   return true;
 }

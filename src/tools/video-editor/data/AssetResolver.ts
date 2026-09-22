@@ -76,6 +76,11 @@ export interface AssetResolver {
   onProfileLoad?(request: AssetProfileLoadRequest): Promise<AssetProfile | null>;
   resolveAssetUrl(file: string): Promise<string>;
   registerAsset?(timelineId: string, assetId: string, entry: AssetRegistryEntry): Promise<void>;
+  /** Prepare bytes and return a durable asset identity without mutating a timeline. */
+  prepareAsset?(
+    file: File,
+    options: UploadAssetOptions,
+  ): Promise<UploadedAssetResult>;
   uploadAsset?(
     file: File,
     options: UploadAssetOptions,
@@ -108,6 +113,17 @@ export async function uploadAssetWithResolver(
   }
 
   return resolver.uploadAsset(request.file, request.options);
+}
+
+export async function prepareAssetWithResolver(
+  resolver: AssetResolver,
+  request: AssetUploadRequest,
+): Promise<UploadedAssetResult> {
+  if (resolver.prepareAsset) {
+    return resolver.prepareAsset(request.file, request.options);
+  }
+
+  return uploadAssetWithResolver(resolver, request);
 }
 
 export async function transcodeAssetWithResolver(

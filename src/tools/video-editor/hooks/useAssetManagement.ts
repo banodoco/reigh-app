@@ -11,12 +11,16 @@ import type { SelectClipOptions } from '@/shared/state/selectionStore.ts';
 import { createExternalUploadGeneration } from '@/integrations/supabase/repositories/generationMutationsRepository.ts';
 import { useVideoEditorRuntime } from '@/tools/video-editor/contexts/VideoEditorRuntimeContext.tsx';
 import {
+  previewPreparedMediaCommand,
+  type PlacePreparedMediaCommand,
+} from '@/tools/video-editor/commands/media.ts';
+import type { TimelineProvisionedAsset } from '@/tools/video-editor/commands/provisioning.ts';
+import {
   type TimelineData,
 } from '@/tools/video-editor/lib/timeline-data.ts';
 import {
   buildAssetDropEdit,
   estimateAssetDuration,
-  executeGenerationAssetRegistrationPlan,
   getPlayableAssetKind,
   planAssetDropTarget,
   planGenerationAssetRegistration,
@@ -53,6 +57,7 @@ export interface UseAssetManagementArgs {
 }
 
 export interface UseAssetManagementResult {
+  prepareGenerationAsset: (data: UploadedGenerationData | null) => TimelineProvisionedAsset | null;
   registerGenerationAsset: (data: UploadedGenerationData | null) => string | null;
   uploadImageGeneration: (file: File) => Promise<{
     generationId: string;
@@ -75,7 +80,15 @@ export interface UseAssetManagementResult {
       original_filename: string;
     };
   }>;
-  handleAssetDrop: (assetKey: string, trackId: string | undefined, time: number, forceNewTrack?: boolean, insertAtTop?: boolean) => boolean;
+  handleAssetDrop: (
+    assetKey: string,
+    trackId: string | undefined,
+    time: number,
+    forceNewTrack?: boolean,
+    insertAtTop?: boolean,
+    preparedAsset?: TimelineProvisionedAsset,
+    removeClipId?: string,
+  ) => boolean;
 }
 
 export interface AssetDropTargetResolution {
@@ -166,7 +179,7 @@ export function useAssetManagement({
     return store?.getState().ops.setSelectedTrackId ?? setSelectedTrackId;
   }, [setSelectedTrackId, store]);
 
-  const registerGenerationAsset = useCallback((generationData: UploadedGenerationData | null) => {
+  const prepareGenerationAsset = useCallback((generationData: UploadedGenerationData | null): TimelineProvisionedAsset | null => {
     if (!generationData) {
       return null;
     }
@@ -194,11 +207,29 @@ export function useAssetManagement({
       return null;
     }
 
-    const { assetKey, persistPromise } = executeGenerationAssetRegistrationPlan({
-      plan,
-      patchRegistry: getPatchRegistry(),
-      registerAsset: getRegisterAsset(),
-    });
+    const playableKind = getPlayableAssetKind(plan.assetEntry);
+    if (!playableKind) {
+      return null;
+    }
+
+    return {
+      assetKey: plan.assetId,
+      mediaType: playableKind,
+      durationSeconds: plan.assetEntry.duration ?? null,
+      entry: plan.assetEntry,
+      source: 'registered',
+    };
+  }, []);
+
+  const registerGenerationAsset = useCallback((generationData: UploadedGenerationData | null) => {
+    const prepared = prepareGenerationAsset(generationData);
+    if (!prepared) {
+      return null;
+    }
+
+    const assetKey = prepared.assetKey;
+    getPatchRegistry()(assetKey, prepared.entry, prepared.entry.file);
+    const persistPromise = getRegisterAsset()(assetKey, prepared.entry);
     void persistPromise.catch((error) => {
       console.error('[video-editor] Failed to persist generation asset:', error);
       getUnpatchRegistry()(assetKey);
@@ -206,7 +237,109 @@ export function useAssetManagement({
     });
 
     return assetKey;
-  }, [getPatchRegistry, getRegisterAsset, getUnpatchRegistry, runtime.toast]);
+  }, [getPatchRegistry, getRegisterAsset, getUnpatchRegistry, prepareGenerationAsset, runtime.toast]);
+
+  const placePreparedAsset = useCallback((
+    prepared: TimelineProvisionedAsset,
+    trackId: string | undefined,
+    time: number,
+    forceNewTrack: boolean,
+    insertAtTop: boolean,
+    removeClipId?: string,
+  ) => {
+    const latestDataRef = getDataRef();
+    const current = latestDataRef.current;
+    if (!current) {
+      return false;
+    }
+
+    const command: PlacePreparedMediaCommand = {
+      type: 'place-prepared-media',
+      payload: {
+        asset: prepared,
+        trackId,
+        selectedTrackId: getSelectedTrackId(),
+        at: time,
+        forceNewTrack,
+        insertAtTop,
+        removeClipId,
+      },
+    };
+    const preview = previewPreparedMediaCommand(current, command);
+    if (!preview?.commandResult?.detail) {
+      return false;
+    }
+    const clipId = typeof preview.commandResult.detail.clipId === 'string'
+      ? preview.commandResult.detail.clipId
+      : null;
+    const resolvedTrackId = typeof preview.commandResult.detail.trackId === 'string'
+      ? preview.commandResult.detail.trackId
+      : trackId ?? null;
+    if (!clipId || !resolvedTrackId) {
+      return false;
+    }
+
+    getApplyEdit()({ type: 'prepared-media', command }, {
+      selectedClipId: clipId,
+      selectedTrackId: resolvedTrackId,
+      semantic: true,
+    });
+    return true;
+  }, [getApplyEdit, getDataRef, getSelectedTrackId]);
+
+  const handleAssetDrop = useCallback((assetKey: string, trackId: string | undefined, time: number, forceNewTrack = false, insertAtTop = false, preparedAsset?: TimelineProvisionedAsset, removeClipId?: string) => {
+    if (preparedAsset) {
+      return placePreparedAsset(preparedAsset, trackId, time, forceNewTrack, insertAtTop, removeClipId);
+    }
+
+    const latestDataRef = getDataRef();
+    const current = latestDataRef.current;
+    const assetEntry = current?.registry.assets[assetKey];
+    const playableKind = getPlayableAssetKind(assetEntry);
+    if (!assetEntry || !playableKind) {
+      runtime.toast.error('Only image, video, and audio assets can be added to the timeline');
+      return false;
+    }
+    const assetKind = playableKind === 'audio' ? 'audio' : 'visual';
+    const duration = estimateAssetDuration(assetEntry, assetKind);
+    const targetPlan = planAssetDropTarget({
+      current,
+      assetKind,
+      trackId,
+      selectedTrackId: getSelectedTrackId(),
+      forceNewTrack,
+      insertAtTop,
+      time,
+      duration,
+    });
+    if (!targetPlan.ok) {
+      return false;
+    }
+    const resolvedTarget = {
+      current: targetPlan.preparedCurrent,
+      trackId: targetPlan.trackId,
+      snappedTime: targetPlan.snappedTime,
+    };
+    const nextEdit = buildAssetDropEdit({
+      current: resolvedTarget.current,
+      assetKey,
+      trackId: resolvedTarget.trackId,
+      time: resolvedTarget.snappedTime ?? time,
+    });
+    if (!nextEdit) {
+      return false;
+    }
+    latestDataRef.current = resolvedTarget.current;
+    getApplyEdit()({
+      type: 'rows',
+      rows: nextEdit.rows,
+      metaUpdates: nextEdit.metaUpdates,
+      clipOrderOverride: nextEdit.clipOrderOverride,
+    });
+    getSelectClip()(nextEdit.clipId);
+    getSetSelectedTrackId()(resolvedTarget.trackId);
+    return true;
+  }, [getApplyEdit, getDataRef, getSelectedTrackId, getSelectClip, getSetSelectedTrackId, placePreparedAsset, runtime.toast]);
 
   const uploadImageGeneration = useCallback(async (file: File) => {
     if (!selectedProjectId) {
@@ -307,57 +440,8 @@ export function useAssetManagement({
     };
   }, [selectedProjectId]);
 
-  const handleAssetDrop = useCallback((assetKey: string, trackId: string | undefined, time: number, forceNewTrack = false, insertAtTop = false) => {
-    const latestDataRef = getDataRef();
-    const current = latestDataRef.current;
-    const assetEntry = current?.registry.assets[assetKey];
-    const playableKind = getPlayableAssetKind(assetEntry);
-    if (!assetEntry || !playableKind) {
-      runtime.toast.error('Only image, video, and audio assets can be added to the timeline');
-      return false;
-    }
-    const assetKind = playableKind === 'audio' ? 'audio' : 'visual';
-    const duration = estimateAssetDuration(assetEntry, assetKind);
-    const targetPlan = planAssetDropTarget({
-      current,
-      assetKind,
-      trackId,
-      selectedTrackId: getSelectedTrackId(),
-      forceNewTrack,
-      insertAtTop,
-      time,
-      duration,
-    });
-    if (!targetPlan.ok) {
-      return false;
-    }
-    const resolvedTarget = {
-      current: targetPlan.preparedCurrent,
-      trackId: targetPlan.trackId,
-      snappedTime: targetPlan.snappedTime,
-    };
-    const nextEdit = buildAssetDropEdit({
-      current: resolvedTarget.current,
-      assetKey,
-      trackId: resolvedTarget.trackId,
-      time: resolvedTarget.snappedTime ?? time,
-    });
-    if (!nextEdit) {
-      return false;
-    }
-    latestDataRef.current = resolvedTarget.current;
-    getApplyEdit()({
-      type: 'rows',
-      rows: nextEdit.rows,
-      metaUpdates: nextEdit.metaUpdates,
-      clipOrderOverride: nextEdit.clipOrderOverride,
-    });
-    getSelectClip()(nextEdit.clipId);
-    getSetSelectedTrackId()(resolvedTarget.trackId);
-    return true;
-  }, [getApplyEdit, getDataRef, getSelectedTrackId, getSelectClip, getSetSelectedTrackId, runtime.toast]);
-
   return {
+    prepareGenerationAsset,
     registerGenerationAsset,
     uploadImageGeneration,
     uploadVideoGeneration,

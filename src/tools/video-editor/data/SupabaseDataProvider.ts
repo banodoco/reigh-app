@@ -122,6 +122,10 @@ export class SupabaseDataProvider implements DataProvider {
     await this.providerFor(timelineId).registerAsset(timelineId, assetId, entry);
   }
 
+  async prepareAsset(file: File, options: UploadAssetOptions): Promise<UploadedAssetResult> {
+    return await this.providerFor(options.timelineId).prepareAsset(file, options);
+  }
+
   async uploadAsset(file: File, options: UploadAssetOptions): Promise<UploadedAssetResult> {
     return await this.providerFor(options.timelineId).uploadAsset(file, options);
   }
