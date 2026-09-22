@@ -193,6 +193,7 @@ export function useAssetManagement({
       assetId: generationData.assetId,
       variantId: generationData.variantId,
       variantType: generationData.variantType,
+      mediaId: generationData.mediaId,
       imageUrl,
       thumbUrl: getThumbnailUrl(generationData),
       assetDurationSeconds: generationData.durationSeconds,

@@ -52,6 +52,8 @@ export interface GeneratedImageWithMetadata {
   timeline_frame?: number | null;
   name?: string; // Variant name for the generation
   primary_variant_id?: string | null;
+  /** Stable media/object identity used when resolving a dragged asset. */
+  media_id?: string | null;
   storage_mode?: 'remote' | 'local' | 'uploading' | null;
   local_handle_id?: string | null;
   local_file_name?: string | null;

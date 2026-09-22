@@ -129,6 +129,7 @@ describe('useProjectGenerations (bridge gallery reads R12)', () => {
       id: 'runtime-generation-1',
       generation_id: 'runtime-generation-1',
       primary_variant_id: 'runtime-variant-1',
+      media_id: `sha256:${'f'.repeat(64)}`,
       url: `/api/runtime/v1/objects/sha256%3A${'f'.repeat(64)}`,
       metadata: expect.objectContaining({ tool_type: 'image-gen' }),
     });
@@ -192,6 +193,7 @@ describe('useProjectGenerations (bridge gallery reads R12)', () => {
       id: 'generation-typed-image',
       generation_id: 'generation-typed-image',
       primary_variant_id: 'variant-typed-original',
+      media_id: 'sha256:typed-original',
       type: 'generation.generate_image',
       contentType: 'image/png',
       local_file_mime: 'image/png',

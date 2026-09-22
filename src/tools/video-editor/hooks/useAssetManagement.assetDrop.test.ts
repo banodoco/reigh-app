@@ -108,6 +108,7 @@ describe('buildAssetDropEdit media kind validation', () => {
       assetId: 'asset-drop',
       generationId: 'gen-video',
       variantType: 'video',
+      mediaId: 'media-video',
       imageUrl: 'https://example.com/final.mp4',
       thumbUrl: 'https://example.com/final-thumb.jpg',
       assetDurationSeconds: null,
@@ -119,6 +120,7 @@ describe('buildAssetDropEdit media kind validation', () => {
     }
 
     expect(registrationPlan.assetEntry.duration).toBeUndefined();
+    expect(registrationPlan.assetEntry.media_id).toBe('media-video');
 
     const edit = buildAssetDropEdit({
       current: makeDropTestDataLikeTimeline(),
