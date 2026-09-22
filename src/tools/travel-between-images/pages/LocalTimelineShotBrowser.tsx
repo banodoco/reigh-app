@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertCircle } from 'lucide-react';
 import { AstridBridgeDataProvider } from '@/tools/video-editor/data/AstridBridgeDataProvider.ts';
 import { RuntimeDataProvider } from '@/integrations/runtime/dataProvider.ts';
@@ -33,6 +33,8 @@ type LocalTimelineShotBrowserProps = {
   shotCompositionAdapter?: ShotCompositionAdapter;
   /** Opens one canonical shot without changing the parent route. */
   shotRef?: string | null;
+  /** Optional parent-held graph that survives an embedded popup unmount. */
+  initialComposition?: PreparedShotComposition;
   onClose?: () => void;
   /** Receives the latest graph after an embedded shot edit is published. */
   onCanonicalCompositionPublished?: (composition: PreparedShotComposition) => void;
@@ -43,6 +45,21 @@ type LocalTimelineDocument = {
   composition: Awaited<ReturnType<ReturnType<typeof createShotCompositionAdapter>['load']>>;
   compositionAdapter: ReturnType<typeof createShotCompositionAdapter>;
 };
+
+function localTimelineShotBrowserQueryKey(
+  identityProjectId: string,
+  timelineRef: string,
+  shotCompositionPort?: ShotCompositionPort,
+  shotCompositionAdapter?: ShotCompositionAdapter,
+) {
+  return [
+    'canonical-local-timeline-shot-browser',
+    identityProjectId,
+    timelineRef,
+    shotCompositionPort,
+    shotCompositionAdapter,
+  ] as const;
+}
 
 function useLocalTimelineDocument(
   projectSlug: string,
@@ -67,9 +84,23 @@ function useLocalTimelineDocument(
     () => shotCompositionAdapter ?? (canonicalPort ? createShotCompositionAdapter(canonicalPort) : null),
     [canonicalPort, shotCompositionAdapter],
   );
+  const queryKey = useMemo(
+    () => localTimelineShotBrowserQueryKey(
+      identityProjectId,
+      timelineRef,
+      shotCompositionPort,
+      shotCompositionAdapter,
+    ),
+    [identityProjectId, shotCompositionAdapter, shotCompositionPort, timelineRef],
+  );
 
-  return useQuery<LocalTimelineDocument>({
-    queryKey: ['canonical-local-timeline-shot-browser', identityProjectId, timelineRef, shotCompositionPort, shotCompositionAdapter],
+  const query = useQuery<LocalTimelineDocument>({
+    queryKey,
+    // An embedded shot editor is a short-lived view over a mutable canonical
+    // graph. Do not let an unmounted popup seed the next open with its old
+    // composition while the Runtime read is catching up.
+    gcTime: 0,
+    refetchOnMount: 'always',
     queryFn: async () => {
       if (!compositionAdapter) {
         throw new Error('Canonical shot-composition provider is unavailable for this timeline.');
@@ -101,18 +132,34 @@ function useLocalTimelineDocument(
       };
     },
   });
+
+  return { queryKey, ...query };
 }
 
-export function LocalTimelineShotBrowser({ projectSlug, projectId, timelineRef, shotCompositionPort, shotCompositionAdapter, shotRef, onClose, onCanonicalCompositionPublished }: LocalTimelineShotBrowserProps) {
+export function LocalTimelineShotBrowser({ projectSlug, projectId, timelineRef, shotCompositionPort, shotCompositionAdapter, shotRef, initialComposition, onClose, onCanonicalCompositionPublished }: LocalTimelineShotBrowserProps) {
   const location = useLocation();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const identityProjectId = projectId ?? projectSlug;
   const documentQuery = useLocalTimelineDocument(projectSlug, projectId, timelineRef, shotCompositionPort, shotCompositionAdapter);
-  const [compositionOverride, setCompositionOverride] = useState<PreparedShotComposition | null>(null);
+  const [compositionOverride, setCompositionOverride] = useState<PreparedShotComposition | null>(initialComposition ?? null);
   const loadedComposition = documentQuery.data?.composition;
   useEffect(() => {
-    setCompositionOverride(null);
+    if (!loadedComposition) return;
+    setCompositionOverride((current) => {
+      if (!current || current.headRevisionId === loadedComposition.headRevisionId) {
+        return null;
+      }
+      // Keep a freshly published parent graph visible while a late Runtime
+      // read still returns the previous head revision.
+      return current;
+    });
   }, [loadedComposition]);
+  useEffect(() => {
+    if (initialComposition) {
+      setCompositionOverride(initialComposition);
+    }
+  }, [initialComposition]);
   const composition = compositionOverride ?? loadedComposition;
   const shots = useMemo(
     () => selectCanonicalShotOccurrences(composition, documentQuery.data?.registry, identityProjectId),
@@ -152,8 +199,11 @@ export function LocalTimelineShotBrowser({ projectSlug, projectId, timelineRef, 
   );
   const handleCanonicalCompositionPublished = useCallback((nextComposition: PreparedShotComposition) => {
     setCompositionOverride(nextComposition);
+    queryClient.setQueryData<LocalTimelineDocument>(documentQuery.queryKey, (current) => current
+      ? { ...current, composition: nextComposition }
+      : current);
     onCanonicalCompositionPublished?.(nextComposition);
-  }, [onCanonicalCompositionPublished]);
+  }, [documentQuery.queryKey, onCanonicalCompositionPublished, queryClient]);
 
   useEffect(() => {
     // A stale or malformed deep link should land safely on the overview once

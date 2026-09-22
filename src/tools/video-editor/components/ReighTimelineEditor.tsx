@@ -1,4 +1,4 @@
-import { memo, useCallback, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { shallow } from 'zustand/shallow';
 import type { Shot } from '@/domains/generation/types/index.ts';
 import { Dialog, DialogContent, DialogTitle } from '@/shared/components/ui/dialog.tsx';
@@ -43,7 +43,10 @@ import {
 import {
   duplicateIndependentShot,
 } from '@/tools/video-editor/data/shotCompositionEditor.ts';
-import type { CanonicalShotOccurrence } from '@/tools/video-editor/data/shotCompositionAdapter.ts';
+import type {
+  CanonicalShotOccurrence,
+  PreparedShotComposition,
+} from '@/tools/video-editor/data/shotCompositionAdapter.ts';
 import { managedOutputMatchesOccurrence } from '@/tools/video-editor/data/shotCompositionProjection.ts';
 import type { ClipMeta } from '@/tools/video-editor/lib/timeline-data.ts';
 
@@ -67,7 +70,12 @@ function ReighTimelineEditorComponent({ onOpenSequenceCreator, onOpenElementCrea
   const isDocumentShotMode = runtime.userId === null;
   const canonicalOccurrences = runtime.shots?.canonicalOccurrences ?? [];
   const isCanonicalEditor = isDocumentShotMode && canonicalOccurrences.length > 0;
-  const handleCanonicalCompositionPublished = useCallback(() => {
+  const [publishedCanonicalComposition, setPublishedCanonicalComposition] = useState<PreparedShotComposition | null>(null);
+  useEffect(() => {
+    setPublishedCanonicalComposition(null);
+  }, [runtime.timelineId]);
+  const handleCanonicalCompositionPublished = useCallback((composition: PreparedShotComposition) => {
+    setPublishedCanonicalComposition(composition);
     runtime.shots?.refetchShots();
   }, [runtime.shots]);
   const configVersion = useTimelineConfigVersion();
@@ -603,6 +611,7 @@ function ReighTimelineEditorComponent({ onOpenSequenceCreator, onOpenElementCrea
                 timelineRef={canonicalShotEditor.parentDocumentId}
                 shotCompositionAdapter={runtime.shots.shotComposition ?? undefined}
                 shotRef={canonicalShotEditor.stableDeepLink}
+                initialComposition={publishedCanonicalComposition ?? runtime.shots.canonicalComposition}
                 onClose={() => setCanonicalShotEditor(null)}
                 onCanonicalCompositionPublished={handleCanonicalCompositionPublished}
               />

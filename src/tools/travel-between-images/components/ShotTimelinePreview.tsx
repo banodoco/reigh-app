@@ -207,6 +207,10 @@ export function ShotTimelinePreview({
   onCanonicalCompositionPublished,
 }: ShotTimelinePreviewProps) {
   const projection = useMemo(() => projectShotTimeline(composition, occurrenceId), [composition, occurrenceId]);
+  const timelineEditability = useMemo(
+    () => createTimelineEditability({ readOnly: !Boolean(shotCompositionAdapter?.publish) }),
+    [shotCompositionAdapter?.publish],
+  );
   const dataProvider = useMemo(
     () => projection.config
       ? createShotTimelineDataProvider(
@@ -220,6 +224,7 @@ export function ShotTimelinePreview({
     [composition, occurrenceId, onCanonicalCompositionPublished, projection.config, shotCompositionAdapter],
   );
   const canEdit = Boolean(shotCompositionAdapter?.publish);
+  const shotTimelineId = `${composition.parentDocumentId}:shot:${occurrenceId}:${composition.headRevisionId}`;
 
   if (!projection.config) {
     return (
@@ -266,13 +271,14 @@ export function ShotTimelinePreview({
       </div>
 
       <VideoEditorProvider
+        key={`${occurrenceId}:${composition.headRevisionId}`}
         dataProvider={dataProvider!}
         projectId={composition.projectId}
         projectSlug={composition.projectId}
-        timelineId={`${composition.parentDocumentId}:shot:${occurrenceId}`}
+        timelineId={shotTimelineId}
         timelineName="Shot timeline"
         userId={null}
-        timelineEditability={createTimelineEditability({ readOnly: !canEdit })}
+        timelineEditability={timelineEditability}
         extensionHostEnabled={false}
       >
         <ShotTimelineEditorSurface config={projection.config} />
