@@ -3,6 +3,7 @@ import {
   useEffect,
   useRef,
   useCallback,
+  useMemo,
   Suspense,
   type MutableRefObject
 } from 'react';
@@ -15,6 +16,7 @@ import { useShotNavigation } from '@/shared/hooks/shots/useShotNavigation';
 import { useUpdateShotName } from '@/shared/hooks/shots';
 import { usePrimeShotImagesCache } from '@/shared/hooks/shots/useShotImages';
 import { shotListLocation } from '@/shared/lib/tooling/toolRoutes.ts';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError.ts';
 import { useEnqueueGenerationsInvalidation } from '@/shared/hooks/invalidation/useGenerationInvalidation';
 import { useProjectVideoCountsCache } from '@/shared/hooks/projects/useProjectVideoCountsCache';
 import { useProjectGenerationModesCache } from '@/shared/hooks/projects/useProjectGenerationModesCache';
@@ -37,7 +39,12 @@ import type {
   PreparedShotComposition,
   ShotCompositionAdapter,
 } from '@/tools/video-editor/data/shotCompositionAdapter.ts';
+import {
+  updateCanonicalShotName,
+  updateCanonicalShotSettings,
+} from '@/tools/video-editor/data/shotCompositionEditor.ts';
 import { ShotTimelinePreview } from '../components/ShotTimelinePreview.tsx';
+import { normalizeVideoTravelSettings } from '../settings';
 
 interface ShotEditorViewProps {
   /** The shot to edit */
@@ -56,10 +63,14 @@ interface ShotEditorViewProps {
   shotSortMode?: 'ordered' | 'newest' | 'oldest';
   /** Canonical occurrence identity used by local/read-only composition views. */
   canonicalOccurrence?: Pick<LocalTimelineShotModel, 'occurrenceId' | 'shotId' | 'revisionId' | 'parentDocumentId' | 'stableDeepLink' | 'outputIdentity'> & { projectId?: string | null };
-  /** The same adapter used by the overview; local mode intentionally does not publish. */
+  /** The same adapter used by the overview; embedded canonical mode can publish shot revisions. */
   canonicalShotComposition?: ShotCompositionAdapter;
   /** Prepared canonical graph shared by the overview and the shot-local preview. */
   canonicalComposition?: PreparedShotComposition;
+  /** Optional embedded-mode close action; avoids navigating the parent route. */
+  onClose?: () => void;
+  /** Receives the durable graph after a canonical shot edit is published. */
+  onCanonicalCompositionPublished?: (composition: PreparedShotComposition) => void;
 }
 
 /**
@@ -77,11 +88,53 @@ export function ShotEditorView({
   canonicalOccurrence,
   canonicalShotComposition,
   canonicalComposition,
+  onClose,
+  onCanonicalCompositionPublished,
 }: ShotEditorViewProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const isMobile = useIsMobile();
   const isLocalMode = hasLocalModeUrlParams(location.search);
+  const canEditCanonicalShot = Boolean(
+    canonicalShotComposition?.publish && canonicalComposition && canonicalOccurrence,
+  );
+  const editorReadOnly = isLocalMode && !canEditCanonicalShot;
+
+  const canonicalSettingsPersistence = useMemo(() => {
+    if (!canEditCanonicalShot || !canonicalShotComposition || !canonicalComposition || !canonicalOccurrence) {
+      return undefined;
+    }
+
+    const projectId = canonicalComposition.projectId;
+    const parentDocumentId = canonicalComposition.parentDocumentId;
+    const occurrenceId = canonicalOccurrence.occurrenceId;
+    const publish = canonicalShotComposition.publish;
+
+    return {
+      domainKey: `canonical-shot-settings:${projectId}:${parentDocumentId}`,
+      entityId: shotToEdit.id,
+      load: async (_entityId: string) => {
+        const current = await canonicalShotComposition.load({ projectId, parentDocumentId });
+        const occurrence = current.occurrences.find((candidate) => candidate.occurrenceId === occurrenceId);
+        const settings = occurrence?.revision.settings;
+        return settings && typeof settings === 'object' && !Array.isArray(settings)
+          ? normalizeVideoTravelSettings(settings)
+          : null;
+      },
+      save: async (_entityId: string, settings: Parameters<typeof normalizeVideoTravelSettings>[0]) => {
+        if (!publish) throw new Error('The canonical shot-composition provider is read-only');
+        const current = await canonicalShotComposition.load({ projectId, parentDocumentId });
+        const graph = await updateCanonicalShotSettings(current.contract, occurrenceId, settings as Record<string, unknown>);
+        const published = await publish({
+          projectId,
+          parentDocumentId,
+          expectedHeadRevisionId: current.headRevisionId,
+          graph,
+        });
+        onCanonicalCompositionPublished?.(published);
+      },
+    };
+  }, [canEditCanonicalShot, canonicalComposition, canonicalOccurrence, canonicalShotComposition, onCanonicalCompositionPublished, shotToEdit.id]);
 
   const { setCurrentShotId } = useCurrentShot();
   const { navigateToPreviousShot, navigateToNextShot } = useShotNavigation();
@@ -163,6 +216,10 @@ export function ShotEditorView({
 
   // Navigation handlers
   const handleBackToShotList = useCallback(() => {
+    if (onClose) {
+      onClose();
+      return;
+    }
     setCurrentShotId(null);
     const localScope = hasLocalModeUrlParams(location.search);
     navigate(
@@ -171,7 +228,7 @@ export function ShotEditorView({
         : location.pathname,
       { replace: true, state: { fromShotClick: false } },
     );
-  }, [setCurrentShotId, navigate, location.pathname, location.search]);
+  }, [location.pathname, location.search, navigate, onClose, setCurrentShotId]);
 
   const handlePreviousShot = useCallback(() => {
     if (sortedShots && shotToEdit) {
@@ -198,12 +255,34 @@ export function ShotEditorView({
   }, [sortedShots, shotToEdit, navigateToNextShot]);
 
   const handleUpdateShotName = useCallback((newName: string) => {
+    if (canonicalSettingsPersistence && canonicalShotComposition && canonicalComposition && canonicalOccurrence) {
+      void (async () => {
+        const current = await canonicalShotComposition.load({
+          projectId: canonicalComposition.projectId,
+          parentDocumentId: canonicalComposition.parentDocumentId,
+        });
+        const graph = await updateCanonicalShotName(current.contract, canonicalOccurrence.occurrenceId, newName);
+        const published = await canonicalShotComposition.publish?.({
+          projectId: current.projectId,
+          parentDocumentId: current.parentDocumentId,
+          expectedHeadRevisionId: current.headRevisionId,
+          graph,
+        });
+        if (published) onCanonicalCompositionPublished?.(published);
+      })().catch((error: unknown) => {
+        normalizeAndPresentError(error, {
+          context: 'canonical-shot:update-name',
+          toastTitle: 'Failed to save shot name',
+        });
+      });
+      return;
+    }
     updateShotNameMutateRef.current({
       shotId: shotToEdit.id,
       newName: newName,
       projectId: selectedProjectId,
     });
-  }, [shotToEdit.id, selectedProjectId]);
+  }, [canonicalComposition, canonicalOccurrence, canonicalSettingsPersistence, canonicalShotComposition, onCanonicalCompositionPublished, selectedProjectId, shotToEdit.id]);
 
   const handleShotImagesUpdate = useCallback(async () => {
     invalidateGenerations(shotToEdit.id, {
@@ -216,14 +295,14 @@ export function ShotEditorView({
   }, [selectedProjectId, shotToEdit.id, invalidateGenerations, signalShotOperation]);
 
   const handleFloatingHeaderNameClick = useCallback(() => {
-    if (isLocalMode) return;
+    if (editorReadOnly) return;
     window.scrollTo({ top: 0, behavior: 'smooth' });
     setTimeout(() => {
       if (nameClickRef.current) {
         nameClickRef.current();
       }
     }, 600);
-  }, [isLocalMode]);
+  }, [editorReadOnly]);
 
   return (
     <>
@@ -251,8 +330,9 @@ export function ShotEditorView({
             selectedShot={shotToEdit}
             availableLoras={availableLoras}
             updateShotMode={updateShotMode}
+            shotSettingsPersistence={canonicalSettingsPersistence}
           >
-            <SettingsAutoDisable shotId={shotToEdit.id} isCloudGenerationEnabled={isCloudGenerationEnabled} readOnly={isLocalMode} />
+            <SettingsAutoDisable shotId={shotToEdit.id} isCloudGenerationEnabled={isCloudGenerationEnabled} readOnly={editorReadOnly} />
             <ShotSettingsEditor
               // Core identifiers
               selectedShotId={shotToEdit.id}
@@ -273,8 +353,8 @@ export function ShotEditorView({
               onNextShot={handleNextShot}
               hasPrevious={hasPrevious}
               hasNext={hasNext}
-              onUpdateShotName={isLocalMode ? undefined : handleUpdateShotName}
-              readOnly={isLocalMode}
+              onUpdateShotName={editorReadOnly ? undefined : handleUpdateShotName}
+              readOnly={editorReadOnly}
               // Loading and cache
               getFinalVideoCount={getFinalVideoCount}
               getHasStructureVideo={getHasStructureVideo}
@@ -292,7 +372,7 @@ export function ShotEditorView({
       <VideoTravelFloatingOverlay
         sticky={{
           shouldShowShotEditor: true,
-          readOnly: isLocalMode,
+          readOnly: editorReadOnly,
           stickyHeader,
           shotToEdit,
           isMobile,

@@ -6,6 +6,7 @@ import {
   duplicateLinkedOccurrence,
   moveCanonicalOccurrence,
   trimCanonicalOccurrence,
+  updateCanonicalShotSettings,
 } from './shotCompositionEditor.ts';
 import { parseShotComposition } from './shotComposition.ts';
 
@@ -53,5 +54,28 @@ describe('canonical shot-composition editor operations', () => {
     expect(moved.occurrences.find((candidate) => candidate.occurrence_id === 'occ-1')?.at_ms).toBe(900);
     expect(history.undo().occurrences.find((candidate) => candidate.occurrence_id === 'occ-1')?.at_ms).toBe(0);
     expect(history.redo().occurrences.find((candidate) => candidate.occurrence_id === 'occ-1')?.at_ms).toBe(900);
+  });
+
+  it('publishes shot settings as a new immutable revision for every linked occurrence', async () => {
+    const graph = parseShotComposition(fixture);
+    const updated = await updateCanonicalShotSettings(graph, 'occ-1', {
+      generationMode: 'timeline',
+      prompt: 'A revised prompt',
+    });
+    const first = updated.occurrences.find((candidate) => candidate.occurrence_id === 'occ-1');
+    const linked = updated.occurrences.find((candidate) => candidate.occurrence_id === 'occ-2');
+    const oldRevision = updated.shot_revisions.find((revision) => revision.shot_id === 'shot-alpha' && revision.revision_id === 'rev-a');
+    const newRevision = updated.shot_revisions.find((revision) => revision.revision_id === first?.revision_id);
+
+    expect(first?.revision_id).not.toBe('rev-a');
+    expect(linked?.revision_id).toBe(first?.revision_id);
+    expect(oldRevision).toBeDefined();
+    expect(newRevision).toMatchObject({
+      shot_id: 'shot-alpha',
+      settings: { generationMode: 'timeline', prompt: 'A revised prompt' },
+    });
+    expect(newRevision?.content_digest).toMatch(/^sha256:[0-9a-f]{64}$/);
+    expect(updated.primary_timeline.head.revision_id).not.toBe('timeline-rev-2');
+    expect(() => parseShotComposition(updated)).not.toThrow();
   });
 });

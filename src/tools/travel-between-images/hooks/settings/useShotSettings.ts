@@ -1,7 +1,7 @@
 import { useCallback, useRef, useMemo, useEffect } from 'react';
 import { TOOL_IDS } from '@/shared/lib/tooling/toolIds';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
-import { useAutoSaveSettings } from '@/shared/settings/hooks/useAutoSaveSettings';
+import { useAutoSaveSettings, type CustomLoadSave } from '@/shared/settings/hooks/useAutoSaveSettings';
 import {
   VideoTravelSettings,
   DEFAULT_PHASE_CONFIG,
@@ -45,6 +45,10 @@ export interface UseShotSettingsReturn {
   revert: () => void;
 }
 
+export interface ShotSettingsPersistenceOptions {
+  customLoadSave?: CustomLoadSave<VideoTravelSettings>;
+}
+
 /**
  * Shot-specific settings hook built on useAutoSaveSettings.
  * 
@@ -58,6 +62,7 @@ export interface UseShotSettingsReturn {
 export const useShotSettings = (
   shotId: string | null | undefined,
   projectId: string | null | undefined,
+  options: ShotSettingsPersistenceOptions = {},
 ): UseShotSettingsReturn => {
   const inheritedSettings = useSessionInheritedDefaults<VideoTravelSettings>({
     shotId,
@@ -95,6 +100,7 @@ export const useShotSettings = (
     defaults: stableDefaults,
     enabled: !!shotId,
     debounceMs: 300,
+    customLoadSave: options.customLoadSave,
   });
   const {
     settings,

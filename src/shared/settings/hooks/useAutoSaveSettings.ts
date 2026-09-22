@@ -7,7 +7,7 @@ import { createEntityStore, type EntityStoreApi } from '@/shared/state/createEnt
 
 type AutoSaveStatus = 'idle' | 'loading' | 'ready' | 'saving' | 'error';
 
-interface CustomLoadSave<T> {
+export interface CustomLoadSave<T> {
   load: (entityId: string) => Promise<T | null>;
   save: (entityId: string, data: T) => Promise<void>;
   entityId: string | null;

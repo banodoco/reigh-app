@@ -32,7 +32,11 @@ import React, {
 } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Shot } from '@/domains/generation/types';
-import { useShotSettings, UseShotSettingsReturn } from '../hooks/settings/useShotSettings';
+import {
+  useShotSettings,
+  UseShotSettingsReturn,
+  type ShotSettingsPersistenceOptions,
+} from '../hooks/settings/useShotSettings';
 import {
   useVideoTravelSettingsHandlers as useVideoTravelSettingsHandlersCore,
   VideoTravelSettingsHandlers,
@@ -146,6 +150,8 @@ interface VideoTravelSettingsProviderProps {
   availableLoras: LoraModel[];
   /** Function to optimistically update generation mode cache (from useProjectGenerationModesCache) */
   updateShotMode: (shotId: string, mode: 'batch' | 'timeline' | 'by-pair') => void;
+  /** Optional document-native persistence used by embedded canonical shot editors. */
+  shotSettingsPersistence?: ShotSettingsPersistenceOptions['customLoadSave'];
   children: React.ReactNode;
 }
 
@@ -155,6 +161,7 @@ export const VideoTravelSettingsProvider: React.FC<VideoTravelSettingsProviderPr
   selectedShot,
   availableLoras,
   updateShotMode,
+  shotSettingsPersistence,
   children,
 }) => {
   // Seed the useToolSettings React Query cache from the shot object that's already
@@ -163,7 +170,9 @@ export const VideoTravelSettingsProvider: React.FC<VideoTravelSettingsProviderPr
   useSeedSettingsCache(shotId, projectId, selectedShot);
 
   // Core settings hook - manages state + persistence
-  const shotSettings = useShotSettings(shotId, projectId);
+  const shotSettings = useShotSettings(shotId, projectId, {
+    customLoadSave: shotSettingsPersistence,
+  });
 
   console.log('[ModeDebug][SettingsProvider] shotId=%s status=%s generationMode=%s', shotId, shotSettings.status, shotSettings.settings?.generationMode ?? 'NOT SET');
 

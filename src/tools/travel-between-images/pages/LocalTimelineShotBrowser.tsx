@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { AlertCircle } from 'lucide-react';
@@ -19,6 +19,8 @@ import {
 } from './localTimelineShotModel.ts';
 import {
   createShotCompositionAdapter,
+  type PreparedShotComposition,
+  type ShotCompositionAdapter,
   type ShotCompositionPort,
 } from '@/tools/video-editor/data/shotCompositionAdapter.ts';
 
@@ -27,6 +29,13 @@ type LocalTimelineShotBrowserProps = {
   projectId?: string;
   timelineRef: string;
   shotCompositionPort?: ShotCompositionPort;
+  /** Reuse an already prepared canonical adapter from the parent editor. */
+  shotCompositionAdapter?: ShotCompositionAdapter;
+  /** Opens one canonical shot without changing the parent route. */
+  shotRef?: string | null;
+  onClose?: () => void;
+  /** Receives the latest graph after an embedded shot edit is published. */
+  onCanonicalCompositionPublished?: (composition: PreparedShotComposition) => void;
 };
 
 type LocalTimelineDocument = {
@@ -40,6 +49,7 @@ function useLocalTimelineDocument(
   projectId: string | undefined,
   timelineRef: string,
   shotCompositionPort?: ShotCompositionPort,
+  shotCompositionAdapter?: ShotCompositionAdapter,
 ) {
   const provider = useMemo(() => {
     if (isAstridWorkspaceV1 && projectId) {
@@ -54,12 +64,12 @@ function useLocalTimelineDocument(
   const identityProjectId = projectId ?? projectSlug;
   const canonicalPort = shotCompositionPort ?? provider.shotComposition;
   const compositionAdapter = useMemo(
-    () => canonicalPort ? createShotCompositionAdapter(canonicalPort) : null,
-    [canonicalPort],
+    () => shotCompositionAdapter ?? (canonicalPort ? createShotCompositionAdapter(canonicalPort) : null),
+    [canonicalPort, shotCompositionAdapter],
   );
 
   return useQuery<LocalTimelineDocument>({
-    queryKey: ['canonical-local-timeline-shot-browser', identityProjectId, timelineRef, shotCompositionPort],
+    queryKey: ['canonical-local-timeline-shot-browser', identityProjectId, timelineRef, shotCompositionPort, shotCompositionAdapter],
     queryFn: async () => {
       if (!compositionAdapter) {
         throw new Error('Canonical shot-composition provider is unavailable for this timeline.');
@@ -93,20 +103,27 @@ function useLocalTimelineDocument(
   });
 }
 
-export function LocalTimelineShotBrowser({ projectSlug, projectId, timelineRef, shotCompositionPort }: LocalTimelineShotBrowserProps) {
+export function LocalTimelineShotBrowser({ projectSlug, projectId, timelineRef, shotCompositionPort, shotCompositionAdapter, shotRef, onClose, onCanonicalCompositionPublished }: LocalTimelineShotBrowserProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const identityProjectId = projectId ?? projectSlug;
-  const documentQuery = useLocalTimelineDocument(projectSlug, projectId, timelineRef, shotCompositionPort);
+  const documentQuery = useLocalTimelineDocument(projectSlug, projectId, timelineRef, shotCompositionPort, shotCompositionAdapter);
+  const [compositionOverride, setCompositionOverride] = useState<PreparedShotComposition | null>(null);
+  const loadedComposition = documentQuery.data?.composition;
+  useEffect(() => {
+    setCompositionOverride(null);
+  }, [loadedComposition]);
+  const composition = compositionOverride ?? loadedComposition;
   const shots = useMemo(
-    () => selectCanonicalShotOccurrences(documentQuery.data?.composition, documentQuery.data?.registry, identityProjectId),
-    [documentQuery.data, identityProjectId],
+    () => selectCanonicalShotOccurrences(composition, documentQuery.data?.registry, identityProjectId),
+    [composition, documentQuery.data?.registry, identityProjectId],
   );
   const shotModels = useMemo(
-    () => selectCanonicalShotModels(documentQuery.data?.composition, documentQuery.data?.registry, identityProjectId),
-    [documentQuery.data, identityProjectId],
+    () => selectCanonicalShotModels(composition, documentQuery.data?.registry, identityProjectId),
+    [composition, documentQuery.data?.registry, identityProjectId],
   );
   const hashShotId = useMemo(() => {
+    if (shotRef) return shotRef;
     const encoded = location.hash.startsWith('#') ? location.hash.slice(1) : location.hash;
     try {
       const decoded = decodeURIComponent(encoded).trim();
@@ -114,10 +131,20 @@ export function LocalTimelineShotBrowser({ projectSlug, projectId, timelineRef, 
     } catch {
       return null;
     }
-  }, [location.hash]);
+  }, [location.hash, shotRef]);
+  const shotRefOccurrenceId = useMemo(() => {
+    if (!hashShotId) return null;
+    const match = hashShotId.match(/\/occurrence\/([^/]+)$/);
+    if (!match) return null;
+    try {
+      return decodeURIComponent(match[1]);
+    } catch {
+      return null;
+    }
+  }, [hashShotId]);
   const selectedShot = useMemo(
-    () => shots.find((shot) => shot.occurrenceId === hashShotId || shot.stableDeepLink === hashShotId),
-    [hashShotId, shots],
+    () => shots.find((shot) => shot.occurrenceId === hashShotId || shot.stableDeepLink === hashShotId || shot.occurrenceId === shotRefOccurrenceId),
+    [hashShotId, shotRefOccurrenceId, shots],
   );
   const selectedShotModel = useMemo(
     () => selectedShot ? shotModels.find((shot) => shot.id === selectedShot.id) : undefined,
@@ -127,9 +154,9 @@ export function LocalTimelineShotBrowser({ projectSlug, projectId, timelineRef, 
   useEffect(() => {
     // A stale or malformed deep link should land safely on the overview once
     // the document is available. Keep the local project/timeline query intact.
-    if (documentQuery.isLoading || documentQuery.error || !location.hash || selectedShot) return;
+    if (shotRef || documentQuery.isLoading || documentQuery.error || !location.hash || selectedShot) return;
     navigate(shotListLocation(location.pathname, location.search), { replace: true });
-  }, [documentQuery.error, documentQuery.isLoading, location.hash, location.pathname, location.search, navigate, selectedShot]);
+  }, [documentQuery.error, documentQuery.isLoading, location.hash, location.pathname, location.search, navigate, selectedShot, shotRef]);
 
   const selectShot = (shot: Shot & { stableDeepLink?: string }) => {
     if (!shot.stableDeepLink) return;
@@ -177,13 +204,18 @@ export function LocalTimelineShotBrowser({ projectSlug, projectId, timelineRef, 
           shotToEdit={selectedShotModel}
           canonicalOccurrence={selectedShotModel}
           canonicalShotComposition={documentQuery.data?.compositionAdapter}
-          canonicalComposition={documentQuery.data?.composition}
+          canonicalComposition={composition}
           selectedProjectId={projectSlug}
           isNewlyCreatedShot={false}
           shotFromState={undefined}
           shots={shotModels}
           availableLoras={[]}
           shotSortMode="ordered"
+          onClose={onClose}
+          onCanonicalCompositionPublished={(nextComposition) => {
+            setCompositionOverride(nextComposition);
+            onCanonicalCompositionPublished?.(nextComposition);
+          }}
         />
       ) : (
         <section className="mx-auto w-full max-w-7xl" aria-label="Timeline shots">

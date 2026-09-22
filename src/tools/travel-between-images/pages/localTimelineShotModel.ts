@@ -1,6 +1,7 @@
 import type { AssetRegistry, AssetRegistryEntry } from '@/tools/video-editor/types/index.ts';
 import { bridgeMediaUrl } from '@/shared/lib/media/bridgeMediaUrl.ts';
 import type { GenerationRow, Shot } from '@/domains/generation/types';
+import { TOOL_IDS } from '@/shared/lib/tooling/toolIds';
 import type { CanonicalShotOccurrence, PreparedShotComposition } from '@/tools/video-editor/data/shotCompositionAdapter.ts';
 
 export type LocalTimelineShotClip = {
@@ -36,6 +37,7 @@ export type LocalTimelineShot = {
   assets: readonly JsonObject[];
   dependencies: readonly JsonObject[];
   provenance: JsonObject;
+  settings: JsonObject;
 };
 
 /** The legacy editor view model, carrying canonical identity as metadata. */
@@ -167,6 +169,7 @@ function toOccurrenceShot(occurrence: CanonicalShotOccurrence, registry: AssetRe
     assets: Array.isArray(revision.assets) ? revision.assets.filter(isRecord) : [],
     dependencies: Array.isArray(revision.dependencies) ? revision.dependencies.filter(isRecord) : [],
     provenance: isRecord(revision.provenance) ? revision.provenance : {},
+    settings: isRecord(revision.settings) ? revision.settings : {},
   };
 }
 
@@ -212,7 +215,11 @@ export function toCanonicalShotModel(shot: LocalTimelineShot, fps = 30, projectS
     project_id: projectSlug,
     aspect_ratio: null,
     position: 0,
-    settings: {},
+    settings: {
+      ...(Object.keys(shot.settings).length > 0
+        ? { [TOOL_IDS.TRAVEL_BETWEEN_IMAGES]: shot.settings }
+        : {}),
+    },
     occurrenceId: shot.occurrenceId,
     shotId: shot.shotId,
     revisionId: shot.revisionId,

@@ -1,5 +1,6 @@
 import type { Shot } from '@/domains/generation/types/index.ts';
 import { bridgeMediaUrl } from '@/shared/lib/media/bridgeMediaUrl.ts';
+import { TOOL_IDS } from '@/shared/lib/tooling/toolIds';
 import type { PreparedShotComposition } from './shotCompositionAdapter.ts';
 
 type JsonObject = Record<string, unknown>;
@@ -22,6 +23,7 @@ export function selectCanonicalShotViewModels(composition: PreparedShotCompositi
     const provenance = record(occurrence.revision.provenance);
     const metadata = record(occurrence.revision.metadata);
     const timing = record(occurrence.revision.timing);
+    const settings = record(occurrence.revision.settings);
     const images = (Array.isArray(occurrence.revision.assets) ? occurrence.revision.assets : [])
       .map((asset, index) => {
         const value = record(asset);
@@ -49,7 +51,9 @@ export function selectCanonicalShotViewModels(composition: PreparedShotCompositi
         ?? occurrence.shotId,
       project_id: composition.projectId,
       position: occurrence.ordinal,
-      settings: {},
+      settings: Object.keys(settings).length > 0
+        ? { [TOOL_IDS.TRAVEL_BETWEEN_IMAGES]: settings }
+        : {},
       images,
       imageCount: images.length,
       positionedImageCount: images.length,

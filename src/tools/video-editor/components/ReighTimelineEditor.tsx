@@ -1,15 +1,15 @@
 import { memo, useCallback, useMemo, useState } from 'react';
 import { shallow } from 'zustand/shallow';
-import { useNavigate } from 'react-router-dom';
 import type { Shot } from '@/domains/generation/types/index.ts';
+import { Dialog, DialogContent, DialogTitle } from '@/shared/components/ui/dialog.tsx';
 import { toast } from '@/shared/components/ui/runtime/sonner.tsx';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError.ts';
 import { useProjectSelectionContext } from '@/shared/contexts/ProjectContext.tsx';
 import { useShots } from '@/shared/contexts/ShotsContext.tsx';
 import { useShotCreation } from '@/shared/hooks/shotCreation/useShotCreation.ts';
 import { useShotNavigation } from '@/shared/hooks/shots/useShotNavigation.ts';
-import { astridShotUrl } from '@/shared/lib/tooling/toolRoutes.ts';
 import { VideoGenerationModal } from '@/tools/travel-between-images/components/VideoGenerationModal.tsx';
+import { LocalTimelineShotBrowser } from '@/tools/travel-between-images/pages/LocalTimelineShotBrowser.tsx';
 import { AstridLocalClient } from '@/integrations/astrid/client.ts';
 import { useVideoEditorRuntime } from '@/tools/video-editor/contexts/VideoEditorRuntimeContext.tsx';
 import { TimelineEditorCore, resolveSelectedGenerationIdsForShotCreation } from '@/tools/video-editor/components/TimelineEditor/TimelineEditorCore.tsx';
@@ -57,8 +57,8 @@ const EMPTY_ASSET_GENERATION_MAP: Record<string, string> = {};
 function ReighTimelineEditorComponent({ onOpenSequenceCreator, onOpenElementCreationPrompt }: ReighTimelineEditorProps) {
   const [videoModalShot, setVideoModalShot] = useState<Shot | null>(null);
   const [videoModalShowImages, setVideoModalShowImages] = useState(false);
+  const [canonicalShotEditor, setCanonicalShotEditor] = useState<CanonicalShotOccurrence | null>(null);
   const [duplicatingClipId, setDuplicatingClipId] = useState<string | null>(null);
-  const navigate = useNavigate();
   const { createShot, isCreating } = useShotCreation();
   const { navigateToShot } = useShotNavigation();
   const { selectedProjectId } = useProjectSelectionContext();
@@ -282,17 +282,11 @@ function ReighTimelineEditorComponent({ onOpenSequenceCreator, onOpenElementCrea
   );
 
   const handleOpenCanonicalOccurrence = useCallback((occurrence: CanonicalShotOccurrence) => {
-    // The Runtime graph carries the canonical project UUID, while the Astrid
-    // tool route is keyed by the human-facing project slug.  Keep the
-    // identity pair intact in state, but address the route with the slug so
-    // opening a shot from the editor resolves through Astrid discovery.
-    const projectSlug = runtime.project.projectSlug ?? runtime.project.projectId ?? occurrence.projectId;
-    const url = astridShotUrl(projectSlug, occurrence.parentDocumentId, occurrence.stableDeepLink);
-    // Both tools live under the same React Router app shell. Keep the
-    // deep-link navigation in-app so the destination can reuse the already
-    // bootstrapped workspace instead of reloading the whole document.
-    navigate(url);
-  }, [navigate, runtime.project.projectId, runtime.project.projectSlug]);
+    // Reuse the canonical travel-tool browser/editor inside a dialog. The
+    // stable deep link remains the identity, but the parent timeline route is
+    // left untouched so closing the editor returns to the exact same canvas.
+    setCanonicalShotEditor(occurrence);
+  }, []);
 
   const handleDuplicateDocumentShotGroup = useCallback(async (locator: { shotId: string; trackId: string; canonicalIdentity?: CanonicalShotOccurrence }) => {
     if (locator.canonicalIdentity && runtime.shots?.shotComposition && runtime.shots.canonicalComposition) {
@@ -575,6 +569,44 @@ function ReighTimelineEditorComponent({ onOpenSequenceCreator, onOpenElementCrea
           defaultTopOpen={videoModalShowImages}
         />
       )}
+
+      <Dialog
+        open={Boolean(canonicalShotEditor)}
+        onOpenChange={(open) => {
+          if (!open) setCanonicalShotEditor(null);
+        }}
+      >
+        <DialogContent
+          className="h-[min(90vh,900px)] max-h-[90vh] w-[calc(100vw-2rem)] max-w-4xl overflow-hidden p-0"
+          finalFocus={false}
+          onKeyDown={(event) => {
+            // This dialog has no trigger element. Handle Escape here so the
+            // parent timeline's pointer/focus surface cannot receive the
+            // dismissal event and immediately reopen the shot editor.
+            if (event.key !== 'Escape') return;
+            event.preventDefault();
+            event.stopPropagation();
+            setCanonicalShotEditor(null);
+          }}
+        >
+          <DialogTitle className="sr-only">
+            {canonicalShotEditor ? `Edit ${canonicalShotEditor.shotId}` : 'Edit shot'}
+          </DialogTitle>
+          {canonicalShotEditor && (
+            <div className="h-full min-h-0 overflow-y-auto">
+              <LocalTimelineShotBrowser
+                projectSlug={runtime.project.projectSlug ?? runtime.project.projectId ?? canonicalShotEditor.projectId}
+                projectId={runtime.project.projectId ?? undefined}
+                timelineRef={canonicalShotEditor.parentDocumentId}
+                shotCompositionAdapter={runtime.shots.shotComposition ?? undefined}
+                shotRef={canonicalShotEditor.stableDeepLink}
+                onClose={() => setCanonicalShotEditor(null)}
+                onCanonicalCompositionPublished={() => runtime.shots?.refetchShots()}
+              />
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
