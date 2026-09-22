@@ -55,6 +55,8 @@ export interface RawVariant {
 export interface RawGeneration {
   id: string;
   location: string | null;
+  /** Stable media/object identity for provider-backed generation output. */
+  media_id?: string | null;
   thumbnail_url?: string | null;
   primary_variant_id?: string | null;
   primary_variant?: {
@@ -245,6 +247,7 @@ export function transformGeneration(
     hasUnviewedVariants: item.hasUnviewedVariants || false, // For NEW badge display
     unviewedVariantCount: item.unviewedVariantCount || 0, // Count for tooltip
     primary_variant_id: item.primary_variant_id ?? null,
+    media_id: item.media_id ?? null,
     storage_mode: item.storage_mode ?? 'remote',
     local_handle_id: item.local_handle_id ?? null,
     local_file_name: item.local_file_name ?? null,

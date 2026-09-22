@@ -323,6 +323,7 @@ describe('MediaGalleryItem behavior', () => {
           generation_id: 'gen-1',
           url: 'https://cdn/image.png',
           thumbUrl: 'https://cdn/thumb.png',
+          media_id: 'media-image-1',
           metadata: { taskId: 'task-1' },
         },
         {
@@ -352,6 +353,7 @@ describe('MediaGalleryItem behavior', () => {
         expect.objectContaining({
           generationId: 'img-1',
           imageUrl: 'https://cdn/image.png',
+          mediaId: 'media-image-1',
           variantType: 'image',
         }),
         expect.objectContaining({
@@ -370,6 +372,13 @@ describe('MediaGalleryItem behavior', () => {
 
   it('falls back to the existing single-item drag payload when the drag is not a multi-selection drag', () => {
     const props = buildProps({
+      image: {
+        id: 'img-1',
+        url: 'https://cdn/image.png',
+        thumbUrl: 'https://cdn/thumb.png',
+        metadata: { taskId: 'task-1' },
+        media_id: 'media-image-1',
+      },
       isSelected: true,
       selectedItems: [
         {
@@ -395,6 +404,7 @@ describe('MediaGalleryItem behavior', () => {
       expect.objectContaining({
         generationId: 'img-1',
         imageUrl: 'https://cdn/image.png',
+        mediaId: 'media-image-1',
         variantType: 'image',
       }),
     );

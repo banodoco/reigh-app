@@ -51,6 +51,8 @@ export interface GenerationDropData {
   generationId: string;
   variantId?: string;
   variantType?: string;
+  /** Stable provider-managed identity; imageUrl is only the display locator. */
+  mediaId?: string;
   imageUrl: string;
   thumbUrl?: string;
   metadata?: Record<string, unknown>;
@@ -204,6 +206,7 @@ function parseGenerationDropData(dataString: string): GenerationDropData | null 
     ...data,
     generationId,
     imageUrl,
+    ...(sanitizeOptionalString(data.mediaId) ? { mediaId: sanitizeOptionalString(data.mediaId) } : {}),
     ...(sanitizeOptionalString(data.thumbUrl) ? { thumbUrl: sanitizeOptionalString(data.thumbUrl) } : {}),
   };
 }

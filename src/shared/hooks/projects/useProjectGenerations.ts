@@ -65,6 +65,7 @@ function toRawGeneration(row: BridgeGenerationSummary, projectSlug: string): Raw
   return {
     id: row.generation_id,
     location: primaryMediaUrl,
+    media_id: row.primary?.media_id ?? null,
     thumbnail_url: primaryMediaUrl,
     type: row.type,
     created_at: row.created_at,
@@ -139,6 +140,7 @@ function toRuntimeGalleryItem(
     location: objectUrl,
     thumbnail_url: thumbnailUrl,
     primary_variant_id: primaryVariant?.variant_id ?? null,
+    media_id: objectId,
     type,
     created_at: generation.created_at,
     updated_at: generation.updated_at,
@@ -161,6 +163,7 @@ function toRuntimeGalleryItem(
     contentType: galleryMediaType ?? item.contentType,
     isVideo: variantIsVideo ?? item.isVideo,
     generation_id: generation.generation_id,
+    media_id: objectId,
   };
 }
 

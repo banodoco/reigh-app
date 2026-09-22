@@ -103,6 +103,7 @@ function toGenerationDragData(image: GeneratedImageWithMetadata): GenerationDrop
     generationId,
     variantId,
     variantType: image.type?.includes('video') || image.isVideo ? 'video' : 'image',
+    mediaId: image.media_id ?? undefined,
     imageUrl,
     thumbUrl: getThumbnailUrl(image),
     metadata: image.metadata,
