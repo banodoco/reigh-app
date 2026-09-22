@@ -65,7 +65,7 @@ import {
   writePendingAdds,
 } from '@/domains/media-lightbox/hooks/addToVideoEditorConstants.ts';
 import {
-  executeGenerationAssetRegistrationPlan,
+  getPlayableAssetKind,
   planGenerationAssetRegistration,
 } from '@/tools/video-editor/lib/timeline-asset-plans.ts';
 import { useRenderDiagnostic } from '@/tools/video-editor/hooks/usePerfDiagnostics.ts';
@@ -240,7 +240,7 @@ export function buildVideoEditorLightboxMedia(
 function AgentChatBridgeRegistration() {
   const { timelineId, timelineName, project, agentChat } = useVideoEditorRuntime();
   const allClips = useTimelineClipsForAttachments();
-  const { data, resolvedConfig } = useTimelineEditorData();
+  const { data, resolvedConfig, selectedClipIds } = useTimelineEditorData();
   const effectCatalog = useEffectResources();
   const sequenceCatalog = useSequenceResources();
   const configVersion = useTimelineConfigVersion();
@@ -272,7 +272,7 @@ function AgentChatBridgeRegistration() {
     // the projection keeps agent and editor vocabulary aligned for effects,
     // animations, and transitions.
     astridTransitions: ASTRID_TRANSITION_CATALOG,
-    clips: [...(data?.selectedClipIds ?? [])]
+    clips: [...selectedClipIds]
       .map((clipId) => resolvedClips.find((clip) => clip.id === clipId))
       .filter((clip): clip is NonNullable<typeof clip> => Boolean(clip))
       .map((clip) => ({
@@ -285,7 +285,7 @@ function AgentChatBridgeRegistration() {
           ? 'child-shot' as const
           : 'parent-timeline' as const,
       })),
-  }), [data?.selectedClipIds, effectCatalog.effects, sequenceCatalog.components, resolvedClips]);
+  }), [effectCatalog.effects, selectedClipIds, sequenceCatalog.components, resolvedClips]);
   const elementOperationAdapter = useMemo(() => {
     if (!project.projectSlug || !timelineId) return undefined;
     const client = new AstridLocalClient({ projectSlug: project.projectSlug });
@@ -469,33 +469,10 @@ function InnerProvider({
             processed.push(generationId);
             continue;
           }
-          const currentOps = store.getState().ops;
-          const { assetKey, persistPromise } = executeGenerationAssetRegistrationPlan({
-            plan: registrationPlan,
-            patchRegistry: currentOps.patchRegistry,
-            registerAsset: currentOps.registerAsset,
-          });
           const editorForDrop = editorRef.current;
-          try {
-            // Registry persistence advances the Runtime document version. Wait
-            // for that acknowledgement before the clip edit so the subsequent
-            // save uses the canonical version rather than racing it.
-            await persistPromise;
-          } catch (error) {
-            console.error('[video-editor] Failed to persist staged add asset:', error);
-            store.getState().ops.unpatchRegistry(assetKey);
-            runtime.toast.error('Failed to save asset');
-            processed.push(generationId);
-            continue;
-          }
-          // The standalone registry write advances Runtime's CAS version;
-          // reload the editor snapshot before composing the clip edit.
-          try {
-            const reloadFromServer = store.getState().chrome.reloadFromServer;
-            await reloadFromServer();
-          } catch (error) {
-            console.error('[video-editor] Failed to reload after staged add asset:', error);
-            runtime.toast.error('Failed to reload timeline after saving asset');
+          const mediaType = getPlayableAssetKind(registrationPlan.assetEntry);
+          if (!mediaType) {
+            runtime.toast.error('Could not determine the asset media type');
             processed.push(generationId);
             continue;
           }
@@ -504,10 +481,36 @@ function InnerProvider({
             (max, clip) => Math.max(max, clip.at + getClipTimelineDuration(clip)),
             0,
           );
-          const placed = editorForDrop.handleAssetDrop(assetKey, undefined, timelineEnd, false, false);
-          if (!placed) {
-            console.error('[video-editor] Staged generation asset was registered but could not be placed', { assetKey });
-            runtime.toast.error('Could not place saved asset on timeline');
+          const preparedCommand = {
+            type: 'place-prepared-media',
+            payload: {
+              asset: {
+                assetKey: registrationPlan.assetId,
+                mediaType,
+                durationSeconds: registrationPlan.assetEntry.duration ?? null,
+                entry: registrationPlan.assetEntry,
+                source: 'registered',
+              },
+              at: timelineEnd,
+              selectedTrackId: editorForDrop.selectedTrackId,
+            },
+          } as const;
+          const preview = editorForDrop.commands.dryRun(preparedCommand);
+          if (preview.status === 'rejected') {
+            console.error('[video-editor] Staged generation asset could not be planned', { assetKey: registrationPlan.assetId });
+            runtime.toast.error(preview.errors[0]?.message ?? 'Could not place asset');
+            processed.push(generationId);
+            continue;
+          }
+          const detail = preview.commandResults[0]?.detail;
+          const placed = editorForDrop.commands.apply(preparedCommand, {
+            semantic: true,
+            selectedClipId: typeof detail?.clipId === 'string' ? detail.clipId : undefined,
+            selectedTrackId: typeof detail?.trackId === 'string' ? detail.trackId : editorForDrop.selectedTrackId,
+          });
+          if (placed.status === 'rejected') {
+            console.error('[video-editor] Staged generation asset could not be placed', { assetKey: registrationPlan.assetId });
+            runtime.toast.error(placed.errors[0]?.message ?? 'Could not place asset');
           }
           processed.push(generationId);
           // Allow React to commit the clip before the next iteration reads clips.

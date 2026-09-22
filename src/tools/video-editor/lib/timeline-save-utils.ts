@@ -31,8 +31,14 @@ export function shouldAcceptPolledData(
 export function buildDataFromCurrentRegistry(
   config: TimelineConfig,
   current: TimelineData,
+  overrides?: {
+    registry?: AssetRegistry;
+    resolvedRegistry?: Record<string, ResolvedAssetRegistryEntry>;
+  },
 ): TimelineData {
-  const canonical = canonicalizeTimelinePair(config, current.registry);
+  const registry = overrides?.registry ?? current.registry;
+  const resolvedRegistry = overrides?.resolvedRegistry ?? current.resolvedConfig.registry;
+  const canonical = canonicalizeTimelinePair(config, registry);
   const canonicalConfig = canonical.config;
 
   const resolvedConfig = {
@@ -40,9 +46,9 @@ export function buildDataFromCurrentRegistry(
     tracks: canonicalConfig.tracks ?? [],
     clips: canonicalConfig.clips.map((clip) => ({
       ...clip,
-      assetEntry: clip.asset ? current.resolvedConfig.registry[clip.asset] : undefined,
+      assetEntry: clip.asset ? resolvedRegistry[clip.asset] : undefined,
     })),
-    registry: current.resolvedConfig.registry,
+    registry: resolvedRegistry,
     ...(canonicalConfig.theme !== undefined ? { theme: canonicalConfig.theme } : {}),
     ...(canonicalConfig.theme_overrides !== undefined ? { theme_overrides: canonicalConfig.theme_overrides } : {}),
     ...(canonicalConfig.generation_defaults !== undefined ? { generation_defaults: canonicalConfig.generation_defaults } : {}),
@@ -51,9 +57,9 @@ export function buildDataFromCurrentRegistry(
   return assembleTimelineData({
     config: canonicalConfig,
     configVersion: current.configVersion,
-    registry: current.registry,
+    registry,
     resolvedConfig,
-    assetMap: buildAssetReferenceMap(current.registry),
+    assetMap: buildAssetReferenceMap(registry),
     output: { ...canonicalConfig.output },
   });
 }

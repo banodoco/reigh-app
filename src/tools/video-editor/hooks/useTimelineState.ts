@@ -631,6 +631,7 @@ export function useTimelineState(): UseTimelineStateResult {
   const {
     registerAsset,
     uploadAsset,
+    prepareAssetUpload,
     uploadFiles,
     invalidateAssetRegistry,
   } = assetOperations;
@@ -755,11 +756,13 @@ export function useTimelineState(): UseTimelineStateResult {
     selectedTrackId,
     applyEdit,
     patchRegistry,
+    prepareAssetUpload,
     uploadAsset,
     invalidateAssetRegistry,
     resolveAssetUrl,
     coordinator: dragCoordinator.coordinator,
     registerGenerationAsset: assetManagement.registerGenerationAsset,
+    prepareGenerationAsset: assetManagement.prepareGenerationAsset,
     uploadImageGeneration: assetManagement.uploadImageGeneration,
     uploadVideoGeneration: assetManagement.uploadVideoGeneration,
     handleAssetDrop: assetManagement.handleAssetDrop,
@@ -836,6 +839,7 @@ export function useTimelineState(): UseTimelineStateResult {
           save: options?.save,
           selectedClipId: options?.selectedClipId,
           selectedTrackId: options?.selectedTrackId,
+          semantic: options?.semantic,
           transactionId: result.transaction.transactionId,
           commandHistory: {
             transaction: result.transaction,

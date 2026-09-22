@@ -477,8 +477,30 @@ describe('useExternalDrop', () => {
     }));
     const firstRegisteredAssetId = registerGenerationAsset.mock.calls[0]?.[0]?.assetId as string;
     const secondRegisteredAssetId = registerGenerationAsset.mock.calls[1]?.[0]?.assetId as string;
-    expect(handleAssetDrop).toHaveBeenNthCalledWith(1, firstRegisteredAssetId, undefined, 12, true, false);
-    expect(handleAssetDrop).toHaveBeenNthCalledWith(2, secondRegisteredAssetId, 'V2', 20, false, false);
+    expect(handleAssetDrop).toHaveBeenNthCalledWith(
+      1,
+      firstRegisteredAssetId,
+      undefined,
+      12,
+      true,
+      false,
+      expect.objectContaining({
+        assetKey: firstRegisteredAssetId,
+        mediaType: 'video',
+      }),
+    );
+    expect(handleAssetDrop).toHaveBeenNthCalledWith(
+      2,
+      secondRegisteredAssetId,
+      'V2',
+      20,
+      false,
+      false,
+      expect.objectContaining({
+        assetKey: secondRegisteredAssetId,
+        mediaType: 'image',
+      }),
+    );
     expect(dataRef.current.registry.assets[firstRegisteredAssetId]).toEqual({
       file: 'https://example.com/video.mp4',
       type: 'video/mp4',
@@ -648,7 +670,8 @@ describe('useExternalDrop', () => {
         duration: number;
       };
     }>();
-    const uploadAsset = vi.fn(async () => upload.promise);
+    const prepareAssetUpload = vi.fn(async () => upload.promise);
+    const uploadAsset = vi.fn();
     const patchRegistry = vi.fn((assetId: string, entry: { file: string; type?: string; duration?: number }) => {
       dataRef.current.registry.assets[assetId] = entry;
     });
@@ -690,6 +713,7 @@ describe('useExternalDrop', () => {
       selectedTrackId: null,
       applyEdit: vi.fn(),
       patchRegistry,
+      prepareAssetUpload,
       uploadAsset,
       invalidateAssetRegistry: vi.fn(),
       resolveAssetUrl,
@@ -710,7 +734,8 @@ describe('useExternalDrop', () => {
       await result.current.onTimelineDrop(event);
     });
 
-    expect(uploadAsset).toHaveBeenCalledTimes(1);
+    expect(prepareAssetUpload).toHaveBeenCalledTimes(1);
+    expect(uploadAsset).not.toHaveBeenCalled();
     expect(patchRegistry).not.toHaveBeenCalled();
     expect(handleAssetDrop).not.toHaveBeenCalled();
 
@@ -724,13 +749,25 @@ describe('useExternalDrop', () => {
     });
     await dropPromise;
 
-    expect(uploadAsset).toHaveBeenCalledTimes(1);
-    expect(patchRegistry).toHaveBeenCalledWith('asset-local', {
-      file: 'local-drops/clip.mp4',
-      type: 'video/mp4',
-      duration: 8,
-    }, 'http://127.0.0.1:17333/local-drops/clip.mp4');
-    expect(handleAssetDrop).toHaveBeenCalledWith('asset-local', 'V1', 12, false, false);
+    expect(prepareAssetUpload).toHaveBeenCalledTimes(1);
+    expect(uploadAsset).not.toHaveBeenCalled();
+    expect(patchRegistry).not.toHaveBeenCalled();
+    expect(handleAssetDrop).toHaveBeenCalledWith(
+      'asset-local',
+      'V1',
+      12,
+      false,
+      false,
+      expect.objectContaining({
+        assetKey: 'asset-local',
+        mediaType: 'video',
+        entry: {
+          file: 'local-drops/clip.mp4',
+          type: 'video/mp4',
+          duration: 8,
+        },
+      }),
+    );
     expect(pendingOpsRef.current).toBe(0);
   });
 

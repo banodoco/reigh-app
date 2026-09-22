@@ -647,9 +647,9 @@ export class AstridBridgeDataProvider implements DataProvider {
     });
   }
 
-  async uploadAsset(
+  async prepareAsset(
     file: File,
-    options: UploadAssetOptions,
+    _options: UploadAssetOptions,
   ): Promise<UploadedAssetResult> {
     const projectRootHandle = await this.getProjectRootHandle();
     const permission = await ensurePermission(projectRootHandle, 'readwrite');
@@ -681,8 +681,16 @@ export class AstridBridgeDataProvider implements DataProvider {
       entry = enriched.entry;
     }
 
-    await this.registerAsset(options.timelineId, assetId, entry);
     return { assetId, entry };
+  }
+
+  async uploadAsset(
+    file: File,
+    options: UploadAssetOptions,
+  ): Promise<UploadedAssetResult> {
+    const result = await this.prepareAsset(file, options);
+    await this.registerAsset(options.timelineId, result.assetId, result.entry);
+    return result;
   }
 
   async onUpload(request: AssetUploadRequest): Promise<UploadedAssetResult> {

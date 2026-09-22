@@ -8,7 +8,7 @@ import { getClipTimelineDuration } from '@/tools/video-editor';
 import { videoEditorPathWithTimeline } from '@/tools/video-editor/lib/video-editor-path';
 import { videoEditorSettings } from '@/tools/video-editor/settings/videoEditorDefaults';
 import {
-  executeGenerationAssetRegistrationPlan,
+  getPlayableAssetKind,
   planGenerationAssetRegistration,
 } from '@/tools/video-editor/lib/timeline-asset-plans';
 import {
@@ -99,16 +99,11 @@ export function useAddToVideoEditor(media: GenerationRow | undefined): UseAddToV
         return;
       }
 
-      const { assetKey, persistPromise } = executeGenerationAssetRegistrationPlan({
-        plan: registrationPlan,
-        patchRegistry: ops.patchRegistry,
-        registerAsset: ops.registerAsset,
-      });
-      void persistPromise.catch((error) => {
-        console.error('[video-editor] Failed to persist add-to-editor asset:', error);
-        ops.unpatchRegistry(assetKey);
-        toast.error('Failed to save asset');
-      });
+      const mediaType = getPlayableAssetKind(registrationPlan.assetEntry);
+      if (!mediaType) {
+        toast.error('Could not determine the asset media type');
+        return;
+      }
 
       const clips = data.resolvedConfig?.clips ?? [];
       const timelineEnd = clips.reduce(
@@ -116,11 +111,16 @@ export function useAddToVideoEditor(media: GenerationRow | undefined): UseAddToV
         0,
       );
       const insertResult = commands.addClip({
-        assetId: assetKey,
+        preparedAsset: {
+          assetKey: registrationPlan.assetId,
+          mediaType,
+          durationSeconds: registrationPlan.assetEntry.duration ?? null,
+          entry: registrationPlan.assetEntry,
+          source: 'registered',
+        },
         time: timelineEnd,
       });
       if (!insertResult.ok) {
-        ops.unpatchRegistry(assetKey);
         toast.error(insertResult.error.message);
       }
       return;

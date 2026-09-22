@@ -2,6 +2,9 @@ import { useCallback, useEffect, useRef, useState, type MutableRefObject } from 
 import {
   createTimelineCommandRunner,
   MEDIA_COMMAND_DESCRIPTORS,
+  type AddMediaCommand,
+  type PlacePreparedMediaCommand,
+  type SwapMediaCommand,
   type TimelineCommandHistoryMetadata,
 } from '@/tools/video-editor/commands/index.ts';
 import { useVideoEditorRuntime } from '@/tools/video-editor/contexts/VideoEditorRuntimeContext.tsx';
@@ -34,7 +37,7 @@ const CHECKPOINT_RETENTION_MS = 24 * 60 * 60 * 1000;
 const SESSION_IDLE_MS = 5 * 60 * 1000;
 const EDIT_DISTANCE_CHECKPOINT_THRESHOLD = 30;
 const UNTRANSACTED_COLLAPSE_WINDOW_MS = 300;
-const historyCommandRunner = createTimelineCommandRunner<import('@/tools/video-editor/commands').AddMediaCommand | import('@/tools/video-editor/commands').SwapMediaCommand>(MEDIA_COMMAND_DESCRIPTORS);
+const historyCommandRunner = createTimelineCommandRunner<AddMediaCommand | PlacePreparedMediaCommand | SwapMediaCommand>(MEDIA_COMMAND_DESCRIPTORS);
 
 export interface UseTimelineHistoryArgs {
   dataRef: MutableRefObject<TimelineData | null>;
