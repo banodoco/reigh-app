@@ -13,6 +13,7 @@ import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { generationQueryKeys } from '@/shared/lib/queryKeys/generations';
 import type { GenerationVariant } from '@/shared/hooks/variants/useVariants';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
+import { useRuntimeAuthority } from '@/app/runtime/runtimeAuthority';
 
 interface ToggleStarParams {
   variantId: string;
@@ -22,6 +23,7 @@ interface ToggleStarParams {
 
 export function useToggleVariantStar() {
   const queryClient = useQueryClient();
+  const { runtimeAuthority } = useRuntimeAuthority();
 
   const mutation = useMutation({
     mutationFn: async ({ variantId, starred }: ToggleStarParams) => {
@@ -74,7 +76,9 @@ export function useToggleVariantStar() {
   });
 
   return {
-    toggleStar: mutation.mutate,
-    isToggling: mutation.isPending,
+    toggleStar: runtimeAuthority
+      ? (_params: ToggleStarParams) => undefined
+      : mutation.mutate,
+    isToggling: runtimeAuthority ? false : mutation.isPending,
   };
 }

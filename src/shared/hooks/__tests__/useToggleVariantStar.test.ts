@@ -59,4 +59,23 @@ describe('useToggleVariantStar', () => {
       expect(result.current.isToggling).toBe(false);
     });
   });
+
+  it.each([
+    ['/tools/video-editor?localProject=local-project&localTimeline=timeline-1', 'local Runtime'],
+    ['/tools/image-generation?runtime=1&runtimeProject=runtime-project&runtimeTimeline=timeline-1', 'explicit Runtime'],
+  ])('suppresses %s star mutations before network work', async (path) => {
+    window.history.replaceState({}, '', path);
+    const { result } = renderHookWithProviders(() => useToggleVariantStar());
+
+    act(() => {
+      result.current.toggleStar({
+        variantId: 'v-runtime',
+        generationId: 'g-runtime',
+        starred: true,
+      });
+    });
+
+    await waitFor(() => expect(result.current.isToggling).toBe(false));
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
 });

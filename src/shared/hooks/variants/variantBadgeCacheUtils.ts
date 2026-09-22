@@ -1,4 +1,4 @@
-import type { DerivedCountsResult } from '@/shared/lib/generationTransformers';
+import type { DerivedCountsResult } from './variantBadgeTypes';
 
 export function withGenerationBadgeCount(
   oldData: DerivedCountsResult | undefined,

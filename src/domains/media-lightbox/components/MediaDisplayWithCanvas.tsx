@@ -208,7 +208,7 @@ export const MediaDisplayWithCanvas: React.FC<MediaDisplayWithCanvasProps> = ({
       <div className={`relative flex items-center justify-center ${containerClassName}`}>
         <div className="text-center text-white bg-red-900/80 rounded-lg p-6 backdrop-blur-sm border border-red-500/50 max-w-md">
           <p className="font-medium text-lg mb-2">⚠️ Failed to Load Image</p>
-          <p className="text-white/70 text-sm mb-3">The image could not be loaded (HTTP 400 error).</p>
+          <p className="text-white/70 text-sm mb-3">The media could not be loaded.</p>
           <p className="text-white/50 text-xs break-all mb-3">{effectiveImageUrl}</p>
           <button
             onClick={() => setImageLoadError(false)}

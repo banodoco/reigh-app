@@ -8,6 +8,7 @@
  */
 
 import { hasLocalModeUrlParams } from '@/shared/dev/devSession.ts';
+import { isRuntimeDocumentMode } from './runtimeDocument';
 
 export type AppDataAuthority = 'astrid' | 'supabase-deferred';
 
@@ -22,8 +23,9 @@ const runtimeDataAuthorityEnvironment: DataAuthorityEnvironment = {
 export function resolveAppDataAuthority(
   search: string,
   env: DataAuthorityEnvironment = runtimeDataAuthorityEnvironment,
+  pathname: string = typeof window === 'undefined' ? '' : window.location.pathname,
 ): AppDataAuthority {
-  if (hasLocalModeUrlParams(search)) return 'astrid';
+  if (hasLocalModeUrlParams(search) || isRuntimeDocumentMode(search, pathname)) return 'astrid';
   return env.VITE_DATA_AUTHORITY === 'supabase-deferred'
     ? 'supabase-deferred'
     : 'astrid';

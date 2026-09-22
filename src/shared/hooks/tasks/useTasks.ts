@@ -17,6 +17,10 @@ import {
   useRealtimeTask,
   upsertRealtimeTaskSnapshot,
 } from '@/shared/state/realtimeStore';
+import { getRuntimeDocumentProjectId } from '@/app/runtime/runtimeDocument';
+import { useRuntimeAuthority, type RuntimeAuthority } from '@/app/runtime/runtimeAuthority';
+import { ReighRuntimeClient } from '@/integrations/runtime/client';
+import type { Task as RuntimeTask } from '@/integrations/runtime/generated';
 
 // Types for API responses and request bodies
 // Ensure these align with your server-side definitions and Task type in @/types/tasks.ts
@@ -40,22 +44,64 @@ function seedTaskSnapshot(task: Task | null | undefined, projectId?: string | nu
   return upsertRealtimeTaskSnapshot(task, projectId) ?? task;
 }
 
-async function fetchSingleTask(taskId: string, projectId?: string | null): Promise<Task | null> {
-  const effectiveProjectId = resolveTaskProjectScope(projectId);
+async function fetchSingleTask(
+  taskId: string,
+  projectId?: string | null,
+  authority?: RuntimeAuthority,
+): Promise<Task | null> {
+  const effectiveProjectId = authority?.runtimeAuthority
+    ? authority.runtimeProjectId
+    : resolveTaskProjectScope(projectId);
   if (!taskId || !effectiveProjectId) {
     return null;
+  }
+
+  const runtimeProjectId = authority?.runtimeAuthority
+    ? authority.runtimeProjectId
+    : getRuntimeDocumentProjectId();
+  if (runtimeProjectId) {
+    const runtimeTask = await new ReighRuntimeClient().getTask(taskId);
+    return runtimeTask.project_id === runtimeProjectId ? mapRuntimeTask(runtimeTask) : null;
   }
 
   const task = await fetchTaskInProject(taskId, effectiveProjectId);
   return seedTaskSnapshot(task, effectiveProjectId) ?? null;
 }
 
+function mapRuntimeTask(task: RuntimeTask): Task {
+  const status: Task['status'] = task.state === 'succeeded'
+    ? 'Complete'
+    : task.state === 'failed'
+      ? 'Failed'
+      : task.state === 'cancelled'
+        ? 'Cancelled'
+        : task.state === 'queued' || task.state === 'ready'
+          ? 'Queued'
+          : 'In Progress';
+  const params = task.spec && typeof task.spec.params === 'object' && task.spec.params !== null
+    ? task.spec.params as Record<string, unknown>
+    : {};
+  return {
+    id: task.task_id,
+    taskType: typeof task.spec.family === 'string' ? task.spec.family : task.capability_id,
+    params,
+    status,
+    createdAt: task.created_at,
+    updatedAt: task.updated_at,
+    projectId: task.project_id ?? '',
+    errorMessage: task.result && typeof task.result.error === 'string' ? task.result.error : undefined,
+  };
+}
+
 export function getCachedTaskSnapshot(
   queryClient: QueryClient,
   taskId: string,
   projectId?: string | null,
+  authority?: RuntimeAuthority,
 ): Task | null | undefined {
-  const effectiveProjectId = resolveTaskProjectScope(projectId);
+  const effectiveProjectId = authority?.runtimeAuthority
+    ? authority.runtimeProjectId
+    : resolveTaskProjectScope(projectId);
   if (!taskId || !effectiveProjectId) {
     return undefined;
   }
@@ -65,8 +111,13 @@ export function getCachedTaskSnapshot(
     return storeTask;
   }
 
+  const runtimeProjectId = authority?.runtimeAuthority
+    ? authority.runtimeProjectId
+    : getRuntimeDocumentProjectId();
   const cachedTask = queryClient.getQueryData<Task | null>(
-    taskQueryKeys.single(taskId, effectiveProjectId),
+    runtimeProjectId
+      ? ['runtime', 'tasks', 'single', runtimeProjectId, taskId]
+      : taskQueryKeys.single(taskId, effectiveProjectId),
   );
   return seedTaskSnapshot(cachedTask, effectiveProjectId);
 }
@@ -74,12 +125,20 @@ export function getCachedTaskSnapshot(
 export function createSingleTaskQueryOptions(
   taskId: string,
   projectId?: string | null,
+  authority?: RuntimeAuthority,
 ): UseQueryOptions<Task | null, Error> {
-  const effectiveProjectId = resolveTaskProjectScope(projectId);
+  const effectiveProjectId = authority?.runtimeAuthority
+    ? authority.runtimeProjectId
+    : resolveTaskProjectScope(projectId);
+  const runtimeProjectId = authority?.runtimeAuthority
+    ? authority.runtimeProjectId
+    : getRuntimeDocumentProjectId();
 
   return {
-    queryKey: taskQueryKeys.single(taskId, effectiveProjectId),
-    queryFn: () => fetchSingleTask(taskId, effectiveProjectId),
+    queryKey: runtimeProjectId
+      ? ['runtime', 'tasks', 'single', runtimeProjectId, taskId]
+      : taskQueryKeys.single(taskId, effectiveProjectId),
+    queryFn: () => fetchSingleTask(taskId, effectiveProjectId, authority),
     enabled: !!taskId && !!effectiveProjectId,
     ...QUERY_PRESETS.immutable,
   };
@@ -89,22 +148,26 @@ export async function fetchAndSeedTaskQuery(
   queryClient: QueryClient,
   taskId: string,
   projectId?: string | null,
+  authority?: RuntimeAuthority,
 ): Promise<Task | null> {
-  return queryClient.fetchQuery(createSingleTaskQueryOptions(taskId, projectId));
+  return queryClient.fetchQuery(createSingleTaskQueryOptions(taskId, projectId, authority));
 }
 
 // Hook to get a single task by ID
 // Uses IMMUTABLE_PRESET since task data rarely changes after creation
 export const useGetTask = (taskId: string, projectId?: string | null) => {
-  const effectiveProjectId = resolveTaskProjectScope(projectId);
+  const authority = useRuntimeAuthority();
+  const effectiveProjectId = authority.runtimeAuthority
+    ? authority.runtimeProjectId
+    : resolveTaskProjectScope(projectId);
   const queryClient = useQueryClient();
   const storeTask = useRealtimeTask(taskId, effectiveProjectId);
 
   useEffect(() => {
-    getCachedTaskSnapshot(queryClient, taskId, effectiveProjectId);
-  }, [effectiveProjectId, queryClient, taskId]);
+    getCachedTaskSnapshot(queryClient, taskId, effectiveProjectId, authority);
+  }, [authority, effectiveProjectId, queryClient, taskId]);
 
-  const query = useQuery<Task | null, Error>(createSingleTaskQueryOptions(taskId, effectiveProjectId));
+  const query = useQuery<Task | null, Error>(createSingleTaskQueryOptions(taskId, effectiveProjectId, authority));
 
   useEffect(() => {
     if (query.data !== undefined) {

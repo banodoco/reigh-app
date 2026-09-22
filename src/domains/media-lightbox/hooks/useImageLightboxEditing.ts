@@ -7,6 +7,7 @@ import { useImageEditOrchestrator } from './useImageEditOrchestrator';
 import { useAdjustedTaskDetails } from './useAdjustedTaskDetails';
 import { usePanelModeRestore } from './usePanelModeRestore';
 import { useLightboxVariantBadges } from './useLightboxVariantBadges';
+import { resolveVariantThumbnailUrl } from '../utils/variantThumbnail';
 
 interface UseImageLightboxEditingProps {
   media: GenerationRow;
@@ -55,7 +56,7 @@ export function useImageLightboxEditing(
       shotId,
       toolTypeOverride,
       initialActive,
-      thumbnailUrl: sharedState.variants.activeVariant?.thumbnail_url || media.thumbUrl,
+      thumbnailUrl: resolveVariantThumbnailUrl(sharedState.variants.activeVariant, media),
     },
     displayContext: {
       imageDimensions,

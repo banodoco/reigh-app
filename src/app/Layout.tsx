@@ -31,7 +31,7 @@ import { useResetCurrentShotOnRouteChange } from './hooks/useResetCurrentShotOnR
 import { useTextCase } from '@/shared/hooks/useTextCase';
 import { LayoutMainContent } from './components/LayoutMainContent';
 import { usePanesStore } from '@/shared/state/panesStore';
-import { isLocalTestMode } from '@/app/localTestRuntime';
+import { hasLocalModeUrlParams } from '@/shared/dev/devSession';
 import { isRuntimeDocumentMode } from '@/app/runtime/runtimeDocument';
 
 // Scroll to top component
@@ -53,13 +53,17 @@ export const Layout: React.FC = () => {
   // still use the normal Layout so the production shell is exercised, but
   // they must not be redirected to Home (which mounts the legacy Supabase
   // auth subscription). AuthProvider already short-circuits this mode; keep
-  // the route-access decision on the same explicit DEV/query contract rather
-  // than inventing a fake authenticated user.
+  // the route-access decision on the same explicit query contract rather than
+  // inventing a fake authenticated user.
   const localParams = new URLSearchParams(search);
   const localProject = localParams.get('localProject')?.trim();
-  const isLocalAstridDocumentTest = isLocalTestMode(import.meta.env, search)
+  const isLocalAstridDocument = hasLocalModeUrlParams(search)
     && Boolean(localProject)
-    && (isVideoEditorRoute(pathname) || pathname === '/tools/travel-between-images');
+    && (
+      isVideoEditorRoute(pathname)
+      || pathname === '/tools/image-generation'
+      || pathname === '/tools/travel-between-images'
+    );
   const isRuntimeDocument = isRuntimeDocumentMode(search, pathname);
   const { isVideoEditorShellActive } = useVideoEditorRouteState();
   const isTasksPaneLocked = usePanesStore((state) => state.isTasksPaneLocked);
@@ -104,7 +108,7 @@ export const Layout: React.FC = () => {
   // probe fails the user is sent to the public home page — one hop, no loop:
   // `/` outside Layout does not re-enter this gate (and in WEB env `/` is
   // `HomeWithAuthRedirect`, which renders HomePage directly).
-  if (!isAuthenticated && !isLocalAstridDocumentTest && !isRuntimeDocument) {
+  if (!isAuthenticated && !isLocalAstridDocument && !isRuntimeDocument) {
     return <Navigate to="/home" replace state={{ fromProtected: true }} />;
   }
 

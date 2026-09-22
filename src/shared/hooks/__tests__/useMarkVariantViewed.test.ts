@@ -14,23 +14,10 @@ const mockUpdate = vi.fn(() => ({
 const mockFrom = vi.fn(() => ({
   update: mockUpdate,
 }));
-const mockLocalMarkViewed = vi.fn().mockResolvedValue({
-  generation_id: 'gen-local',
-  variant_id: 'variant-local',
-  viewed_at: '2026-08-27T00:00:00.000Z',
-  marked_count: 1,
-});
-
 vi.mock('@/integrations/supabase/client', () => ({
   getSupabaseClient: vi.fn(() => ({
     from: mockFrom,
   })),
-}));
-
-vi.mock('@/integrations/astrid/client', () => ({
-  AstridLocalClient: class {
-    gallery = { markViewed: mockLocalMarkViewed };
-  },
 }));
 
 import { useMarkVariantViewed } from '@/shared/hooks/variants/useMarkVariantViewed';
@@ -161,7 +148,7 @@ describe('useMarkVariantViewed', () => {
     expect(mockIs).toHaveBeenCalledWith('viewed_at', null);
   });
 
-  it('uses the authenticated local bridge and never calls Supabase in local mode', async () => {
+  it('suppresses viewed mutations for local Runtime documents before network work', async () => {
     window.history.replaceState(
       {},
       '',
@@ -175,9 +162,24 @@ describe('useMarkVariantViewed', () => {
       result.current.markAllViewed('gen-local');
     });
 
-    await waitFor(() => expect(mockLocalMarkViewed).toHaveBeenCalledTimes(2));
-    expect(mockLocalMarkViewed).toHaveBeenCalledWith('gen-local', 'variant-local');
-    expect(mockLocalMarkViewed.mock.calls.some((args) => args.length === 1 && args[0] === 'gen-local')).toBe(true);
+    await waitFor(() => expect(result.current.isMarking).toBe(false));
+    expect(mockFrom).not.toHaveBeenCalled();
+  });
+
+  it('suppresses viewed mutations for explicit Runtime documents before network work', async () => {
+    window.history.replaceState(
+      {},
+      '',
+      '/tools/image-generation?runtime=1&runtimeProject=runtime-project&runtimeTimeline=timeline-1',
+    );
+    const { result } = renderHookWithProviders(() => useMarkVariantViewed());
+
+    act(() => {
+      result.current.markViewed({ variantId: 'variant-runtime', generationId: 'gen-runtime' });
+      result.current.markAllViewed('gen-runtime');
+    });
+
+    await waitFor(() => expect(result.current.isMarkingAll).toBe(false));
     expect(mockFrom).not.toHaveBeenCalled();
   });
 });

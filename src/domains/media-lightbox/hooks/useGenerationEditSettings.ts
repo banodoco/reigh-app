@@ -6,6 +6,7 @@ import type { Json } from '@/integrations/supabase/jsonTypes';
 import { toJson } from '@/shared/lib/supabaseTypeHelpers';
 import { updateGenerationParams } from '@/integrations/supabase/repositories/generationMutationsRepository';
 import { fetchGenerationDetailQuery } from '@/shared/hooks/generations/useGenerationDetail';
+import { useRuntimeAuthority } from '@/app/runtime/runtimeAuthority';
 
 // Import canonical types from single source of truth
 import {
@@ -158,6 +159,7 @@ export function useGenerationEditSettings({
   bootstrapSettings = null,
 }: UseGenerationEditSettingsProps): UseGenerationEditSettingsReturn {
   const queryClient = useQueryClient();
+  const { runtimeAuthority } = useRuntimeAuthority();
   const bootstrapData = bootstrapSettings
     ? {
         ...DEFAULT_EDIT_SETTINGS,
@@ -182,7 +184,10 @@ export function useGenerationEditSettings({
   } = useAutoSaveSettings<AutoSaveGenerationEditSettings>({
     defaults: DEFAULT_EDIT_SETTINGS as AutoSaveGenerationEditSettings,
     debounceMs: 500,
-    enabled,
+    // Runtime generation parameter mutation is not admitted yet. Keep the
+    // editor state local while preventing both the initial read and the
+    // debounced Supabase write from crossing the authority boundary.
+    enabled: enabled && !runtimeAuthority,
     bootstrapData: bootstrapData as AutoSaveGenerationEditSettings | null,
     debugTag: '[useGenerationEditSettings]',
     customLoadSave: {

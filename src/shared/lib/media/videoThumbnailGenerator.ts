@@ -64,9 +64,17 @@ function extractThumbnailFromVideo(
 async function uploadThumbnailToStorage(
   blob: Blob,
   generationId: string,
-  _projectId: string
+  _projectId: string,
+  canPublish: () => boolean = () => true,
 ): Promise<string> {
+  if (!canPublish()) {
+    throw new Error('Thumbnail publication was cancelled because cloud authority changed');
+  }
   const userId = await resolveAuthenticatedMediaUserId();
+
+  if (!canPublish()) {
+    throw new Error('Thumbnail publication was cancelled because cloud authority changed');
+  }
 
   const fileName = `${generationId}-thumb.jpg`;
   const filePath = storagePaths.thumbnail(userId, fileName);
@@ -93,8 +101,12 @@ async function uploadThumbnailToStorage(
  */
 async function updateGenerationThumbnail(
   generationId: string,
-  thumbnailUrl: string
+  thumbnailUrl: string,
+  canPublish: () => boolean = () => true,
 ): Promise<void> {
+  if (!canPublish()) {
+    throw new Error('Thumbnail publication was cancelled because cloud authority changed');
+  }
 
   const { error } = await supabase().from('generations')
     .update({ thumbnail_url: thumbnailUrl })
@@ -112,18 +124,31 @@ async function updateGenerationThumbnail(
 export async function generateAndUploadThumbnail(
   videoUrl: string,
   generationId: string,
-  projectId: string
+  projectId: string,
+  canPublish: () => boolean = () => true,
 ): Promise<ThumbnailGenerationResult> {
   try {
 
     // Step 1: Extract thumbnail from video (first frame)
     const thumbnailBlob = await extractThumbnailFromVideo(videoUrl, 0.001);
 
+    if (!canPublish()) {
+      throw new Error('Thumbnail publication was cancelled because cloud authority changed');
+    }
+
     // Step 2: Upload to storage
-    const thumbnailUrl = await uploadThumbnailToStorage(thumbnailBlob, generationId, projectId);
+    const thumbnailUrl = await uploadThumbnailToStorage(
+      thumbnailBlob,
+      generationId,
+      projectId,
+      canPublish,
+    );
 
     // Step 3: Update database
-    await updateGenerationThumbnail(generationId, thumbnailUrl);
+    if (!canPublish()) {
+      throw new Error('Thumbnail publication was cancelled because cloud authority changed');
+    }
+    await updateGenerationThumbnail(generationId, thumbnailUrl, canPublish);
 
     return {
       success: true,

@@ -136,7 +136,8 @@ describe('ProjectTimelineSelectors', () => {
     await user.click(trigger);
 
     expect(await screen.findByText('No Astrid projects found')).toBeInTheDocument();
-    expect(screen.getByText(/cd .*Astrid.*astrid serve --port 17333/)).toBeInTheDocument();
+    expect(screen.getByText(/banodoco-local up --profile astrid --data-root/)).toBeInTheDocument();
+    expect(screen.getByText('npm run dev:local')).toBeInTheDocument();
     expect(screen.getByText(/npm run dev:editor:bridge/)).toBeInTheDocument();
   });
 

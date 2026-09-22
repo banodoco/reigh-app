@@ -199,6 +199,57 @@ describe('useProjectGenerations (bridge gallery reads R12)', () => {
     });
   });
 
+  it('uses a video variant MIME even when the generation type is an operation label', async () => {
+    const listGenerations = vi.fn().mockResolvedValue({
+      items: [{
+        generation_id: 'generation-typed-video',
+        project_id: 'runtime-project',
+        source_task_id: 'runtime-task-typed-video',
+        type: 'vibecomfy.run',
+        status: 'completed',
+        metadata: {},
+        version: 1,
+        created_at: '2026-09-11T00:00:00Z',
+        updated_at: '2026-09-11T00:01:00Z',
+      }],
+      next_cursor: null,
+    });
+    const listVariants = vi.fn().mockResolvedValue({
+      items: [{
+        variant_id: 'variant-typed-video',
+        generation_id: 'generation-typed-video',
+        object_id: 'sha256:typed-video',
+        variant_type: 'original',
+        metadata: { media_type: 'video/mp4', filename: 'render.mp4', is_primary: true },
+        created_at: '2026-09-11T00:00:30Z',
+      }],
+      next_cursor: null,
+    });
+    const client = {
+      listGenerations,
+      listVariants,
+      objectContentUrl: (objectId: string) => `/api/runtime/v1/objects/${encodeURIComponent(objectId)}`,
+    };
+
+    const result = await fetchRuntimeGenerationsForProject(
+      client,
+      'runtime-project',
+      50,
+      0,
+      { mediaType: 'video' },
+    );
+
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0]).toMatchObject({
+      id: 'generation-typed-video',
+      type: 'vibecomfy.run',
+      contentType: 'video/mp4',
+      local_file_mime: 'video/mp4',
+      isVideo: true,
+      url: '/api/runtime/v1/objects/sha256%3Atyped-video',
+    });
+  });
+
   it('fetchGenerations maps generation rows into gallery items with Runtime CAS display URLs', async () => {
     const result = await fetchGenerations(SLUG, 100, 0);
 

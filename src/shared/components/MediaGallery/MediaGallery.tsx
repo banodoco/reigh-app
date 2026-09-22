@@ -34,6 +34,7 @@ import { DEFAULT_GALLERY_CONFIG } from '@/shared/components/MediaGallery/types';
 import { getGenerationId } from '@/shared/lib/media/mediaTypeHelpers';
 import { GRID_COLUMN_CLASSES, calculateGalleryLayout } from '@/shared/components/MediaGallery/utils';
 import { useCurrentShot, useShotAdditionSelectionOptional } from '@/shared/state/selectionStore';
+import { useRuntimeAuthority } from '@/app/runtime/runtimeAuthority';
 
 interface UseAspectRatioLayoutParams {
   projectAspectRatio?: string;
@@ -130,6 +131,7 @@ const MediaGallery: React.FC<MediaGalleryProps> = React.memo((props) => {
     hidePagination, hideTopFilters, hideMediaTypeFilter, hideBottomPagination, hideShotNotifier,
   } = config;
   const { selectedProjectId } = useProjectSelectionContext();
+  const { runtimeAuthority } = useRuntimeAuthority();
   const { projects } = useProjectCrudContext();
   const { currentShotId } = useCurrentShot();
   const currentProject = projects.find(p => p.id === selectedProjectId);
@@ -276,7 +278,9 @@ const MediaGallery: React.FC<MediaGalleryProps> = React.memo((props) => {
   useBackgroundThumbnailGenerator({
     videos: paginationHook.paginatedImages || [],
     projectId: selectedProjectId,
-    enabled: !!selectedProjectId && (paginationHook.paginatedImages?.length || 0) > 0,
+    enabled: !runtimeAuthority
+      && Boolean(selectedProjectId)
+      && (paginationHook.paginatedImages?.length || 0) > 0,
   });
   const { paginatedImagesWithBadges } = usePaginatedImagesWithBadges({
     paginatedImages: paginationHook.paginatedImages,

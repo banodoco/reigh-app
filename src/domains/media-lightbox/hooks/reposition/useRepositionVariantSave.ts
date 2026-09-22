@@ -11,6 +11,7 @@ import { getGenerationId } from '@/shared/lib/media/mediaTypeHelpers';
 import { VARIANT_TYPE } from '@/shared/constants/variantTypes';
 import { TOOL_IDS } from '@/shared/lib/tooling/toolIds';
 import { toJson } from '@/shared/lib/supabaseTypeHelpers';
+import { useRuntimeAuthority } from '@/app/runtime/runtimeAuthority';
 
 /** Extended media fields that may be present at runtime from gallery/query layer */
 interface MediaWithShotFields {
@@ -70,11 +71,16 @@ export function useRepositionVariantSave({
   markSkipNextCache,
 }: UseRepositionVariantSaveProps): UseRepositionVariantSaveReturn {
   const queryClient = useQueryClient();
+  const { runtimeAuthority } = useRuntimeAuthority();
   const [isSavingAsVariant, setIsSavingAsVariant] = useState(false);
   const [saveAsVariantSuccess, setSaveAsVariantSuccess] = useState(false);
 
   // Save transformed image as a variant (without AI generation)
   const handleSaveAsVariant = useCallback(async () => {
+    if (runtimeAuthority) {
+      toast.error('Runtime image-edit publication is not installed for this surface.');
+      return;
+    }
     if (!selectedProjectId || !imageDimensions) {
       toast.error('Missing project or image dimensions');
       return;
@@ -298,6 +304,7 @@ export function useRepositionVariantSave({
     clearCacheForKey,
     markSkipNextCache,
     activeVariantId,
+    runtimeAuthority,
   ]);
 
   return {

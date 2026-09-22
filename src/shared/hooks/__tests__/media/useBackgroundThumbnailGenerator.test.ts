@@ -1,8 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHookWithProviders } from '@/test/test-utils';
+import { waitFor } from '@testing-library/react';
 
-vi.mock('@/shared/lib/videoThumbnailGenerator', () => ({
-  generateAndUploadThumbnail: vi.fn(),
+const mockGenerateAndUploadThumbnail = vi.hoisted(() => vi.fn());
+const mockIsDeferredCloudDataAuthority = vi.hoisted(() => vi.fn(() => false));
+
+vi.mock('@/shared/lib/media/videoThumbnailGenerator', () => ({
+  generateAndUploadThumbnail: mockGenerateAndUploadThumbnail,
+}));
+
+vi.mock('@/app/runtime/dataAuthority', () => ({
+  isDeferredCloudDataAuthority: mockIsDeferredCloudDataAuthority,
 }));
 
 vi.mock('@/shared/lib/errorHandling/runtimeError', () => ({
@@ -14,6 +22,8 @@ import { useBackgroundThumbnailGenerator } from '@/shared/hooks/media/useBackgro
 describe('useBackgroundThumbnailGenerator', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockIsDeferredCloudDataAuthority.mockReturnValue(false);
+    mockGenerateAndUploadThumbnail.mockResolvedValue({ success: true, thumbnailUrl: 'thumb.jpg' });
   });
 
   it('returns initial state with no videos', () => {
@@ -102,5 +112,26 @@ describe('useBackgroundThumbnailGenerator', () => {
     );
 
     expect(result.current.queueLength).toBe(0);
+  });
+
+  it('processes videos only under explicit deferred-cloud authority', async () => {
+    mockIsDeferredCloudDataAuthority.mockReturnValue(true);
+
+    const { result } = renderHookWithProviders(() =>
+      useBackgroundThumbnailGenerator({
+        videos: [{ id: 'v-1', location: 'test.mp4', isVideo: true } as unknown],
+        projectId: 'proj-1',
+        enabled: true,
+      }),
+    );
+
+    await waitFor(() => expect(mockGenerateAndUploadThumbnail).toHaveBeenCalledTimes(1));
+    expect(mockGenerateAndUploadThumbnail).toHaveBeenCalledWith(
+      'test.mp4',
+      'v-1',
+      'proj-1',
+      expect.any(Function),
+    );
+    await waitFor(() => expect(result.current.statuses['v-1']?.status).toBe('success'));
   });
 });

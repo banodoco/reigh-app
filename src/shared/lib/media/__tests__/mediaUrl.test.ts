@@ -28,6 +28,30 @@ describe('getDisplayUrl', () => {
     expect(getDisplayUrl('https://example.com/img.png?t=123', true)).toBe('https://example.com/img.png?t=123');
   });
 
+  it('preserves resolved managed media routes even with a different API target', () => {
+    vi.stubEnv('VITE_API_TARGET_URL', 'http://127.0.0.1:8085');
+    const managedUrl = '/api/astrid/v1/objects/sha256%3Af5d9b810/content?download=0';
+
+    expect(getDisplayUrl(managedUrl)).toBe(managedUrl);
+  });
+
+  it('cache-busts managed media without changing its host or route', () => {
+    vi.stubEnv('VITE_API_TARGET_URL', 'http://127.0.0.1:8085');
+    vi.spyOn(Date, 'now').mockReturnValue(1700000000000);
+
+    expect(getDisplayUrl('/api/astrid/v1/objects/sha256%3Aabc?download=0', true))
+      .toBe('/api/astrid/v1/objects/sha256%3Aabc?download=0&t=1700000000000');
+  });
+
+  it('preserves runtime managed routes and keeps fragments after cache-busting', () => {
+    expect(getDisplayUrl('/api/runtime/v1/objects/sha256%3Aabc#frame'))
+      .toBe('/api/runtime/v1/objects/sha256%3Aabc#frame');
+
+    vi.spyOn(Date, 'now').mockReturnValue(1700000000000);
+    expect(getDisplayUrl('/api/astrid/v1/objects/sha256%3Aabc#frame', true))
+      .toBe('/api/astrid/v1/objects/sha256%3Aabc?t=1700000000000#frame');
+  });
+
   it('adds cache-busting for flipped_ relative paths', () => {
     vi.spyOn(Date, 'now').mockReturnValue(1700000000000);
     const result = getDisplayUrl('/storage/flipped_img.png');

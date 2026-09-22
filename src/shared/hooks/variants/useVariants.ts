@@ -14,6 +14,11 @@ import { getProjectSelectionFallbackId } from '@/shared/contexts/projectSelectio
 import { bridgeMediaUrl } from '@/shared/lib/media/bridgeMediaUrl';
 import { bridgeCapabilityUnavailable } from '@/integrations/astrid/capability';
 import { useAuthSafe } from '@/shared/contexts/AuthContext';
+import { useRuntimeAuthority } from '@/app/runtime/runtimeAuthority';
+import {
+  fetchRuntimeGenerationSnapshot,
+} from '@/integrations/runtime/generationAccess';
+import { ReighRuntimeClient } from '@/integrations/runtime/client';
 import { coerceVariantType, type VariantType } from '@/shared/constants/variantTypes';
 import { generationQueryKeys } from '@/shared/lib/queryKeys/generations';
 import { useAppEventListener } from '@/shared/lib/typedEvents';
@@ -63,6 +68,7 @@ export const useVariants = ({
   const { isAuthenticated } = useAuthSafe();
   const queryClient = useQueryClient();
   const [activeVariantId, setActiveVariantIdInternal] = useState<string | null>(null);
+  const { runtimeAuthority, runtimeProjectId } = useRuntimeAuthority();
   
   // Stable callback - no deps needed since we just forward to internal setter
   const setActiveVariantId = useCallback((variantId: string | null) => {
@@ -71,9 +77,54 @@ export const useVariants = ({
 
   // Fetch variants for this generation
   const { data: variants = [], isLoading, error, refetch } = useQuery({
-    queryKey: generationId ? generationQueryKeys.variants(generationId) : ['generation-variants', null],
+    queryKey: generationId
+      ? runtimeProjectId
+        ? ['runtime', 'generation-variants', runtimeProjectId, generationId]
+        : generationQueryKeys.variants(generationId)
+      : ['generation-variants', null],
     queryFn: async () => {
       if (!generationId) return [];
+
+      if (runtimeAuthority) {
+        if (!runtimeProjectId) return [];
+        const runtimeClient = new ReighRuntimeClient();
+        const snapshot = await fetchRuntimeGenerationSnapshot(generationId, runtimeClient);
+        if (!snapshot || snapshot.generation.project_id !== runtimeProjectId) return [];
+        const primary = snapshot.variants.find((variant) => variant.metadata.is_primary === true)
+          ?? snapshot.variants.find((variant) => variant.variant_type === 'original');
+        return snapshot.variants.map((variant) => {
+          const thumbnail = variant.thumbnail;
+          const thumbnailUrl = thumbnail
+            && thumbnail.source_object_id === variant.object_id
+            ? runtimeClient.objectContentUrl(thumbnail.object_id)
+            : null;
+          const variantMetadata = variant.metadata ?? {};
+          const variantParams = variantMetadata.params && typeof variantMetadata.params === 'object'
+            ? variantMetadata.params as Record<string, unknown>
+            : {};
+          const mediaType = typeof variantMetadata.media_type === 'string'
+            ? variantMetadata.media_type
+            : typeof variantMetadata.content_type === 'string'
+              ? variantMetadata.content_type
+              : undefined;
+          return {
+            id: variant.variant_id,
+            generation_id: variant.generation_id,
+            location: variant.object_id ? runtimeClient.objectContentUrl(variant.object_id) : '',
+            thumbnail_url: thumbnailUrl,
+            params: Object.keys(variantParams).length > 0 || mediaType
+              ? { ...variantParams, ...(mediaType ? { media_type: mediaType } : {}) }
+              : null,
+            is_primary: variant.variant_id === primary?.variant_id,
+            starred: variantMetadata.starred === true,
+            variant_type: coerceVariantType(variant.variant_type),
+            name: typeof variantMetadata.name === 'string' ? variantMetadata.name : null,
+            created_at: variant.created_at,
+            viewed_at: variant.viewed_at ?? null,
+          };
+        }) as GenerationVariant[];
+      }
+
       const detail = await fetchGenerationDetailQuery(queryClient, generationId);
       if (!detail) return [];
 
@@ -96,7 +147,8 @@ export const useVariants = ({
         viewed_at: variant.viewed_at ?? null,
       })) as GenerationVariant[];
     },
-    enabled: enabled && !!generationId && isAuthenticated,
+    enabled: enabled && !!generationId
+      && (runtimeAuthority ? Boolean(runtimeProjectId) : isAuthenticated),
     staleTime: 30000,
   });
 

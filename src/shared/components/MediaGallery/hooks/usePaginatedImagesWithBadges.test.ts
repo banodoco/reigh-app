@@ -98,4 +98,24 @@ describe('usePaginatedImagesWithBadges', () => {
       }),
     ]);
   });
+
+  it('leaves Runtime-projected counts untouched and does not request legacy badges', () => {
+    window.history.pushState({}, '', '/tools/image-generation?runtime=1&runtimeProject=project-1&runtimeTimeline=timeline-1');
+    const images = [{
+      id: 'gen-1',
+      derivedCount: 4,
+      hasUnviewedVariants: false,
+      unviewedVariantCount: 0,
+      location: '/api/runtime/v1/objects/sha256%3A' + 'a'.repeat(64),
+    }] as never;
+
+    const { result } = renderHook(() =>
+      usePaginatedImagesWithBadges({ paginatedImages: images }),
+    );
+
+    expect(mocks.useVariantBadges).toHaveBeenCalledWith([]);
+    expect(result.current.paginatedImagesWithBadges).toEqual(images);
+
+    window.history.pushState({}, '', '/');
+  });
 });

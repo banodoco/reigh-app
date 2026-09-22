@@ -15,6 +15,8 @@ import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { enqueueVariantInvalidation } from '@/shared/hooks/invalidation/useGenerationInvalidation';
 import { getGenerationId } from '@/shared/lib/media/mediaTypeHelpers';
 import type { GenerationRow } from '@/domains/generation/types';
+import { bridgeCapabilityUnavailable } from '@/integrations/astrid/capability';
+import { useRuntimeAuthority } from '@/app/runtime/runtimeAuthority';
 
 interface UseMakeMainVariantProps {
   /** Current media being viewed */
@@ -59,9 +61,21 @@ export function useMakeMainVariant({
   onClose,
 }: UseMakeMainVariantProps): UseMakeMainVariantReturn {
   const queryClient = useQueryClient();
+  const { runtimeAuthority } = useRuntimeAuthority();
   const [isMakingMainVariant, setIsMakingMainVariant] = useState(false);
 
   const handleMakeMainVariant = useCallback(async () => {
+    if (runtimeAuthority) {
+      const unsupported = bridgeCapabilityUnavailable(
+        'promote a Runtime generation variant',
+        'Runtime variant promotion support is not admitted yet.',
+      );
+      normalizeAndPresentError(unsupported, {
+        context: 'useMakeMainVariant.runtimeAuthority',
+        showToast: false,
+      });
+      return;
+    }
 
     setIsMakingMainVariant(true);
     try {
@@ -137,6 +151,7 @@ export function useMakeMainVariant({
     queryClient,
     selectedShotId,
     shotId,
+    runtimeAuthority,
   ]);
 
   return {

@@ -3,6 +3,7 @@ import { probeBridgeSession } from '@/shared/auth/bridgeSession';
 import { requireContextValue } from './contextGuard';
 import { isLocalTestMode } from '@/app/localTestRuntime';
 import { isRuntimeDocumentMode } from '@/app/runtime/runtimeDocument';
+import { hasLocalModeUrlParams } from '@/shared/dev/devSession';
 
 interface AuthContextType {
   userId: string | null;
@@ -18,8 +19,11 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
  * reaches browser code. */
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const localTestMode = isLocalTestMode();
+  const localAstridMode = hasLocalModeUrlParams(
+    typeof window === 'undefined' ? '' : window.location.search,
+  );
   const runtimeDocumentMode = isRuntimeDocumentMode();
-  const sessionlessDocument = localTestMode || runtimeDocumentMode;
+  const sessionlessDocument = localTestMode || localAstridMode || runtimeDocumentMode;
   const [userId, setUserId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(!sessionlessDocument);
 

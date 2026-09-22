@@ -17,6 +17,24 @@ import {
   type VariantProjectScopeStatus,
 } from '@/shared/lib/tasks/generationTaskRepository';
 
+/**
+ * Runtime/local documents own their records through the Astrid workspace.
+ * The legacy lineage reader below is Supabase-backed and has no Runtime
+ * equivalent yet, so do not let an explicit document URL fall through to it.
+ * A normal cloud route has no document authority marker and keeps the
+ * existing deferred lineage behavior.
+ */
+export function isRuntimeLineageAuthority(
+  search = typeof window === 'undefined' ? '' : window.location.search,
+): boolean {
+  const params = new URLSearchParams(search);
+  const hasLocalDocument = params.has('localProject') || params.has('localTimeline');
+  const hasRuntimeDocument = params.get('runtime') === '1'
+    && Boolean(params.get('runtimeProject')?.trim())
+    && Boolean(params.get('runtimeTimeline')?.trim());
+  return hasLocalDocument || hasRuntimeDocument;
+}
+
 interface LineageItem {
   id: string;
   imageUrl: string;
@@ -191,8 +209,13 @@ async function fetchLineageChain(
  * @returns Object with chain (oldest to newest), loading state, and whether there's lineage
  */
 export function useLineageChain(variantId: string | null, projectId: string | null): LineageChainResult {
+  const lineageAuthority = isRuntimeLineageAuthority();
   const { data: chain = [], isLoading, error } = useQuery<LineageItem[], LineageScopeError>({
-    queryKey: [...generationQueryKeys.lineageChain(variantId!), projectId ?? '__no-project__'],
+    queryKey: [
+      ...generationQueryKeys.lineageChain(variantId!),
+      projectId ?? '__no-project__',
+      lineageAuthority ? 'runtime-authority' : 'legacy-authority',
+    ],
     queryFn: async () => {
       try {
         return await fetchLineageChain(variantId!, projectId!);
@@ -215,7 +238,7 @@ export function useLineageChain(variantId: string | null, projectId: string | nu
         throw normalizedError;
       }
     },
-    enabled: !!variantId && !!projectId,
+    enabled: !!variantId && !!projectId && !lineageAuthority,
     staleTime: 5 * 60 * 1000, // 5 minutes - lineage doesn't change
     gcTime: 10 * 60 * 1000, // 10 minutes
   });
@@ -237,6 +260,7 @@ export function useLineageChain(variantId: string | null, projectId: string | nu
  * Reuses fetchLineageChain to avoid duplicating the traversal logic.
  */
 export async function getLineageDepth(variantId: string, projectId: string): Promise<number> {
+  if (isRuntimeLineageAuthority()) return 0;
   const chain = await fetchLineageChain(variantId, projectId);
   // chain includes the variant itself; ancestors = chain length - 1
   return Math.max(0, chain.length - 1);

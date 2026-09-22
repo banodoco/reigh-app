@@ -2,6 +2,7 @@ import React, { useCallback, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { TaskDetailsProps, getVariantConfig } from '@/shared/types/taskDetailsTypes';
 import { getSupabaseClient } from '@/integrations/supabase/client';
+import { isDeferredCloudDataAuthority } from '@/app/runtime/dataAuthority';
 import { presetQueryKeys } from '@/shared/lib/queryKeys/presets';
 import { asRecord, asString } from '@/shared/lib/tasks/taskParamParsers';
 import {
@@ -95,7 +96,7 @@ export const VideoTravelDetails: React.FC<TaskDetailsProps> = ({
         .single();
       return asString(asRecord(data?.metadata)?.name) || null;
     },
-    enabled: !!isDbPreset && !!presetId,
+    enabled: isDeferredCloudDataAuthority() && !!isDbPreset && !!presetId,
     staleTime: Infinity,
   });
 

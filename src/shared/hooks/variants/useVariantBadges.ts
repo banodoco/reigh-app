@@ -17,8 +17,11 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo, useState } from 'react';
 import { AstridLocalClient } from '@/integrations/astrid/client';
 import { getProjectSelectionFallbackId } from '@/shared/contexts/projectSelectionStore';
-import type { DerivedCountsResult } from '@/shared/lib/generationTransformers';
+import type { DerivedCountsResult } from './variantBadgeTypes';
 import { withGenerationBadgeCount } from './variantBadgeCacheUtils';
+import { useRuntimeAuthority } from '@/app/runtime/runtimeAuthority';
+import { ReighRuntimeClient } from '@/integrations/runtime/client';
+import { fetchRuntimeGenerationSnapshot } from '@/integrations/runtime/generationAccess';
 
 interface VariantBadgeData {
   derivedCount: number;
@@ -45,6 +48,7 @@ export function useVariantBadges(
   enabled: boolean = true
 ): UseVariantBadgesResult {
   const queryClient = useQueryClient();
+  const { runtimeAuthority, runtimeProjectId } = useRuntimeAuthority();
 
   // Track generations that have been optimistically marked as viewed
   // This persists across refetches until the component unmounts
@@ -57,8 +61,32 @@ export function useVariantBadges(
   }, [generationIds]);
 
   const { data, isLoading } = useQuery({
-    queryKey,
+    queryKey: runtimeAuthority
+      ? ['runtime', 'variant-badges', runtimeProjectId, ...queryKey.slice(1)]
+      : queryKey,
     queryFn: async (): Promise<DerivedCountsResult> => {
+      if (runtimeAuthority) {
+        if (!runtimeProjectId || generationIds.length === 0) {
+          return { derivedCounts: {}, hasUnviewedVariants: {}, unviewedVariantCounts: {} };
+        }
+        const runtimeClient = new ReighRuntimeClient();
+        const snapshots = await Promise.all(
+          generationIds.map((generationId) => fetchRuntimeGenerationSnapshot(generationId, runtimeClient)),
+        );
+        const derivedCounts: Record<string, number> = {};
+        const hasUnviewedVariants: Record<string, boolean> = {};
+        const unviewedVariantCounts: Record<string, number> = {};
+        for (const snapshot of snapshots) {
+          if (snapshot && snapshot.generation.project_id === runtimeProjectId) {
+            const generationId = snapshot.generation.generation_id;
+            const unviewedCount = snapshot.variants.filter((variant) => variant.viewed_at == null).length;
+            derivedCounts[generationId] = snapshot.variants.length;
+            unviewedVariantCounts[generationId] = unviewedCount;
+            hasUnviewedVariants[generationId] = unviewedCount > 0;
+          }
+        }
+        return { derivedCounts, hasUnviewedVariants, unviewedVariantCounts };
+      }
       if (generationIds.length === 0) {
         return { derivedCounts: {}, hasUnviewedVariants: {}, unviewedVariantCounts: {} };
       }
@@ -90,7 +118,8 @@ export function useVariantBadges(
 
       return { derivedCounts, hasUnviewedVariants: {}, unviewedVariantCounts: {} };
     },
-    enabled: enabled && generationIds.length > 0,
+    enabled: enabled && generationIds.length > 0
+      && (!runtimeAuthority || Boolean(runtimeProjectId)),
     staleTime: 30000, // Cache for 30 seconds
     gcTime: 60000, // Keep in cache for 1 minute
   });
@@ -126,10 +155,13 @@ export function useVariantBadges(
     setViewedGenerations(prev => new Set([...prev, generationId]));
 
     // Also update the query cache directly for immediate effect across components
-    queryClient.setQueryData(queryKey, (oldData: DerivedCountsResult | undefined) => {
+    const cacheKey = runtimeAuthority
+      ? ['runtime', 'variant-badges', runtimeProjectId, ...queryKey.slice(1)]
+      : queryKey;
+    queryClient.setQueryData(cacheKey, (oldData: DerivedCountsResult | undefined) => {
       return withGenerationBadgeCount(oldData, generationId, 0);
     });
-  }, [queryClient, queryKey]);
+  }, [queryClient, queryKey, runtimeAuthority, runtimeProjectId]);
 
   return {
     getBadgeData,

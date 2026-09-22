@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useVariantBadges } from '@/shared/hooks/variants/useVariantBadges';
 import { getGenerationId } from '@/shared/lib/media/mediaTypeHelpers';
+import { getRuntimeDocumentProjectId } from '@/app/runtime/runtimeDocument';
 import type { GeneratedImageWithMetadata } from '../types';
 
 interface UsePaginatedImagesWithBadgesParams {
@@ -8,12 +9,13 @@ interface UsePaginatedImagesWithBadgesParams {
 }
 
 export function usePaginatedImagesWithBadges({ paginatedImages }: UsePaginatedImagesWithBadgesParams) {
+  const runtimeMode = getRuntimeDocumentProjectId() !== null;
   const paginatedGenerationIds = useMemo(
     () =>
-      (paginatedImages || [])
+      (runtimeMode ? [] : paginatedImages || [])
         .map((image) => getGenerationId(image))
         .filter((id): id is string => typeof id === 'string' && id.length > 0),
-    [paginatedImages],
+    [paginatedImages, runtimeMode],
   );
 
   const { getBadgeData, isLoading: isBadgeDataLoading } = useVariantBadges(paginatedGenerationIds);
@@ -21,6 +23,10 @@ export function usePaginatedImagesWithBadges({ paginatedImages }: UsePaginatedIm
   const paginatedImagesWithBadges = useMemo(() => {
     if (!paginatedImages) {
       return [];
+    }
+
+    if (runtimeMode) {
+      return paginatedImages;
     }
 
     return paginatedImages.map((image) => {
@@ -41,7 +47,7 @@ export function usePaginatedImagesWithBadges({ paginatedImages }: UsePaginatedIm
         unviewedVariantCount: badgeData.unviewedVariantCount,
       };
     });
-  }, [paginatedImages, getBadgeData, isBadgeDataLoading]);
+  }, [paginatedImages, getBadgeData, isBadgeDataLoading, runtimeMode]);
 
   return {
     paginatedImagesWithBadges,

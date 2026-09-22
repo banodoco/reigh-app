@@ -17,6 +17,7 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { isDeferredCloudDataAuthority } from '@/app/runtime/dataAuthority.ts';
+import { useRuntimeAuthority } from '@/app/runtime/runtimeAuthority';
 import type { Json } from '@/integrations/supabase/jsonTypes';
 import {
   createExternalUploadGeneration,
@@ -63,8 +64,11 @@ interface CreateGenerationInput {
   aspectRatio?: string;
 }
 
-function assertDeferredCloudGenerationMutation(operation: string): void {
-  if (isDeferredCloudDataAuthority()) {
+function assertDeferredCloudGenerationMutation(
+  operation: string,
+  runtimeAuthority = false,
+): void {
+  if (!runtimeAuthority && isDeferredCloudDataAuthority()) {
     return;
   }
 
@@ -138,24 +142,25 @@ async function toggleGenerationStar(params: ScopedGenerationInput & { starred: b
 /**
  * Delete a generation with project-scoped verification.
  */
-async function deleteGenerationScoped(input: ScopedGenerationInput): Promise<void> {
-  assertDeferredCloudGenerationMutation('delete a generation');
+async function deleteGenerationScoped(input: ScopedGenerationInput, runtimeAuthority = false): Promise<void> {
+  assertDeferredCloudGenerationMutation('delete a generation', runtimeAuthority);
   await deleteGenerationInProject(input);
 }
 
 /**
  * Delete a variant with project-scoped verification via its parent generation.
  */
-async function deleteVariantScoped(input: ScopedVariantInput): Promise<void> {
-  assertDeferredCloudGenerationMutation('delete a generation variant');
+async function deleteVariantScoped(input: ScopedVariantInput, runtimeAuthority = false): Promise<void> {
+  assertDeferredCloudGenerationMutation('delete a generation variant', runtimeAuthority);
   await deleteVariantInProject(input);
 }
 
 export function useDeleteGeneration() {
   const queryClient = useQueryClient();
+  const { runtimeAuthority } = useRuntimeAuthority();
 
   return useMutation({
-    mutationFn: deleteGenerationScoped,
+    mutationFn: (input: ScopedGenerationInput) => deleteGenerationScoped(input, runtimeAuthority),
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: resourceQueryKeys.all });
       queryClient.invalidateQueries({
@@ -180,8 +185,10 @@ export function useDeleteGeneration() {
  * Use this for edit tools (edit-images, edit-video, character-animate) that create variants.
  */
 export function useDeleteVariant() {
+  const { runtimeAuthority } = useRuntimeAuthority();
+
   return useMutation({
-    mutationFn: deleteVariantScoped,
+    mutationFn: (input: ScopedVariantInput) => deleteVariantScoped(input, runtimeAuthority),
     onError: (error: Error) => {
       normalizeAndPresentError(error, {
         context: 'useDeleteVariant',
@@ -192,6 +199,8 @@ export function useDeleteVariant() {
 }
 
 export function useUpdateGenerationLocation() {
+  const { runtimeAuthority } = useRuntimeAuthority();
+
   return useMutation({
     mutationFn: ({ id, location, thumbnailUrl, projectId }: {
       id: string;
@@ -199,6 +208,7 @@ export function useUpdateGenerationLocation() {
       thumbnailUrl?: string;
       projectId: string;
     }) => {
+      assertDeferredCloudGenerationMutation('update a generation', runtimeAuthority);
       return updateGenerationLocation({ id, location, thumbnailUrl, projectId });
     },
     onError: (error: Error) => {
@@ -208,8 +218,13 @@ export function useUpdateGenerationLocation() {
 }
 
 export function useCreateGeneration() {
+  const { runtimeAuthority } = useRuntimeAuthority();
+
   return useMutation({
-    mutationFn: createGeneration,
+    mutationFn: (input: CreateGenerationInput) => {
+      assertDeferredCloudGenerationMutation('create a generation', runtimeAuthority);
+      return createGeneration(input);
+    },
     onError: (error: Error) => {
       normalizeAndPresentError(error, { context: 'useCreateGeneration', toastTitle: 'Failed to create generation' });
     },
@@ -218,14 +233,15 @@ export function useCreateGeneration() {
 
 export function useToggleGenerationStar() {
   const queryClient = useQueryClient();
+  const { runtimeAuthority } = useRuntimeAuthority();
 
   return useMutation({
     mutationFn: ({ id, starred, projectId }: { id: string; starred: boolean; projectId: string; shotId?: string }) => {
-      assertDeferredCloudGenerationMutation('toggle a generation star');
+      assertDeferredCloudGenerationMutation('toggle a generation star', runtimeAuthority);
       return toggleGenerationStar({ id, starred, projectId });
     },
     onMutate: async ({ id, starred, shotId }) => {
-      assertDeferredCloudGenerationMutation('toggle a generation star');
+      assertDeferredCloudGenerationMutation('toggle a generation star', runtimeAuthority);
       return applyOptimisticGenerationStarUpdate(queryClient, {
         generationId: id,
         starred,

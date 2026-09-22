@@ -10,6 +10,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { unifiedGenerationQueryKeys } from '@/shared/lib/queryKeys/unified';
 import { generateAndUploadThumbnail } from '@/shared/lib/media/videoThumbnailGenerator';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
+import { isDeferredCloudDataAuthority } from '@/app/runtime/dataAuthority';
 
 interface UseBackgroundThumbnailGeneratorOptions {
   videos: Array<{
@@ -34,15 +35,33 @@ export function useBackgroundThumbnailGenerator({
   projectId,
   enabled = true,
 }: UseBackgroundThumbnailGeneratorOptions) {
+  const deferredCloudAuthority = isDeferredCloudDataAuthority();
   const queryClient = useQueryClient();
   const [statuses, setStatuses] = useState<Record<string, GenerationStatus>>({});
   const processingRef = useRef(false);
   const queueRef = useRef<string[]>([]);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const runGenerationRef = useRef(0);
+
+  // A queue belongs to one explicit cloud project and authority. Drop it on
+  // scope changes and unmount so a late worker cannot publish into a new
+  // gallery or keep a timer alive after the gallery has gone away.
+  useEffect(() => {
+    return () => {
+      runGenerationRef.current += 1;
+      queueRef.current = [];
+      processingRef.current = false;
+      if (timerRef.current !== null) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
+    };
+  }, [deferredCloudAuthority, enabled, projectId]);
 
   // Identify videos without thumbnails
   useEffect(() => {
 
-    if (!enabled || !projectId) {
+    if (!deferredCloudAuthority || !enabled || !projectId) {
       return;
     }
 
@@ -95,43 +114,71 @@ export function useBackgroundThumbnailGenerator({
         setStatuses(prev => ({ ...prev, ...newStatuses }));
       }
     }
-  }, [videos, projectId, enabled, statuses]);
+  }, [deferredCloudAuthority, videos, projectId, enabled, statuses]);
 
   // Process queue
   useEffect(() => {
-    if (!enabled || !projectId || processingRef.current || queueRef.current.length === 0) {
+    if (!deferredCloudAuthority || !enabled || !projectId || processingRef.current || queueRef.current.length === 0) {
       return;
     }
 
     const processNextVideo = async () => {
+      const runGeneration = runGenerationRef.current;
+      const isCurrentRun = () => (
+        runGeneration === runGenerationRef.current
+        && deferredCloudAuthority
+        && enabled
+        && Boolean(projectId)
+      );
+      if (!isCurrentRun()) return;
       processingRef.current = true;
       
       const generationId = queueRef.current[0];
       const video = videos.find(v => v.id === generationId);
       
       if (!video) {
-        queueRef.current.shift();
+        if (isCurrentRun()) queueRef.current.shift();
         processingRef.current = false;
         return;
       }
 
       const videoUrl = video.location || video.url;
       if (!videoUrl) {
-        queueRef.current.shift();
+        if (isCurrentRun()) queueRef.current.shift();
+        processingRef.current = false;
+        return;
+      }
+
+      // This hook is a legacy Supabase side effect. Runtime-managed galleries
+      // must never reach the uploader or the generations-table update path.
+      if (!isDeferredCloudDataAuthority()) {
+        if (isCurrentRun()) queueRef.current.shift();
         processingRef.current = false;
         return;
       }
 
       // Update status to processing
-      setStatuses(prev => ({
-        ...prev,
-        [generationId]: { generationId, status: 'processing' }
-      }));
+      if (isCurrentRun()) {
+        setStatuses(prev => ({
+          ...prev,
+          [generationId]: { generationId, status: 'processing' }
+        }));
+      }
 
       // Generate and upload thumbnail
-      const result = await generateAndUploadThumbnail(videoUrl, generationId, projectId);
+      const result = await generateAndUploadThumbnail(
+        videoUrl,
+        generationId,
+        projectId,
+        isCurrentRun,
+      );
 
-      if (result.success && result.thumbnailUrl) {
+      if (!isCurrentRun()) {
+        processingRef.current = false;
+        return;
+      }
+
+      if (result.success && result.thumbnailUrl && isDeferredCloudDataAuthority()) {
 
         // Update status
         setStatuses(prev => ({
@@ -178,15 +225,16 @@ export function useBackgroundThumbnailGenerator({
       processingRef.current = false;
 
       // Wait a bit before processing next (to avoid overwhelming the system)
-      setTimeout(() => {
-        if (queueRef.current.length > 0) {
+      timerRef.current = setTimeout(() => {
+        timerRef.current = null;
+        if (isCurrentRun() && queueRef.current.length > 0) {
           processNextVideo();
         }
       }, 2000); // 2 second delay between generations
     };
 
     processNextVideo();
-  }, [enabled, projectId, videos, queryClient, queueRef.current.length]);
+  }, [deferredCloudAuthority, enabled, projectId, videos, queryClient, queueRef.current.length]);
 
   return {
     statuses,

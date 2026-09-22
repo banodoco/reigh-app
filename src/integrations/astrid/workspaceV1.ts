@@ -13,7 +13,7 @@ export function astridTimelineCollectionPath(projectSlug: string): string {
 export function astridTimelineReadPath(projectSlug: string, timelineRef: string): string {
   const timeline = encodeURIComponent(timelineRef);
   return isAstridWorkspaceV1
-    ? `/v1/timelines/${timeline}`
+    ? `/v1/projects/${encodeURIComponent(projectSlug)}/timelines/${timeline}`
     : `/projects/${encodeURIComponent(projectSlug)}/timelines/${timeline}`;
 }
 

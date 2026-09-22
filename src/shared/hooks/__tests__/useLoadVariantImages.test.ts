@@ -5,6 +5,7 @@ import { renderHookWithProviders } from '@/test/test-utils';
 const mockSelectSingle = vi.fn();
 const mockUpdate = vi.fn();
 const mockInsert = vi.fn();
+const mockEnqueueVariantInvalidation = vi.fn();
 
 vi.mock('@/integrations/supabase/client', () => ({
   getSupabaseClient: () => ({
@@ -27,7 +28,7 @@ vi.mock('@/integrations/supabase/client', () => ({
 }));
 
 vi.mock('@/shared/hooks/invalidation/useGenerationInvalidation', () => ({
-  enqueueVariantInvalidation: vi.fn(),
+  enqueueVariantInvalidation: (...args: unknown[]) => mockEnqueueVariantInvalidation(...args),
 }));
 
 import { useLoadVariantImages } from '@/shared/hooks/variants/useLoadVariantImages';
@@ -84,5 +85,37 @@ describe('useLoadVariantImages', () => {
     });
 
     expect(mockUpdate).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    '/tools/video-editor?localProject=local-project&localTimeline=timeline-1',
+    '/tools/image-generation?runtime=1&runtimeProject=runtime-project&runtimeTimeline=timeline-1',
+  ])('does not read or write legacy variants on %s', async (path) => {
+    window.history.replaceState({}, '', path);
+    const { result } = renderHookWithProviders(() => useLoadVariantImages({
+      currentSegmentImages: {
+        startGenerationId: 'gen-current',
+        startVariantId: 'variant-current',
+        startUrl: 'start.jpg',
+      } as unknown,
+    }));
+
+    await act(async () => {
+      await result.current.loadVariantImages({
+        generation_id: 'generation-1',
+        id: 'variant-1',
+        location: 'variant.jpg',
+        thumbnail_url: null,
+        params: {
+          start_image_generation_id: 'gen-source',
+          start_image_url: 'source.jpg',
+        },
+      } as never);
+    });
+
+    expect(mockSelectSingle).not.toHaveBeenCalled();
+    expect(mockUpdate).not.toHaveBeenCalled();
+    expect(mockInsert).not.toHaveBeenCalled();
+    expect(mockEnqueueVariantInvalidation).not.toHaveBeenCalled();
   });
 });

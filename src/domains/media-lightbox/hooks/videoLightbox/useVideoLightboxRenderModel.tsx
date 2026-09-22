@@ -15,6 +15,7 @@ import { InfoPanel } from '../../components/InfoPanel';
 import { VideoEditPanel } from '../../components/VideoEditPanel';
 import type { WorkflowControlsBarProps } from '../../components/WorkflowControlsBar';
 import type { LightboxStateValue } from '../../contexts/LightboxStateContext';
+import { useRuntimeAuthority } from '@/app/runtime/runtimeAuthority';
 
 type VideoEditPanelModel = ComponentProps<typeof VideoEditPanel>;
 
@@ -49,6 +50,7 @@ export function useVideoLightboxRenderModel(
   const navigation = props.navigation;
   const features = props.features;
   const addToVideoEditor = useAddToVideoEditor(media);
+  const { runtimeAuthority } = useRuntimeAuthority();
 
   const showNavigation = navigation?.showNavigation ?? true;
   const showTaskDetails = features?.showTaskDetails ?? false;
@@ -62,7 +64,9 @@ export function useVideoLightboxRenderModel(
     handleMakePrimary: sharedState.variants.setPrimaryVariant,
     handleDeleteVariant: sharedState.variants.deleteVariant,
     onLoadVariantSettings: env.setVariantParamsToLoad,
-    onLoadVariantImages: editModel.variantSegmentImages ? editModel.loadVariantImages : undefined,
+    onLoadVariantImages: !runtimeAuthority && editModel.variantSegmentImages
+      ? editModel.loadVariantImages
+      : undefined,
     currentSegmentImages: editModel.variantSegmentImages,
     promoteSuccess: sharedState.variants.promoteSuccess,
     isPromoting: sharedState.variants.isPromoting,
@@ -82,6 +86,7 @@ export function useVideoLightboxRenderModel(
     editModel.variantSegmentImages,
     env.setVariantParamsToLoad,
     env.variantsSectionRef,
+    runtimeAuthority,
     sharedState.makeMainVariant.canMake,
     sharedState.makeMainVariant.handle,
     sharedState.makeMainVariant.isMaking,

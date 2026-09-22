@@ -11,6 +11,7 @@ import { useJoinClips } from './useJoinClips';
 import { useGenerationLineage } from './useGenerationLineage';
 import { useSourceGeneration } from './useSourceGeneration';
 import { useMakeMainVariant } from './useMakeMainVariant';
+import { useRuntimeAuthority } from '@/app/runtime/runtimeAuthority';
 import { useLightboxNavigation } from './useLightboxNavigation';
 import { useSwipeNavigation } from './useSwipeNavigation';
 import { useEffectiveMedia } from './useEffectiveMedia';
@@ -27,6 +28,7 @@ import type {
 export type { LightboxButtonGroupProps } from './types';
 
 export function useSharedLightboxState(input: UseSharedLightboxStateInput): UseSharedLightboxStateReturn {
+  const { runtimeAuthority } = useRuntimeAuthority();
   const { core, navigation: navInput, shots: shotsInput, layout: layoutInput, actions, media: mediaInput } = input;
   const { media, isVideo, selectedProjectId, isMobile, isFormOnlyMode, onClose, readOnly } = core;
   const shotWorkflow = shotsInput.shotWorkflow;
@@ -74,8 +76,10 @@ export function useSharedLightboxState(input: UseSharedLightboxStateInput): UseS
     onOpenExternalGeneration: input.onOpenExternalGeneration,
   });
 
-  const canMakeMainVariantFromChild = !!sourceGenerationData && !!media.location;
-  const canMakeMainVariantFromVariant = variantState.isViewingNonPrimaryVariant && !!variantState.activeVariant?.location;
+  const canMakeMainVariantFromChild = !runtimeAuthority && !!sourceGenerationData && !!media.location;
+  const canMakeMainVariantFromVariant = !runtimeAuthority
+    && variantState.isViewingNonPrimaryVariant
+    && !!variantState.activeVariant?.location;
   const canMakeMainVariant = canMakeMainVariantFromChild || canMakeMainVariantFromVariant;
 
   const { isMakingMainVariant, handleMakeMainVariant } = useMakeMainVariant({

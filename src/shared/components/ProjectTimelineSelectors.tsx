@@ -11,6 +11,11 @@ import {
 import { ChevronsUpDown, HardDrive, Star } from 'lucide-react';
 import { cn } from '@/shared/components/ui/contracts/cn.ts';
 import type { UseAstridBridgeDiscoveryResult } from '@/tools/video-editor/hooks/useAstridBridgeDiscovery.ts';
+import {
+  ASTRID_DEMO_BRIDGE_COMMAND,
+  ASTRID_LOCAL_RUNTIME_START_COMMAND,
+  REIGH_LOCAL_DEV_COMMAND,
+} from '@/shared/lib/localAstridRuntime.ts';
 
 interface ProjectTimelineSelectorsProps {
   localProjectSlug: string | null;
@@ -143,12 +148,17 @@ export function ProjectTimelineSelectors({
                       ) : discovery.bridgeDown ? (
                         <>
                           <p className="font-medium text-foreground">No Astrid projects found</p>
+                          <p>From the Reigh checkout, start the installed Astrid runtime:</p>
                           <p>
-                            Launch the bridge:{' '}
-                            <code className="rounded bg-muted px-1 py-0.5">cd ../Astrid &amp;&amp; astrid serve --port 17333</code>
+                            <code className="rounded bg-muted px-1 py-0.5">{ASTRID_LOCAL_RUNTIME_START_COMMAND}</code>
                           </p>
                           <p>
-                            Or run <code className="rounded bg-muted px-1 py-0.5">npm run dev:editor:bridge</code>
+                            Then start Reigh:{' '}
+                            <code className="rounded bg-muted px-1 py-0.5">{REIGH_LOCAL_DEV_COMMAND}</code>
+                          </p>
+                          <p>
+                            For the bundled demo only:{' '}
+                            <code className="rounded bg-muted px-1 py-0.5">{ASTRID_DEMO_BRIDGE_COMMAND}</code>
                           </p>
                         </>
                       ) : (

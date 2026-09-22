@@ -36,6 +36,7 @@ import { MediaDisplayWithCanvas } from '../MediaDisplayWithCanvas';
 import { VideoEditModeDisplay } from '../VideoEditModeDisplay';
 import { VideoTrimModeDisplay } from '../VideoTrimModeDisplay';
 import { WorkflowControlsBar } from '../WorkflowControlsBar';
+import { resolveVariantThumbnailUrl } from '../../utils/variantThumbnail';
 
 /** Derives layout flags from props + core context. Used by components that need layout-aware rendering. */
 function useLightboxLayoutComputed(props: Pick<LightboxLayoutProps, 'showPanel' | 'shouldShowSidePanel'>) {
@@ -76,13 +77,14 @@ function MediaContent({ layout, effectiveTasksPaneOpen, effectiveTasksPaneWidth 
   const mediaState = useLightboxMediaSafe();
   const variantsState = useLightboxVariantsSafe();
   const videoEdit = useVideoEditSafe();
+  const variantThumbnailUrl = resolveVariantThumbnailUrl(variantsState.activeVariant, mediaState.media);
 
   if (mediaState.isVideo && videoEdit.isVideoEditModeActive && videoEdit.videoEditing) {
     return (
       <VideoEditModeDisplay
         videoRef={videoEdit.videoEditing.videoRef}
         videoUrl={mediaState.effectiveVideoUrl}
-        posterUrl={variantsState.activeVariant?.thumbnail_url || mediaState.media.thumbUrl}
+        posterUrl={variantThumbnailUrl}
         videoDuration={videoEdit.videoDuration}
         onLoadedMetadata={videoEdit.setVideoDuration}
         selections={videoEdit.videoEditing.selections}
@@ -100,7 +102,7 @@ function MediaContent({ layout, effectiveTasksPaneOpen, effectiveTasksPaneWidth 
       <VideoTrimModeDisplay
         videoRef={videoEdit.trimVideoRef}
         videoUrl={mediaState.effectiveVideoUrl}
-        posterUrl={variantsState.activeVariant?.thumbnail_url || mediaState.media.thumbUrl}
+        posterUrl={variantThumbnailUrl}
         trimState={videoEdit.trimState}
         onLoadedMetadata={videoEdit.setVideoDuration}
         onTimeUpdate={videoEdit.setTrimCurrentTime}
@@ -111,7 +113,7 @@ function MediaContent({ layout, effectiveTasksPaneOpen, effectiveTasksPaneWidth 
   return (
     <MediaDisplayWithCanvas
       effectiveImageUrl={mediaState.isVideo ? mediaState.effectiveVideoUrl : mediaState.effectiveMediaUrl}
-      thumbUrl={variantsState.activeVariant?.thumbnail_url || mediaState.media.thumbUrl}
+      thumbUrl={variantThumbnailUrl}
       isVideo={mediaState.isVideo}
       onImageLoad={mediaState.setImageDimensions}
       onVideoLoadedMetadata={(event) => {

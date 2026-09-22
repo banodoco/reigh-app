@@ -9,7 +9,7 @@
  * - Mobile: plain button (info shown via MobileInfoModal on re-tap)
  */
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Check, ArrowDown, ArrowUp, Info, Loader2, Trash2, GitBranch, Star, Download, Image } from 'lucide-react';
 import { cn } from '@/shared/components/ui/contracts/cn';
 import { Button } from '@/shared/components/ui/button';
@@ -64,8 +64,20 @@ export const VariantCard: React.FC<VariantCardProps> = ({
   loadedImagesVariantId,
 }) => {
   const [infoOpen, setInfoOpen] = useState(false);
+  const [thumbnailFailed, setThumbnailFailed] = useState(false);
   const Icon = getVariantIcon(variant.variant_type);
   const label = getVariantLabel(variant);
+  const mediaType = typeof variant.params?.media_type === 'string'
+    ? variant.params.media_type
+    : typeof variant.params?.content_type === 'string'
+      ? variant.params.content_type
+      : '';
+  const isVideo = mediaType.toLowerCase().startsWith('video/');
+  const previewUrl = variant.thumbnail_url || (!isVideo ? variant.location : null);
+
+  useEffect(() => {
+    setThumbnailFailed(false);
+  }, [previewUrl]);
 
   const buttonContent = (
     <div
@@ -109,11 +121,12 @@ export const VariantCard: React.FC<VariantCardProps> = ({
     >
       {/* Thumbnail */}
       <div className="relative w-full rounded overflow-hidden bg-muted" style={{ paddingBottom: '56.25%' }}>
-        {(variant.thumbnail_url || variant.location) ? (
+        {previewUrl && !thumbnailFailed ? (
           <img
-            src={variant.thumbnail_url || variant.location}
+            src={previewUrl}
             alt={label}
             className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+            onError={() => setThumbnailFailed(true)}
           />
         ) : (
           <div className="absolute inset-0 w-full h-full flex items-center justify-center">

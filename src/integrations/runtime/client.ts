@@ -246,6 +246,14 @@ export class ReighRuntimeClient {
     return this.withSession(() => this.client.listVariants(generationId, cursor, limit));
   }
 
+  async markVariantViewed(variantId: string): Promise<MutationResult<GenerationVariant>> {
+    return this.withSession(() => this.client.markVariantViewed(variantId, idempotencyKey()));
+  }
+
+  async markGenerationVariantsViewed(generationId: string): Promise<MutationResult<Record<string, unknown>>> {
+    return this.withSession(() => this.client.markGenerationVariantsViewed(generationId, idempotencyKey()));
+  }
+
   /** Capability discovery is read-only and supplies the digest for admission. */
   async listCapabilities(cursor?: string, limit = 50): Promise<Page<Capability>> {
     return this.withSession(() => this.client.listCapabilities(cursor, limit));

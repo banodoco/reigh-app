@@ -109,9 +109,13 @@ export function useVideoScrubbing(
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const externalVideoRef = useRef<HTMLVideoElement | null>(null);
-  const mouseMoveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const mouseMoveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const playDeadlineRef = useRef<number | null>(null);
+  const interactionVersionRef = useRef(0);
+  const playRequestVersionRef = useRef(0);
   const isHoveringRef = useRef(false);
   const lastMouseXRef = useRef<number | null>(null);
+  const isPlayingRef = useRef(false);
 
   // State
   const [duration, setDurationState] = useState(0);
@@ -129,15 +133,39 @@ export function useVideoScrubbing(
     return externalVideoRef.current || videoRef.current;
   }, []);
 
+  const setPlaybackState = useCallback((playing: boolean) => {
+    if (isPlayingRef.current === playing) return;
+    isPlayingRef.current = playing;
+    setIsPlaying(playing);
+    if (playing) {
+      onPlayStart?.();
+    } else {
+      onPlayPause?.();
+    }
+  }, [onPlayPause, onPlayStart]);
+
+  const cancelScheduledPlay = useCallback(() => {
+    if (mouseMoveTimeoutRef.current) {
+      clearTimeout(mouseMoveTimeoutRef.current);
+      mouseMoveTimeoutRef.current = null;
+    }
+    playDeadlineRef.current = null;
+    interactionVersionRef.current += 1;
+  }, []);
+
   // Set external video element
   const setVideoElement = useCallback((video: HTMLVideoElement | null) => {
+    cancelScheduledPlay();
+    playRequestVersionRef.current += 1;
+    setPlaybackState(false);
+    if (externalVideoRef.current && externalVideoRef.current !== video) {
+      externalVideoRef.current.pause();
+    }
     externalVideoRef.current = video;
     // Increment version to trigger re-run of event listener effects
     setVideoElementVersion(v => v + 1);
-    if (video && video.duration && Number.isFinite(video.duration)) {
-      setDurationState(video.duration);
-    }
-  }, []);
+    setDurationState(video && video.duration > 0 && Number.isFinite(video.duration) ? video.duration : 0);
+  }, [cancelScheduledPlay, setPlaybackState]);
 
   // Set duration manually
   const setDuration = useCallback((dur: number) => {
@@ -152,14 +180,74 @@ export function useVideoScrubbing(
     setCurrentTime(0);
     setScrubberPosition(null);
     setScrubberVisible(true);
-    setIsPlaying(false);
+    setPlaybackState(false);
     lastMouseXRef.current = null;
+    cancelScheduledPlay();
+    playRequestVersionRef.current += 1;
+  }, [cancelScheduledPlay, setPlaybackState]);
+
+  const requestHoverPlay = useCallback((video: HTMLVideoElement, interactionVersion: number) => {
+    const requestVersion = ++playRequestVersionRef.current;
+    let playResult: Promise<void> | undefined;
+
+    try {
+      playResult = video.play();
+    } catch {
+      return;
+    }
+
+    // A late play resolution must not revive a video after hover, source, or
+    // element ownership has changed.
+    playResult?.then(() => {
+      if (
+        requestVersion !== playRequestVersionRef.current ||
+        interactionVersion !== interactionVersionRef.current ||
+        !isHoveringRef.current ||
+        getVideo() !== video
+      ) {
+        video.pause();
+        return;
+      }
+      setPlaybackState(true);
+    }).catch(() => {
+      // Autoplay policy and media errors are handled by the video element.
+    });
+  }, [getVideo, setPlaybackState]);
+
+  const scheduleDelayedPlay = useCallback((resetDeadline: boolean) => {
+    if (!enabled || !playOnStopScrubbing || !isHoveringRef.current) return;
+
+    if (resetDeadline || playDeadlineRef.current === null) {
+      playDeadlineRef.current = Date.now() + playDelay;
+    }
 
     if (mouseMoveTimeoutRef.current) {
       clearTimeout(mouseMoveTimeoutRef.current);
-      mouseMoveTimeoutRef.current = null;
     }
-  }, []);
+
+    const deadline = playDeadlineRef.current;
+    const interactionVersion = interactionVersionRef.current;
+    mouseMoveTimeoutRef.current = setTimeout(() => {
+      mouseMoveTimeoutRef.current = null;
+      const video = getVideo();
+      const dur = duration || (video?.duration ?? 0);
+
+      if (
+        !video ||
+        !isHoveringRef.current ||
+        interactionVersion !== interactionVersionRef.current ||
+        !Number.isFinite(dur) ||
+        dur <= 0
+      ) {
+        // If metadata is still pending, handleLoadedMetadata will schedule
+        // immediately using the already elapsed deadline.
+        return;
+      }
+
+      playDeadlineRef.current = null;
+      requestHoverPlay(video, interactionVersion);
+    }, Math.max(0, deadline - Date.now()));
+  }, [duration, enabled, getVideo, playDelay, playOnStopScrubbing, requestHoverPlay]);
 
   // Seek to progress
   const seekToProgress = useCallback((prog: number) => {
@@ -185,11 +273,15 @@ export function useVideoScrubbing(
   const play = useCallback(() => {
     const video = getVideo();
     if (video) {
-      video.play().catch(() => {
-        // Ignore autoplay errors
-      });
+      let playResult: Promise<void> | undefined;
+      try {
+        playResult = video.play();
+      } catch {
+        return;
+      }
+      playResult?.then(() => setPlaybackState(true)).catch(() => undefined);
     }
-  }, [getVideo]);
+  }, [getVideo, setPlaybackState]);
 
   // Pause
   const pause = useCallback(() => {
@@ -197,7 +289,8 @@ export function useVideoScrubbing(
     if (video) {
       video.pause();
     }
-  }, [getVideo]);
+    setPlaybackState(false);
+  }, [getVideo, setPlaybackState]);
 
   // Handle mouse move (scrubbing)
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
@@ -227,6 +320,7 @@ export function useVideoScrubbing(
       }
       // Still fire callback with progress (useful for UI that doesn't need actual seek)
       onProgressChange?.(prog, 0);
+      scheduleDelayedPlay(true);
       return;
     }
 
@@ -237,33 +331,14 @@ export function useVideoScrubbing(
     if (video) {
       video.pause();
       video.currentTime = targetTime;
-      setIsPlaying(false);
+      setPlaybackState(false);
     }
     setCurrentTime(targetTime);
 
     onProgressChange?.(prog, targetTime);
 
-    // Clear existing timeout
-    if (mouseMoveTimeoutRef.current) {
-      clearTimeout(mouseMoveTimeoutRef.current);
-      mouseMoveTimeoutRef.current = null;
-    }
-
-    // Start playing after delay if enabled
-    if (playOnStopScrubbing) {
-      mouseMoveTimeoutRef.current = setTimeout(() => {
-        const currentVideo = getVideo();
-        if (currentVideo && isHoveringRef.current) {
-          setScrubberVisible(false);
-          currentVideo.play().catch(() => {
-            // Ignore autoplay errors
-          });
-          setIsPlaying(true);
-          onPlayStart?.();
-        }
-      }, playDelay);
-    }
-  }, [enabled, duration, getVideo, playOnStopScrubbing, playDelay, onProgressChange, onPlayStart]);
+    scheduleDelayedPlay(true);
+  }, [duration, enabled, getVideo, onProgressChange, scheduleDelayedPlay, setPlaybackState]);
 
   // Handle mouse enter
   const handleMouseEnter = useCallback(() => {
@@ -280,24 +355,24 @@ export function useVideoScrubbing(
         video.load();
       }
       video.pause();
-      setIsPlaying(false);
+      setPlaybackState(false);
     }
-  }, [enabled, getVideo, onHoverStart]);
+
+    scheduleDelayedPlay(true);
+  }, [enabled, getVideo, onHoverStart, scheduleDelayedPlay, setPlaybackState]);
 
   // Handle mouse leave
   const handleMouseLeave = useCallback(() => {
     if (!enabled) return;
 
     isHoveringRef.current = false;
+    playRequestVersionRef.current += 1;
     setIsHovering(false);
     lastMouseXRef.current = null;
     setScrubberPosition(null);
     setScrubberVisible(true);
 
-    if (mouseMoveTimeoutRef.current) {
-      clearTimeout(mouseMoveTimeoutRef.current);
-      mouseMoveTimeoutRef.current = null;
-    }
+    cancelScheduledPlay();
 
     const video = getVideo();
     if (video) {
@@ -307,12 +382,11 @@ export function useVideoScrubbing(
         setProgress(0);
         setCurrentTime(0);
       }
-      setIsPlaying(false);
+      setPlaybackState(false);
     }
 
     onHoverEnd?.();
-    onPlayPause?.();
-  }, [enabled, resetOnLeave, getVideo, onHoverEnd, onPlayPause]);
+  }, [cancelScheduledPlay, enabled, getVideo, onHoverEnd, resetOnLeave, setPlaybackState]);
 
   // Handle video metadata loaded
   const handleLoadedMetadata = useCallback(() => {
@@ -341,7 +415,11 @@ export function useVideoScrubbing(
         onProgressChange?.(prog, targetTime);
       }
     }
-  }, [getVideo, onProgressChange]);
+
+    if (isHoveringRef.current && playOnStopScrubbing) {
+      scheduleDelayedPlay(false);
+    }
+  }, [getVideo, onProgressChange, playOnStopScrubbing, scheduleDelayedPlay]);
 
   // Track video play/pause state and time updates during playback
   useEffect(() => {
@@ -349,13 +427,14 @@ export function useVideoScrubbing(
     if (!video) return;
 
     const handlePlay = () => {
-      setIsPlaying(true);
-      onPlayStart?.();
+      setPlaybackState(true);
+      if (isHoveringRef.current) {
+        setScrubberVisible(false);
+      }
     };
 
     const handlePause = () => {
-      setIsPlaying(false);
-      onPlayPause?.();
+      setPlaybackState(false);
     };
 
     const handleDurationChange = () => {
@@ -395,16 +474,32 @@ export function useVideoScrubbing(
       video.removeEventListener('durationchange', handleDurationChange);
       video.removeEventListener('timeupdate', handleTimeUpdate);
     };
-  }, [getVideo, onPlayStart, onPlayPause, onProgressChange, videoElementVersion]);
+  }, [getVideo, onProgressChange, setPlaybackState, videoElementVersion]);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (mouseMoveTimeoutRef.current) {
-        clearTimeout(mouseMoveTimeoutRef.current);
-      }
+      cancelScheduledPlay();
+      playRequestVersionRef.current += 1;
     };
-  }, []);
+  }, [cancelScheduledPlay]);
+
+  useEffect(() => {
+    if (!enabled) {
+      isHoveringRef.current = false;
+      cancelScheduledPlay();
+      playRequestVersionRef.current += 1;
+      setIsHovering(false);
+      setScrubberPosition(null);
+      setScrubberVisible(true);
+    }
+  }, [cancelScheduledPlay, enabled]);
+
+  useEffect(() => {
+    if (!playOnStopScrubbing) {
+      cancelScheduledPlay();
+    }
+  }, [cancelScheduledPlay, playOnStopScrubbing]);
 
   return {
     containerRef,

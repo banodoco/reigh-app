@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Paintbrush, Pencil, Type, Move, Wand2, ArrowUp } from 'lucide-react';
 import React from 'react';
+import { useRuntimeAuthority } from '@/app/runtime/runtimeAuthority';
 import type {
   EditModePanelCoreState,
   EditModePanelImageEditState,
@@ -38,6 +39,7 @@ export function useEditModePanelState({
   variantsState,
 }: UseEditModePanelStateParams) {
   const isMobile = variant === 'mobile';
+  const { runtimeAuthority } = useRuntimeAuthority();
   const { onClose } = coreState;
 
   const {
@@ -149,12 +151,12 @@ export function useEditModePanelState({
       icon: React.createElement(Pencil),
       onClick: () => { setIsInpaintMode(true); setEditMode('annotate'); },
     },
-    {
+    ...(!runtimeAuthority ? [{
       id: 'reposition',
       label: 'Move',
       icon: React.createElement(Move),
       onClick: () => { setIsInpaintMode(true); setEditMode('reposition'); },
-    },
+    }] : []),
     {
       id: 'img2img',
       label: 'Img2Img',
@@ -167,7 +169,7 @@ export function useEditModePanelState({
       icon: React.createElement(ArrowUp),
       onClick: () => { setIsInpaintMode(false); setEditMode('upscale'); },
     }] : []),
-  ], [handleUpscale, isCloudMode, setEditMode, setIsInpaintMode]);
+  ], [handleUpscale, isCloudMode, runtimeAuthority, setEditMode, setIsInpaintMode]);
 
   const labelSize = isMobile ? 'text-[10px] uppercase tracking-wide text-muted-foreground' : 'text-sm';
   const textareaMinHeight = isMobile ? 'min-h-[50px]' : 'min-h-[100px]';

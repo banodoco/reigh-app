@@ -67,6 +67,20 @@ describe('AuthContext', () => {
       expect(probeBridgeSessionMock).not.toHaveBeenCalled();
     });
 
+    it('is immediately anonymous and never probes for an ordinary local editor URL', () => {
+      window.history.replaceState({}, '', '/tools/video-editor?localProject=astrid-intro&localTimeline=timeline-1');
+
+      render(
+        <AuthProvider>
+          <AuthConsumer />
+        </AuthProvider>
+      );
+
+      expect(screen.getByTestId('isLoading')).toHaveTextContent('false');
+      expect(screen.getByTestId('userId')).toHaveTextContent('null');
+      expect(probeBridgeSessionMock).not.toHaveBeenCalled();
+    });
+
     it('is immediately anonymous and never probes in Runtime document mode', () => {
       window.history.replaceState({}, '', '/tools/video-editor?runtime=1&runtimeProject=project-1&runtimeTimeline=timeline-1');
 

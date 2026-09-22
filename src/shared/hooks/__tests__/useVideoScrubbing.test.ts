@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
+import type { MouseEvent } from 'react';
 import { useVideoScrubbing } from '../useVideoScrubbing';
 
 describe('useVideoScrubbing', () => {
@@ -236,6 +237,151 @@ describe('useVideoScrubbing', () => {
   });
 
   describe('mouse handlers', () => {
+    it('starts playback when metadata arrives after the pointer stops moving', () => {
+      const play = vi.fn(() => Promise.resolve());
+      const pause = vi.fn();
+      const load = vi.fn();
+      const video = {
+        duration: NaN,
+        readyState: 0,
+        currentTime: 0,
+        play,
+        pause,
+        load,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      } as unknown as HTMLVideoElement;
+      const { result } = renderHook(() => useVideoScrubbing({ playDelay: 400 }));
+
+      result.current.containerRef.current = {
+        getBoundingClientRect: () => ({ left: 0, width: 100 } as DOMRect),
+      } as HTMLDivElement;
+
+      act(() => {
+        result.current.setVideoElement(video);
+        result.current.containerProps.onMouseEnter();
+        result.current.containerProps.onMouseMove({ clientX: 50 } as MouseEvent);
+      });
+
+      expect(play).not.toHaveBeenCalled();
+      act(() => {
+        video.duration = 10;
+        result.current.videoProps.onLoadedMetadata();
+        vi.advanceTimersByTime(399);
+      });
+      expect(play).not.toHaveBeenCalled();
+
+      act(() => {
+        vi.advanceTimersByTime(1);
+      });
+      expect(play).toHaveBeenCalledTimes(1);
+      expect(video.currentTime).toBe(5);
+    });
+
+    it('starts playback on hover without requiring mouse movement', () => {
+      const play = vi.fn(() => Promise.resolve());
+      const video = {
+        duration: 10,
+        readyState: 1,
+        currentTime: 0,
+        play,
+        pause: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      } as unknown as HTMLVideoElement;
+      const { result } = renderHook(() => useVideoScrubbing({ playDelay: 400 }));
+
+      act(() => {
+        result.current.setVideoElement(video);
+        result.current.containerProps.onMouseEnter();
+        vi.advanceTimersByTime(400);
+      });
+
+      expect(play).toHaveBeenCalledTimes(1);
+    });
+
+    it('cancels delayed playback when hover ends before metadata arrives', () => {
+      const play = vi.fn(() => Promise.resolve());
+      const video = {
+        duration: NaN,
+        readyState: 0,
+        currentTime: 0,
+        play,
+        pause: vi.fn(),
+        load: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      } as unknown as HTMLVideoElement;
+      const { result } = renderHook(() => useVideoScrubbing({ playDelay: 400 }));
+
+      act(() => {
+        result.current.setVideoElement(video);
+        result.current.containerProps.onMouseEnter();
+        result.current.containerProps.onMouseLeave();
+        vi.advanceTimersByTime(400);
+        video.duration = 10;
+        result.current.videoProps.onLoadedMetadata();
+      });
+
+      expect(play).not.toHaveBeenCalled();
+    });
+
+    it('does not mark a rejected play request as playing', async () => {
+      const play = vi.fn(() => Promise.reject(new Error('autoplay blocked')));
+      const video = {
+        duration: 10,
+        readyState: 1,
+        currentTime: 0,
+        play,
+        pause: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      } as unknown as HTMLVideoElement;
+      const { result } = renderHook(() => useVideoScrubbing({ playDelay: 0 }));
+
+      await act(async () => {
+        result.current.setVideoElement(video);
+        result.current.containerProps.onMouseEnter();
+        vi.advanceTimersByTime(0);
+        await Promise.resolve();
+      });
+
+      expect(play).toHaveBeenCalledTimes(1);
+      expect(result.current.isPlaying).toBe(false);
+    });
+
+    it('cancels a scheduled play when the controlled video element changes', () => {
+      const firstVideo = {
+        duration: 10,
+        readyState: 1,
+        currentTime: 0,
+        play: vi.fn(() => Promise.resolve()),
+        pause: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      } as unknown as HTMLVideoElement;
+      const secondVideo = {
+        duration: 10,
+        readyState: 1,
+        currentTime: 0,
+        play: vi.fn(() => Promise.resolve()),
+        pause: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      } as unknown as HTMLVideoElement;
+      const { result } = renderHook(() => useVideoScrubbing());
+
+      act(() => {
+        result.current.setVideoElement(firstVideo);
+        result.current.containerProps.onMouseEnter();
+        result.current.setVideoElement(secondVideo);
+        vi.advanceTimersByTime(1000);
+      });
+
+      expect(firstVideo.play).not.toHaveBeenCalled();
+      expect(secondVideo.play).not.toHaveBeenCalled();
+    });
+
     it('handleMouseEnter sets hovering state', () => {
       const onHoverStart = vi.fn();
       const { result } = renderHook(() =>

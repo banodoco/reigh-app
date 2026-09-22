@@ -178,6 +178,7 @@ describe('useDeleteVariant', () => {
 describe('useUpdateGenerationLocation', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockIsDeferredCloudDataAuthority.mockReturnValue(true);
     mockResolveGenerationProjectScope.mockResolvedValue({
       generationId: 'gen-123',
       projectId: 'project-1',
@@ -238,6 +239,7 @@ describe('useUpdateGenerationLocation', () => {
 describe('useCreateGeneration', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockIsDeferredCloudDataAuthority.mockReturnValue(true);
   });
 
   it('creates generation and variant', async () => {

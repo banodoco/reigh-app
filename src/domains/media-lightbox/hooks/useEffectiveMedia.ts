@@ -48,9 +48,6 @@ export function useEffectiveMedia({
     if (isVideo && activeVariant?.location) {
       return bridgeMediaUrl(projectSlug, activeVariant.location);
     }
-    if (isVideo) {
-      return undefined;
-    }
     return effectiveImageUrl;
   }, [isVideo, activeVariant, effectiveImageUrl, projectSlug]);
 

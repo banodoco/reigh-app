@@ -49,6 +49,10 @@ describe('isVideoGeneration', () => {
     expect(isVideoGeneration(makeGen({ type: 'video_travel_output' }))).toBe(true);
   });
 
+  it('detects video from a canonical MIME type on an operation-labeled generation', () => {
+    expect(isVideoGeneration(makeGen({ type: 'vibecomfy.run', contentType: 'video/mp4' }))).toBe(true);
+  });
+
   it('detects video by location extension', () => {
     expect(isVideoGeneration(makeGen({ location: '/path/to/file.mp4' }))).toBe(true);
   });
@@ -92,6 +96,11 @@ describe('isVideoAny', () => {
   it('detects video by type field', () => {
     expect(isVideoAny({ type: 'video' })).toBe(true);
     expect(isVideoAny({ type: 'video_travel_output' })).toBe(true);
+  });
+
+  it('detects video from MIME metadata when the object URL has no extension', () => {
+    expect(isVideoAny({ type: 'vibecomfy.run', contentType: 'video/mp4', url: '/v1/objects/sha256:abc' })).toBe(true);
+    expect(isVideoAny({ type: 'vibecomfy.run', local_file_mime: 'video/mp4' })).toBe(true);
   });
 
   it('detects video by location extension', () => {

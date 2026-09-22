@@ -10,6 +10,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { toast } from '@/shared/components/ui/runtime/sonner';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
+import { bridgeCapabilityUnavailable } from '@/integrations/astrid/capability';
+import { useRuntimeAuthority } from '@/app/runtime/runtimeAuthority';
 import { extractAndUploadThumbnailOnly } from '@/shared/lib/media/videoThumbnailGenerator';
 import { enqueueVariantInvalidation } from '@/shared/hooks/invalidation/useGenerationInvalidation';
 import type { TrimState, UseTrimSaveReturn } from '@/shared/types/videoTrim';
@@ -44,6 +46,7 @@ export const useTrimSave = ({
   onSuccess,
 }: UseTrimSaveProps): UseTrimSaveReturn => {
   const queryClient = useQueryClient();
+  const { runtimeAuthority } = useRuntimeAuthority();
   const [isSaving, setIsSaving] = useState(false);
   const [saveProgress, setSaveProgress] = useState(0);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -56,6 +59,15 @@ export const useTrimSave = ({
   }, []);
 
   const saveTrimmedVideo = useCallback(async () => {
+    if (runtimeAuthority) {
+      const unsupported = bridgeCapabilityUnavailable(
+        'save a trimmed Runtime video',
+        'Runtime video-trim mutation support is not admitted yet.',
+      );
+      setSaveError(unsupported.message);
+      return;
+    }
+
     if (!generationId || !projectId || !sourceVideoUrl) {
       setSaveError('Missing required data for saving');
       toast.error('Cannot save: missing generation, project, or video');
@@ -226,6 +238,7 @@ export const useTrimSave = ({
     sourceVariantId,
     queryClient,
     onSuccess,
+    runtimeAuthority,
   ]);
 
   return {

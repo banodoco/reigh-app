@@ -6,6 +6,8 @@ import { getProjectSelectionFallbackId } from '@/shared/contexts/projectSelectio
 import { bridgeMediaUrl } from '@/shared/lib/media/bridgeMediaUrl';
 import { bridgeDetailToGenerationRecord } from '@/integrations/supabase/repositories/generationRepository';
 import { useGenerationDetail } from '@/shared/hooks/generations/useGenerationDetail';
+import { useRuntimeAuthority } from '@/app/runtime/runtimeAuthority';
+import type { RuntimeGenerationDetail } from '@/integrations/runtime/generationAccess';
 
 interface UseSourceGenerationParams {
   media: GenerationRow;
@@ -39,6 +41,7 @@ export const useSourceGeneration = ({
 }: UseSourceGenerationParams): UseSourceGenerationReturn => {
   const metadataBasedOnId = (media.metadata as Record<string, unknown> | null)?.based_on as string | undefined;
   const effectiveBasedOnId = media.based_on || metadataBasedOnId || null;
+  const { runtimeAuthority } = useRuntimeAuthority();
   const detailQuery = useGenerationDetail(effectiveBasedOnId);
 
   useEffect(() => {
@@ -48,16 +51,56 @@ export const useSourceGeneration = ({
   }, [detailQuery.error]);
 
   const { sourceGenerationData, sourcePrimaryVariant } = useMemo(() => {
-    const projectSlug = getProjectSelectionFallbackId();
     const detail = detailQuery.data;
-    if (!projectSlug || !detail) {
+    if (!detail) {
       return {
         sourceGenerationData: null,
         sourcePrimaryVariant: null,
       };
     }
 
-    const record = bridgeDetailToGenerationRecord(detail, projectSlug);
+    if (runtimeAuthority) {
+      const runtimeSource = (detail as RuntimeGenerationDetail).runtimeSource;
+      if (!runtimeSource) {
+        throw new Error('Runtime generation detail is missing its canonical source projection.');
+      }
+      const generation = runtimeSource.generation;
+      return {
+        sourceGenerationData: {
+          id: generation.id,
+          generation_id: generation.generation_id,
+          location: generation.location ?? generation.url,
+          thumbUrl: generation.thumbUrl ?? undefined,
+          type: generation.type ?? null,
+          createdAt: generation.createdAt,
+          metadata: generation.metadata ?? null,
+          starred: generation.starred,
+          based_on: detail.based_on_generation_id ?? null,
+          primary_variant_id: generation.primary_variant_id ?? null,
+          all_shot_associations: [],
+        },
+        sourcePrimaryVariant: runtimeSource.primaryVariant ? {
+          id: runtimeSource.primaryVariant.id,
+          location: runtimeSource.primaryVariant.location,
+          thumbnail_url: runtimeSource.primaryVariant.thumbnailUrl,
+          variant_type: runtimeSource.primaryVariant.variantType,
+          is_primary: runtimeSource.primaryVariant.isPrimary,
+        } : null,
+      };
+    }
+
+    const projectSlug = getProjectSelectionFallbackId();
+    if (!projectSlug) {
+      return {
+        sourceGenerationData: null,
+        sourcePrimaryVariant: null,
+      };
+    }
+
+    const record = bridgeDetailToGenerationRecord(
+      detail as Parameters<typeof bridgeDetailToGenerationRecord>[0],
+      projectSlug,
+    );
     const sourceData: SourceGenerationWithAssociations = {
       ...record as unknown as GenerationRow,
       all_shot_associations: expandShotData(record.shot_data as Record<string, unknown> | null | undefined),
@@ -74,7 +117,7 @@ export const useSourceGeneration = ({
         is_primary: primaryVariant.is_primary,
       } : null,
     };
-  }, [detailQuery.data]);
+  }, [detailQuery.data, runtimeAuthority]);
 
   return {
     sourceGenerationData,

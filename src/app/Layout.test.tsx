@@ -95,6 +95,7 @@ vi.mock('@/shared/hooks/mobile', () => ({
 }));
 vi.mock('@/shared/lib/typedEvents', () => ({
   dispatchAppEvent: vi.fn(),
+  useAppEventListener: vi.fn(),
 }));
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
@@ -183,6 +184,16 @@ describe('Layout route access', () => {
     expect(screen.getByTestId('tools-pane')).toBeInTheDocument();
   });
 
+  it('keeps the local-project image-generation route sessionless without redirecting to Home', () => {
+    locationPathname = '/tools/image-generation';
+    locationSearch = '?localProject=astrid-intro&localTimeline=timeline-1';
+
+    renderLayout();
+
+    expect(screen.getByTestId('main-content')).toBeInTheDocument();
+    expect(screen.getByTestId('tools-pane')).toBeInTheDocument();
+  });
+
   it('keeps the deterministic local Travel document route sessionless without redirecting to Home', () => {
     locationPathname = '/tools/travel-between-images';
     locationSearch = '?localProject=demo-project&localTimeline=demo-timeline&localTest=1';
@@ -205,6 +216,16 @@ describe('Layout route access', () => {
   it('keeps a local project-only editor URL sessionless so it can auto-pick main', () => {
     locationPathname = '/tools/video-editor';
     locationSearch = '?localTest=1&localProject=demo-project&localTimeline=';
+
+    renderLayout();
+
+    expect(screen.getByTestId('main-content')).toBeInTheDocument();
+    expect(screen.getByTestId('tools-pane')).toBeInTheDocument();
+  });
+
+  it('keeps an ordinary local editor URL sessionless without the test-only flag', () => {
+    locationPathname = '/tools/video-editor';
+    locationSearch = '?localProject=astrid-intro&localTimeline=timeline-1';
 
     renderLayout();
 

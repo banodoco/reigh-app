@@ -17,6 +17,7 @@ import { DeleteGenerationConfirmDialog } from '@/shared/components/dialogs/Delet
 import { getProjectSelectionFallbackId } from '@/shared/contexts/projectSelectionStore';
 import { getRuntimeDocumentProjectId } from '@/app/runtime/runtimeDocument';
 import { useResolvedGalleryProject } from '@/app/runtime/useResolvedGalleryProject';
+import { RuntimeAuthorityProvider } from '@/app/runtime/RuntimeAuthorityProvider';
 
 import { useImageGenGallery } from "../hooks/useImageGenGallery";
 import { useImageGenActions } from "../hooks/useImageGenActions";
@@ -148,7 +149,11 @@ const ImageGenerationToolPage: React.FC = React.memo(() => {
   }, []);
 
   return (
-    <PageFadeIn>
+    <RuntimeAuthorityProvider value={{
+      runtimeProjectId: resolvedGalleryProject.projectId,
+      runtimeAuthority: resolvedGalleryProject.runtimeAuthority,
+    }}>
+      <PageFadeIn>
       <div className="flex flex-col gap-y-6 pb-6 px-4 max-w-7xl mx-auto pt-4">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -251,7 +256,8 @@ const ImageGenerationToolPage: React.FC = React.memo(() => {
         </div>
       </div>
       <DeleteGenerationConfirmDialog {...actions.confirmDialogProps} />
-    </PageFadeIn>
+      </PageFadeIn>
+    </RuntimeAuthorityProvider>
   );
 }, () => true); // Always return true since component has no props
 

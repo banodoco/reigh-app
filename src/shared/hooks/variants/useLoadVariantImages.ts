@@ -15,6 +15,7 @@ import { enqueueVariantInvalidation } from '@/shared/hooks/invalidation/useGener
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import type { GenerationVariant } from '@/shared/hooks/variants/useVariants';
 import type { CurrentSegmentImagesData } from '@/shared/components/VariantSelector/variantSourceImages';
+import { useRuntimeAuthority } from '@/app/runtime/runtimeAuthority';
 
 interface UseLoadVariantImagesProps {
   currentSegmentImages?: CurrentSegmentImagesData & {
@@ -53,6 +54,7 @@ function pathsMatch(url1: string | undefined | null, url2: string | undefined | 
 export function useLoadVariantImages({ currentSegmentImages }: UseLoadVariantImagesProps) {
   const queryClient = useQueryClient();
   const abortControllerRef = useRef<AbortController | null>(null);
+  const { runtimeAuthority } = useRuntimeAuthority();
 
   // Clean up on unmount
   useEffect(() => {
@@ -62,6 +64,10 @@ export function useLoadVariantImages({ currentSegmentImages }: UseLoadVariantIma
   }, []);
 
   const loadVariantImages = useCallback(async (variant: GenerationVariant) => {
+    // Runtime/local generations have no admitted source-image mutation route.
+    // Return before creating an abort controller or touching Supabase.
+    if (runtimeAuthority) return;
+
     // Abort any previous in-flight request
     abortControllerRef.current?.abort();
     abortControllerRef.current = new AbortController();
@@ -137,7 +143,7 @@ export function useLoadVariantImages({ currentSegmentImages }: UseLoadVariantIma
         normalizeAndPresentError(error, { context: 'LoadVariantImages', showToast: false });
       }
     }
-  }, [currentSegmentImages, queryClient]);
+  }, [currentSegmentImages, queryClient, runtimeAuthority]);
 
   return { loadVariantImages };
 }

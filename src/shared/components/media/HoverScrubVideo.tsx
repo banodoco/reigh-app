@@ -132,9 +132,7 @@ const HoverScrubVideo: React.FC<HoverScrubVideoProps> = ({
   // Always connect regardless of scrubbingEnabled - the hook handles its own enabled state
   const videoRefCallback = useCallback((video: HTMLVideoElement | null) => {
     localVideoRef.current = video;
-    if (video) {
-      setScrubVideoElement(video);
-    }
+    setScrubVideoElement(video);
   }, [setScrubVideoElement]);
 
   // Also alias for easier access

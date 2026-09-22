@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
@@ -29,7 +29,11 @@ vi.mock('@/shared/lib/queryKeys/generations', () => ({
   },
 }));
 
-import { useLineageChain } from '@/shared/hooks/variants/useLineageChain';
+import {
+  getLineageDepth,
+  isRuntimeLineageAuthority,
+  useLineageChain,
+} from '@/shared/hooks/variants/useLineageChain';
 
 interface VariantStub {
   id: string;
@@ -95,6 +99,37 @@ describe('useLineageChain', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockFrom.mockReturnValue({ select: (...args: unknown[]) => mockSelect(...args) });
+  });
+
+  afterEach(() => {
+    window.history.replaceState({}, '', '/');
+  });
+
+  it('recognizes explicit local and Runtime document authority', () => {
+    expect(isRuntimeLineageAuthority('?localProject=astrid-intro&localTimeline=timeline-1')).toBe(true);
+    expect(isRuntimeLineageAuthority('?runtime=1&runtimeProject=project-1&runtimeTimeline=timeline-1')).toBe(true);
+    expect(isRuntimeLineageAuthority('?project=cloud-project')).toBe(false);
+  });
+
+  it('does not start legacy lineage reads for an explicit local document', async () => {
+    window.history.replaceState(
+      {},
+      '',
+      '/tools/image-generation?localProject=astrid-intro&localTimeline=timeline-1',
+    );
+
+    const { result } = renderHook(
+      () => useLineageChain('variant-1', 'astrid-intro'),
+      { wrapper: createWrapper() },
+    );
+
+    expect(result.current.isLoading).toBe(false);
+    expect(result.current.chain).toEqual([]);
+    expect(mockResolveVariantProjectScope).not.toHaveBeenCalled();
+    expect(mockFrom).not.toHaveBeenCalled();
+    await expect(getLineageDepth('variant-1', 'astrid-intro')).resolves.toBe(0);
+    expect(mockResolveVariantProjectScope).not.toHaveBeenCalled();
+    expect(mockFrom).not.toHaveBeenCalled();
   });
 
   it('returns empty chain and not loading when variantId is null', () => {

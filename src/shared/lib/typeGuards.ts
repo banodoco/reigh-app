@@ -23,10 +23,17 @@ export function hasVideoExtension(url: string | null | undefined): boolean {
   return VIDEO_EXTENSIONS.some(ext => lower.endsWith(ext));
 }
 
+function hasVideoMime(value: string | null | undefined): boolean {
+  if (typeof value !== 'string') return false;
+  const normalized = value.split(';', 1)[0].trim().toLowerCase();
+  return normalized === 'video' || normalized.startsWith('video/');
+}
+
 export function isVideoGeneration(gen: GenerationRow): boolean {
   return (
-    gen.type === 'video' ||
+    hasVideoMime(gen.type) ||
     gen.type === 'video_travel_output' ||
+    hasVideoMime(gen.contentType) ||
     hasVideoExtension(gen.location) ||
     hasVideoExtension(gen.imageUrl)
   );
@@ -43,6 +50,8 @@ export function isVideoShotGenerations(sg: ShotGenerationsLike): boolean {
 
 export function isVideoAny(item: {
   type?: string | null;
+  contentType?: string | null;
+  local_file_mime?: string | null;
   location?: string | null;
   imageUrl?: string | null;
   url?: string | null; // Some components use .url instead of .imageUrl
@@ -50,7 +59,8 @@ export function isVideoAny(item: {
   generation?: { type?: string; location?: string } | null;
   generations?: { type?: string; location?: string } | null;
 }): boolean {
-  if (item.type === 'video' || item.type === 'video_travel_output') return true;
+  if (hasVideoMime(item.type) || item.type === 'video_travel_output') return true;
+  if (hasVideoMime(item.contentType) || hasVideoMime(item.local_file_mime)) return true;
   if (hasVideoExtension(item.location)) return true;
   if (hasVideoExtension(item.imageUrl)) return true;
   if (hasVideoExtension(item.url)) return true;
@@ -65,4 +75,3 @@ export function isVideoAny(item: {
 export function isPositioned(item: PositionedItem): boolean {
   return item.timeline_frame != null && item.timeline_frame !== -1;
 }
-

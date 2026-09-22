@@ -4,6 +4,7 @@ import {
   type PendingGenerationTaskSnapshot,
 } from '@/shared/state/realtimeStore';
 import { useBridgeTaskSnapshot } from './useBridgeTaskSnapshot';
+import { useRuntimeAuthority } from '@/app/runtime/runtimeAuthority';
 
 type PendingGenerationTask = PendingGenerationTaskSnapshot;
 
@@ -80,15 +81,18 @@ export function usePendingGenerationTasks(
   projectId: string | null | undefined
 ): UsePendingGenerationTasksReturn {
   const effectiveProjectId = resolveTaskProjectScope(projectId);
+  const { runtimeAuthority } = useRuntimeAuthority();
   const pendingSelection = useRealtimePendingGenerationTasks(generationId, effectiveProjectId);
   const snapshotQuery = useBridgeTaskSnapshot(
-    generationId && effectiveProjectId ? [effectiveProjectId] : [],
+    !runtimeAuthority && generationId && effectiveProjectId ? [effectiveProjectId] : [],
   );
 
   return {
     pendingCount: pendingSelection.pendingCount,
     pendingTasks: pendingSelection.pendingTasks as PendingGenerationTask[],
-    isLoading: snapshotQuery.isLoading,
+    // Runtime has no pending-generation listing route yet. Keep this badge
+    // explicitly deferred instead of probing the legacy bridge.
+    isLoading: runtimeAuthority ? false : snapshotQuery.isLoading,
   };
 }
 

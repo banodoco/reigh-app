@@ -34,6 +34,10 @@ import { useAstridCapabilityCensus } from '@/integrations/astrid/capabilityCensu
 import { isImageMedia, isVideoMedia } from '@/shared/lib/media/mediaTypeFilters';
 import { ReighRuntimeClient } from '@/integrations/runtime/client';
 import type { Generation, GenerationVariant } from '@/integrations/runtime/generated';
+import {
+  runtimeThumbnailObjectId,
+  selectRuntimePrimaryVariant,
+} from '@/integrations/runtime/generationProjection';
 
 /** Cache garbage collection time for paginated generation queries */
 const GENERATIONS_GC_TIME_MS = 10 * 60 * 1000; // 10 minutes
@@ -104,11 +108,11 @@ function toRuntimeGalleryItem(
   generation: Generation,
   variants: GenerationVariant[],
 ): GeneratedImageWithMetadata {
-  const primaryVariant = variants.find((variant) => (
-    variant.metadata.is_primary === true || variant.variant_type === 'original'
-  )) ?? variants[0];
+  const primaryVariant = selectRuntimePrimaryVariant(variants);
   const objectId = primaryVariant?.object_id?.trim() || null;
   const objectUrl = objectId ? client.objectContentUrl(objectId) : null;
+  const thumbnailObjectId = runtimeThumbnailObjectId(generation, objectId);
+  const thumbnailUrl = thumbnailObjectId ? client.objectContentUrl(thumbnailObjectId) : null;
   const metadata = asRecord(generation.metadata);
   const nestedParams = asRecord(metadata.params);
   const params = { ...nestedParams, ...metadata };
@@ -128,11 +132,12 @@ function toRuntimeGalleryItem(
       ? 'video/mp4'
       : primaryVariantMediaType;
   const type = generation.type || (contentType === 'video' ? 'video' : 'image');
+  const variantIsVideo = galleryMediaType?.toLowerCase().startsWith('video/');
 
   const item = transformGeneration({
     id: generation.generation_id,
     location: objectUrl,
-    thumbnail_url: objectUrl,
+    thumbnail_url: thumbnailUrl,
     primary_variant_id: primaryVariant?.variant_id ?? null,
     type,
     created_at: generation.created_at,
@@ -147,9 +152,14 @@ function toRuntimeGalleryItem(
   });
   return {
     ...item,
+    // A Runtime video without a real thumbnail must not feed the video bytes
+    // into an <img> or poster attribute.
+    thumbUrl: thumbnailUrl,
+    thumbUrlIdentity: thumbnailUrl ? thumbnailUrl : undefined,
     // Runtime's canonical variant metadata is the authoritative MIME signal
     // when a generation row intentionally carries neutral metadata.
     contentType: galleryMediaType ?? item.contentType,
+    isVideo: variantIsVideo ?? item.isVideo,
     generation_id: generation.generation_id,
   };
 }

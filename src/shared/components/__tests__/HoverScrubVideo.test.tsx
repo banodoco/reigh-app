@@ -73,6 +73,15 @@ describe('HoverScrubVideo', () => {
     expect(video?.getAttribute('poster')).toContain('https://example.com/poster.jpg');
   });
 
+  it('keeps resolved managed media sources on their same-origin route', () => {
+    const { container } = render(
+      <HoverScrubVideo src="/api/astrid/v1/objects/sha256%3Avideo" />,
+    );
+
+    expect(container.querySelector('video')?.getAttribute('src'))
+      .toBe('/api/astrid/v1/objects/sha256%3Avideo');
+  });
+
   it('does not set video src when source is empty', () => {
     const { container } = render(<HoverScrubVideo src="" />);
     const video = container.querySelector('video');

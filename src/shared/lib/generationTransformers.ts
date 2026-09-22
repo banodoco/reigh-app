@@ -21,14 +21,10 @@
 import type { GeneratedImageWithMetadata } from '@/shared/components/MediaGallery/types';
 import type { GenerationRow } from '@/domains/generation/types';
 import type { GenerationMetadata } from '@/domains/generation/types';
-import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { stripQueryParameters } from '@/shared/lib/media/mediaUrl';
 import { TOOL_IDS, isToolId } from '@/shared/lib/tooling/toolIds';
-import { ServerError } from '@/shared/lib/errorHandling/errors';
-import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { expandShotData } from '@/shared/lib/shots/shotData';
 import { parseGenerationTaskId } from '@/shared/lib/tasks/generationTaskIdParser';
-import { filterUuidStrings } from '@/shared/lib/uuid';
 import { asRecord, asString, firstString } from '@/shared/lib/jsonNarrowing';
 
 export const LOCAL_GENERATION_MEDIA_SENTINEL_URL = 'local://pending-materialization';
@@ -36,95 +32,6 @@ export const LOCAL_GENERATION_MEDIA_SENTINEL_URL = 'local://pending-materializat
 /**
  * Result type for calculateDerivedCounts
  */
-export interface DerivedCountsResult {
-  /** Count of variants/derivatives per generation */
-  derivedCounts: Record<string, number>;
-  /** Whether each generation has any unviewed variants (viewed_at IS NULL) */
-  hasUnviewedVariants: Record<string, boolean>;
-  /** Count of unviewed variants per generation */
-  unviewedVariantCounts: Record<string, number>;
-  /** True when counts were intentionally returned empty due to a read-path failure. */
-  degraded?: boolean;
-  /** Machine-readable reason for degraded fallback behavior. */
-  errorCode?: 'query_failed';
-}
-
-function createEmptyDerivedCountsResult(): DerivedCountsResult {
-  return {
-    derivedCounts: {},
-    hasUnviewedVariants: {},
-    unviewedVariantCounts: {},
-  };
-}
-
-/**
- * Calculate derivedCount for generations (how many variants/derivatives exist)
- * Also tracks whether any variants are unviewed (for NEW badge display)
- *
- * Queries both:
- * - generations table (based_on relationships)
- * - generation_variants table (edit variants)
- *
- * @param generationIds - Array of generation IDs to count variants for
- * @returns Object with derivedCounts and hasUnviewedVariants maps
- */
-async function calculateDerivedCounts(
-  generationIds: string[]
-): Promise<DerivedCountsResult> {
-  const persistedGenerationIds = filterUuidStrings(generationIds);
-  if (persistedGenerationIds.length === 0) {
-    return createEmptyDerivedCountsResult();
-  }
-
-  const { derivedCounts, hasUnviewedVariants, unviewedVariantCounts } = createEmptyDerivedCountsResult();
-
-  // Only count from generation_variants table (actual variants)
-  // Note: We intentionally don't count based_on generations here - those are
-  // separate images in the gallery, not variants of this image
-  const { data: variantCountsData, error: variantCountsError } = await supabase().from('generation_variants')
-    .select('generation_id, viewed_at')
-    .in('generation_id', persistedGenerationIds);
-
-  if (variantCountsError) {
-    throw new ServerError('Failed to load variant badge counts', {
-      context: { generationIdsCount: generationIds.length },
-      cause: variantCountsError,
-    });
-  }
-
-  if (variantCountsData) {
-    for (const item of variantCountsData) {
-      const genId = item.generation_id;
-      derivedCounts[genId] = (derivedCounts[genId] || 0) + 1;
-      if (item.viewed_at === null) {
-        hasUnviewedVariants[genId] = true;
-        unviewedVariantCounts[genId] = (unviewedVariantCounts[genId] || 0) + 1;
-      }
-    }
-  }
-
-  return { derivedCounts, hasUnviewedVariants, unviewedVariantCounts };
-}
-
-/**
- * Fail-open variant of calculateDerivedCounts for non-critical UI surfaces.
- * Keeps badge rendering resilient when counts query intermittently fails.
- */
-export async function calculateDerivedCountsSafe(
-  generationIds: string[]
-): Promise<DerivedCountsResult> {
-  try {
-    return await calculateDerivedCounts(generationIds);
-  } catch (error) {
-    normalizeAndPresentError(error, { context: 'generationTransformers.calculateDerivedCountsSafe', showToast: false });
-    return {
-      ...createEmptyDerivedCountsResult(),
-      degraded: true,
-      errorCode: 'query_failed',
-    };
-  }
-}
-
 /**
  * Raw variant record from generation_variants table (before transformation)
  */

@@ -128,6 +128,89 @@ function runtimeFixture(options: { mediaEtag?: string } = {}) {
 }
 
 describe('RuntimeDataProvider', () => {
+  it('loads the lightbox primary from the complete paginated variant set', async () => {
+    const requests: string[] = [];
+    const transport = async (method: string, path: string) => {
+      requests.push(`${method} ${path}`);
+      if (path === '/v1/health') {
+        return { status: 200, headers: {}, body: json({ status: 'ok', protocol: 'workspace.v1', schema_digest: 'sha256:test', runtime_epoch: 1 }) };
+      }
+      if (path === '/v1/handshake') {
+        return { status: 200, headers: {}, body: json({ protocol: 'workspace.v1', schema_digest: 'sha256:test', session_id: 'session-lightbox', actor_id: 'owner', realm_id: 'realm-r1', scopes: ['handshake', 'generations:read'] }) };
+      }
+      if (path === '/v1/realm') {
+        return { status: 200, headers: {}, body: json({ realm_id: 'realm-r1', display_name: 'R1 fixture', version: 1, created_at: '2026-09-11T00:00:00Z' }) };
+      }
+      if (path === '/v1/generations/generation-lightbox') {
+        return {
+          status: 200,
+          headers: {},
+          body: json({
+            generation_id: 'generation-lightbox',
+            project_id: PROJECT_ID,
+            type: 'image',
+            status: 'succeeded',
+            metadata: {},
+            version: 1,
+            created_at: '2026-09-11T00:00:00Z',
+            updated_at: '2026-09-11T00:00:00Z',
+          }),
+        };
+      }
+      if (path === '/v1/generations/generation-lightbox/variants?limit=200') {
+        return {
+          status: 200,
+          headers: {},
+          body: json({
+            items: [{
+              variant_id: 'variant-first',
+              generation_id: 'generation-lightbox',
+              object_id: `sha256:${'a'.repeat(64)}`,
+              variant_type: 'original',
+              metadata: {},
+              created_at: '2026-09-11T00:00:00Z',
+            }],
+            next_cursor: 'variants-page-2',
+          }),
+        };
+      }
+      if (path === '/v1/generations/generation-lightbox/variants?limit=200&cursor=variants-page-2') {
+        return {
+          status: 200,
+          headers: {},
+          body: json({
+            items: [{
+              variant_id: 'variant-primary',
+              generation_id: 'generation-lightbox',
+              object_id: `sha256:${'b'.repeat(64)}`,
+              variant_type: 'edit',
+              metadata: { is_primary: true, media_type: 'image/jpeg' },
+              created_at: '2026-09-11T00:00:00Z',
+            }],
+            next_cursor: null,
+          }),
+        };
+      }
+      throw new Error(`unexpected ${method} ${path}`);
+    };
+
+    const provider = new RuntimeDataProvider({
+      projectId: PROJECT_ID,
+      baseUrl: 'http://runtime.test',
+      token: 'fixture-token',
+      transport,
+    });
+
+    const loaded = await provider.loadGenerationForLightbox('generation-lightbox');
+    expect(loaded).toMatchObject({
+      primary_variant_id: 'variant-primary',
+      media_id: `sha256:${'b'.repeat(64)}`,
+      type: 'image/jpeg',
+    });
+    expect(loaded).not.toHaveProperty('thumbUrl');
+    expect(requests).toContain('GET /v1/generations/generation-lightbox/variants?limit=200&cursor=variants-page-2');
+  });
+
   it('uses the authenticated generated client for canonical read/save/readback/reload', async () => {
     const fixture = runtimeFixture();
     const provider = new RuntimeDataProvider({ projectId: PROJECT_ID, baseUrl: 'http://runtime.test', token: 'fixture-token', transport: fixture.transport });

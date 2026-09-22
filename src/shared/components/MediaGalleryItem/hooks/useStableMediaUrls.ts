@@ -42,22 +42,28 @@ export function useStableMediaUrls({ image, isPriority }: UseStableMediaUrlsPara
 
   const projectSlug = getProjectSelectionFallbackId();
 
+  const thumbnailSource = isVideoContent && image.thumbUrl === image.url
+    ? null
+    : image.thumbUrl;
+
   // === Display URL (image thumbnail or progressive src) ===
   // Stored refs become same-origin R9 content-route addresses here.
   const displayUrl = useMemo(() => {
     if (isVideoContent) {
-      return bridgeMediaUrl(projectSlug, image.thumbUrl || image.url);
+      return bridgeMediaUrl(projectSlug, thumbnailSource);
     }
     if (progressiveEnabled && progressiveSrc) {
       return progressiveSrc;
     }
     return bridgeMediaUrl(projectSlug, image.thumbUrl || image.url);
-  }, [progressiveEnabled, progressiveSrc, image.thumbUrl, image.url, isVideoContent, projectSlug]);
+  }, [progressiveEnabled, progressiveSrc, image.thumbUrl, image.url, isVideoContent, projectSlug, thumbnailSource]);
 
   // Stable display URL (only changes when underlying file changes)
   const displayUrlIdentity = image.urlIdentity || image.url || '';
   const [stableDisplayUrl, setStableDisplayUrl] = useState<string>(displayUrl);
   const [lastDisplayUrlIdentity, setLastDisplayUrlIdentity] = useState<string>(displayUrlIdentity);
+  const thumbnailIdentity = thumbnailSource ? (image.thumbUrlIdentity || thumbnailSource) : '';
+  const [lastThumbnailIdentity, setLastThumbnailIdentity] = useState<string>(thumbnailIdentity);
 
   useEffect(() => {
     if (displayUrlIdentity !== lastDisplayUrlIdentity) {
@@ -65,6 +71,13 @@ export function useStableMediaUrls({ image, isPriority }: UseStableMediaUrlsPara
       setLastDisplayUrlIdentity(displayUrlIdentity);
     }
   }, [displayUrl, displayUrlIdentity, lastDisplayUrlIdentity]);
+
+  useEffect(() => {
+    if (thumbnailIdentity !== lastThumbnailIdentity) {
+      setStableDisplayUrl(displayUrl);
+      setLastThumbnailIdentity(thumbnailIdentity);
+    }
+  }, [displayUrl, lastThumbnailIdentity, thumbnailIdentity]);
 
   // === Video URL (only for video content) ===
   const videoUrl = useMemo(() => (isVideoContent ? (image.url || null) : null), [isVideoContent, image.url]);

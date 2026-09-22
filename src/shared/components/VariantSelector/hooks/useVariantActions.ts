@@ -10,7 +10,10 @@
 import { useState, useCallback, useRef } from 'react';
 import { useAsyncOperationMap } from '@/shared/hooks/async/useAsyncOperation';
 import { usePrefetchTaskData, usePrefetchTaskById } from '@/shared/hooks/tasks/useTaskPrefetch';
-import { getLineageDepth } from '@/shared/hooks/variants/useLineageChain';
+import {
+  getLineageDepth,
+  isRuntimeLineageAuthority,
+} from '@/shared/hooks/variants/useLineageChain';
 import { getSourceTaskIdLegacyCompatible } from '@/shared/lib/taskIdHelpers';
 import { useToggleVariantStar } from '@/shared/hooks/variants/useToggleVariantStar';
 import type { GenerationVariant } from '@/shared/hooks/variants/useVariants';
@@ -59,6 +62,7 @@ export function useVariantActions(props: UseVariantActionsProps) {
   const checkLineageDepthOnHover = useCallback(async (variantId: string) => {
     if (checkedLineageIdsRef.current.has(variantId)) return;
     if (!selectedProjectId) return;
+    if (isRuntimeLineageAuthority()) return;
     checkedLineageIdsRef.current.add(variantId);
     try {
       const depth = await getLineageDepth(variantId, selectedProjectId);

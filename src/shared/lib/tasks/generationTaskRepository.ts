@@ -2,6 +2,9 @@ import { AstridLocalClient } from '@/integrations/astrid/client';
 import { BridgeRouteError } from '@/integrations/astrid/transport';
 import { getProjectSelectionFallbackId } from '@/shared/contexts/projectSelectionStore';
 import { isUuid } from '@/shared/lib/uuid';
+import { getRuntimeDocumentProjectId } from '@/app/runtime/runtimeDocument';
+import { ReighRuntimeClient } from '@/integrations/runtime/client';
+import type { RuntimeAuthority } from '@/app/runtime/runtimeAuthority';
 
 export type GenerationTaskMappingStatus =
   | 'ok'
@@ -56,6 +59,7 @@ interface VariantProjectScopeResolution {
 
 interface GenerationTaskRepositoryOptions {
   projectId?: string;
+  authority?: RuntimeAuthority;
 }
 
 function scopeFor(expectedProjectId?: string): string | null {
@@ -72,6 +76,23 @@ export async function resolveGenerationProjectScope(
 ): Promise<GenerationProjectScopeResolution> {
   const projectId = scopeFor(expectedProjectId);
   if (!projectId) return { generationId, projectId: null, status: 'missing_project_scope' };
+  const runtimeProjectId = getRuntimeDocumentProjectId();
+  if (runtimeProjectId) {
+    try {
+      const generation = await new ReighRuntimeClient().getGeneration(generationId);
+      if (generation.project_id !== runtimeProjectId) {
+        return { generationId, projectId: generation.project_id, status: 'scope_mismatch' };
+      }
+      return { generationId, projectId: generation.project_id, status: 'ok' };
+    } catch (error) {
+      return {
+        generationId,
+        projectId: null,
+        status: 'query_failed',
+        queryError: error instanceof Error ? error.message : String(error),
+      };
+    }
+  }
   try {
     const detail = await new AstridLocalClient({ projectSlug: projectId }).gallery.get(generationId);
     if (detail.project_id !== projectId) {
@@ -130,6 +151,42 @@ export async function resolveGenerationTaskMappings(
   const requestedIds = Array.from(new Set(generationIds));
   const mappings = new Map<string, GenerationTaskMapping>();
   const projectId = scopeFor(options?.projectId);
+
+  const runtimeAuthority = options?.authority?.runtimeAuthority
+    ?? (options?.authority ? false : getRuntimeDocumentProjectId() !== null);
+  const runtimeProjectId = options?.authority
+    ? options.authority.runtimeProjectId
+    : getRuntimeDocumentProjectId();
+  if (runtimeAuthority) {
+    if (!runtimeProjectId) {
+      for (const generationId of requestedIds) {
+        mappings.set(generationId, {
+          generationId,
+          taskId: null,
+          status: 'query_failed',
+          queryError: 'Runtime project authority is still resolving.',
+        });
+      }
+      return mappings;
+    }
+    const client = new ReighRuntimeClient();
+    for (const generationId of requestedIds) {
+      try {
+        const generation = await client.getGeneration(generationId);
+        mappings.set(generationId, generation.project_id !== runtimeProjectId
+          ? { generationId, taskId: null, status: 'scope_mismatch' }
+          : { generationId, taskId: generation.source_task_id ?? null, status: 'ok' });
+      } catch (error) {
+        mappings.set(generationId, {
+          generationId,
+          taskId: null,
+          status: 'query_failed',
+          queryError: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+    return mappings;
+  }
 
   for (const generationId of requestedIds) {
     if (!isUuid(generationId)) {

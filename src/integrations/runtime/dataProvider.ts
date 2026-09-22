@@ -41,6 +41,11 @@ import {
   StaleWriteError,
 } from '@/tools/video-editor/data/shotComposition.ts';
 import { generateUUID } from '@/shared/lib/taskCreation/ids.ts';
+import {
+  runtimeThumbnailObjectId,
+  selectRuntimePrimaryVariant,
+} from './generationProjection.ts';
+import { listAllRuntimeVariants } from './generationAccess.ts';
 
 type RuntimeRecord = Record<string, unknown>;
 
@@ -261,20 +266,23 @@ export class RuntimeDataProvider implements DataProvider {
   async loadGenerationForLightbox(generationId: string): Promise<GenerationRow | null> {
     try {
       const generation = await this.client.getGeneration(generationId);
-      const variants = await this.client.listVariants(generationId, undefined, 200);
-      const primary = variants.items.find((variant) => variant.metadata.is_primary === true)
-        ?? variants.items[0];
+      const variants = await listAllRuntimeVariants(this.client, generationId, 200);
+      const primary = selectRuntimePrimaryVariant(variants);
       if (!primary?.object_id) return null;
       const mediaType = typeof primary.metadata.media_type === 'string'
         ? primary.metadata.media_type
         : (typeof primary.metadata.content_type === 'string' ? primary.metadata.content_type : 'image/png');
       const url = this.client.objectContentUrl(primary.object_id);
+      const thumbnailObjectId = runtimeThumbnailObjectId(generation, primary.object_id);
+      const thumbnailUrl = thumbnailObjectId
+        ? this.client.objectContentUrl(thumbnailObjectId)
+        : null;
       return {
         id: generation.generation_id,
         generation_id: generation.generation_id,
         location: url,
         imageUrl: url,
-        thumbUrl: url,
+        ...(thumbnailUrl ? { thumbUrl: thumbnailUrl } : {}),
         type: mediaType,
         contentType: mediaType,
         createdAt: generation.created_at,

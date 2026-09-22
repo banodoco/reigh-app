@@ -1,11 +1,16 @@
 const FULL_URL_PATTERN = /^(https?:|blob:|data:)/;
+const MANAGED_MEDIA_PATH_PATTERN = /^\/api\/(?:astrid|runtime)(?:\/|$)/;
 
 const withCacheBust = (url: string): string => {
-  if (url.includes('?t=')) {
+  const hashIndex = url.indexOf('#');
+  const urlWithoutHash = hashIndex === -1 ? url : url.slice(0, hashIndex);
+  const hash = hashIndex === -1 ? '' : url.slice(hashIndex);
+
+  if (/(?:\?|&)t=[^&#]*/.test(urlWithoutHash)) {
     return url;
   }
-  const separator = url.includes('?') ? '&' : '?';
-  return `${url}${separator}t=${Date.now()}`;
+  const separator = urlWithoutHash.includes('?') ? '&' : '?';
+  return `${urlWithoutHash}${separator}t=${Date.now()}${hash}`;
 };
 
 const getEffectiveBaseUrl = (): string => {
@@ -31,6 +36,13 @@ export const getDisplayUrl = (
   }
 
   if (FULL_URL_PATTERN.test(relativePath)) {
+    return forceRefresh ? withCacheBust(relativePath) : relativePath;
+  }
+
+  // bridgeMediaUrl already resolved managed media to a same-origin byte route.
+  // Keep that route intact so display normalization does not send it to the
+  // development API target, which may be a different service.
+  if (MANAGED_MEDIA_PATH_PATTERN.test(relativePath)) {
     return forceRefresh ? withCacheBust(relativePath) : relativePath;
   }
 

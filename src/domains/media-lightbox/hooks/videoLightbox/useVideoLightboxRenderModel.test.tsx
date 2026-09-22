@@ -6,12 +6,29 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useVideoLightboxRenderModel } from './useVideoLightboxRenderModel';
+import { RuntimeAuthorityContext } from '@/app/runtime/runtimeAuthority';
 
 const routerWrapper = ({ children }: { children: ReactNode }) => {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return (
     <MemoryRouter>
       <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    </MemoryRouter>
+  );
+};
+
+const runtimeRouterWrapper = ({ children }: { children: ReactNode }) => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return (
+    <MemoryRouter>
+      <QueryClientProvider client={client}>
+        <RuntimeAuthorityContext.Provider value={{
+          runtimeAuthority: true,
+          runtimeProjectId: 'runtime-project',
+        }}>
+          {children}
+        </RuntimeAuthorityContext.Provider>
+      </QueryClientProvider>
     </MemoryRouter>
   );
 };
@@ -267,6 +284,21 @@ describe('useVideoLightboxRenderModel', () => {
     expect(result.current.lightboxStateValue.media.effectiveVideoUrl).toBe(
       'https://cdn.example.com/specific-video.mp4',
     );
+  });
+
+  it('hides the unsupported source-image mutation for Runtime documents', () => {
+    const { result } = renderHook(() =>
+      useVideoLightboxRenderModel(
+        createProps(),
+        createModeModel(),
+        createEnv(),
+        createSharedState(),
+        createEditModel(),
+      ),
+      { wrapper: runtimeRouterWrapper },
+    );
+
+    expect(result.current.lightboxStateValue.variants.onLoadVariantImages).toBeUndefined();
   });
 
   it('maps navigation hasNext from modeModel', () => {

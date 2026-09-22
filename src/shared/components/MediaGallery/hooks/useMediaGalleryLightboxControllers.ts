@@ -5,6 +5,12 @@ import { toast } from "@/shared/components/ui/runtime/sonner";
 import { normalizeAndPresentError } from "@/shared/lib/errorHandling/runtimeError";
 import { expandShotData } from '@/shared/lib/shots/shotData';
 import { fetchGenerationRecordById } from '@/integrations/supabase/repositories/generationRepository';
+import { useRuntimeAuthority } from '@/app/runtime/runtimeAuthority';
+import { ReighRuntimeClient } from '@/integrations/runtime/client';
+import {
+  fetchRuntimeGenerationSnapshot,
+  runtimeGenerationToGalleryItem,
+} from '@/integrations/runtime/generationAccess';
 import {
   buildTaskDetailsData,
   type TaskDetailsStatus,
@@ -176,6 +182,7 @@ export function useGenerationNavigationController({
   filteredImages,
   setActiveLightboxIndex,
 }: UseGenerationNavigationControllerInput) {
+  const { runtimeAuthority, runtimeProjectId } = useRuntimeAuthority();
   const handleNavigateToGeneration = useCallback((generationId: string) => {
     const index = filteredImages.findIndex((img) => img.id === generationId);
 
@@ -205,6 +212,27 @@ export function useGenerationNavigationController({
     }
 
     try {
+      if (runtimeAuthority) {
+        if (!runtimeProjectId) {
+          toast.error('Astrid Runtime is still resolving this project.');
+          return;
+        }
+        const runtimeClient = new ReighRuntimeClient();
+        const snapshot = await fetchRuntimeGenerationSnapshot(generationId, runtimeClient);
+        if (!snapshot || snapshot.generation.project_id !== runtimeProjectId) {
+          toast.error("Generation not found");
+          return;
+        }
+        const transformedData = runtimeGenerationToGalleryItem(
+          runtimeClient,
+          snapshot.generation,
+          snapshot.variants,
+        );
+        filteredImages.push(transformedData);
+        setActiveLightboxIndex?.(filteredImages.length - 1);
+        return;
+      }
+
       const row = await fetchGenerationRecordById(generationId);
       if (!row) {
         toast.error("Generation not found");
@@ -248,7 +276,7 @@ export function useGenerationNavigationController({
         toastTitle: "Failed to load generation",
       });
     }
-  }, [filteredImages, setActiveLightboxIndex]);
+  }, [filteredImages, runtimeAuthority, runtimeProjectId, setActiveLightboxIndex]);
 
   return {
     handleNavigateToGeneration,
