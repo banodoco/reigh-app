@@ -1,7 +1,7 @@
 import { updateClipOrder } from '@/tools/video-editor/lib/coordinate-utils.ts';
 import { getNextClipId, rowsToConfig, type TimelineData } from '@/tools/video-editor/lib/timeline-data.ts';
 import { buildAssetDropEdit, planAssetDropTarget } from '@/tools/video-editor/lib/timeline-asset-plans.ts';
-import { getAssetResolvedSource } from '@/tools/video-editor/lib/asset-registry.ts';
+import { getAssetImmediateSource } from '@/tools/video-editor/lib/asset-registry.ts';
 import { buildDataFromCurrentRegistry } from '@/tools/video-editor/lib/timeline-save-utils.ts';
 import type { AssetRegistry, TimelineClip, ResolvedTimelineConfig } from '@/tools/video-editor/types/index.ts';
 import { applyTimelineCommandEffect, createTimelineCommandRunner } from './runner.ts';
@@ -234,7 +234,7 @@ export const buildSwapMediaCommandEffect = (
   currentData: TimelineData,
   payload: SwapMediaCommand['payload'],
 ): TimelineCommandEffect => {
-  const src = getAssetResolvedSource(payload.asset.entry);
+  const src = getAssetImmediateSource(payload.asset.entry);
   if (!src) {
     throw new Error(`Cannot swap asset '${payload.asset.assetKey}' without a file locator or media identity`);
   }
@@ -479,7 +479,7 @@ const buildPlacePreparedMediaEffect = (
     throw new Error(`Cannot place prepared asset '${payload.asset.assetKey}' on the requested track.`);
   }
 
-  const source = getAssetResolvedSource(payload.asset.entry);
+  const source = getAssetImmediateSource(payload.asset.entry);
   if (!source) {
     throw new Error(`Prepared asset '${payload.asset.assetKey}' has no file locator or media identity.`);
   }

@@ -3,6 +3,7 @@ import {
   buildAssetReferenceMap,
   getAssetDisplayReference,
   getAssetFileLocator,
+  getAssetImmediateSource,
   getAssetMediaId,
   getAssetResolutionToken,
   getAssetResolvedSource,
@@ -16,6 +17,15 @@ describe('asset registry references', () => {
     expect(getAssetMediaId(entry)).toBe('managed-audio');
     expect(getAssetResolutionToken(entry)).toBe('managed-audio');
     expect(getAssetResolvedSource(entry)).toBe('https://bridge/audio');
+  });
+
+  it('keeps a browser-ready file URL ahead of an opaque managed identity for optimistic state', () => {
+    const entry = {
+      file: '/api/runtime/v1/objects/sha256%3Avideo',
+      media_id: 'sha256:video',
+    };
+    expect(getAssetImmediateSource(entry)).toBe('/api/runtime/v1/objects/sha256%3Avideo');
+    expect(getAssetImmediateSource({ ...entry, src: 'https://bridge/video' })).toBe('https://bridge/video');
   });
 
   it('retains file-only references and omits malformed entries from maps', () => {

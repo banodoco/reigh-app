@@ -7,7 +7,7 @@ import type {
 } from '@/tools/video-editor/types/index.ts';
 import {
   buildAssetReferenceMap,
-  getAssetResolvedSource,
+  getAssetImmediateSource,
 } from '@/tools/video-editor/lib/asset-registry.ts';
 
 export function shouldAcceptPolledData(
@@ -74,7 +74,7 @@ export function buildDataFromSnapshot(
 
   const snapshotResolvedRegistry: Record<string, ResolvedAssetRegistryEntry> = Object.fromEntries(
     Object.entries(registry.assets ?? {}).flatMap(([assetId, entry]) => {
-      const src = getAssetResolvedSource(entry);
+      const src = getAssetImmediateSource(entry);
       return src ? [[assetId, { ...entry, src }] as const] : [];
     }),
   );

@@ -7,13 +7,13 @@ import type {
 } from '@/tools/video-editor/types/index.ts';
 import {
   buildAssetReferenceMap,
-  getAssetResolvedSource,
+  getAssetImmediateSource,
 } from '@/tools/video-editor/lib/asset-registry.ts';
 
 const buildResolvedRegistry = (registry: AssetRegistry): Record<string, ResolvedAssetRegistryEntry> => {
   return Object.fromEntries(
     Object.entries(registry.assets ?? {}).flatMap(([assetKey, entry]) => {
-      const src = getAssetResolvedSource(entry);
+      const src = getAssetImmediateSource(entry);
       return src ? [[assetKey, { ...entry, src }] as const] : [];
     }),
   );

@@ -33,6 +33,16 @@ export const getAssetResolvedSource = (entry: AssetEntryWithSource | null | unde
   normalizeReference(entry?.src) ?? getAssetResolutionToken(entry)
 );
 
+/**
+ * Return a source that can be used by the browser before the async managed
+ * identity resolver has run. Prepared assets carry their display/content URL
+ * in `file`, while `media_id` is intentionally an opaque persistence token
+ * such as `sha256:...` and is not itself a browser URL.
+ */
+export const getAssetImmediateSource = (entry: AssetEntryWithSource | null | undefined): string | undefined => (
+  normalizeReference(entry?.src) ?? getAssetFileLocator(entry) ?? getAssetMediaId(entry)
+);
+
 /** Return a stable user-facing reference without ever rendering an undefined value. */
 export const getAssetDisplayReference = (
   entry: AssetEntryWithSource | null | undefined,
