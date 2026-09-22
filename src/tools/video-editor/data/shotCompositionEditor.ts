@@ -41,6 +41,8 @@ export type CanonicalShotRevisionPatch = Readonly<{
   settings?: JsonObject;
   provenance?: JsonObject;
   timeline?: JsonObject;
+  /** Per-occurrence duration discovered while saving a shot-local timeline. */
+  occurrenceDurationMs?: number;
 }>;
 
 function clone<T>(value: T): T {
@@ -121,6 +123,55 @@ function record(value: unknown): JsonObject | null {
     : null;
 }
 
+function timelineClipEndSeconds(rawClip: JsonObject): number {
+  const at = rawClip.at_ms !== undefined
+    ? Math.max(0, Number(rawClip.at_ms) / 1000)
+    : Math.max(0, typeof rawClip.at === 'number' && Number.isFinite(rawClip.at) ? rawClip.at : 0);
+  let duration = 0;
+  if (typeof rawClip.duration_ms === 'number' && Number.isFinite(rawClip.duration_ms)) {
+    duration = Math.max(0, rawClip.duration_ms / 1000);
+  } else if (typeof rawClip.duration === 'number' && Number.isFinite(rawClip.duration)) {
+    duration = Math.max(0, rawClip.duration);
+  } else if (typeof rawClip.hold === 'number' && Number.isFinite(rawClip.hold)) {
+    duration = Math.max(0, rawClip.hold);
+  } else if (
+    typeof rawClip.from === 'number'
+    && Number.isFinite(rawClip.from)
+    && typeof rawClip.to === 'number'
+    && Number.isFinite(rawClip.to)
+    && rawClip.to > rawClip.from
+  ) {
+    const speed = typeof rawClip.speed === 'number' && Number.isFinite(rawClip.speed) && rawClip.speed > 0
+      ? rawClip.speed
+      : 1;
+    duration = (rawClip.to - rawClip.from) / speed;
+  }
+  return at + duration;
+}
+
+function timelineEndMs(timeline: JsonObject): number {
+  const clips = Array.isArray(timeline.clips) ? timeline.clips : [];
+  const endSeconds = clips.reduce((maximum, rawClip) => {
+    const clip = record(rawClip);
+    return clip ? Math.max(maximum, timelineClipEndSeconds(clip)) : maximum;
+  }, 0);
+  return Math.max(0, Math.ceil((endSeconds - 1e-9) * 1000));
+}
+
+function hardDurationMs(graph: ShotCompositionContract, occurrenceId: string): number | undefined {
+  const occurrence = graph.occurrences.find((candidate) => candidate.occurrence_id === occurrenceId);
+  if (!occurrence) return undefined;
+  const next = graph.occurrences
+    .filter((candidate) => candidate.occurrence_id !== occurrenceId)
+    .sort((left, right) => (
+      Number(left.at_ms) - Number(right.at_ms)
+      || Number(left.ordinal) - Number(right.ordinal)
+    ))
+    .find((candidate) => Number(candidate.at_ms) >= Number(occurrence.at_ms));
+  if (!next) return undefined;
+  return Math.max(0, Number(next.at_ms) - Number(occurrence.at_ms));
+}
+
 /**
  * Create an immutable child revision for an editor-level shot change.
  *
@@ -147,6 +198,19 @@ export async function updateCanonicalShotRevision(
   if (sourceRevisionIndex < 0) throw new Error(`canonical shot revision ${sourceOccurrence.shot_id}/${sourceOccurrence.revision_id} is missing`);
 
   const sourceRevision = next.shot_revisions[sourceRevisionIndex];
+  const occurrenceDurationMs = patch.occurrenceDurationMs;
+  if (occurrenceDurationMs !== undefined) {
+    requireNonNegativeInteger(occurrenceDurationMs, 'occurrenceDurationMs');
+    if (occurrenceDurationMs === 0) throw new Error('occurrenceDurationMs must be greater than zero');
+    const hardLimitMs = hardDurationMs(next, occurrenceId);
+    if (hardLimitMs !== undefined && occurrenceDurationMs > hardLimitMs) {
+      throw new Error(`Shot content would cross the next shot at ${hardLimitMs / 1000}s`);
+    }
+    next.occurrences[occurrenceIndex] = {
+      ...sourceOccurrence,
+      duration_ms: Math.max(Number(sourceOccurrence.duration_ms), occurrenceDurationMs),
+    };
+  }
   const revisionId = newIdentity(`shot-revision-${String(sourceOccurrence.shot_id)}`);
   const sourceInternal = record(sourceRevision.internal_timeline_revision);
   if (!sourceInternal) throw new Error('canonical shot revision internal timeline is missing');
@@ -187,10 +251,20 @@ export async function updateCanonicalShotRevision(
     const parentOccurrences = parentComposition.occurrences.map((rawOccurrence) => {
       const occurrence = record(rawOccurrence);
       const occurrenceRevisionId = occurrence?.revision_id ?? occurrence?.shot_revision_id;
-      if (!occurrence || occurrence.shot_id !== sourceOccurrence.shot_id || occurrenceRevisionId !== sourceOccurrence.revision_id) {
+      if (!occurrence) {
         return rawOccurrence;
       }
-      return { ...occurrence, revision_id: revisionId, shot_revision_id: revisionId };
+      const sharesSourceRevision = occurrence.shot_id === sourceOccurrence.shot_id
+        && occurrenceRevisionId === sourceOccurrence.revision_id;
+      const isEditedOccurrence = occurrence.occurrence_id === occurrenceId;
+      if (!sharesSourceRevision && !isEditedOccurrence) return rawOccurrence;
+      return {
+        ...occurrence,
+        ...(sharesSourceRevision ? { revision_id: revisionId, shot_revision_id: revisionId } : {}),
+        ...(isEditedOccurrence && occurrenceDurationMs !== undefined
+          ? { duration_ms: Math.max(Number(occurrence.duration_ms ?? 0), occurrenceDurationMs) }
+          : {}),
+      };
     });
     next.parent_composition = { ...parentComposition, occurrences: parentOccurrences };
   }
@@ -237,7 +311,15 @@ export function updateCanonicalShotTimeline(
   occurrenceId: string,
   timeline: JsonObject,
 ): Promise<ShotCompositionContract> {
-  return updateCanonicalShotRevision(graph, occurrenceId, { timeline });
+  const occurrence = graph.occurrences.find((candidate) => candidate.occurrence_id === occurrenceId);
+  if (!occurrence) throw new Error(`canonical occurrence ${occurrenceId} is missing`);
+  return updateCanonicalShotRevision(graph, occurrenceId, {
+    timeline,
+    // The existing occurrence duration is a soft wall: saving content beyond
+    // it grows this occurrence. The next occurrence (if any) is checked as a
+    // hard wall inside updateCanonicalShotRevision.
+    occurrenceDurationMs: Math.max(Number(occurrence.duration_ms), timelineEndMs(timeline)),
+  });
 }
 
 export function updateCanonicalShotName(

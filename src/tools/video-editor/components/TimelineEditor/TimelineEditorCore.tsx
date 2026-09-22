@@ -212,6 +212,10 @@ export interface TimelineEditorCoreProps {
   duplicatingClipId?: string | null;
   onDuplicateGenerationClip?: (clipId: string) => void | Promise<void>;
   onOpenShotVideoModal?: (shotId: string, reason: 'pinned-group' | 'final-video-file') => void;
+  /** Fixed output duration for an embedded shot timeline, in seconds. */
+  durationLimitSeconds?: number;
+  /** Start of the next shot relative to this shot, in seconds. */
+  hardDurationSeconds?: number;
 }
 
 function TimelineEditorCoreComponent({
@@ -244,6 +248,8 @@ function TimelineEditorCoreComponent({
   duplicatingClipId = null,
   onDuplicateGenerationClip,
   onOpenShotVideoModal,
+  durationLimitSeconds,
+  hardDurationSeconds,
 }: TimelineEditorCoreProps) {
   useRenderDiagnostic('TimelineEditorCore');
   const [newTrackDropLabel, setNewTrackDropLabel] = useState<string | null>(null);
@@ -402,11 +408,15 @@ function TimelineEditorCoreComponent({
   // One geometry owner: the canvas (ruler, grid, scroll content) and the overlay
   // host below both size themselves from this.
   const timelineExtent = useMemo(() => computeTimelineExtent({
-    maxEndSeconds: maxClipEndSeconds(data?.rows ?? EMPTY_ROWS),
+    maxEndSeconds: Math.max(
+      maxClipEndSeconds(data?.rows ?? EMPTY_ROWS),
+      durationLimitSeconds ?? 0,
+      hardDurationSeconds ?? 0,
+    ),
     scale,
     scaleWidth,
     startLeft: TIMELINE_START_LEFT,
-  }), [data, scale, scaleWidth]);
+  }), [data, durationLimitSeconds, hardDurationSeconds, scale, scaleWidth]);
 
   const thumbnailMap = useMemo<Record<string, string>>(() => {
     if (!resolvedConfig) {
@@ -900,6 +910,8 @@ function TimelineEditorCoreComponent({
           canCreateShotFromSelection={canCreateShotFromSelection}
           isCreatingShot={isCreatingShot}
           selectedClipCount={selectedClipIds.size}
+          durationLimitSeconds={durationLimitSeconds}
+          hardDurationSeconds={hardDurationSeconds}
         />
         <DropIndicator ref={indicatorRef} editAreaRef={editAreaRef} onNewTrackLabel={setNewTrackDropLabel} />
       </div>

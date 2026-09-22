@@ -246,9 +246,13 @@ function buildValidPlan(input: {
   snapEdgeType: ClipDragPlan['snapEdgeType'];
   pixelSnapThreshold: number;
   pixelsPerSecond: number;
+  clipId: string;
+  clipDuration: number;
+  sourceTrackId: string | null;
+  editability?: TimelineEditability;
   rejectReason?: string | null;
 }): ClipDragPlan {
-  return {
+  const plan: ClipDragPlan = {
     pointerTime: input.pointerTime,
     resolvedStart: input.resolvedStart,
     targetTrackId: input.targetTrackId,
@@ -266,6 +270,23 @@ function buildValidPlan(input: {
     valid: true,
     invalidReason: null,
     rejectReason: input.rejectReason ?? null,
+  };
+  const moveResult = input.editability?.checkMove?.({
+    clipId: input.clipId,
+    sourceTrackId: input.sourceTrackId,
+    targetTrackId: input.targetTrackId,
+    start: plan.resolvedStart,
+    duration: input.clipDuration,
+  });
+  if (!moveResult || moveResult.allowed) return plan;
+  return {
+    ...plan,
+    resolvedStart: typeof moveResult.maxStart === 'number'
+      ? Math.max(0, moveResult.maxStart)
+      : plan.resolvedStart,
+    valid: false,
+    invalidReason: moveResult.reason ?? 'move is not allowed',
+    rejectReason: moveResult.reason ?? 'move is not allowed',
   };
 }
 
@@ -290,6 +311,7 @@ export function planClipDrag(input: ClipDragPlanInput): ClipDragPlan {
   allExcludeIds.add(clipId);
 
   const requestedTarget = resolveRequestedTarget(tracks, rows, pointerRowIndex);
+  const sourceTrackId = rows.find((row) => row.actions.some((action) => action.id === clipId))?.id ?? null;
   const editabilityResult = input.editability?.check({
     clipId,
     sourceTrackId: rows.find((row) => row.actions.some((action) => action.id === clipId))?.id ?? null,
@@ -351,6 +373,10 @@ export function planClipDrag(input: ClipDragPlanInput): ClipDragPlan {
       snapEdgeType,
       pixelSnapThreshold,
       pixelsPerSecond,
+      clipId,
+      clipDuration,
+      sourceTrackId,
+      editability: input.editability,
     });
   }
 
@@ -400,6 +426,10 @@ export function planClipDrag(input: ClipDragPlanInput): ClipDragPlan {
       snapEdgeType,
       pixelSnapThreshold,
       pixelsPerSecond,
+      clipId,
+      clipDuration,
+      sourceTrackId,
+      editability: input.editability,
     });
   }
 
@@ -479,6 +509,10 @@ export function planClipDrag(input: ClipDragPlanInput): ClipDragPlan {
         snapEdgeType,
         pixelSnapThreshold,
         pixelsPerSecond,
+        clipId,
+        clipDuration,
+        sourceTrackId,
+        editability: input.editability,
       });
     }
   }
@@ -508,6 +542,10 @@ export function planClipDrag(input: ClipDragPlanInput): ClipDragPlan {
     snapEdgeType,
     pixelSnapThreshold,
     pixelsPerSecond,
+    clipId,
+    clipDuration,
+    sourceTrackId,
+    editability: input.editability,
   });
 }
 

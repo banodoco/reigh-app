@@ -99,4 +99,18 @@ describe('canonical shot-composition editor operations', () => {
     }));
     expect(() => parseShotComposition(updated)).not.toThrow();
   });
+
+  it('grows the soft shot end while refusing content beyond the next shot', async () => {
+    const graph = parseShotComposition(fixture);
+    const updated = await updateCanonicalShotTimeline(graph, 'occ-1', {
+      tracks: [{ id: 'video', kind: 'visual' }],
+      clips: [{ id: 'alpha-video', clip_type: 'media', track: 'video', at: 1.5, hold: 2 }],
+    });
+    expect(updated.occurrences.find((candidate) => candidate.occurrence_id === 'occ-1')?.duration_ms).toBe(3500);
+
+    await expect(updateCanonicalShotTimeline(graph, 'occ-1', {
+      tracks: [{ id: 'video', kind: 'visual' }],
+      clips: [{ id: 'alpha-video', clip_type: 'media', track: 'video', at: 3.5, hold: 1 }],
+    })).rejects.toThrow('next shot');
+  });
 });

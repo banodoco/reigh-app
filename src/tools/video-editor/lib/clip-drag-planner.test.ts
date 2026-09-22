@@ -7,6 +7,7 @@ import {
 } from '@/tools/video-editor/lib/clip-drag-planner';
 import type { TrackDefinition, TrackKind } from '@/tools/video-editor/types/index.ts';
 import type { TimelineRow } from '@/tools/video-editor/types/timeline-canvas.ts';
+import { createTimelineEditability } from '@/tools/video-editor/lib/timeline-editability.ts';
 
 // ── Test helpers ──────────────────────────────────────────────────────
 
@@ -72,6 +73,20 @@ describe('pointer anchoring', () => {
     expect(plan.resolvedStart).toBe(0);
     expect(plan.snapped).toBe(true);
     expect(plan.snapEdgeType).toBe('timeline-start');
+  });
+});
+
+describe('shot duration boundary', () => {
+  it('rejects a move crossing the hard stop and previews it at the last valid start', () => {
+    const plan = planClipDrag(defaults({
+      pointerTime: 3,
+      clipDuration: 2,
+      editability: createTimelineEditability({ hardDurationSeconds: 4 }),
+    }));
+
+    expect(plan.valid).toBe(false);
+    expect(plan.rejectReason).toBe('shot_hard_duration_limit');
+    expect(plan.resolvedStart).toBe(2);
   });
 });
 // ── Timeline-start snap to 0 ──────────────────────────────────────────

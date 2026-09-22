@@ -256,9 +256,17 @@ export function useTimelineTrackManagement({
       const sourceTrackId = resolveGroupTrackId(enclosingGroup.group, current.rows);
       const sourceTrack = current.tracks.find((track) => track.id === sourceTrackId);
       const groupStart = getLiveGroupStart(current, { ...enclosingGroup.group, trackId: sourceTrackId });
+      const groupEnd = getLiveGroupEnd(current, { ...enclosingGroup.group, trackId: sourceTrackId });
       const destinationId = targetTrackId ?? targetRowId;
       const targetTrack = current.tracks.find((track) => track.id === destinationId);
-      if (!sourceTrack || groupStart == null || (!needsNewTrack && !targetTrack) || (targetTrack && targetTrack.kind !== sourceTrack.kind)) return;
+      if (!sourceTrack || groupStart == null || groupEnd == null || (!needsNewTrack && !targetTrack) || (targetTrack && targetTrack.kind !== sourceTrack.kind)) return;
+      if (editability.checkMove && !editability.checkMove({
+        clipId,
+        sourceTrackId,
+        targetTrackId: destinationId,
+        start,
+        duration: groupEnd - groupStart,
+      }).allowed) return;
       let finalTrackId = targetTrackId;
       if (needsNewTrack || !finalTrackId) {
         const appended = appendTrackForResolvedMove(current, sourceTrack.kind);
@@ -287,6 +295,13 @@ export function useTimelineTrackManagement({
     const destinationId = targetTrackId ?? targetRowId;
     const targetTrack = current.tracks.find((track) => track.id === destinationId);
     if (!sourceRow || !action || !sourceTrack || (!needsNewTrack && !targetTrack) || (targetTrack && targetTrack.kind !== sourceTrack.kind)) return;
+    if (editability.checkMove && !editability.checkMove({
+      clipId,
+      sourceTrackId: sourceRow.id,
+      targetTrackId: destinationId,
+      start,
+      duration: action.end - action.start,
+    }).allowed) return;
     let finalTrackId = targetTrackId;
     if (needsNewTrack || !finalTrackId) {
       const appended = appendTrackForResolvedMove(current, sourceTrack.kind);
@@ -378,6 +393,13 @@ export function useTimelineTrackManagement({
         groupDuration,
       );
       const effectiveGroupStart = snapResult.snapped ? snapResult.time : nextStart;
+      if (editability.checkMove && !editability.checkMove({
+        clipId,
+        sourceTrackId: resolvedTrackId,
+        targetTrackId: targetRowId,
+        start: effectiveGroupStart,
+        duration: groupDuration,
+      }).allowed) return;
       let finalTargetId = snapResult.snapped
         ? targetRowId
         : findNearestFreeTrack(
@@ -442,6 +464,13 @@ export function useTimelineTrackManagement({
       clipId,
     );
     const effectiveStart = snapResult.snapped ? snapResult.time : nextStart;
+    if (editability.checkMove && !editability.checkMove({
+      clipId,
+      sourceTrackId: sourceRow.id,
+      targetTrackId: targetRow.id,
+      start: effectiveStart,
+      duration,
+    }).allowed) return;
     let finalTrackId = snapResult.snapped
       ? targetRow.id
       : findNearestFreeTrack(

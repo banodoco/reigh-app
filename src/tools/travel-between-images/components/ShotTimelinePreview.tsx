@@ -34,6 +34,19 @@ type ProjectionState = {
   error: string | null;
 };
 
+function getHardDurationSeconds(
+  composition: PreparedShotComposition,
+  occurrenceId: string,
+): number | undefined {
+  const occurrence = composition.occurrences.find((candidate) => candidate.occurrenceId === occurrenceId);
+  if (!occurrence) return undefined;
+  const next = composition.occurrences
+    .filter((candidate) => candidate.occurrenceId !== occurrenceId)
+    .sort((left, right) => left.atMs - right.atMs || left.ordinal - right.ordinal)
+    .find((candidate) => candidate.atMs >= occurrence.atMs);
+  return next ? Math.max(0, next.atMs - occurrence.atMs) / 1000 : undefined;
+}
+
 function projectShotTimeline(composition: PreparedShotComposition, occurrenceId: string): ProjectionState {
   const occurrence = composition.occurrences.find((candidate) => candidate.occurrenceId === occurrenceId);
   if (!occurrence) {
@@ -54,7 +67,7 @@ function projectShotTimeline(composition: PreparedShotComposition, occurrenceId:
       tracks: [],
       clips: [],
       registry: {},
-    }).config;
+    }, { clampToOccurrenceDuration: false }).config;
     const occurrenceOffset = occurrence.atMs / 1000;
     const clips = projected.clips.map((clip) => ({
       ...clip,
@@ -165,7 +178,15 @@ function createShotTimelineDataProvider(
   };
 }
 
-function ShotTimelineEditorSurface({ config }: { config: ResolvedTimelineConfig }) {
+function ShotTimelineEditorSurface({
+  config,
+  durationLimitSeconds,
+  hardDurationSeconds,
+}: {
+  config: ResolvedTimelineConfig;
+  durationLimitSeconds?: number;
+  hardDurationSeconds?: number;
+}) {
   const { previewRef, playerContainerRef, currentTime, onPreviewTimeUpdate } = useTimelinePlaybackContext();
 
   const durationSeconds = useMemo(() => {
@@ -193,7 +214,10 @@ function ShotTimelineEditorSurface({ config }: { config: ResolvedTimelineConfig 
         data-shot-timeline-tracks={config.tracks.map((track) => `${track.id}:${track.kind}`).join('|')}
         data-shot-timeline-clip-assets={config.clips.map((clip) => `${clip.id}:${clip.track}:${clip.at}:${clip.from ?? 'no-from'}:${clip.to ?? 'no-to'}:${clip.hold ?? 'no-hold'}:${clip.clipType ?? 'media'}:${clip.asset ? 'asset' : 'no-asset'}:${clip.assetEntry?.type ?? 'unknown'}`).join('|')}
       >
-        <TimelineEditorCore />
+        <TimelineEditorCore
+          durationLimitSeconds={durationLimitSeconds}
+          hardDurationSeconds={hardDurationSeconds}
+        />
       </div>
       <div className="sr-only">Shot timeline duration {durationSeconds.toFixed(2)} seconds.</div>
     </div>
@@ -207,9 +231,14 @@ export function ShotTimelinePreview({
   onCanonicalCompositionPublished,
 }: ShotTimelinePreviewProps) {
   const projection = useMemo(() => projectShotTimeline(composition, occurrenceId), [composition, occurrenceId]);
+  const occurrence = composition.occurrences.find((candidate) => candidate.occurrenceId === occurrenceId);
+  const hardDurationSeconds = getHardDurationSeconds(composition, occurrenceId);
   const timelineEditability = useMemo(
-    () => createTimelineEditability({ readOnly: !Boolean(shotCompositionAdapter?.publish) }),
-    [shotCompositionAdapter?.publish],
+    () => createTimelineEditability({
+      readOnly: !Boolean(shotCompositionAdapter?.publish),
+      hardDurationSeconds,
+    }),
+    [hardDurationSeconds, shotCompositionAdapter?.publish],
   );
   const dataProvider = useMemo(
     () => projection.config
@@ -225,6 +254,11 @@ export function ShotTimelinePreview({
   );
   const canEdit = Boolean(shotCompositionAdapter?.publish);
   const shotTimelineId = `${composition.parentDocumentId}:shot:${occurrenceId}:${composition.headRevisionId}`;
+  const durationLimitSeconds = occurrence ? Math.max(0, occurrence.durationMs / 1000) : undefined;
+  const contentDurationSeconds = projection.config
+    ? getTimelineDurationInFrames(projection.config, projection.config.output.fps) / projection.config.output.fps
+    : 0;
+  const durationDelta = durationLimitSeconds === undefined ? 0 : durationLimitSeconds - contentDurationSeconds;
 
   if (!projection.config) {
     return (
@@ -267,7 +301,9 @@ export function ShotTimelinePreview({
             </p>
           </div>
         </div>
-        <span className="shrink-0 font-mono text-[11px] text-muted-foreground">{projection.config.output.fps} fps</span>
+        <span className="shrink-0 text-right font-mono text-[11px] text-muted-foreground">
+          {projection.config.output.fps} fps · shot ends {durationLimitSeconds?.toFixed(2) ?? '—'}s · {durationDelta >= 0 ? `${durationDelta.toFixed(2)}s free` : `${Math.abs(durationDelta).toFixed(2)}s over`} · {hardDurationSeconds === undefined ? 'no hard stop' : `blocked at ${hardDurationSeconds.toFixed(2)}s`}
+        </span>
       </div>
 
       <VideoEditorProvider
@@ -281,7 +317,11 @@ export function ShotTimelinePreview({
         timelineEditability={timelineEditability}
         extensionHostEnabled={false}
       >
-        <ShotTimelineEditorSurface config={projection.config} />
+        <ShotTimelineEditorSurface
+          config={projection.config}
+          durationLimitSeconds={durationLimitSeconds}
+          hardDurationSeconds={hardDurationSeconds}
+        />
       </VideoEditorProvider>
     </section>
   );

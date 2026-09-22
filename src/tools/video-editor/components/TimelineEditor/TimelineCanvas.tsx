@@ -41,6 +41,7 @@ import { DataLaneList } from '@/tools/video-editor/components/TimelineEditor/Dat
 import { visibleDataLanes } from '@/tools/video-editor/data-kinds/visibleDataLanes.ts';
 import { TrackListRenderer } from '@/tools/video-editor/components/TimelineEditor/TrackListRenderer.tsx';
 import { TimelineGhostLayer } from '@/tools/video-editor/components/TimelineEditor/TimelineGhostLayer.tsx';
+import { TimelineDurationGuide } from '@/tools/video-editor/components/TimelineEditor/TimelineDurationGuide.tsx';
 import { VideoEditorRuntimeContext } from '@/tools/video-editor/contexts/VideoEditorRuntimeContext.tsx';
 import type { TimelineGhostEntry } from '@/tools/video-editor/types/timeline-canvas.ts';
 import { useClipResizeGesture } from '@/tools/video-editor/hooks/useClipResizeGesture.ts';
@@ -184,6 +185,10 @@ export interface TimelineCanvasProps {
   canCreateShotFromSelection?: boolean;
   isCreatingShot?: boolean;
   selectedClipCount?: number;
+  /** Fixed output duration for an embedded shot timeline, in seconds. */
+  durationLimitSeconds?: number;
+  /** Start of the next shot relative to this shot, in seconds. */
+  hardDurationSeconds?: number;
 }
 
 const TOOL_BUTTON_BASE_CLASS = 'pointer-events-auto relative flex items-center justify-center rounded-full ring-1 transition-all duration-150 hover:-translate-y-0.5 hover:scale-105 active:translate-y-0 active:scale-100';
@@ -370,6 +375,8 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
   canCreateShotFromSelection,
   isCreatingShot,
   selectedClipCount = 0,
+  durationLimitSeconds,
+  hardDurationSeconds,
 }: TimelineCanvasProps, ref) {
   useRenderBudget('TimelineCanvas', 3);
   // dataKind V2: reactive base TimelineData → assembled duration-neutral
@@ -536,7 +543,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
   // Content-only derivation: the trailing runway is the owner's call and reaches
   // us as minScaleCount/maxScaleCount (TimelineEditorCore pins both to one value).
   const { totalWidth } = computeTimelineExtent({
-    maxEndSeconds: maxEnd,
+    maxEndSeconds: Math.max(maxEnd, durationLimitSeconds ?? 0, hardDurationSeconds ?? 0),
     scale,
     scaleWidth,
     startLeft,
@@ -1164,6 +1171,17 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
                 width: marqueeRect.width,
                 height: marqueeRect.height,
               }}
+            />
+          )}
+          {durationLimitSeconds !== undefined && (
+            <TimelineDurationGuide
+              durationSeconds={durationLimitSeconds}
+              hardDurationSeconds={hardDurationSeconds}
+              maxClipEndSeconds={maxClipEnd}
+              startLeft={startLeft}
+              pixelsPerSecond={pixelsPerSecond}
+              totalWidth={totalWidth}
+              height={scrollContentHeight}
             />
           )}
           {newTrackDropLabel?.includes('at top') && (

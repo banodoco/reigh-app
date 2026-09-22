@@ -258,7 +258,8 @@ function projectClip(
   occurrence: CanonicalShotOccurrence,
   clipIndex: number,
   clipIdentities: Map<string, CanonicalClipIdentity>,
-): TimelineClip {
+  clampToOccurrenceDuration: boolean,
+): TimelineClip | null {
   assertSupportedChildClip(rawClip, occurrence);
   const identity = identityForOccurrence(occurrence);
   const clipId = text(rawClip.id) ?? `child-${clipIndex}`;
@@ -332,13 +333,31 @@ function projectClip(
       },
     },
   };
+  if (clampToOccurrenceDuration) {
+    const remainingSeconds = occurrence.durationMs / 1000 - projected.at + occurrence.atMs / 1000;
+    if (remainingSeconds <= 0) return null;
+    if (hasTrim && projected.from !== undefined && projected.to !== undefined) {
+      const maxTrimmedTo = projected.from + remainingSeconds * speed;
+      if (projected.to > maxTrimmedTo) {
+        projected.to = maxTrimmedTo;
+      }
+    } else if (projected.hold !== undefined) {
+      projected.hold = Math.min(projected.hold, remainingSeconds);
+    }
+  }
   clipIdentities.set(id, identity);
   return projected;
 }
 
+export type CanonicalCompositionProjectionOptions = Readonly<{
+  /** Keep shot-local overhang visible so saving can grow the soft wall. */
+  clampToOccurrenceDuration?: boolean;
+}>;
+
 export function projectCanonicalComposition(
   composition: PreparedShotComposition,
   baseConfig?: ResolvedTimelineConfig | null,
+  options: CanonicalCompositionProjectionOptions = {},
 ): CanonicalCompositionProjection {
   assertDependencies(composition);
   const clips: TimelineClip[] = [];
@@ -359,7 +378,16 @@ export function projectCanonicalComposition(
     }
     rawClips.forEach((rawClip, index) => {
       const clip = record(rawClip);
-      if (clip) clips.push(projectClip(clip, occurrence, index, clipIdentities));
+      if (clip) {
+        const projected = projectClip(
+          clip,
+          occurrence,
+          index,
+          clipIdentities,
+          options.clampToOccurrenceDuration !== false,
+        );
+        if (projected) clips.push(projected);
+      }
     });
     if (!rawClips.some((rawClip) => record(rawClip))) {
       throw new CanonicalCompositionProjectionError(

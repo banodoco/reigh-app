@@ -103,6 +103,25 @@ describe('canonical shot-composition downstream projection', () => {
       .toBe(projection.occurrenceIdentities.get('occ-2')?.revisionId);
   });
 
+  it('clips an overlong child to the occurrence in the parent projection', () => {
+    const source = withOccurrenceRevision(prepared, 0, (timeline) => ({
+      ...timeline,
+      clips: [{
+        id: 'overlong-child',
+        asset: 'alpha-image',
+        clipType: 'image',
+        track: 'video',
+        at: 0,
+        hold: 5,
+      }],
+    }));
+    const parentClip = projectCanonicalComposition(source).config.clips.find((clip) => clip.id === 'occ-1:overlong-child');
+    const localClip = projectCanonicalComposition(source, undefined, { clampToOccurrenceDuration: false }).config.clips.find((clip) => clip.id === 'occ-1:overlong-child');
+
+    expect(parentClip?.hold).toBe(2);
+    expect(localClip?.hold).toBe(5);
+  });
+
   it('preserves editor-form seconds and child trim windows when flattening a shot', () => {
     const source = withOccurrenceRevision(prepared, 0, (timeline) => ({
       ...timeline,

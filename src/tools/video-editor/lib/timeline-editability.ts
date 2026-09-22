@@ -6,11 +6,13 @@
  * serialized as managed metadata. Callers must check this guard again at
  * commit time because a lock may change while a pointer gesture is active.
  */
-export type TimelineEditabilityReason = 'timeline_read_only' | 'clip_locked' | 'track_locked';
+export type TimelineEditabilityReason = 'timeline_read_only' | 'clip_locked' | 'track_locked' | 'shot_hard_duration_limit';
 
 export interface TimelineEditabilityResult {
   allowed: boolean;
   reason?: TimelineEditabilityReason;
+  /** Optional clamped start used by a visual reject preview. */
+  maxStart?: number;
 }
 
 export interface TimelineEditability {
@@ -19,12 +21,20 @@ export interface TimelineEditability {
     sourceTrackId: string | null;
     targetTrackId: string | null;
   }): TimelineEditabilityResult;
+  checkMove?(input: {
+    clipId: string;
+    sourceTrackId: string | null;
+    targetTrackId: string | null;
+    start: number;
+    duration: number;
+  }): TimelineEditabilityResult;
 }
 
 export interface TimelineEditabilityOptions {
   readOnly?: boolean;
   lockedClipIds?: Iterable<string>;
   lockedTrackIds?: Iterable<string>;
+  hardDurationSeconds?: number;
 }
 
 export function createTimelineEditability(options: TimelineEditabilityOptions = {}): TimelineEditability {
@@ -39,9 +49,24 @@ export function createTimelineEditability(options: TimelineEditabilityOptions = 
       }
       return { allowed: true };
     },
+    checkMove({ duration, start }) {
+      if (
+        typeof options.hardDurationSeconds === 'number'
+        && Number.isFinite(options.hardDurationSeconds)
+        && start + duration > options.hardDurationSeconds + 0.0001
+      ) {
+        return {
+          allowed: false,
+          reason: 'shot_hard_duration_limit',
+          maxStart: Math.max(0, options.hardDurationSeconds - duration),
+        };
+      }
+      return { allowed: true };
+    },
   };
 }
 
 export const allowTimelineEdits: TimelineEditability = {
   check: () => ({ allowed: true }),
+  checkMove: () => ({ allowed: true }),
 };
