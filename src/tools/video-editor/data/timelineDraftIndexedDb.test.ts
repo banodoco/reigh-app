@@ -48,6 +48,17 @@ describe('timelineDraftIndexedDb — one-slot recovery draft (plan-v5 B9)', () =
     expect(await loadTimelineDraft('tl-1')).toBeNull();
   });
 
+  it('compare-and-delete never lets an old acknowledgement clear a newer owner', async () => {
+    await saveTimelineDraft('tl-1', { config: { name: 'first' } }, 1, 'owner-1');
+    await saveTimelineDraft('tl-1', { config: { name: 'newer' } }, 1, 'owner-2');
+
+    await clearTimelineDraft('tl-1', 'owner-1');
+    expect((await loadTimelineDraft('tl-1'))?.draft).toEqual({ config: { name: 'newer' } });
+
+    await clearTimelineDraft('tl-1', 'owner-2');
+    expect(await loadTimelineDraft('tl-1')).toBeNull();
+  });
+
   it('drafts for different timelines do not collide', async () => {
     await saveTimelineDraft('tl-a', { config: { name: 'a' } }, 1);
     await saveTimelineDraft('tl-b', { config: { name: 'b' } }, 2);

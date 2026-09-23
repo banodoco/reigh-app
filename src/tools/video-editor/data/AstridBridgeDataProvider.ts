@@ -436,10 +436,19 @@ export class AstridBridgeDataProvider implements DataProvider {
       registeredParsers: this.registeredParsers,
       onBridgeRequest: this.onBridgeRequest,
     });
-    const [timeline, registry] = await Promise.all([
-      childProvider.loadTimeline(timelineId),
-      childProvider.loadAssetRegistry(timelineId),
-    ]);
+    // One payload read is the provider's coherent document snapshot. Keeping
+    // config/version/bundle and registry together lets the save owner inspect
+    // a retry conflict without accidentally combining different revisions.
+    const payload = await childProvider.fetchTimelinePayload(timelineId, { fresh: true });
+    const registry = normalizeRegistry(payload.registry);
+    childProvider.rebuildAssetMaps(registry);
+    const timeline: LoadedTimeline = {
+      config: normalizeConfig(payload.config),
+      configVersion: normalizeConfigVersion(payload.config_version),
+      bundle: payload.bundle === undefined || payload.bundle === null
+        ? null
+        : parseTimelineBundle(payload.bundle),
+    };
     return {
       timeline,
       registry,

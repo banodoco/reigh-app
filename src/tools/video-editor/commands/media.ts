@@ -1,9 +1,10 @@
 import { updateClipOrder } from '@/tools/video-editor/lib/coordinate-utils.ts';
 import { getNextClipId, rowsToConfig, type TimelineData } from '@/tools/video-editor/lib/timeline-data.ts';
 import { buildAssetDropEdit, planAssetDropTarget } from '@/tools/video-editor/lib/timeline-asset-plans.ts';
+import { buildDuplicateClipEdit } from '@/tools/video-editor/lib/duplicate-clip.ts';
 import { getAssetImmediateSource } from '@/tools/video-editor/lib/asset-registry.ts';
 import { buildDataFromCurrentRegistry } from '@/tools/video-editor/lib/timeline-save-utils.ts';
-import type { AssetRegistry, TimelineClip, ResolvedTimelineConfig } from '@/tools/video-editor/types/index.ts';
+import type { AssetRegistry, TimelineClip, ResolvedTimelineConfig, PinnedShotGroup } from '@/tools/video-editor/types/index.ts';
 import { applyTimelineCommandEffect, createTimelineCommandRunner } from './runner.ts';
 import { buildTimelineCommandData } from './timelineData.ts';
 import type {
@@ -43,7 +44,17 @@ export type PlacePreparedMediaPayload = {
   forceNewTrack?: boolean;
   insertAtTop?: boolean;
   clipSpanSeconds?: number | null;
+  /** Use the clip id allocated by the caller's compound mutation. */
+  clipId?: string;
+  /** Duplicate an existing clip using the normal ripple and metadata rules. */
+  afterClipId?: string;
   removeClipId?: string;
+  /** Remove several clips as part of the same prepared-media mutation. */
+  removeClipIds?: string[];
+  /** Replace an existing clip while preserving its id/history identity. */
+  replaceClipId?: string;
+  /** Keep group membership/metadata in the same editor save as the media. */
+  pinnedShotGroupsOverride?: PinnedShotGroup[];
 };
 
 export type PlacePreparedMediaCommand = Omit<TimelineCommand<'place-prepared-media', PlacePreparedMediaPayload>, 'payload'> & {
@@ -422,26 +433,127 @@ export const SWAP_MEDIA_COMMAND_DESCRIPTOR: TimelineCommandDescriptor<SwapMediaC
   },
 };
 
-const removeClipFromWorkingData = (current: TimelineData, clipId: string | undefined): TimelineData => {
-  if (!clipId) {
+const removeClipFromWorkingData = (current: TimelineData, clipIds: readonly string[]): TimelineData => {
+  if (clipIds.length === 0) {
     return current;
   }
 
+  const clipIdSet = new Set(clipIds);
   const nextMeta = { ...current.meta };
-  delete nextMeta[clipId];
+  for (const clipId of clipIdSet) {
+    delete nextMeta[clipId];
+  }
   return {
     ...current,
     rows: current.rows.map((row) => ({
       ...row,
-      actions: row.actions.filter((action) => action.id !== clipId),
+      actions: row.actions.filter((action) => !clipIdSet.has(action.id)),
     })),
     meta: nextMeta,
     clipOrder: Object.fromEntries(
       Object.entries(current.clipOrder).map(([trackId, clipIds]) => [
         trackId,
-        clipIds.filter((candidate) => candidate !== clipId),
+        clipIds.filter((candidate) => !clipIdSet.has(candidate)),
       ]),
     ),
+  };
+};
+
+const buildPreparedReplacementEdit = (
+  current: TimelineData,
+  payload: PlacePreparedMediaCommand['payload'],
+) => {
+  const clipId = payload.replaceClipId;
+  if (!clipId) {
+    return null;
+  }
+
+  const row = current.rows.find((candidate) => candidate.actions.some((action) => action.id === clipId));
+  const action = row?.actions.find((candidate) => candidate.id === clipId);
+  const currentMeta = current.meta[clipId];
+  if (!row || !action || !currentMeta) {
+    return null;
+  }
+
+  const currentDuration = Math.max(0.05, action.end - action.start);
+  const requestedDuration = payload.clipSpanSeconds;
+  const duration = typeof requestedDuration === 'number'
+    && Number.isFinite(requestedDuration)
+    && requestedDuration > 0
+    ? requestedDuration
+    : currentDuration;
+  const hasDurationChange = Math.abs(duration - currentDuration) > 0.0001;
+  const rows = hasDurationChange
+    ? current.rows.map((candidate) => candidate.id === row.id
+      ? {
+          ...candidate,
+          actions: candidate.actions.map((candidateAction) => candidateAction.id === clipId
+            ? { ...candidateAction, end: candidateAction.start + duration }
+            : candidateAction),
+        }
+      : candidate)
+    : current.rows;
+  const metaUpdate: Partial<TimelineData['meta'][string]> = {
+    asset: payload.asset.assetKey,
+  };
+  if (hasDurationChange) {
+    if (typeof currentMeta.hold === 'number') {
+      metaUpdate.hold = duration;
+    } else {
+      const from = typeof currentMeta.from === 'number' ? currentMeta.from : 0;
+      const speed = typeof currentMeta.speed === 'number' && currentMeta.speed > 0
+        ? currentMeta.speed
+        : 1;
+      metaUpdate.to = from + duration * speed;
+    }
+  }
+
+  return {
+    clipId,
+    trackId: row.id,
+    duration,
+    rows,
+    metaUpdates: { [clipId]: metaUpdate },
+    clipOrderOverride: current.clipOrder,
+  };
+};
+
+const materializePreparedData = ({
+  base,
+  rows,
+  meta,
+  clipOrder,
+  pinnedShotGroups,
+  registry,
+  resolvedRegistry,
+}: {
+  base: TimelineData;
+  rows: TimelineData['rows'];
+  meta: TimelineData['meta'];
+  clipOrder: TimelineData['clipOrder'];
+  pinnedShotGroups: TimelineData['config']['pinnedShotGroups'];
+  registry: AssetRegistry;
+  resolvedRegistry: TimelineData['resolvedConfig']['registry'];
+}): TimelineData => {
+  const config = rowsToConfig(
+    rows,
+    meta,
+    base.output,
+    clipOrder,
+    base.tracks,
+    pinnedShotGroups,
+    base.config,
+  );
+  const nextData = buildDataFromCurrentRegistry(config, base, {
+    registry,
+    resolvedRegistry,
+  });
+  return {
+    ...nextData,
+    config,
+    rows,
+    meta,
+    clipOrder,
   };
 };
 
@@ -452,32 +564,26 @@ const buildPlacePreparedMediaEffect = (
   const assetKind = payload.asset.mediaType === 'audio' ? 'audio' : 'visual';
   const duration = payload.clipSpanSeconds
     ?? estimateProvisionedAssetDuration(payload.asset);
-  const workingData = removeClipFromWorkingData(currentData, payload.removeClipId);
-  const targetPlan = planAssetDropTarget({
-    current: workingData,
-    assetKind,
-    trackId: payload.trackId,
-    selectedTrackId: payload.selectedTrackId ?? null,
-    forceNewTrack: payload.forceNewTrack ?? false,
-    insertAtTop: payload.insertAtTop ?? false,
-    time: Math.max(0, payload.at),
-    duration,
-  });
-  if (!targetPlan.ok) {
-    throw new Error('Timeline data is not available for prepared media placement.');
+  const requestedRemovalIds = [
+    ...(payload.removeClipId ? [payload.removeClipId] : []),
+    ...(payload.removeClipIds ?? []),
+  ];
+  const uniqueRemovalIds = [...new Set(requestedRemovalIds)];
+  for (const clipId of uniqueRemovalIds) {
+    const exists = currentData.meta[clipId]
+      && currentData.rows.some((row) => row.actions.some((action) => action.id === clipId));
+    if (!exists) {
+      throw new Error(`Prepared media target clip '${clipId}' no longer exists.`);
+    }
   }
-
-  const nextEdit = buildAssetDropEdit({
-    current: targetPlan.preparedCurrent,
-    assetKey: payload.asset.assetKey,
-    assetEntry: payload.asset.entry,
-    trackId: targetPlan.trackId,
-    time: targetPlan.snappedTime ?? Math.max(0, payload.at),
-    clipSpanSeconds: payload.clipSpanSeconds,
-  });
-  if (!nextEdit) {
-    throw new Error(`Cannot place prepared asset '${payload.asset.assetKey}' on the requested track.`);
+  if (payload.replaceClipId) {
+    const exists = currentData.meta[payload.replaceClipId]
+      && currentData.rows.some((row) => row.actions.some((action) => action.id === payload.replaceClipId));
+    if (!exists) {
+      throw new Error(`Prepared media replacement target clip '${payload.replaceClipId}' no longer exists.`);
+    }
   }
+  const workingData = removeClipFromWorkingData(currentData, uniqueRemovalIds);
 
   const source = getAssetImmediateSource(payload.asset.entry);
   if (!source) {
@@ -498,28 +604,102 @@ const buildPlacePreparedMediaEffect = (
       src: source,
     },
   };
-  const nextMeta = { ...targetPlan.preparedCurrent.meta, ...nextEdit.metaUpdates };
-  const nextConfig = rowsToConfig(
-    nextEdit.rows,
-    nextMeta,
-    targetPlan.preparedCurrent.output,
-    nextEdit.clipOrderOverride,
-    targetPlan.preparedCurrent.tracks,
-    targetPlan.preparedCurrent.config.pinnedShotGroups,
-    targetPlan.preparedCurrent.config,
-  );
-  const nextData = buildDataFromCurrentRegistry(nextConfig, targetPlan.preparedCurrent, {
+
+  if (payload.afterClipId) {
+    const duplicateEdit = buildDuplicateClipEdit(workingData, payload.afterClipId, payload.asset.assetKey);
+    if (!duplicateEdit) {
+      throw new Error(`Cannot duplicate clip '${payload.afterClipId}' for prepared media placement.`);
+    }
+    const nextMeta = { ...workingData.meta };
+    for (const [clipId, patch] of Object.entries(duplicateEdit.metaUpdates)) {
+      nextMeta[clipId] = {
+        ...nextMeta[clipId],
+        ...patch,
+      };
+    }
+    const nextData = materializePreparedData({
+      base: workingData,
+      rows: duplicateEdit.rows,
+      meta: nextMeta,
+      clipOrder: duplicateEdit.clipOrderOverride,
+      pinnedShotGroups: payload.pinnedShotGroupsOverride ?? workingData.config.pinnedShotGroups,
+      registry: nextRegistry,
+      resolvedRegistry: nextResolvedRegistry,
+    });
+    return {
+      mutation: { type: 'data', data: nextData },
+      summary: `Duplicated prepared asset ${payload.asset.assetKey} after clip ${payload.afterClipId}.`,
+      detail: {
+        assetKey: payload.asset.assetKey,
+        clipId: duplicateEdit.clipId,
+        trackId: duplicateEdit.trackId,
+      },
+    };
+  }
+
+  const replacementEdit = buildPreparedReplacementEdit(workingData, payload);
+  let baseForEdit: TimelineData;
+  let nextEdit: NonNullable<ReturnType<typeof buildAssetDropEdit>> | NonNullable<ReturnType<typeof buildPreparedReplacementEdit>>;
+  let targetTrackId: string;
+  if (replacementEdit) {
+    baseForEdit = workingData;
+    nextEdit = replacementEdit;
+    targetTrackId = replacementEdit.trackId;
+  } else {
+    const targetPlan = planAssetDropTarget({
+      current: workingData,
+      assetKind,
+      trackId: payload.trackId,
+      selectedTrackId: payload.selectedTrackId ?? null,
+      forceNewTrack: payload.forceNewTrack ?? false,
+      insertAtTop: payload.insertAtTop ?? false,
+      time: Math.max(0, payload.at),
+      duration,
+    });
+    if (!targetPlan.ok) {
+      throw new Error('Timeline data is not available for prepared media placement.');
+    }
+    const insertedEdit = buildAssetDropEdit({
+      current: targetPlan.preparedCurrent,
+      assetKey: payload.asset.assetKey,
+      assetEntry: payload.asset.entry,
+      trackId: targetPlan.trackId,
+      time: targetPlan.snappedTime ?? Math.max(0, payload.at),
+      clipSpanSeconds: payload.clipSpanSeconds,
+      clipId: payload.clipId,
+    });
+    if (!insertedEdit) {
+      throw new Error(`Cannot place prepared asset '${payload.asset.assetKey}' on the requested track.`);
+    }
+    baseForEdit = targetPlan.preparedCurrent;
+    nextEdit = insertedEdit;
+    targetTrackId = targetPlan.trackId;
+  }
+
+  const nextMeta = { ...baseForEdit.meta };
+  for (const [clipId, patch] of Object.entries(nextEdit.metaUpdates)) {
+    nextMeta[clipId] = {
+      ...nextMeta[clipId],
+      ...patch,
+    };
+  }
+  const nextData = materializePreparedData({
+    base: baseForEdit,
+    rows: nextEdit.rows,
+    meta: nextMeta,
+    clipOrder: nextEdit.clipOrderOverride,
+    pinnedShotGroups: payload.pinnedShotGroupsOverride ?? baseForEdit.config.pinnedShotGroups,
     registry: nextRegistry,
     resolvedRegistry: nextResolvedRegistry,
   });
 
   return {
     mutation: { type: 'data', data: nextData },
-    summary: `Placed prepared asset ${payload.asset.assetKey} on track ${targetPlan.trackId}.`,
+    summary: `Placed prepared asset ${payload.asset.assetKey} on track ${targetTrackId}.`,
     detail: {
       assetKey: payload.asset.assetKey,
       clipId: nextEdit.clipId,
-      trackId: targetPlan.trackId,
+      trackId: targetTrackId,
     },
   };
 };

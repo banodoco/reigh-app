@@ -317,7 +317,6 @@ function TimelineEditorCoreComponent({
     onTimelineDrop,
     onDoubleClickAsset,
     patchRegistry,
-    registerAsset,
   } = useTimelineOpsSelector((ops) => ({
     applyEdit: ops.applyEdit,
     selectClips: ops.selectClips,
@@ -345,7 +344,6 @@ function TimelineEditorCoreComponent({
     onTimelineDrop: ops.onTimelineDrop,
     onDoubleClickAsset: ops.onDoubleClickAsset,
     patchRegistry: ops.patchRegistry,
-    registerAsset: ops.registerAsset,
   }), shallow);
   const {
     handleAddTrack,
@@ -388,7 +386,6 @@ function TimelineEditorCoreComponent({
   const { staleAssetKeys, dismissedAssetKeys, generationAssetKeys, dismissAsset, updateAssetToCurrentVariant, applyVariantToAsset } = useStaleVariants({
     registry: resolvedConfig?.registry,
     patchRegistry,
-    registerAsset,
   });
   const { addVariantAsGenerationAfterClip, isPending: isAddingVariantAsGenerationPending } = useAddVariantAsGeneration();
   const { activeTaskAssetKeys } = useActiveTaskClips({ registry: resolvedConfig?.registry });

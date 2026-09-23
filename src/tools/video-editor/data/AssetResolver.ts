@@ -26,6 +26,26 @@ export interface UploadedAssetResult {
   entry: AssetRegistryEntry;
 }
 
+/** One catalog settlement that can be reused by gallery and timeline paths. */
+export interface PreparedMediaImport {
+  provider: string;
+  project: string;
+  importOperationId: string;
+  generationId: string;
+  variantId: string;
+  assetId: string;
+  entry: AssetRegistryEntry;
+}
+
+export interface MediaImportOptions {
+  filename?: string;
+  mediaType?: string;
+  expectedDigest?: string;
+  width?: number;
+  height?: number;
+  durationSeconds?: number;
+}
+
 export interface AssetResolveRequest {
   file: string;
   assetId?: string;
@@ -81,6 +101,11 @@ export interface AssetResolver {
     file: File,
     options: UploadAssetOptions,
   ): Promise<UploadedAssetResult>;
+  /** Import image/video bytes into the provider's canonical media catalog. */
+  prepareMediaImport?(
+    file: File,
+    options?: MediaImportOptions,
+  ): Promise<PreparedMediaImport>;
   uploadAsset?(
     file: File,
     options: UploadAssetOptions,

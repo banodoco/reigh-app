@@ -216,14 +216,12 @@ function PropertiesPanelComponent({ assetPanel }: PropertiesPanelProps) {
     setPrecisionEnabled,
     patchRegistry,
     setSelectedTrackId,
-    registerAsset,
     applyEdit,
   } = useTimelineEditorOps();
   const shaderSnapshot = useShaderEffectRegistrySnapshot();
   const { staleAssetKeys, dismissedAssetKeys, dismissAsset, updateAssetToCurrentVariant, applyVariantToAsset } = useStaleVariants({
     registry: resolvedConfig?.registry,
     patchRegistry,
-    registerAsset,
   });
   const { addVariantAsGenerationAfterClip, isPending: isAddingVariantAsGenerationPending } = useAddVariantAsGeneration();
   const prevClipIdRef = useRef(selectedClip?.id);

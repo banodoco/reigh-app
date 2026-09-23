@@ -13,6 +13,7 @@ import {
   getFinalVideoDropDurationContract,
 } from '@/tools/video-editor/lib/timeline-asset-durations.ts';
 import {
+  getPlayableAssetKind,
   planAssetDropTarget,
   planFinalVideoGenerationAssetRegistration,
   planGenerationAssetRegistration,
@@ -79,6 +80,7 @@ async function dispatchTimelineDrop({
   uploadVideoGeneration,
   dropAsset,
   directAssetUploadAllFiles,
+  mediaImportForImageVideo,
   onAssetDropError,
   handleAddTextAt,
   shots,
@@ -101,6 +103,7 @@ async function dispatchTimelineDrop({
   uploadVideoGeneration: UseAssetManagementResult['uploadVideoGeneration'];
   dropAsset: UseAssetManagementResult['handleAssetDrop'];
   directAssetUploadAllFiles: boolean;
+  mediaImportForImageVideo: boolean;
   onAssetDropError?: (error: unknown) => void;
   handleAddTextAt?: (trackId: string, time: number) => void;
   shots: Shot[] | undefined;
@@ -137,6 +140,7 @@ async function dispatchTimelineDrop({
     uploadVideoGeneration,
     dropAsset,
     directAssetUploadAllFiles,
+    mediaImportForImageVideo,
     onAssetDropError,
   })) {
     return;
@@ -184,9 +188,7 @@ async function dispatchTimelineDrop({
         return;
       }
 
-      const priorDataRef = dataRef.current;
-      dataRef.current = resolvedTarget.preparedCurrent;
-      const assetKey = registerGenerationAsset({
+      const generationData = {
         assetId: registrationPlan.assetId,
         generationId: finalVideo.id,
         variantType: 'video',
@@ -198,35 +200,73 @@ async function dispatchTimelineDrop({
         metadata: {
           content_type: 'video/mp4',
         },
-      });
-      if (!assetKey) {
+      };
+      let asset = prepareGenerationAsset?.(generationData) ?? null;
+      if (!asset) {
+        const priorDataRef = dataRef.current;
+        dataRef.current = resolvedTarget.preparedCurrent;
+        const assetKey = registerGenerationAsset(generationData);
+        const entry = assetKey ? dataRef.current?.registry.assets[assetKey] : undefined;
         dataRef.current = priorDataRef;
+        if (!assetKey || !entry) {
+          return;
+        }
+        asset = {
+          assetKey,
+          mediaType: 'video',
+          durationSeconds: entry.duration ?? durationContract.assetDurationSeconds,
+          entry,
+          source: 'registered',
+        };
+      }
+      const assetKey = asset.assetKey;
+      if (!assetKey) {
         return;
       }
+      const preparedEdit = buildAssetDropEdit({
+        current: resolvedTarget.preparedCurrent,
+        assetKey,
+        assetEntry: asset.entry,
+        trackId: resolvedTarget.trackId,
+        time: resolvedTarget.snappedTime ?? dropPosition.time,
+        clipSpanSeconds: durationContract.clipSpanSeconds,
+      });
+      if (!preparedEdit) {
+        return;
+      }
+      dataRef.current = resolvedTarget.preparedCurrent;
       const nextData: TimelineData = {
         ...resolvedTarget.preparedCurrent,
-        rows: nextEdit.rows,
+        rows: preparedEdit.rows,
         meta: {
           ...resolvedTarget.preparedCurrent.meta,
-          ...nextEdit.metaUpdates,
+          ...preparedEdit.metaUpdates,
         },
-        clipOrder: nextEdit.clipOrderOverride,
+        clipOrder: preparedEdit.clipOrderOverride,
+      };
+      const nextRegistry = {
+        ...resolvedTarget.preparedCurrent.registry,
+        assets: {
+          ...resolvedTarget.preparedCurrent.registry.assets,
+          [asset.assetKey]: asset.entry,
+        },
       };
 
       applyEdit({
         type: 'rows',
-        rows: nextEdit.rows,
-        metaUpdates: nextEdit.metaUpdates,
-        clipOrderOverride: nextEdit.clipOrderOverride,
+        rows: preparedEdit.rows,
+        metaUpdates: preparedEdit.metaUpdates,
+        clipOrderOverride: preparedEdit.clipOrderOverride,
         pinnedShotGroupsOverride: buildPinnedShotGroupsOverride(nextData, {
           shotId: shotData.shotId,
           trackId: resolvedTarget.trackId,
-          clipIds: [nextEdit.clipId],
+          clipIds: [preparedEdit.clipId],
           mode: 'video',
           videoAssetKey: assetKey,
         }),
+        registryOverride: nextRegistry,
       }, {
-        selectedClipId: nextEdit.clipId,
+        selectedClipId: preparedEdit.clipId,
         selectedTrackId: resolvedTarget.trackId,
       });
       return;
@@ -253,7 +293,6 @@ async function dispatchTimelineDrop({
     if (!shot || !resolvedTarget.ok || shotImages.length === 0) {
       return;
     }
-
     const priorDataRef = dataRef.current;
     let workingData = resolvedTarget.preparedCurrent;
     const metaUpdates: Record<string, TimelineData['meta'][string]> = {};
@@ -294,7 +333,7 @@ async function dispatchTimelineDrop({
         dataRef.current = resolvedTarget.preparedCurrent;
         hasPreparedTimelineState = true;
       }
-      const assetKey = registerGenerationAsset({
+      const generationData = {
         assetId: registrationPlan.assetId,
         generationId: shotImage.generation_id,
         variantType: 'image',
@@ -303,22 +342,57 @@ async function dispatchTimelineDrop({
         metadata: {
           content_type: shotImage.contentType ?? shotImage.type ?? 'image/png',
         },
-      });
-      if (!assetKey) {
+      };
+      const preparedAsset = prepareGenerationAsset?.(generationData);
+      let asset = preparedAsset;
+      if (!asset) {
+        dataRef.current = workingData;
+        const assetKey = registerGenerationAsset(generationData);
+        const entry = assetKey ? workingData.registry.assets[assetKey] : undefined;
+        if (!assetKey || !entry) {
+          continue;
+        }
+        asset = {
+          assetKey,
+          mediaType: getPlayableAssetKind(entry) ?? 'image',
+          durationSeconds: entry.duration ?? null,
+          entry,
+          source: 'registered' as const,
+        };
+      }
+      if (!asset) {
         continue;
       }
 
-      Object.assign(metaUpdates, nextEdit.metaUpdates);
-      createdClipIds.push(nextEdit.clipId);
-      timeOffset += nextEdit.duration;
+      const assetKey = asset.assetKey;
+      const nextEditWithPreparedAsset = buildAssetDropEdit({
+        current: workingData,
+        assetKey,
+        assetEntry: asset.entry,
+        trackId: resolvedTarget.trackId,
+        time: baseTime + timeOffset,
+      });
+      if (!nextEditWithPreparedAsset) {
+        continue;
+      }
+      Object.assign(metaUpdates, nextEditWithPreparedAsset.metaUpdates);
+      createdClipIds.push(nextEditWithPreparedAsset.clipId);
+      timeOffset += nextEditWithPreparedAsset.duration;
       workingData = {
         ...workingData,
-        rows: nextEdit.rows,
+        rows: nextEditWithPreparedAsset.rows,
         meta: {
           ...workingData.meta,
-          ...nextEdit.metaUpdates,
+          ...nextEditWithPreparedAsset.metaUpdates,
         },
-        clipOrder: nextEdit.clipOrderOverride,
+        clipOrder: nextEditWithPreparedAsset.clipOrderOverride,
+        registry: {
+          ...workingData.registry,
+          assets: {
+            ...workingData.registry.assets,
+            [assetKey]: asset.entry,
+          },
+        },
       };
     }
 
@@ -333,11 +407,13 @@ async function dispatchTimelineDrop({
       mode: 'images',
     });
 
+    dataRef.current = workingData;
     applyEdit({
       type: 'rows',
       rows: workingData.rows,
       metaUpdates,
       clipOrderOverride: workingData.clipOrder,
+      registryOverride: workingData.registry,
       pinnedShotGroupsOverride: nextPinnedShotGroups,
     }, {
       selectedClipId: createdClipIds[0] ?? null,
@@ -444,6 +520,7 @@ export function useExternalDrop({
   // Declared capability, not a type sniff: the Astrid provider declares it,
   // everything else (including future providers) opts in explicitly.
   const directAssetUploadAllFiles = runtime.provider.supportsDirectAssetUpload === true;
+  const mediaImportForImageVideo = typeof runtime.provider.prepareMediaImport === 'function';
   const externalDragFrameRef = useRef<number | null>(null);
   const autoScrollerRef = useRef<ReturnType<typeof createAutoScroller> | null>(null);
   const latestExternalDragRef = useRef<{
@@ -580,6 +657,7 @@ export function useExternalDrop({
       uploadVideoGeneration,
       dropAsset,
       directAssetUploadAllFiles,
+      mediaImportForImageVideo,
       onAssetDropError: (error) => {
         runtime.toast.error('Failed to save asset', {
           ...(error instanceof Error && error.message ? { description: error.message } : {}),
@@ -604,6 +682,7 @@ export function useExternalDrop({
     prepareGenerationAsset,
     resolveAssetUrl,
     directAssetUploadAllFiles,
+    mediaImportForImageVideo,
     runtime.toast,
     shots,
     finalVideoMap,

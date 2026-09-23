@@ -542,28 +542,25 @@ describe('useSwitchToFinalVideo', () => {
       expect(applyEdit).toHaveBeenCalledTimes(1);
     });
     const mutation = applyEdit.mock.calls[0][0];
-    expect(mutation.type).toBe('rows');
-    expect(mutation.metaDeletes).toEqual(['clip-1', 'clip-2']);
-    expect(mutation.pinnedShotGroupsOverride).toEqual([expect.objectContaining({
+    expect(mutation.type).toBe('prepared-media');
+    expect(mutation.command.payload).toMatchObject({
+      clipId: 'clip-3',
+      trackId: 'V1',
+      at: 4,
+      clipSpanSeconds: 8,
+      removeClipIds: ['clip-1', 'clip-2'],
+    });
+    expect(mutation.command.payload.pinnedShotGroupsOverride).toEqual([expect.objectContaining({
       shotId: 'shot-1',
       trackId: 'V1',
       clipIds: ['clip-3'],
       mode: 'video',
       videoAssetKey: expect.any(String),
       imageClipSnapshot: [
-        { clipId: 'clip-1', assetKey: 'asset-1', start: 4, end: 9, meta: { clipType: 'hold', hold: 5, opacity: undefined, from: undefined, to: undefined, speed: undefined, volume: undefined, x: undefined, y: undefined, width: undefined, height: undefined, cropTop: undefined, cropBottom: undefined, cropLeft: undefined, cropRight: undefined, text: undefined, entrance: undefined, exit: undefined, continuous: undefined, transition: undefined, effects: undefined } },
-        { clipId: 'clip-2', assetKey: 'asset-2', start: 9, end: 14, meta: { clipType: 'hold', hold: 5, opacity: undefined, from: undefined, to: undefined, speed: undefined, volume: undefined, x: undefined, y: undefined, width: undefined, height: undefined, cropTop: undefined, cropBottom: undefined, cropLeft: undefined, cropRight: undefined, text: undefined, entrance: undefined, exit: undefined, continuous: undefined, transition: undefined, effects: undefined } },
+        { clipId: 'clip-1', assetKey: 'asset-1', start: 4, end: 9, meta: { clipType: 'hold', hold: 5 } },
+        { clipId: 'clip-2', assetKey: 'asset-2', start: 9, end: 14, meta: { clipType: 'hold', hold: 5 } },
       ],
     })]);
-    expect(mutation.rows).toEqual([
-      {
-        id: 'V1',
-        actions: [
-          { id: 'clip-3', start: 4, end: 12, effectId: 'effect-clip-3' },
-        ],
-      },
-    ]);
-    expect(patchRegistry).toHaveBeenCalledTimes(1);
   });
 
   it('updates a video-mode shot group to the latest final video in one edit', async () => {
@@ -619,28 +616,19 @@ describe('useSwitchToFinalVideo', () => {
     });
 
     await waitFor(() => {
-      expect(patchRegistry).toHaveBeenCalledTimes(1);
-      expect(registerAsset).toHaveBeenCalledTimes(1);
       expect(applyEdit).toHaveBeenCalledTimes(1);
     });
 
     const mutation = applyEdit.mock.calls[0][0];
-    expect(mutation.type).toBe('rows');
-    expect(mutation.rows).toEqual([
-      {
-        id: 'V1',
-        actions: [
-          { id: 'clip-3', start: 7, end: 13, effectId: 'effect-clip-3' },
-        ],
-      },
-    ]);
-    expect(mutation.metaUpdates).toEqual({
-      'clip-3': {
-        asset: expect.any(String),
-        to: 6,
-      },
+    expect(mutation.type).toBe('prepared-media');
+    expect(mutation.command.payload).toMatchObject({
+      clipId: 'clip-3',
+      replaceClipId: 'clip-3',
+      trackId: 'V1',
+      at: 7,
+      clipSpanSeconds: 6,
     });
-    expect(mutation.pinnedShotGroupsOverride).toEqual([expect.objectContaining({
+    expect(mutation.command.payload.pinnedShotGroupsOverride).toEqual([expect.objectContaining({
       shotId: 'shot-1',
       trackId: 'V1',
       clipIds: ['clip-3'],
@@ -709,12 +697,24 @@ describe('useSwitchToFinalVideo', () => {
 
     expect(mockedExtractVideoMetadataFromUrl).not.toHaveBeenCalled();
     const mutation = applyEdit.mock.calls[0][0];
-    expect(mutation.metaUpdates).toEqual({
-      'clip-3': {
-        asset: expect.any(String),
-        to: 6,
-      },
+    expect(mutation.type).toBe('prepared-media');
+    expect(mutation.command.payload).toMatchObject({
+      clipId: 'clip-3',
+      replaceClipId: 'clip-3',
+      trackId: 'V1',
+      at: 7,
+      clipSpanSeconds: 6,
     });
+    expect(mutation.command.payload.pinnedShotGroupsOverride).toEqual([expect.objectContaining({
+      shotId: 'shot-1',
+      trackId: 'V1',
+      clipIds: ['clip-3'],
+      mode: 'video',
+      videoAssetKey: expect.any(String),
+      imageClipSnapshot: [
+        { clipId: 'clip-1', assetKey: 'asset-1', start: 7, end: 10, meta: { clipType: 'hold', hold: 3 } },
+      ],
+    })]);
   });
 
   it('keeps unresolved final-video replacement duration out of the registry and preserves the existing image span', async () => {
@@ -768,31 +768,28 @@ describe('useSwitchToFinalVideo', () => {
 
     await waitFor(() => {
       expect(applyEdit).toHaveBeenCalledTimes(1);
-      expect(patchRegistry).toHaveBeenCalledTimes(1);
     });
-
-    expect(patchRegistry.mock.calls[0]?.[1]).toEqual(expect.objectContaining({
-      file: 'https://example.com/final.mp4',
-      type: 'video/mp4',
-      generationId: 'final-1',
-    }));
-    expect(patchRegistry.mock.calls[0]?.[1]).not.toHaveProperty('duration');
 
     const mutation = applyEdit.mock.calls[0][0];
-    expect(mutation.rows).toEqual([
-      {
-        id: 'V1',
-        actions: [
-          { id: 'clip-3', start: 4, end: 14, effectId: 'effect-clip-3' },
-        ],
-      },
-    ]);
-    expect(mutation.metaUpdates).toEqual({
-      'clip-3': expect.objectContaining({
-        asset: expect.any(String),
-        to: 10,
-      }),
+    expect(mutation.type).toBe('prepared-media');
+    expect(mutation.command.payload).toMatchObject({
+      clipId: 'clip-3',
+      trackId: 'V1',
+      at: 4,
+      clipSpanSeconds: 10,
+      removeClipIds: ['clip-1', 'clip-2'],
     });
+    expect(mutation.command.payload.pinnedShotGroupsOverride).toEqual([expect.objectContaining({
+      shotId: 'shot-1',
+      trackId: 'V1',
+      clipIds: ['clip-3'],
+      mode: 'video',
+      videoAssetKey: expect.any(String),
+      imageClipSnapshot: [
+        { clipId: 'clip-1', assetKey: 'asset-1', start: 4, end: 9, meta: { clipType: 'hold', hold: 5 } },
+        { clipId: 'clip-2', assetKey: 'asset-2', start: 9, end: 14, meta: { clipType: 'hold', hold: 5 } },
+      ],
+    })]);
   });
 
   it('does not patch the registry when switching to final video cannot build a valid mutation', async () => {

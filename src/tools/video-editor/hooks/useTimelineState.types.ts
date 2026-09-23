@@ -141,6 +141,7 @@ export interface TimelineEditorOpsContextValue {
   setSelectedTrackId: TimelineSetSelectedTrackId;
   setActiveClipTab: TimelineSetActiveClipTab;
   setAssetPanelState: TimelineSetAssetPanelState;
+  prepareGenerationAsset: AssetManagementHook['prepareGenerationAsset'];
   registerGenerationAsset: AssetManagementHook['registerGenerationAsset'];
   onCursorDrag: TimelinePlaybackHook['onCursorDrag'];
   onClickTimeArea: TimelinePlaybackHook['onClickTimeArea'];

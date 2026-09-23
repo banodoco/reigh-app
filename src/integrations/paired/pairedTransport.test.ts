@@ -23,6 +23,8 @@ describe('paired transport boundary', () => {
     expect(classifyPairedRoute('/api/runtime/v1/health', 'GET')?.service).toBe('runtime');
     expect(classifyPairedRoute('/api/runtime/v1/projects/p1/documents/d1', 'PATCH')?.service).toBe('runtime');
     expect(classifyPairedRoute('/api/runtime/v1/projects/p1/objects', 'POST')?.stream).toBe(true);
+    expect(classifyPairedRoute('/api/runtime/v1/projects/p1/media-imports', 'POST')?.stream).toBe(true);
+    expect(classifyPairedRoute('/api/runtime/v1/projects/p1/media-imports/op-1', 'GET')?.service).toBe('runtime');
     expect(classifyPairedRoute('/api/runtime/v1/doctor', 'GET')).toBeNull();
     expect(classifyPairedRoute('/api/runtime/v1/tasks/claim', 'POST')).toBeNull();
     expect(classifyPairedRoute('/api/runtime/v1/export?destination=/tmp/x', 'GET')).toBeNull();

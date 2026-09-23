@@ -30,6 +30,7 @@ interface UsePinnedGroupSyncArgs extends UsePinnedShotGroupsArgs {
   data: TimelineData | null;
   shots: Shot[] | undefined;
   registerGenerationAsset: UseAssetManagementResult['registerGenerationAsset'];
+  prepareGenerationAsset?: UseAssetManagementResult['prepareGenerationAsset'];
   isInteractionActive?: () => boolean;
   debounceMs?: number;
 }
@@ -157,6 +158,7 @@ export function usePinnedGroupSync({
   applyEdit,
   shots,
   registerGenerationAsset,
+  prepareGenerationAsset,
   isInteractionActive: _isInteractionActive,
   debounceMs = 300,
   enabled = true,
@@ -317,7 +319,7 @@ export function usePinnedGroupSync({
             continue;
           }
 
-          const assetKey = registerGenerationAsset({
+          const generationData = {
             generationId: desiredGenerationId,
             variantType: 'image',
             imageUrl,
@@ -325,12 +327,14 @@ export function usePinnedGroupSync({
             metadata: {
               content_type: desiredImage.contentType ?? desiredImage.type ?? 'image/png',
             },
-          });
+          } as const;
+          const preparedAsset = prepareGenerationAsset?.(generationData);
+          const assetKey = preparedAsset?.assetKey ?? registerGenerationAsset(generationData);
           if (!assetKey) {
             continue;
           }
 
-          const latestRegistryEntry = dataRef.current?.registry.assets[assetKey];
+          const latestRegistryEntry = preparedAsset?.entry ?? dataRef.current?.registry.assets[assetKey];
           if (latestRegistryEntry) {
             groupWorkingData = {
               ...groupWorkingData,
@@ -434,6 +438,7 @@ export function usePinnedGroupSync({
         metaUpdates: Object.keys(accumulatedMetaUpdates).length > 0 ? accumulatedMetaUpdates : undefined,
         metaDeletes: accumulatedMetaDeletes.size > 0 ? [...accumulatedMetaDeletes] : undefined,
         clipOrderOverride: workingData.clipOrder,
+        registryOverride: workingData.registry,
         pinnedShotGroupsOverride: workingPinnedShotGroups,
         // Background repair, not a user edit: it must save but must not create
         // an undo entry — ⌘Z landing on an invisible sync reads as "undo did
@@ -446,5 +451,5 @@ export function usePinnedGroupSync({
     return () => {
       clearScheduledSync();
     };
-  }, [applyEdit, data, dataRef, debounceMs, enabled, isInteractionActive, registerGenerationAsset, shots]);
+  }, [applyEdit, data, dataRef, debounceMs, enabled, isInteractionActive, prepareGenerationAsset, registerGenerationAsset, shots]);
 }

@@ -8,13 +8,9 @@ import {
 import { loadPrimaryVariantForGeneration } from '@/tools/video-editor/adapters/reigh/variantPromotionLookup.ts';
 import type { GenerationVariant } from '@/shared/hooks/variants/useVariants.ts';
 import { useVideoEditorRuntime } from '@/tools/video-editor/contexts/VideoEditorRuntimeContext.tsx';
-import {
-  executeGenerationAssetRegistrationPlan,
-  planDuplicateGenerationAssetRegistration,
-} from '@/tools/video-editor/lib/timeline-asset-plans.ts';
+import { planDuplicateGenerationAssetRegistration } from '@/tools/video-editor/lib/timeline-asset-plans.ts';
 import { useTimelineCommandsService } from '@/tools/video-editor/hooks/useTimelineCommandsService.ts';
 import {
-  useTimelineEditorOps,
   useTimelineMutableAdapters,
 } from '@/tools/video-editor/hooks/timelineStore.ts';
 
@@ -32,7 +28,6 @@ export function useAddVariantAsGeneration(): UseAddVariantAsGenerationResult {
   const runtime = useVideoEditorRuntime();
   const selectedProjectId = runtime.project.projectId;
   const commands = useTimelineCommandsService();
-  const { patchRegistry, registerAsset, unpatchRegistry } = useTimelineEditorOps();
   const { dataRef } = useTimelineMutableAdapters();
   const promoteVariant = usePromoteVariantToGeneration();
   const [pending, setPending] = useState<Set<string>>(() => new Set());
@@ -89,25 +84,20 @@ export function useAddVariantAsGeneration(): UseAddVariantAsGenerationResult {
         throw new Error('Failed to plan the new generation asset.');
       }
 
-      const { assetKey, persistPromise } = executeGenerationAssetRegistrationPlan({
-        plan: registrationPlan,
-        patchRegistry,
-        registerAsset,
-      });
+      const preparedAsset = {
+        assetKey: registrationPlan.assetId,
+        mediaType: variantType,
+        durationSeconds: registrationPlan.assetEntry.duration ?? null,
+        entry: registrationPlan.assetEntry,
+        source: 'registered' as const,
+      };
       const insertResult = commands.addClip({
-        assetId: assetKey,
+        preparedAsset,
         afterClipId: clipId,
       });
       if (!insertResult.ok) {
-        unpatchRegistry(assetKey);
         throw new Error(insertResult.error.message);
       }
-
-      void persistPromise.catch((error) => {
-        console.error('[video-editor] Failed to persist promoted variant asset:', error);
-        unpatchRegistry(assetKey);
-        runtime.toast.error('Failed to save asset');
-      });
     } catch (error) {
       if (isVariantPromotionUnsupportedError(error)) {
         runtime.toast.error(error.message);
@@ -121,7 +111,7 @@ export function useAddVariantAsGeneration(): UseAddVariantAsGenerationResult {
     } finally {
       setPendingKey(key, false);
     }
-  }, [commands, dataRef, patchRegistry, promoteVariant, registerAsset, runtime.toast, selectedProjectId, setPendingKey, unpatchRegistry]);
+  }, [commands, dataRef, promoteVariant, runtime.toast, selectedProjectId, setPendingKey]);
 
   const isPending = useCallback(
     (clipId: string, variantId: string) => pending.has(`${clipId}:${variantId}`),

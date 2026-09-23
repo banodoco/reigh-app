@@ -18,6 +18,12 @@ export interface TimelineDraftRecord {
   timelineId: string;
   draft: Record<string, unknown>;
   baseVersion: number;
+  /**
+   * Identifies the mutation that owns this one-slot draft. Save acknowledgements
+   * use it as a compare-and-delete fence so an older request can never erase a
+   * draft written by a newer edit (including undo/redo).
+   */
+  ownerId?: string;
   updatedAt: string;
 }
 
@@ -53,6 +59,7 @@ export async function saveTimelineDraft(
   timelineId: string,
   draft: Record<string, unknown>,
   baseVersion: number,
+  ownerId?: string,
 ): Promise<void> {
   if (typeof indexedDB === 'undefined') {
     return;
@@ -63,6 +70,7 @@ export async function saveTimelineDraft(
     timelineId,
     draft,
     baseVersion,
+    ...(ownerId === undefined ? {} : { ownerId }),
     updatedAt: new Date().toISOString(),
   };
   await new Promise<void>((resolve, reject) => {
@@ -91,14 +99,25 @@ export async function loadTimelineDraft(
   return record ?? null;
 }
 
-export async function clearTimelineDraft(timelineId: string): Promise<void> {
+export async function clearTimelineDraft(timelineId: string, expectedOwnerId?: string): Promise<void> {
   if (typeof indexedDB === 'undefined') {
     return;
   }
   const database = await openDatabase();
   await new Promise<void>((resolve, reject) => {
     const transaction = database.transaction(DRAFT_STORE_NAME, 'readwrite');
-    transaction.objectStore(DRAFT_STORE_NAME).delete(buildKey(timelineId));
+    const store = transaction.objectStore(DRAFT_STORE_NAME);
+    if (expectedOwnerId === undefined) {
+      store.delete(buildKey(timelineId));
+    } else {
+      const request = store.get(buildKey(timelineId));
+      request.addEventListener('success', () => {
+        const current = request.result as TimelineDraftRecord | undefined;
+        if (current?.ownerId === expectedOwnerId) {
+          store.delete(buildKey(timelineId));
+        }
+      });
+    }
     transaction.addEventListener('complete', () => resolve());
     transaction.addEventListener('error', () => reject(transaction.error));
   });

@@ -233,6 +233,7 @@ function createInitialOpsSlice(): TimelineEditorOpsContextValue {
   const clearSelection: TimelineEditorOpsContextValue['clearSelection'] = opsUnavailable('clearSelection');
   const setActiveClipTab: TimelineEditorOpsContextValue['setActiveClipTab'] = opsUnavailable('setActiveClipTab');
   const setAssetPanelState: TimelineEditorOpsContextValue['setAssetPanelState'] = opsUnavailable('setAssetPanelState');
+  const prepareGenerationAsset: TimelineEditorOpsContextValue['prepareGenerationAsset'] = opsUnavailable('prepareGenerationAsset');
   const registerGenerationAsset: TimelineEditorOpsContextValue['registerGenerationAsset'] = opsUnavailable('registerGenerationAsset');
   const onCursorDrag: TimelineEditorOpsContextValue['onCursorDrag'] = opsUnavailable('onCursorDrag');
   const onClickTimeArea: TimelineEditorOpsContextValue['onClickTimeArea'] = opsUnavailable('onClickTimeArea');
@@ -299,6 +300,7 @@ function createInitialOpsSlice(): TimelineEditorOpsContextValue {
     setSelectedTrackId,
     setActiveClipTab,
     setAssetPanelState,
+    prepareGenerationAsset,
     registerGenerationAsset,
     onCursorDrag,
     onClickTimeArea,

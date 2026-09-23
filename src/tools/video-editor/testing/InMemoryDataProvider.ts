@@ -3,6 +3,7 @@ import {
   type ExtensionPersistenceService,
   TimelineNotFoundError,
   type DataProvider,
+  type LoadedReferencedTimeline,
   type LoadedTimeline,
 } from '@/tools/video-editor/data/DataProvider.ts';
 import {
@@ -102,6 +103,23 @@ export class InMemoryDataProvider implements DataProvider {
       config: clone(existing.config),
       configVersion: existing.configVersion,
       bundle: existing.bundle ? clone(existing.bundle) : null,
+    };
+  }
+
+  async loadReferencedTimeline(timelineId: string): Promise<LoadedReferencedTimeline> {
+    const existing = this.timelines.get(timelineId);
+    if (!existing) {
+      throw new TimelineNotFoundError(timelineId);
+    }
+    const registry = clone(existing.registry);
+    return {
+      timeline: {
+        config: clone(existing.config),
+        configVersion: existing.configVersion,
+        bundle: existing.bundle ? clone(existing.bundle) : null,
+      },
+      registry,
+      resolveAssetUrl: async (file: string) => file,
     };
   }
 

@@ -100,6 +100,7 @@ export type TimelineEditMutation =
       metaDeletes?: string[];
       clipOrderOverride?: ClipOrderMap;
       pinnedShotGroupsOverride?: TimelineData['config']['pinnedShotGroups'];
+      registryOverride?: TimelineData['registry'];
     }
   /**
    * Full `resolvedConfig` replacement — the big hammer. For edits that are not
@@ -224,6 +225,7 @@ export function useTimelineCommit({
     rows: TimelineRow[],
     meta: Record<string, ClipMeta>,
     clipOrder: ClipOrderMap,
+    registryOverride?: TimelineData['registry'],
   ) => {
     // Soft-tag model: cohesion is a property of edit operations, not data shape.
     // rowsToConfig receives the untouched pinnedShotGroups from the current config;
@@ -239,9 +241,17 @@ export function useTimelineCommit({
       current.config,
     );
 
+    const registry = registryOverride ?? current.registry;
+    const resolvedRegistry = Object.fromEntries(
+      Object.entries(registry.assets ?? {}).flatMap(([assetId, entry]) => {
+        const src = getAssetImmediateSource(entry);
+        return src ? [[assetId, { ...entry, src }] as const] : [];
+      }),
+    );
+
     return preserveUploadingClips(
       { ...current, rows, meta } as TimelineData,
-      buildDataFromCurrentRegistry(config, current),
+      buildDataFromCurrentRegistry(config, current, { registry, resolvedRegistry }),
     );
   }, []);
 
@@ -388,6 +398,7 @@ export function useTimelineCommit({
         mutation.rows,
         nextMeta,
         mutation.clipOrderOverride ?? buildTrackClipOrder(current.tracks, current.clipOrder, mutation.metaDeletes),
+        mutation.registryOverride,
       );
       const nextData = mutation.pinnedShotGroupsOverride === undefined
         ? baseNextData
@@ -396,6 +407,10 @@ export function useTimelineCommit({
             buildDataFromCurrentRegistry(
               withPinnedShotGroups(baseNextData.config, mutation.pinnedShotGroupsOverride),
               current,
+              {
+                registry: baseNextData.registry,
+                resolvedRegistry: baseNextData.resolvedConfig.registry,
+              },
             ),
           );
 
@@ -490,9 +505,13 @@ export function useTimelineCommit({
     });
 
     commitData(nextData, {
-      save: false,
+      // Registry enrichment is a document edit. It must go through the same
+      // save owner as config/clip changes so it is dirty, draft-backed, and
+      // represented by an undo snapshot.
+      save: true,
       selectedClipId: selectedClipIdRef.current,
       selectedTrackId: selectedTrackIdRef.current,
+      semantic: true,
     });
   }, [commitData, eventBus]);
 
@@ -500,6 +519,14 @@ export function useTimelineCommit({
     const current = dataRef.current;
     if (!current) {
       eventBus.emit('lostEdit');
+      return;
+    }
+
+    // A failed preparation/registration must never remove an asset that has
+    // already become referenced by a live clip or pinned group.
+    const isReferenced = current.config.clips.some((clip) => clip.asset === assetId)
+      || current.config.pinnedShotGroups?.some((group) => group.videoAssetKey === assetId) === true;
+    if (isReferenced) {
       return;
     }
 
@@ -536,9 +563,10 @@ export function useTimelineCommit({
     });
 
     commitData(nextData, {
-      save: false,
+      save: true,
       selectedClipId: selectedClipIdRef.current,
       selectedTrackId: selectedTrackIdRef.current,
+      semantic: true,
     });
   }, [commitData, eventBus]);
 

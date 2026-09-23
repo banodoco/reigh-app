@@ -32,7 +32,7 @@ import type {
   TimelineEditorDataContextValue,
   TimelineEditorOpsContextValue,
 } from '@/tools/video-editor/hooks/useTimelineState.types.ts';
-import type { AssetRegistryEntry, TimelineClip, TrackKind } from '@/tools/video-editor/types/index.ts';
+import type { AssetRegistryEntry, TimelineClip, TrackKind, PinnedShotGroup } from '@/tools/video-editor/types/index.ts';
 import type { ManagedObjectGuard, ManagedObjectInfo } from '@/tools/video-editor/lib/managed-object-guard';
 import { detachManagedApp } from '@/tools/video-editor/lib/managed-object-guard';
 import {
@@ -77,6 +77,11 @@ export interface AddClipCommandInput {
   insertAtTop?: boolean;
   clipSpanSeconds?: number | null;
   afterClipId?: string;
+  clipId?: string;
+  removeClipId?: string;
+  removeClipIds?: string[];
+  replaceClipId?: string;
+  pinnedShotGroupsOverride?: PinnedShotGroup[];
 }
 
 export interface UpdateClipCommandInput {
@@ -426,19 +431,39 @@ export function createTimelineCommands(
       }
 
       if (input.preparedAsset) {
-        if (input.afterClipId || typeof input.time !== 'number') {
-          return failure('invalid_argument', 'A prepared asset requires a target time and cannot use afterClipId.');
+        let preparedAt = input.time;
+        const preparedTrackId = input.trackId;
+        if (input.afterClipId) {
+          if (isPinnedGroupClip(current, input.afterClipId)) {
+            return failure('pinned_group_edit_blocked', 'Pinned shot-group duplication stays on the internal shot-group path in Sprint 2.');
+          }
+          const sourceClip = getResolvedClip(current, input.afterClipId);
+          if (!sourceClip) {
+            return failure('clip_not_found', `Clip '${input.afterClipId}' was not found.`);
+          }
+          preparedAt ??= 0;
+        }
+        if (typeof preparedAt !== 'number') {
+          return failure('invalid_argument', 'A prepared asset requires a target time or afterClipId.');
         }
         const command: PlacePreparedMediaCommand = {
           type: 'place-prepared-media',
           payload: {
             asset: input.preparedAsset,
-            trackId: input.trackId,
+            trackId: preparedTrackId,
             selectedTrackId: state.data.selectedTrackId,
-            at: Math.max(0, input.time),
+            at: Math.max(0, preparedAt),
+            ...(input.afterClipId !== undefined ? { afterClipId: input.afterClipId } : {}),
             forceNewTrack: input.forceNewTrack ?? false,
             insertAtTop: input.insertAtTop ?? false,
             clipSpanSeconds: input.clipSpanSeconds,
+            ...(input.clipId !== undefined ? { clipId: input.clipId } : {}),
+            ...(input.removeClipId !== undefined ? { removeClipId: input.removeClipId } : {}),
+            ...(input.removeClipIds !== undefined ? { removeClipIds: input.removeClipIds } : {}),
+            ...(input.replaceClipId !== undefined ? { replaceClipId: input.replaceClipId } : {}),
+            ...(input.pinnedShotGroupsOverride !== undefined
+              ? { pinnedShotGroupsOverride: input.pinnedShotGroupsOverride }
+              : {}),
           },
         };
         const preview = applyPreparedMediaCommand(current, command);
@@ -907,17 +932,7 @@ export function createTimelineCommands(
 
       if ('entry' in input) {
         state.ops.patchRegistry(input.assetId, input.entry, input.sourceUrl ?? input.entry.file);
-        try {
-          await state.ops.registerAsset(input.assetId, input.entry);
-          return success({ assetId: input.assetId });
-        } catch (cause) {
-          state.ops.unpatchRegistry(input.assetId);
-          return failure(
-            'asset_registration_failed',
-            cause instanceof Error ? cause.message : 'Failed to persist asset registration.',
-            { cause },
-          );
-        }
+        return success({ assetId: input.assetId });
       }
 
       const plan = planGenerationAssetRegistration({
@@ -935,17 +950,7 @@ export function createTimelineCommands(
       }
 
       state.ops.patchRegistry(plan.assetId, plan.assetEntry, plan.sourceUrl);
-      try {
-        await state.ops.registerAsset(plan.assetId, plan.assetEntry);
-        return success({ assetId: plan.assetId });
-      } catch (cause) {
-        state.ops.unpatchRegistry(plan.assetId);
-        return failure(
-          'asset_registration_failed',
-          cause instanceof Error ? cause.message : 'Failed to persist asset registration.',
-          { cause },
-        );
-      }
+      return success({ assetId: plan.assetId });
     },
 
     setClipParams(input) {

@@ -630,6 +630,7 @@ function InnerProvider({
     setSelectedTrackId: editor.setSelectedTrackId,
     setActiveClipTab: editor.setActiveClipTab,
     setAssetPanelState: editor.setAssetPanelState,
+    prepareGenerationAsset: editor.prepareGenerationAsset,
     registerGenerationAsset: editor.registerGenerationAsset,
     onCursorDrag: editor.onCursorDrag,
     onClickTimeArea: editor.onClickTimeArea,

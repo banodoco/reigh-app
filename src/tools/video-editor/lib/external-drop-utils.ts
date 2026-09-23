@@ -288,6 +288,7 @@ export async function handleFileDrop({
   uploadVideoGeneration,
   dropAsset,
   directAssetUploadAllFiles = false,
+  mediaImportForImageVideo = false,
   onAssetDropError,
 }: {
   files: File[];
@@ -308,6 +309,7 @@ export async function handleFileDrop({
   uploadVideoGeneration: UseAssetManagementResult['uploadVideoGeneration'];
   dropAsset: UseAssetManagementResult['handleAssetDrop'];
   directAssetUploadAllFiles?: boolean;
+  mediaImportForImageVideo?: boolean;
   onAssetDropError?: (error: unknown) => void;
 }): Promise<boolean> {
   if (!files.length || !dataRef.current) {
@@ -327,7 +329,11 @@ export async function handleFileDrop({
       ? null
       : getCompatibleTrackId(dataRef.current.tracks, targetTrackId, kind, selectedTrackId);
 
-    if (directAssetUploadAllFiles) {
+    // Runtime image/video drops go through the canonical media-import
+    // settlement so the gallery generation and the timeline placement share
+    // one catalog identity. Other file kinds can still use the provider's
+    // generic prepared-object path.
+    if (directAssetUploadAllFiles && !(mediaImportForImageVideo && (isImageFile(file) || isVideoFile(file)))) {
       try {
         const result = await (prepareAssetUpload ?? uploadAsset)(file);
         const sourceReference = getAssetResolutionToken(result.entry);
@@ -441,7 +447,10 @@ export async function handleFileDrop({
           return;
         }
 
-        const result = await uploadAsset(file);
+        // Prefer preparation for placement: the compound editor command owns
+        // registry + clip persistence. Fall back only for older providers that
+        // do not expose preparation.
+        const result = await (prepareAssetUpload ?? uploadAsset)(file);
         const sourceReference = getAssetResolutionToken(result.entry);
         if (!sourceReference) throw new Error('Uploaded asset has no file locator or media identity');
         await resolveAssetUrl(sourceReference);

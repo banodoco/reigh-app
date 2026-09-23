@@ -285,6 +285,7 @@ export function buildAssetDropEdit({
   trackId,
   time,
   clipSpanSeconds,
+  clipId: requestedClipId,
 }: {
   current: TimelineData;
   assetKey: string;
@@ -292,6 +293,7 @@ export function buildAssetDropEdit({
   trackId: string;
   time: number;
   clipSpanSeconds?: number | null;
+  clipId?: string;
 }): BuildAssetDropEditResult | null {
   const resolvedAssetEntry = assetEntry ?? current.registry.assets[assetKey];
   const playableKind = getPlayableAssetKind(resolvedAssetEntry);
@@ -310,7 +312,10 @@ export function buildAssetDropEdit({
   }
 
   const resolvedClipSpanSeconds = readPositiveDurationSeconds(clipSpanSeconds);
-  const clipId = getNextClipId(current.meta);
+  const clipId = requestedClipId ?? getNextClipId(current.meta);
+  if (current.meta[clipId]) {
+    return null;
+  }
   const isImage = playableKind === 'image';
   const isVideo = playableKind === 'video';
   const isManual = track.fit === 'manual';

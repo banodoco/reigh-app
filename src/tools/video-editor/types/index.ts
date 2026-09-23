@@ -526,6 +526,7 @@ export type AssetMetadataConsent = {
 
 export type AssetMetadataProvenance = {
   importTimestamp?: string;
+  importOperationId?: string;
   sourceUrl?: string;
   sourceProvider?: string;
   importedBy?: string;

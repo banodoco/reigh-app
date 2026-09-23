@@ -28,13 +28,14 @@ import { useShotGroupHandlers } from '@/tools/video-editor/hooks/useShotGroupHan
 import { useShotGroups } from '@/tools/video-editor/hooks/useShotGroups.ts';
 import { shotGroupVideoKey } from '@/tools/video-editor/hooks/useShotGroups.ts';
 import { useSwitchToFinalVideo } from '@/tools/video-editor/hooks/useSwitchToFinalVideo.ts';
+import { useTimelineCommandsService } from '@/tools/video-editor/hooks/useTimelineCommandsService.ts';
 import {
   useTimelineDataSelector,
   useTimelineChromeSelector,
   useTimelineConfigVersion,
   useTimelineOpsSelector,
 } from '@/tools/video-editor/hooks/timelineStore.ts';
-import { buildDuplicateClipEdit } from '@/tools/video-editor/lib/duplicate-clip.ts';
+import { planGenerationAssetRegistration } from '@/tools/video-editor/lib/timeline-asset-plans.ts';
 import { duplicateGenerationAsset } from '@/tools/video-editor/lib/generation-utils.ts';
 import {
   duplicateShotGroup,
@@ -48,7 +49,6 @@ import type {
   PreparedShotComposition,
 } from '@/tools/video-editor/data/shotCompositionAdapter.ts';
 import { managedOutputMatchesOccurrence } from '@/tools/video-editor/data/shotCompositionProjection.ts';
-import type { ClipMeta } from '@/tools/video-editor/lib/timeline-data.ts';
 
 interface ReighTimelineEditorProps {
   onOpenSequenceCreator?: () => void;
@@ -93,17 +93,14 @@ function ReighTimelineEditorComponent({ onOpenSequenceCreator, onOpenElementCrea
     selectedClipIds: timeline.selectedClipIds,
     interactionStateRef: timeline.interactionStateRef,
   }), shallow);
+  const commands = useTimelineCommandsService();
   const {
     applyEdit,
-    patchRegistry,
-    unpatchRegistry,
-    registerAsset,
+    prepareGenerationAsset,
     registerGenerationAsset,
   } = useTimelineOpsSelector((ops) => ({
     applyEdit: ops.applyEdit,
-    patchRegistry: ops.patchRegistry,
-    unpatchRegistry: ops.unpatchRegistry,
-    registerAsset: ops.registerAsset,
+    prepareGenerationAsset: ops.prepareGenerationAsset,
     registerGenerationAsset: ops.registerGenerationAsset,
   }), shallow);
 
@@ -410,9 +407,7 @@ function ReighTimelineEditorComponent({ onOpenSequenceCreator, onOpenElementCrea
     applyEdit,
     dataRef,
     finalVideoMap,
-    patchRegistry,
-    unpatchRegistry,
-    registerAsset,
+    commands,
   });
   const {
     shotGroupClipIds,
@@ -453,6 +448,7 @@ function ReighTimelineEditorComponent({ onOpenSequenceCreator, onOpenElementCrea
     applyEdit,
     shots: isDocumentShotMode ? undefined : shots,
     registerGenerationAsset,
+    prepareGenerationAsset,
     isInteractionActive,
     enabled: !isCanonicalEditor,
   });
@@ -490,13 +486,13 @@ function ReighTimelineEditorComponent({ onOpenSequenceCreator, onOpenElementCrea
         generationId,
         projectId: selectedProjectId,
       });
-      const duplicatedAssetKey = registerGenerationAsset({
+      const registrationPlan = planGenerationAssetRegistration({
         generationId: duplicatedGeneration.generationId,
         variantId: duplicatedGeneration.variantId,
         variantType: duplicatedGeneration.variantType,
         imageUrl: duplicatedGeneration.imageUrl,
         thumbUrl: duplicatedGeneration.thumbUrl,
-        durationSeconds: typeof assetEntry?.duration === 'number' ? assetEntry.duration : undefined,
+        assetDurationSeconds: typeof assetEntry?.duration === 'number' ? assetEntry.duration : undefined,
         metadata: {
           content_type: assetEntry?.type ?? (
             duplicatedGeneration.variantType === 'video' ? 'video/mp4' : 'image/png'
@@ -504,30 +500,23 @@ function ReighTimelineEditorComponent({ onOpenSequenceCreator, onOpenElementCrea
         },
       });
 
-      if (!duplicatedAssetKey) {
+      if (!registrationPlan.ok) {
         throw new Error('Failed to register the duplicated asset.');
       }
 
-      const nextCurrent = dataRef.current;
-      if (!nextCurrent) {
-        throw new Error('Timeline state was unavailable after registering the duplicated asset.');
-      }
-
-      const duplicateEdit = buildDuplicateClipEdit(nextCurrent, clipId, duplicatedAssetKey);
-      if (!duplicateEdit) {
-        throw new Error('Failed to insert the duplicated clip on the timeline.');
-      }
-
-      applyEdit({
-        type: 'rows',
-        rows: duplicateEdit.rows,
-        metaUpdates: duplicateEdit.metaUpdates as Record<string, Partial<ClipMeta>>,
-        clipOrderOverride: duplicateEdit.clipOrderOverride,
-      }, {
-        selectedClipId: duplicateEdit.clipId,
-        selectedTrackId: duplicateEdit.trackId,
-        semantic: true,
+      const result = commands.addClip({
+        preparedAsset: {
+          assetKey: registrationPlan.assetId,
+          mediaType: duplicatedGeneration.variantType,
+          durationSeconds: registrationPlan.assetEntry.duration ?? null,
+          entry: registrationPlan.assetEntry,
+          source: 'registered',
+        },
+        afterClipId: clipId,
       });
+      if (!result.ok) {
+        throw new Error(result.error.message);
+      }
     } catch (error) {
       normalizeAndPresentError(error, {
         context: 'video-editor:duplicate-generation-clip',
@@ -536,7 +525,7 @@ function ReighTimelineEditorComponent({ onOpenSequenceCreator, onOpenElementCrea
     } finally {
       setDuplicatingClipId((currentClipId) => (currentClipId === clipId ? null : currentClipId));
     }
-  }, [applyEdit, dataRef, registerGenerationAsset, selectedProjectId]);
+  }, [commands, dataRef, selectedProjectId]);
 
   return (
     <>

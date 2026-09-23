@@ -22,6 +22,7 @@ import type { AssetResolver } from '../data/AssetResolver';
 import { TimelineSchemaIncompatibleError, TimelineVersionConflictError, type DataProvider } from '../data/DataProvider';
 import { loadTimelineDraft, saveTimelineDraft } from '@/tools/video-editor/data/timelineDraftIndexedDb.ts';
 import type { AssetRegistry } from '../types';
+import type { TimelineBundleEnvelope } from '../data/typed/timelineBundle';
 
 function makeRegistry(label: string): AssetRegistry {
   return {
@@ -86,6 +87,7 @@ interface TestHarness {
   saveTimeline: ReturnType<typeof vi.fn>;
   loadTimeline: ReturnType<typeof vi.fn>;
   loadAssetRegistry: ReturnType<typeof vi.fn>;
+  loadReferencedTimeline?: ReturnType<typeof vi.fn>;
   interactionStateRef: InteractionStateRef;
   dataRef: { current: TimelineData | null };
   /** Commit sequence counter — bump to simulate a newer edit landing. */
@@ -102,14 +104,10 @@ interface SetupOptions {
   store?: TimelineStoreApi;
   initialData?: TimelineData;
   persistenceEnabled?: boolean;
-  saveTimelineImpl?: (
-    timelineId: string,
-    config: TimelineData['config'],
-    expectedVersion: number,
-    registry?: AssetRegistry,
-  ) => Promise<number>;
+  saveTimelineImpl?: DataProvider['saveTimeline'];
   loadTimelineImpl?: DataProvider['loadTimeline'];
   loadAssetRegistryImpl?: DataProvider['loadAssetRegistry'];
+  loadReferencedTimelineImpl?: NonNullable<DataProvider['loadReferencedTimeline']>;
 }
 
 function setup(options?: SetupOptions): TestHarness {
@@ -122,11 +120,17 @@ function setup(options?: SetupOptions): TestHarness {
       ?? (async () => ({ config: createDefaultTimelineConfig(), configVersion: 1 })),
   );
   const loadAssetRegistry = vi.fn(options?.loadAssetRegistryImpl ?? (async () => ({ assets: {} })));
+  const loadReferencedTimeline = options?.loadReferencedTimelineImpl
+    ? vi.fn(options.loadReferencedTimelineImpl)
+    : undefined;
   const provider: DataProvider = {
     persistenceEnabled: options?.persistenceEnabled,
     loadTimeline,
     saveTimeline,
     loadAssetRegistry,
+    ...(loadReferencedTimeline
+      ? { loadReferencedTimeline }
+      : {}),
     resolveAssetUrl: vi.fn((file: string) => file),
   };
   const assetResolver: AssetResolver = {
@@ -176,6 +180,7 @@ function setup(options?: SetupOptions): TestHarness {
     saveTimeline,
     loadTimeline,
     loadAssetRegistry,
+    loadReferencedTimeline,
     interactionStateRef,
     dataRef,
     editSeqRef,
@@ -190,6 +195,24 @@ function setup(options?: SetupOptions): TestHarness {
     unmount: () => { hook.unmount(); },
     eventBus,
     result: hook.result,
+  };
+}
+
+function makeBundle(text: string): TimelineBundleEnvelope {
+  return {
+    schema_version: 1,
+    itemsBySchemaRef: {
+      'reigh.transcript_segment/v1': [{
+        id: `item-${text}`,
+        shape: 'interval',
+        domain: 'source_seconds',
+        extent: { start: 0, end: 1 },
+        schemaRef: 'reigh.transcript_segment/v1',
+        payload: { text },
+        sourceArtifactRef: { assetId: 'asset-a' },
+        provenance: { adapterId: 'test', adapterVersion: '1' },
+      }],
+    },
   };
 }
 
@@ -325,6 +348,7 @@ describe('useTimelinePersistence — interaction gating', () => {
     expect((await loadTimelineDraft('timeline-1'))?.draft).toEqual({
       config: first.config,
       registry: first.registry,
+      bundle: null,
     });
 
     // A second mutation overwrites the one slot, still before any POST.
@@ -336,6 +360,7 @@ describe('useTimelinePersistence — interaction gating', () => {
     expect((await loadTimelineDraft('timeline-1'))?.draft).toEqual({
       config: latest.config,
       registry: latest.registry,
+      bundle: null,
     });
   });
 
@@ -506,7 +531,7 @@ describe('useTimelinePersistence — interaction gating', () => {
     expect(harness.saveTimeline.mock.calls[0]?.[1].output.file).toBe('output-flush-deferred-on-unmount.mp4');
   });
 
-  it('reconciles a retry 409 when fresh remote state matches the attempted payload', async () => {
+  it('keeps an exact matching retry 409 ambiguous when no provider receipt proves authorship', async () => {
     const nextData = makeTimelineData('lost-ack');
     let attempt = 0;
     const harness = setup({
@@ -518,8 +543,11 @@ describe('useTimelinePersistence — interaction gating', () => {
         }
         throw new TimelineVersionConflictError();
       },
-      loadTimelineImpl: async () => ({ config: nextData.config, configVersion: 5 }),
-      loadAssetRegistryImpl: async () => nextData.registry,
+      loadReferencedTimelineImpl: async () => ({
+        timeline: { config: nextData.config, configVersion: 2, bundle: null },
+        registry: nextData.registry,
+        resolveAssetUrl: async (file) => file,
+      }),
     });
 
     harness.scheduleSave(nextData);
@@ -537,17 +565,21 @@ describe('useTimelinePersistence — interaction gating', () => {
     });
 
     expect(harness.saveTimeline).toHaveBeenCalledTimes(2);
-    expect(harness.loadTimeline).toHaveBeenCalledTimes(1);
-    expect(harness.result.current.isConflictExhausted).toBe(false);
-    expect(harness.result.current.saveStatus).toBe('saved');
+    expect(harness.loadReferencedTimeline).toHaveBeenCalledTimes(1);
+    expect(harness.result.current.isConflictExhausted).toBe(true);
+    expect(harness.result.current.saveStatus).toBe('error');
+    expect((await loadTimelineDraft('timeline-1'))?.draft).toEqual({
+      config: nextData.config,
+      registry: nextData.registry,
+      bundle: null,
+    });
   });
 
-  it('keeps a newer recovery draft when an older retry is reconciled as a lost ack', async () => {
+  it('retries the exact old attempt and keeps a newer draft when matching readback is ambiguous', async () => {
     const firstData = makeTimelineData('lost-ack-older');
     const newerData = makeTimelineData('lost-ack-newer');
     let attempt = 0;
     let releaseFresh!: () => void;
-    let releaseNewerSave!: (version: number) => void;
     const freshRead = new Promise<void>((resolve) => { releaseFresh = resolve; });
     const harness = setup({
       initialData: firstData,
@@ -559,13 +591,16 @@ describe('useTimelinePersistence — interaction gating', () => {
         if (attempt === 2) {
           throw new TimelineVersionConflictError();
         }
-        return new Promise<number>((resolve) => { releaseNewerSave = resolve; });
+        return 3;
       },
-      loadTimelineImpl: async () => {
+      loadReferencedTimelineImpl: async () => {
         await freshRead;
-        return { config: firstData.config, configVersion: 5 };
+        return {
+          timeline: { config: firstData.config, configVersion: 2, bundle: null },
+          registry: firstData.registry,
+          resolveAssetUrl: async (file) => file,
+        };
       },
-      loadAssetRegistryImpl: async () => firstData.registry,
     });
 
     harness.scheduleSave(firstData);
@@ -575,6 +610,10 @@ describe('useTimelinePersistence — interaction gating', () => {
       await Promise.resolve();
       await Promise.resolve();
     });
+    // A newer edit arrives after the timeout but before its retry. It must be
+    // queued separately; the retry still owns the original payload and seq.
+    harness.editSeqRef.current = 2;
+    harness.scheduleSave(newerData);
     await act(async () => {
       vi.advanceTimersByTime(600);
       await Promise.resolve();
@@ -582,11 +621,11 @@ describe('useTimelinePersistence — interaction gating', () => {
       await Promise.resolve();
     });
     expect(harness.saveTimeline).toHaveBeenCalledTimes(2);
+    expect(harness.saveTimeline.mock.calls[1]?.[1]).toEqual(firstData.config);
+    expect(harness.saveTimeline.mock.calls[1]?.[2]).toBe(1);
 
-    // A newer edit arrives while the retry's fresh-state reconciliation is
-    // still in flight. It supersedes the old sequence and owns the draft.
-    harness.editSeqRef.current = 2;
-    harness.scheduleSave(newerData);
+    // Exact content readback is still not an authorship receipt. The old
+    // sequence stays unacknowledged and the newer edit remains recoverable.
     releaseFresh();
     await act(async () => {
       await Promise.resolve();
@@ -596,14 +635,14 @@ describe('useTimelinePersistence — interaction gating', () => {
       await Promise.resolve();
     });
 
-    expect(harness.saveTimeline).toHaveBeenCalledTimes(3);
+    expect(harness.saveTimeline).toHaveBeenCalledTimes(2);
+    expect(harness.loadReferencedTimeline).toHaveBeenCalledTimes(1);
+    expect(harness.result.current.isConflictExhausted).toBe(true);
     expect((await loadTimelineDraft('timeline-1'))?.draft).toEqual({
       config: newerData.config,
       registry: newerData.registry,
+      bundle: null,
     });
-    // Leave the newer save pending so its later receipt cannot erase the
-    // draft before this assertion completes.
-    releaseNewerSave(6);
     harness.unmount();
   });
 
@@ -620,8 +659,11 @@ describe('useTimelinePersistence — interaction gating', () => {
         }
         throw new TimelineVersionConflictError();
       },
-      loadTimelineImpl: async () => ({ config: otherData.config, configVersion: 5 }),
-      loadAssetRegistryImpl: async () => otherData.registry,
+      loadReferencedTimelineImpl: async () => ({
+        timeline: { config: otherData.config, configVersion: 2, bundle: null },
+        registry: otherData.registry,
+        resolveAssetUrl: async (file) => file,
+      }),
     });
 
     harness.scheduleSave(nextData);
@@ -641,6 +683,162 @@ describe('useTimelinePersistence — interaction gating', () => {
     expect(harness.saveTimeline).toHaveBeenCalledTimes(2);
     expect(harness.result.current.isConflictExhausted).toBe(true);
     expect(harness.result.current.saveStatus).toBe('error');
+    expect((await loadTimelineDraft('timeline-1'))?.draft).toEqual({
+      config: nextData.config,
+      registry: nextData.registry,
+      bundle: null,
+    });
+  });
+
+  it('does not invent lost-ack success when config and registry match but the bundle differs', async () => {
+    const nextData = makeTimelineData('lost-ack-bundle');
+    const attemptedBundle = makeBundle('attempted');
+    const remoteBundle = makeBundle('other-writer');
+    let attempt = 0;
+    const harness = setup({
+      initialData: nextData,
+      saveTimelineImpl: async () => {
+        attempt += 1;
+        if (attempt === 1) throw new Error('Astrid bridge save timeline failed: timeout');
+        throw new TimelineVersionConflictError();
+      },
+      loadTimelineImpl: async () => ({ config: nextData.config, configVersion: 1, bundle: attemptedBundle }),
+      loadAssetRegistryImpl: async () => nextData.registry,
+      loadReferencedTimelineImpl: async () => ({
+        timeline: { config: nextData.config, configVersion: 2, bundle: remoteBundle },
+        registry: nextData.registry,
+        resolveAssetUrl: async (file) => file,
+      }),
+    });
+
+    await act(async () => { await harness.reloadFromServer(); });
+    harness.scheduleSave(nextData);
+    await act(async () => {
+      vi.advanceTimersByTime(600);
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(600);
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(harness.saveTimeline).toHaveBeenCalledTimes(2);
+    expect(harness.saveTimeline.mock.calls[0]?.[4]).toEqual(attemptedBundle);
+    expect(harness.saveTimeline.mock.calls[1]?.[4]).toEqual(attemptedBundle);
+    expect(harness.result.current.isConflictExhausted).toBe(true);
+    expect((await loadTimelineDraft('timeline-1'))?.draft).toEqual({
+      config: nextData.config,
+      registry: nextData.registry,
+      bundle: attemptedBundle,
+    });
+  });
+
+  it('keeps queued save ordering and lets an undo supersede only the later queued payload', async () => {
+    const firstData = makeTimelineData('queue-first');
+    const interimData = makeTimelineData('queue-interim');
+    const undoData = makeTimelineData('queue-undo');
+    let settleFirst!: (version: number) => void;
+    let settleUndo!: (version: number) => void;
+    let call = 0;
+    const harness = setup({
+      initialData: firstData,
+      saveTimelineImpl: async () => {
+        call += 1;
+        return new Promise<number>((resolve) => {
+          if (call === 1) settleFirst = resolve;
+          else settleUndo = resolve;
+        });
+      },
+    });
+
+    harness.scheduleSave(firstData);
+    await act(async () => {
+      vi.advanceTimersByTime(600);
+      await Promise.resolve();
+    });
+
+    harness.editSeqRef.current = 2;
+    harness.scheduleSave(interimData);
+    harness.editSeqRef.current = 3;
+    harness.scheduleSave(undoData);
+    expect(harness.saveTimeline).toHaveBeenCalledTimes(1);
+
+    act(() => { settleFirst(2); });
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(harness.saveTimeline).toHaveBeenCalledTimes(2);
+    expect(harness.saveTimeline.mock.calls[1]?.[1]).toEqual(undoData.config);
+    expect(harness.saveTimeline.mock.calls[1]?.[2]).toBe(2);
+    expect((await loadTimelineDraft('timeline-1'))?.draft).toEqual({
+      config: undoData.config,
+      registry: undoData.registry,
+      bundle: null,
+    });
+
+    act(() => { settleUndo(3); });
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(harness.result.current.saveStatus).toBe('saved');
+    expect(await loadTimelineDraft('timeline-1')).toBeNull();
+  });
+
+  it('serializes registration-first and clip-first edits as ordered compound CAS payloads', async () => {
+    const registrationFirst = makeTimelineData('registration-first', makeRegistry('registration-first'));
+    const clipFirst = makeTimelineData('clip-first', makeRegistry('clip-first'));
+    let settleFirst!: (version: number) => void;
+    let settleSecond!: (version: number) => void;
+    let call = 0;
+    const harness = setup({
+      initialData: registrationFirst,
+      saveTimelineImpl: async () => {
+        call += 1;
+        return new Promise<number>((resolve) => {
+          if (call === 1) settleFirst = resolve;
+          else settleSecond = resolve;
+        });
+      },
+    });
+
+    harness.scheduleSave(registrationFirst);
+    await act(async () => {
+      vi.advanceTimersByTime(600);
+      await Promise.resolve();
+    });
+
+    harness.editSeqRef.current = 2;
+    harness.scheduleSave(clipFirst);
+    expect(harness.saveTimeline).toHaveBeenCalledTimes(1);
+
+    act(() => { settleFirst(2); });
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(harness.saveTimeline).toHaveBeenCalledTimes(2);
+    expect(harness.saveTimeline.mock.calls[0]?.[1]).toEqual(registrationFirst.config);
+    expect(harness.saveTimeline.mock.calls[0]?.[3]).toEqual(registrationFirst.registry);
+    expect(harness.saveTimeline.mock.calls[1]?.[1]).toEqual(clipFirst.config);
+    expect(harness.saveTimeline.mock.calls[1]?.[3]).toEqual(clipFirst.registry);
+
+    act(() => { settleSecond(3); });
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(harness.result.current.saveStatus).toBe('saved');
   });
 
   it('warns when the backend\'s config_version goes backwards', async () => {
@@ -931,13 +1129,22 @@ describe('useTimelinePersistence — interaction gating', () => {
   });
 
   it('save as copy stashes a draft then reloads (no silent overwrite)', async () => {
+    const bundle = makeBundle('save-as-copy');
+    const localData = makeTimelineData('conflict');
     const harness = setup({
+      initialData: localData,
       persistenceEnabled: true,
       saveTimelineImpl: async () => {
         throw new TimelineVersionConflictError();
       },
+      loadTimelineImpl: async () => ({
+        config: createDefaultTimelineConfig(),
+        configVersion: 1,
+        bundle,
+      }),
     });
-    harness.scheduleSave(makeTimelineData('conflict'));
+    await act(async () => { await harness.reloadFromServer(); });
+    harness.scheduleSave(localData);
     await act(async () => {
       vi.advanceTimersByTime(600);
       await Promise.resolve();
@@ -956,7 +1163,11 @@ describe('useTimelinePersistence — interaction gating', () => {
     expect(harness.saveTimeline).toHaveBeenCalledTimes(1);
     // Save-as-copy deliberately preserves the just-stashed local work across
     // the server reload.
-    expect(await loadTimelineDraft('timeline-1')).not.toBeNull();
+    expect((await loadTimelineDraft('timeline-1'))?.draft).toEqual({
+      config: localData.config,
+      registry: localData.registry,
+      bundle,
+    });
   });
 
   it('direct reload adopts server state and clears a diverged recovery draft', async () => {
@@ -1339,6 +1550,7 @@ describe('useTimelinePersistence — write-ack watchdog', () => {
     expect((await loadTimelineDraft('timeline-1'))?.draft).toEqual({
       config: makeTimelineData('save-b').config,
       registry: makeTimelineData('save-b').registry,
+      bundle: null,
     });
 
     // A's ACK arrives: it does not cover the newest edit, so it must NOT
@@ -1346,9 +1558,12 @@ describe('useTimelinePersistence — write-ack watchdog', () => {
     act(() => { settleA?.(2); });
     await advance(0);
     expect(harness.saveTimeline).toHaveBeenCalledTimes(2);
+    expect(harness.saveTimeline.mock.calls[1]?.[1]).toEqual(makeTimelineData('save-b').config);
+    expect(harness.saveTimeline.mock.calls[1]?.[2]).toBe(2);
     expect((await loadTimelineDraft('timeline-1'))?.draft).toEqual({
       config: makeTimelineData('save-b').config,
       registry: makeTimelineData('save-b').registry,
+      bundle: null,
     });
     // The queued newer save B drained and is now in flight — definitely not
     // 'saved', and the watchdog is still armed.

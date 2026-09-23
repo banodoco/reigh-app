@@ -9,7 +9,6 @@ import { useVideoEditorRuntime } from '@/tools/video-editor/contexts/VideoEditor
 import type { AssetRegistryEntry, ResolvedAssetRegistryEntry } from '@/tools/video-editor/types/index.ts';
 import type {
   TimelinePatchRegistry,
-  TimelineRegisterAsset,
 } from '@/tools/video-editor/hooks/timeline-state-types.ts';
 import { useAstridCapabilityCensus } from '@/integrations/astrid/capabilityCensus.ts';
 import { getAssetFileLocator } from '@/tools/video-editor/lib/asset-registry.ts';
@@ -17,7 +16,6 @@ import { getAssetFileLocator } from '@/tools/video-editor/lib/asset-registry.ts'
 interface UseStaleVariantsArgs {
   registry: Record<string, ResolvedAssetRegistryEntry> | undefined;
   patchRegistry: TimelinePatchRegistry;
-  registerAsset: TimelineRegisterAsset;
 }
 
 const POLL_INTERVAL_MS = 15_000;
@@ -27,7 +25,7 @@ const POLL_INTERVAL_MS = 15_000;
  * the primary variant of its generation. Uses direct Supabase queries + realtime
  * subscription (no React Query) for predictable, immediate updates.
  */
-export function useStaleVariants({ registry, patchRegistry, registerAsset }: UseStaleVariantsArgs) {
+export function useStaleVariants({ registry, patchRegistry }: UseStaleVariantsArgs) {
   const runtime = useVideoEditorRuntime();
   const capabilityCensus = useAstridCapabilityCensus();
   const [primaryLocationMap, setPrimaryLocationMap] = useState<Record<string, PrimaryVariantInfo | null>>({});
@@ -172,9 +170,6 @@ export function useStaleVariants({ registry, patchRegistry, registerAsset }: Use
     const entry = registry[assetKey];
     if (!entry) return;
 
-    const previousEntry = entry;
-    const previousFile = entry.file;
-
     const updatedEntry: AssetRegistryEntry = {
       ...entry,
       file: variant.location,
@@ -183,19 +178,13 @@ export function useStaleVariants({ registry, patchRegistry, registerAsset }: Use
 
     patchRegistry(assetKey, updatedEntry, variant.location);
 
-    void registerAsset(assetKey, updatedEntry).catch((err) => {
-      console.error('[StaleVariants] Failed to persist variant update:', err);
-      patchRegistry(assetKey, previousEntry, previousFile);
-      runtime.toast.error('Failed to update variant');
-    });
-
     setDismissedAssetKeys((prev) => {
       if (!prev.has(assetKey)) return prev;
       const next = new Set(prev);
       next.delete(assetKey);
       return next;
     });
-  }, [patchRegistry, registerAsset, registry, runtime.toast]);
+  }, [patchRegistry, registry]);
 
   // Update a single asset to the current primary variant
   const updateAssetToCurrentVariant = useCallback(async (assetKey: string) => {

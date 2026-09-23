@@ -14,6 +14,7 @@ import {
   previewPreparedMediaCommand,
   type PlacePreparedMediaCommand,
 } from '@/tools/video-editor/commands/media.ts';
+import type { PreparedMediaImport } from '@/tools/video-editor/data/AssetResolver.ts';
 import type { TimelineProvisionedAsset } from '@/tools/video-editor/commands/provisioning.ts';
 import {
   type TimelineData,
@@ -29,8 +30,6 @@ import type {
   TimelineApplyEdit,
   TimelineInvalidateAssetRegistry,
   TimelinePatchRegistry,
-  TimelineRegisterAsset,
-  TimelineUnpatchRegistry,
   TimelineUploadAsset,
 } from '@/tools/video-editor/hooks/timeline-state-types.ts';
 import type { TimelineStoreApi } from '@/tools/video-editor/hooks/timelineStore.ts';
@@ -38,6 +37,22 @@ import type { TimelineStoreApi } from '@/tools/video-editor/hooks/timelineStore.
 type UploadedGenerationData = GenerationDropData & {
   assetId?: string;
   durationSeconds?: number;
+  mediaImport?: PreparedMediaImport;
+};
+
+type UploadedGenerationResult = {
+  generationId: string;
+  variantId?: string;
+  variantType: 'image' | 'video';
+  assetId?: string;
+  imageUrl: string;
+  thumbUrl?: string;
+  durationSeconds?: number;
+  metadata: {
+    content_type: string;
+    original_filename: string;
+  };
+  mediaImport?: PreparedMediaImport;
 };
 
 export interface UseAssetManagementArgs {
@@ -49,8 +64,6 @@ export interface UseAssetManagementArgs {
   setSelectedTrackId: Dispatch<SetStateAction<string | null>>;
   applyEdit: TimelineApplyEdit;
   patchRegistry: TimelinePatchRegistry;
-  unpatchRegistry: TimelineUnpatchRegistry;
-  registerAsset: TimelineRegisterAsset;
   uploadAsset: TimelineUploadAsset;
   invalidateAssetRegistry: TimelineInvalidateAssetRegistry;
   resolveAssetUrl: (file: string) => Promise<string>;
@@ -59,27 +72,8 @@ export interface UseAssetManagementArgs {
 export interface UseAssetManagementResult {
   prepareGenerationAsset: (data: UploadedGenerationData | null) => TimelineProvisionedAsset | null;
   registerGenerationAsset: (data: UploadedGenerationData | null) => string | null;
-  uploadImageGeneration: (file: File) => Promise<{
-    generationId: string;
-    variantType: 'image';
-    imageUrl: string;
-    thumbUrl: string;
-    metadata: {
-      content_type: string;
-      original_filename: string;
-    };
-  }>;
-  uploadVideoGeneration: (file: File) => Promise<{
-    generationId: string;
-    variantType: 'video';
-    imageUrl: string;
-    thumbUrl: string;
-    durationSeconds?: number;
-    metadata: {
-      content_type: string;
-      original_filename: string;
-    };
-  }>;
+  uploadImageGeneration: (file: File) => Promise<UploadedGenerationResult>;
+  uploadVideoGeneration: (file: File) => Promise<UploadedGenerationResult>;
   handleAssetDrop: (
     assetKey: string,
     trackId: string | undefined,
@@ -181,8 +175,6 @@ export function useAssetManagement({
   setSelectedTrackId,
   applyEdit,
   patchRegistry,
-  unpatchRegistry,
-  registerAsset,
 }: UseAssetManagementArgs): UseAssetManagementResult {
   const runtime = useVideoEditorRuntime();
   const getDataRef = useCallback(() => {
@@ -195,12 +187,6 @@ export function useAssetManagement({
   const getPatchRegistry = useCallback(() => {
     return store?.getState().ops.patchRegistry ?? patchRegistry;
   }, [patchRegistry, store]);
-  const getUnpatchRegistry = useCallback(() => {
-    return store?.getState().ops.unpatchRegistry ?? unpatchRegistry;
-  }, [store, unpatchRegistry]);
-  const getRegisterAsset = useCallback(() => {
-    return store?.getState().ops.registerAsset ?? registerAsset;
-  }, [registerAsset, store]);
   const getApplyEdit = useCallback(() => {
     return store?.getState().ops.applyEdit ?? applyEdit;
   }, [applyEdit, store]);
@@ -216,16 +202,16 @@ export function useAssetManagement({
       return null;
     }
 
-    const imageUrl = getMediaUrl(generationData);
+    const imageUrl = getMediaUrl(generationData) ?? generationData.mediaImport?.entry.file;
     if (!imageUrl) {
       return null;
     }
     const plan = planGenerationAssetRegistration({
       generationId: generationData.generationId,
-      assetId: generationData.assetId,
+      assetId: generationData.assetId ?? generationData.mediaImport?.assetId,
       variantId: generationData.variantId,
       variantType: generationData.variantType,
-      mediaId: generationData.mediaId,
+      mediaId: generationData.mediaId ?? generationData.mediaImport?.assetId,
       imageUrl,
       thumbUrl: getThumbnailUrl(generationData),
       assetDurationSeconds: generationData.durationSeconds,
@@ -240,7 +226,14 @@ export function useAssetManagement({
       return null;
     }
 
-    const playableKind = getPlayableAssetKind(plan.assetEntry);
+    const assetEntry = generationData.mediaImport
+      ? {
+          ...generationData.mediaImport.entry,
+          generationId: generationData.mediaImport.generationId,
+          variantId: generationData.mediaImport.variantId,
+        }
+      : plan.assetEntry;
+    const playableKind = getPlayableAssetKind(assetEntry);
     if (!playableKind) {
       return null;
     }
@@ -248,8 +241,8 @@ export function useAssetManagement({
     return {
       assetKey: plan.assetId,
       mediaType: playableKind,
-      durationSeconds: plan.assetEntry.duration ?? null,
-      entry: plan.assetEntry,
+      durationSeconds: assetEntry.duration ?? null,
+      entry: assetEntry,
       source: 'registered',
     };
   }, []);
@@ -261,16 +254,13 @@ export function useAssetManagement({
     }
 
     const assetKey = prepared.assetKey;
+    // Registry-only generation enrichment is still an editor mutation. The
+    // commit layer owns the queued CAS save; do not start a competing provider
+    // registration that can race the following clip mutation.
     getPatchRegistry()(assetKey, prepared.entry, prepared.entry.file);
-    const persistPromise = getRegisterAsset()(assetKey, prepared.entry);
-    void persistPromise.catch((error) => {
-      console.error('[video-editor] Failed to persist generation asset:', error);
-      getUnpatchRegistry()(assetKey);
-      runtime.toast.error('Failed to save asset');
-    });
 
     return assetKey;
-  }, [getPatchRegistry, getRegisterAsset, getUnpatchRegistry, prepareGenerationAsset, runtime.toast]);
+  }, [getPatchRegistry, prepareGenerationAsset]);
 
   const placePreparedAsset = useCallback((
     prepared: TimelineProvisionedAsset,
@@ -376,6 +366,30 @@ export function useAssetManagement({
       throw new Error('External image drop requires a selected project');
     }
 
+    const runtimeMediaImport = runtime.provider.prepareMediaImport;
+    if (runtimeMediaImport) {
+      const mediaImport = await runtimeMediaImport.call(runtime.provider, file, {
+        filename: file.name,
+        mediaType: file.type || 'image/png',
+      });
+      if (selectedProjectId && mediaImport.project !== selectedProjectId) {
+        throw new Error('Runtime media import belongs to a different project');
+      }
+      const imageUrl = mediaImport.entry.file ?? await runtime.provider.resolveAssetUrl(mediaImport.assetId);
+      return {
+        generationId: mediaImport.generationId,
+        variantId: mediaImport.variantId,
+        variantType: 'image' as const,
+        assetId: mediaImport.assetId,
+        imageUrl,
+        metadata: {
+          content_type: file.type || 'image/png',
+          original_filename: file.name,
+        },
+        mediaImport,
+      };
+    }
+
     let imageUrl = '';
     let thumbnailUrl = '';
 
@@ -416,11 +430,45 @@ export function useAssetManagement({
         original_filename: file.name,
       },
     };
-  }, [selectedProjectId]);
+  }, [runtime.provider, selectedProjectId]);
 
   const uploadVideoGeneration = useCallback(async (file: File) => {
     if (!selectedProjectId) {
       throw new Error('No project selected');
+    }
+
+    let durationSeconds: number | undefined;
+    try {
+      const metadata = await extractVideoMetadata(file);
+      durationSeconds = metadata.duration_seconds;
+    } catch (error) {
+      normalizeAndPresentError(error, { context: `video-editor:external-video-metadata:${file.name}`, showToast: false });
+    }
+
+    const runtimeMediaImport = runtime.provider.prepareMediaImport;
+    if (runtimeMediaImport) {
+      const mediaImport = await runtimeMediaImport.call(runtime.provider, file, {
+        filename: file.name,
+        mediaType: file.type || 'video/mp4',
+        ...(durationSeconds !== undefined ? { durationSeconds } : {}),
+      });
+      if (selectedProjectId && mediaImport.project !== selectedProjectId) {
+        throw new Error('Runtime media import belongs to a different project');
+      }
+      const videoUrl = mediaImport.entry.file ?? await runtime.provider.resolveAssetUrl(mediaImport.assetId);
+      return {
+        generationId: mediaImport.generationId,
+        variantId: mediaImport.variantId,
+        variantType: 'video' as const,
+        assetId: mediaImport.assetId,
+        imageUrl: videoUrl,
+        ...(durationSeconds !== undefined ? { durationSeconds } : {}),
+        metadata: {
+          content_type: file.type || 'video/mp4',
+          original_filename: file.name,
+        },
+        mediaImport,
+      };
     }
 
     const videoUrl = await uploadImageToStorage(file);
@@ -431,14 +479,6 @@ export function useAssetManagement({
       thumbnailUrl = await uploadBlobToStorage(thumbnailBlob, 'thumbnail.jpg', 'image/jpeg');
     } catch (error) {
       normalizeAndPresentError(error, { context: `video-editor:external-video-thumbnail:${file.name}`, showToast: false });
-    }
-
-    let durationSeconds: number | undefined;
-    try {
-      const metadata = await extractVideoMetadata(file);
-      durationSeconds = metadata.duration_seconds;
-    } catch (error) {
-      normalizeAndPresentError(error, { context: `video-editor:external-video-metadata:${file.name}`, showToast: false });
     }
 
     const generation = await createExternalUploadGeneration({
@@ -468,7 +508,7 @@ export function useAssetManagement({
         original_filename: file.name,
       },
     };
-  }, [selectedProjectId]);
+  }, [runtime.provider, selectedProjectId]);
 
   return {
     prepareGenerationAsset,

@@ -10,6 +10,7 @@ import {
   type GenerationVariant,
   type ManagedOutput,
   type ManagedOutputExportReceipt,
+  type MediaImport,
   type MutationResult,
   type Page,
   type Project,
@@ -230,6 +231,34 @@ export class ReighRuntimeClient {
     filename?: string,
   ) {
     return this.withSession(() => this.client.ingestProjectObject(projectId, data, mediaType, idempotencyKey(), filename));
+  }
+
+  async importProjectMedia(
+    projectId: string,
+    data: Uint8Array,
+    mediaType: string,
+    idempotencyKey: string,
+    filename?: string,
+    expectedDigest?: string,
+    width?: number,
+    height?: number,
+    durationSeconds?: number,
+  ): Promise<MediaImport> {
+    return this.withSession(() => this.client.importProjectMedia(
+      projectId,
+      data,
+      mediaType,
+      idempotencyKey,
+      filename,
+      expectedDigest,
+      width,
+      height,
+      durationSeconds,
+    ));
+  }
+
+  async getProjectMediaImport(projectId: string, importOperationId: string): Promise<MediaImport> {
+    return this.withSession(() => this.client.getProjectMediaImport(projectId, importOperationId));
   }
 
   /** Canonical Runtime generation page; the opaque cursor is caller-owned. */

@@ -1,4 +1,4 @@
-import { ApiError, type ByteResponse } from './generated.ts';
+import { ApiError, type ByteResponse, type MediaImport } from './generated.ts';
 import {
   ReighRuntimeClient,
   RuntimeAuthenticationError,
@@ -26,6 +26,8 @@ import type { Transport } from './generated.ts';
 import type {
   AssetResolveRequest,
   AssetUploadRequest,
+  MediaImportOptions,
+  PreparedMediaImport,
 } from '@/tools/video-editor/data/AssetResolver.ts';
 import type { TimelineBundleEnvelope } from '@/tools/video-editor/data/typed/timelineBundle.ts';
 import { parseTimelineBundle } from '@/tools/video-editor/data/typed/timelineBundle.ts';
@@ -332,6 +334,58 @@ export class RuntimeDataProvider implements DataProvider {
     );
   }
 
+  /**
+   * Settle local image/video bytes in Runtime's host-owned catalog boundary.
+   * The operation key is persisted before the request so a lost response can
+   * be recovered with Runtime's operation lookup without re-importing bytes.
+   */
+  async prepareMediaImport(
+    file: File,
+    options: MediaImportOptions = {},
+  ): Promise<PreparedMediaImport> {
+    const importOperationId = generateUUID();
+    const mediaType = options.mediaType ?? file.type;
+    const filename = options.filename ?? file.name;
+    persistMediaImportOperation(this.projectId, importOperationId, { filename, mediaType });
+
+    const data = new Uint8Array(await file.arrayBuffer());
+    let imported: MediaImport;
+    try {
+      imported = await this.client.importProjectMedia(
+        this.projectId,
+        data,
+        mediaType,
+        importOperationId,
+        filename,
+        options.expectedDigest,
+        options.width,
+        options.height,
+        options.durationSeconds,
+      );
+    } catch (firstError) {
+      imported = await recoverMediaImportAfterLostAck(
+        this.client,
+        this.projectId,
+        data,
+        mediaType,
+        filename,
+        importOperationId,
+        options,
+        firstError,
+      );
+    }
+
+    const prepared = toPreparedMediaImport(
+      this.client,
+      imported,
+      mediaType,
+      filename,
+      options.durationSeconds,
+    );
+    persistMediaImportOperation(this.projectId, importOperationId, prepared);
+    return prepared;
+  }
+
   async prepareAsset(file: File, options: UploadAssetOptions): Promise<UploadedAssetResult> {
     const object = await this.client.ingestProjectObject(
       this.projectId,
@@ -486,6 +540,112 @@ function assertManagedObjectIdentity(
       `Workspace Runtime object identity mismatch for ${objectId}: expected ${expectedDigest}, got ${actualDigest}`,
     );
   }
+}
+
+const MEDIA_IMPORT_STORAGE_PREFIX = 'reigh.runtime.media-import.v1:';
+
+function persistMediaImportOperation(
+  projectId: string,
+  importOperationId: string,
+  value: object,
+): void {
+  try {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(
+        `${MEDIA_IMPORT_STORAGE_PREFIX}${projectId}:${importOperationId}`,
+        JSON.stringify({ projectId, importOperationId, ...value }),
+      );
+    }
+  } catch {
+    // Runtime remains the durable authority when browser storage is unavailable.
+  }
+}
+
+async function recoverMediaImportAfterLostAck(
+  client: ReighRuntimeClient,
+  projectId: string,
+  data: Uint8Array,
+  mediaType: string,
+  filename: string,
+  importOperationId: string,
+  options: MediaImportOptions,
+  firstError: unknown,
+): Promise<MediaImport> {
+  try {
+    const recovered = await client.getProjectMediaImport(projectId, importOperationId);
+    if (recovered.status === 'completed') return recovered;
+
+    // A durable pending object means ingestion succeeded but the ACK was lost
+    // before catalog settlement. Replaying the same caller key asks Runtime to
+    // finish that exact operation; it cannot create a second object or pair.
+    return await client.importProjectMedia(
+      projectId,
+      data,
+      mediaType,
+      importOperationId,
+      filename,
+      options.expectedDigest,
+      options.width,
+      options.height,
+      options.durationSeconds,
+    );
+  } catch (recoveryError) {
+    throw firstError instanceof Error ? firstError : recoveryError;
+  }
+}
+
+function toPreparedMediaImport(
+  client: ReighRuntimeClient,
+  imported: MediaImport,
+  fallbackMediaType: string,
+  fallbackFilename: string,
+  fallbackDuration?: number,
+): PreparedMediaImport {
+  if (
+    imported.provider !== 'runtime'
+    || imported.status !== 'completed'
+    || typeof imported.project !== 'string'
+    || typeof imported.import_operation_id !== 'string'
+    || typeof imported.generation_id !== 'string'
+    || typeof imported.variant_id !== 'string'
+    || typeof imported.asset_id !== 'string'
+  ) {
+    throw new Error('Workspace Runtime returned an incomplete media import descriptor');
+  }
+
+  const mediaType = imported.entry.media_type || fallbackMediaType;
+  const filename = imported.entry.filename || fallbackFilename;
+  const duration = imported.duration_seconds ?? fallbackDuration;
+  const entry: AssetRegistryEntry = {
+    file: client.objectContentUrl(imported.asset_id),
+    media_id: imported.asset_id,
+    content_sha256: imported.asset_id,
+    type: mediaType,
+    ...(typeof duration === 'number' && duration > 0 ? { duration } : {}),
+    generationId: imported.generation_id,
+    variantId: imported.variant_id,
+    metadata: {
+      provenance: {
+        sourceProvider: 'workspace-runtime',
+        importOperationId: imported.import_operation_id,
+        ...(imported.provenance ?? {}),
+      },
+      extensions: {
+        originalFilename: filename,
+        ...(typeof imported.entry.size === 'number' ? { byteSize: imported.entry.size } : {}),
+      },
+    },
+  };
+
+  return {
+    provider: imported.provider,
+    project: imported.project,
+    importOperationId: imported.import_operation_id,
+    generationId: imported.generation_id,
+    variantId: imported.variant_id,
+    assetId: imported.asset_id,
+    entry,
+  };
 }
 
 export type { RuntimeUnavailableError };
