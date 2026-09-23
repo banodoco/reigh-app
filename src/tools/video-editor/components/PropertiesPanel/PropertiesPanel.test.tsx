@@ -194,6 +194,7 @@ function createShaderSnapshot() {
 
 function createEditorOps() {
   return {
+    selectClip: vi.fn(),
     clearSelection: vi.fn(),
     handleUpdateClips: vi.fn(),
     handleUpdateClipsDeep: vi.fn(),
@@ -212,6 +213,7 @@ function createEditorOps() {
     setActiveClipTab: vi.fn(),
     setInspectorTarget: vi.fn(),
     setSelectedTrackId: vi.fn(),
+    onDoubleClickAsset: vi.fn(),
     setInteractionMode: vi.fn(),
     setPrecisionEnabled: vi.fn(),
     patchRegistry: vi.fn(),
@@ -294,6 +296,36 @@ describe('PropertiesPanel registry surfaces', () => {
 
     fireEvent.click(screen.getByRole('tab', { name: 'Assets' }));
     expect(screen.getByTestId('timeline-assets-tab-content')).toBeInTheDocument();
+  });
+
+  it('exposes a shared outline that focuses the same canvas selection', () => {
+    const editorData = createBaseEditorData();
+    editorData.resolvedConfig = {
+      clips: [{
+        id: 'clip-1',
+        track: 'track-1',
+        clipType: 'video',
+        label: 'Opening',
+        start: 2,
+        end: 4,
+        asset: 'asset-1',
+      }],
+      tracks: [{ id: 'track-1', kind: 'visual', label: 'Visual' }],
+      output: { fps: 30 },
+      registry: {},
+    } as never;
+    const editorOps = createEditorOps();
+    useTimelineEditorDataMock.mockReturnValue(editorData);
+    useTimelineEditorOpsMock.mockReturnValue(editorOps);
+
+    render(<PropertiesPanel />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Outline' }));
+    expect(screen.getByTestId('timeline-outline-item-clip-1')).toHaveTextContent('Opening');
+
+    fireEvent.click(screen.getByTestId('timeline-outline-item-clip-1'));
+    expect(editorOps.selectClip).toHaveBeenCalledWith('clip-1');
+    expect(editorOps.setSelectedTrackId).toHaveBeenCalledWith('track-1');
+    expect(editorOps.setInspectorTarget).toHaveBeenCalledWith({ kind: 'clip', clipId: 'clip-1' });
   });
 
   it('keeps the bulk inspector as the core panel when multiple clips are selected', () => {
