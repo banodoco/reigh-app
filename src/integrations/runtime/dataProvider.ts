@@ -29,6 +29,7 @@ import type {
   MediaImportOptions,
   PreparedMediaImport,
 } from '@/tools/video-editor/data/AssetResolver.ts';
+import { assertRuntimeMediaImportSize } from '@/tools/video-editor/data/AssetResolver.ts';
 import type { TimelineBundleEnvelope } from '@/tools/video-editor/data/typed/timelineBundle.ts';
 import { parseTimelineBundle } from '@/tools/video-editor/data/typed/timelineBundle.ts';
 import { withDefaultTimelineOutput } from '@/tools/video-editor/lib/defaults.ts';
@@ -417,6 +418,7 @@ export class RuntimeDataProvider implements DataProvider {
     file: File,
     options: MediaImportOptions = {},
   ): Promise<PreparedMediaImport> {
+    assertRuntimeMediaImportSize(file);
     const importOperationId = generateUUID();
     const mediaType = options.mediaType ?? file.type;
     const filename = options.filename ?? file.name;
@@ -449,6 +451,12 @@ export class RuntimeDataProvider implements DataProvider {
       );
     }
 
+    if (imported.project !== this.projectId) {
+      throw new Error(
+        `Workspace Runtime media import belongs to project ${imported.project}, not ${this.projectId}`,
+      );
+    }
+
     const prepared = toPreparedMediaImport(
       this.client,
       imported,
@@ -471,7 +479,10 @@ export class RuntimeDataProvider implements DataProvider {
       media_id: object.object_id,
       content_sha256: object.digest,
       type: object.media_type,
-      file: options.filename ?? file.name,
+      // The filename is provenance, not a playable locator.  Use the
+      // managed-object URL here so a freshly prepared object can be placed
+      // before the timeline registry has been read back into activeRegistry.
+      file: this.client.objectContentUrl(object.object_id),
       metadata: {
         provenance: {
           sourceProvider: 'workspace-runtime',

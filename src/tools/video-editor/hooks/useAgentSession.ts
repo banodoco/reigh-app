@@ -32,6 +32,10 @@ function stringValue(value: unknown): string | null {
   return typeof value === 'string' && value.trim() ? value : null;
 }
 
+function trimString(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
 function textFromContent(value: unknown): string {
   if (typeof value === 'string') return value;
   if (Array.isArray(value)) return value.map(textFromContent).filter(Boolean).join('');
@@ -284,7 +288,7 @@ class AstridAgentSessionStore {
         { type: 'text', text: context },
       ]);
       await this.pullEvents();
-      const draft = session.assistantDraft?.trim() ?? '';
+      const draft = trimString(session.assistantDraft);
       const extracted = extractReighElementOperations(draft);
       let finalContent = extracted.visibleContent;
       if (extracted.parseErrors.length > 0) {

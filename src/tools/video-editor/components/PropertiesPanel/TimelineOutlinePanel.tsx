@@ -6,6 +6,7 @@ import {
   useTimelineEditorOps,
   useTimelinePlaybackContext,
 } from '@/tools/video-editor/hooks/timelineStore.ts';
+import { getConfigTimelineClipDuration } from '@/tools/video-editor/lib/timeline-domain.ts';
 import type { ResolvedTimelineConfig } from '@/tools/video-editor/types/index.ts';
 
 export interface TimelineOutlineItem {
@@ -31,16 +32,19 @@ export function buildTimelineOutlineItems(
 
   const trackLabels = new Map(config.tracks.map((track) => [track.id, track.label]));
   return [...config.clips]
-    .map((clip) => ({
-      id: clip.id,
-      trackId: clip.track,
-      trackLabel: trackLabels.get(clip.track) ?? clip.track,
-      clipType: clip.clipType,
-      label: clip.label?.trim() || clip.text?.content?.trim() || clip.clipType,
-      start: clip.start,
-      end: clip.end,
-      ...(clip.asset ? { assetKey: clip.asset } : {}),
-    }))
+    .map((clip) => {
+      const clipType = clip.clipType ?? 'unknown';
+      return {
+        id: clip.id,
+        trackId: clip.track,
+        trackLabel: trackLabels.get(clip.track) ?? clip.track,
+        clipType,
+        label: clip.label?.trim() || clip.text?.content?.trim() || clipType,
+        start: clip.at,
+        end: clip.at + getConfigTimelineClipDuration(clip),
+        ...(clip.asset ? { assetKey: clip.asset } : {}),
+      };
+    })
     .sort((left, right) => left.start - right.start || left.trackId.localeCompare(right.trackId) || left.id.localeCompare(right.id));
 }
 

@@ -504,7 +504,7 @@ export function useTimelineCommit({
       output: { ...migratedConfig.output },
     });
 
-    commitData(nextData, {
+    commitData(preserveUploadingClips(current, nextData), {
       // Registry enrichment is a document edit. It must go through the same
       // save owner as config/clip changes so it is dirty, draft-backed, and
       // represented by an undo snapshot.

@@ -1,7 +1,9 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { useLocation } from 'react-router-dom';
 import { toast } from '@/shared/components/ui/runtime/sonner';
 import { useProjectSelectionContext } from '@/shared/contexts/ProjectContext';
+import { getLocalProjectSlug } from '@/shared/dev/devSession';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import {
   createGenerationForLocalFile,
@@ -14,6 +16,12 @@ import {
 } from '@/shared/lib/media/dropToGenerationConfig';
 import { unifiedGenerationQueryKeys } from '@/shared/lib/queryKeys/unified';
 import type { PersistedLocalMediaHandle } from '@/shared/lib/media/localHandleStore';
+import { RuntimeDataProvider } from '@/integrations/runtime/dataProvider';
+import {
+  assertRuntimeMediaImportSize,
+  RUNTIME_MEDIA_IMPORT_MAX_BYTES,
+} from '@/tools/video-editor/data/AssetResolver';
+import { useResolvedGalleryProject } from '@/app/runtime/useResolvedGalleryProject';
 
 function isImageFile(file: File): boolean {
   return file.type.startsWith('image/');
@@ -59,9 +67,35 @@ function isReadableFileHandle(handle: FileSystemHandleLike | null): handle is Re
 export function useDropToGeneration(): (files: File[], options?: DropToGenerationOptions) => Promise<void> {
   const queryClient = useQueryClient();
   const { selectedProjectId } = useProjectSelectionContext();
+  const location = useLocation();
+  const resolvedGalleryProject = useResolvedGalleryProject(location.search, location.pathname);
+  const localProjectSlug = getLocalProjectSlug(location.search);
+  const runtimeProjectId = resolvedGalleryProject.runtimeAuthority
+    ? resolvedGalleryProject.projectId
+    : null;
+  const runtimeProvider = useMemo(
+    () => runtimeProjectId ? new RuntimeDataProvider({ projectId: runtimeProjectId }) : null,
+    [runtimeProjectId],
+  );
 
   return useCallback(async (files: File[], options?: DropToGenerationOptions) => {
-    if (!selectedProjectId) {
+    if (localProjectSlug && !resolvedGalleryProject.runtimeAuthority) {
+      toast.error('Runtime media import is unavailable for the legacy Astrid Bridge host.');
+      return;
+    }
+
+    if (resolvedGalleryProject.runtimeAuthority && !runtimeProjectId) {
+      toast.error(resolvedGalleryProject.error?.message ?? 'Astrid Runtime project is not ready for media import.');
+      return;
+    }
+
+    const legacyProjectId = selectedProjectId;
+    if (!runtimeProjectId && !legacyProjectId) {
+      toast.error('Please select a project first');
+      return;
+    }
+    const projectId = legacyProjectId ?? runtimeProjectId;
+    if (!projectId) {
       toast.error('Please select a project first');
       return;
     }
@@ -72,6 +106,27 @@ export function useDropToGeneration(): (files: File[], options?: DropToGeneratio
 
     for (const [index, file] of files.entries()) {
       try {
+        if (runtimeProvider) {
+          if (!isImageFile(file) && !isVideoFile(file)) {
+            toast.error(`Unsupported file type: ${file.name}`);
+            continue;
+          }
+          if (file.size > RUNTIME_MEDIA_IMPORT_MAX_BYTES) {
+            assertRuntimeMediaImportSize(file);
+          }
+
+          await runtimeProvider.prepareMediaImport(file, {
+            filename: file.name,
+            mediaType: file.type || (isVideoFile(file) ? 'video/mp4' : 'image/png'),
+          }).then((mediaImport) => {
+            if (mediaImport.provider !== 'runtime' || mediaImport.project !== runtimeProjectId) {
+              throw new Error('Runtime media import identity does not match the selected project');
+            }
+          });
+          insertedCount += 1;
+          continue;
+        }
+
         if (isImageFile(file)) {
           if (file.size >= IMAGE_INLINE_UPLOAD_LIMIT_BYTES) {
             const item = dropItems[index];
@@ -92,7 +147,7 @@ export function useDropToGeneration(): (files: File[], options?: DropToGeneratio
 
             await createGenerationForLocalFile({
               file,
-              projectId: selectedProjectId,
+              projectId,
               handle,
               mediaType: 'image',
             });
@@ -102,7 +157,7 @@ export function useDropToGeneration(): (files: File[], options?: DropToGeneratio
 
           await createGenerationForUploadedImage({
             imageFile: file,
-            projectId: selectedProjectId,
+            projectId,
           });
           insertedCount += 1;
           continue;
@@ -128,7 +183,7 @@ export function useDropToGeneration(): (files: File[], options?: DropToGeneratio
 
             await createGenerationForLocalFile({
               file,
-              projectId: selectedProjectId,
+              projectId,
               handle,
               mediaType: 'video',
             });
@@ -138,7 +193,7 @@ export function useDropToGeneration(): (files: File[], options?: DropToGeneratio
 
           await createGenerationForUploadedVideo({
             videoFile: file,
-            projectId: selectedProjectId,
+            projectId,
           });
           insertedCount += 1;
           continue;
@@ -155,8 +210,10 @@ export function useDropToGeneration(): (files: File[], options?: DropToGeneratio
 
     if (insertedCount > 0) {
       await queryClient.invalidateQueries({
-        queryKey: unifiedGenerationQueryKeys.projectPrefix(selectedProjectId),
+        queryKey: runtimeProjectId
+          ? ['runtime', ...unifiedGenerationQueryKeys.projectPrefix(runtimeProjectId)]
+          : unifiedGenerationQueryKeys.projectPrefix(projectId),
       });
     }
-  }, [queryClient, selectedProjectId]);
+  }, [localProjectSlug, queryClient, resolvedGalleryProject, runtimeProjectId, runtimeProvider, selectedProjectId]);
 }

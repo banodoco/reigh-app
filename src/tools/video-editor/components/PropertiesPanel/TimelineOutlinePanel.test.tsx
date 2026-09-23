@@ -1,19 +1,23 @@
 import { describe, expect, it } from 'vitest';
 import { buildTimelineOutlineItems, formatOutlineTime } from './TimelineOutlinePanel';
+import type { ResolvedTimelineConfig } from '@/tools/video-editor/types/index.ts';
 
 describe('TimelineOutlinePanel projection', () => {
   it('projects the resolved timeline into chronological, track-labelled items', () => {
-    const items = buildTimelineOutlineItems({
+    const config: ResolvedTimelineConfig = {
+      output: { resolution: '1920x1080', fps: 30, file: '' },
       tracks: [
         { id: 'visual-1', kind: 'visual', label: 'Visual' },
         { id: 'audio-1', kind: 'audio', label: 'Audio' },
       ],
       clips: [
-        { id: 'late', track: 'audio-1', clipType: 'audio', start: 4, end: 6, label: '' },
-        { id: 'early', track: 'visual-1', clipType: 'image', start: 0, end: 2, label: 'Opening', asset: 'asset-opening' },
-        { id: 'middle', track: 'visual-1', clipType: 'text', start: 2, end: 4, text: { content: 'Caption' } },
+        { id: 'late', track: 'audio-1', clipType: 'audio', at: 4, hold: 2, label: '' },
+        { id: 'early', track: 'visual-1', clipType: 'image', at: 0, hold: 2, label: 'Opening', asset: 'asset-opening' },
+        { id: 'middle', track: 'visual-1', clipType: 'text', at: 2, hold: 2, text: { content: 'Caption' } },
       ],
-    } as never);
+      registry: {},
+    };
+    const items = buildTimelineOutlineItems(config);
 
     expect(items.map((item) => item.id)).toEqual(['early', 'middle', 'late']);
     expect(items[0]).toMatchObject({ label: 'Opening', trackLabel: 'Visual', assetKey: 'asset-opening' });

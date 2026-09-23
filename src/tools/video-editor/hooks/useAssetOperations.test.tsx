@@ -35,14 +35,15 @@ function makeProvider(overrides: Partial<DataProvider> = {}): DataProvider {
 describe('useAssetOperations', () => {
   it('decrements pendingOpsRef when uploadAsset throws', async () => {
     const pendingOpsRef = { current: 0 };
+    const patchRegistry = vi.fn();
     const provider = makeProvider({
-      uploadAsset: vi.fn(async () => {
+      prepareAsset: vi.fn(async () => {
         throw new Error('upload failed');
       }),
     });
     const queryClient = new QueryClient();
     const { result } = renderHook(() => (
-      useAssetOperations(provider, 'timeline-1', 'user-1', queryClient, pendingOpsRef)
+      useAssetOperations(provider, 'timeline-1', 'user-1', queryClient, pendingOpsRef, undefined, patchRegistry)
     ));
 
     await expect(
@@ -54,14 +55,13 @@ describe('useAssetOperations', () => {
 
   it('decrements pendingOpsRef when registerAsset throws', async () => {
     const pendingOpsRef = { current: 0 };
-    const provider = makeProvider({
-      registerAsset: vi.fn(async () => {
-        throw new Error('register failed');
-      }),
+    const patchRegistry = vi.fn(() => {
+      throw new Error('register failed');
     });
+    const provider = makeProvider();
     const queryClient = new QueryClient();
     const { result } = renderHook(() => (
-      useAssetOperations(provider, 'timeline-1', 'user-1', queryClient, pendingOpsRef)
+      useAssetOperations(provider, 'timeline-1', 'user-1', queryClient, pendingOpsRef, undefined, patchRegistry)
     ));
 
     await expect(act(async () => {
@@ -71,24 +71,25 @@ describe('useAssetOperations', () => {
     expect(pendingOpsRef.current).toBe(0);
   });
 
-  it('prefers resolver lifecycle hooks for upload processing when available', async () => {
+  it('prepares bytes, then commits the enriched registry entry through the save owner', async () => {
     const pendingOpsRef = { current: 0 };
+    const patchRegistry = vi.fn();
     const preparedFile = new File(['prepared'], 'prepared.mp4', { type: 'video/mp4' });
     const onTranscode = vi.fn(async () => preparedFile);
-    const onUpload = vi.fn(async () => ({
+    const prepareAsset = vi.fn(async () => ({
       assetId: 'asset-1',
       entry: { file: 'prepared.mp4', type: 'video/mp4' },
     }));
     const provider = makeProvider({
       onTranscode,
-      onUpload,
+      prepareAsset,
       uploadAsset: vi.fn(async () => {
         throw new Error('legacy uploadAsset should not be called');
       }),
     });
     const queryClient = new QueryClient();
     const { result } = renderHook(() => (
-      useAssetOperations(provider, 'timeline-1', 'user-1', queryClient, pendingOpsRef)
+      useAssetOperations(provider, 'timeline-1', 'user-1', queryClient, pendingOpsRef, undefined, patchRegistry)
     ));
 
     const file = new File(['raw'], 'raw.mp4', { type: 'video/mp4' });
@@ -102,13 +103,197 @@ describe('useAssetOperations', () => {
       userId: 'user-1',
       intent: 'asset-upload',
     });
-    expect(onUpload).toHaveBeenCalledWith({
-      file: preparedFile,
-      options: {
-        timelineId: 'timeline-1',
-        userId: 'user-1',
-      },
+    expect(prepareAsset).toHaveBeenCalledWith(preparedFile, {
+      timelineId: 'timeline-1',
+      userId: 'user-1',
     });
+    expect(patchRegistry).toHaveBeenCalledWith('asset-1', { file: 'prepared.mp4', type: 'video/mp4' }, 'prepared.mp4');
+    expect(pendingOpsRef.current).toBe(0);
+  });
+
+  it('resolves provider-relative storage before handing the source to the save owner', async () => {
+    const pendingOpsRef = { current: 0 };
+    const patchRegistry = vi.fn();
+    const resolveAssetUrl = vi.fn(async (file: string) => `https://cdn.example/${file}`);
+    const provider = makeProvider({
+      prepareAsset: vi.fn(async () => ({
+        assetId: 'asset-relative',
+        entry: { file: 'local-drops/clip.mp4', type: 'video/mp4' } as AssetRegistryEntry,
+      })),
+    });
+    const queryClient = new QueryClient();
+    const { result } = renderHook(() => (
+      useAssetOperations(
+        provider,
+        'timeline-1',
+        'user-1',
+        queryClient,
+        pendingOpsRef,
+        undefined,
+        patchRegistry,
+        resolveAssetUrl,
+      )
+    ));
+
+    await act(async () => {
+      await result.current.uploadAsset(new File(['video'], 'clip.mp4', { type: 'video/mp4' }));
+    });
+
+    expect(resolveAssetUrl).toHaveBeenCalledWith('local-drops/clip.mp4');
+    expect(patchRegistry).toHaveBeenCalledWith(
+      'asset-relative',
+      { file: 'local-drops/clip.mp4', type: 'video/mp4' },
+      'https://cdn.example/local-drops/clip.mp4',
+    );
+  });
+
+  it('keeps pending state through provider URL resolution and save-owner commit', async () => {
+    const pendingOpsRef = { current: 0 };
+    const patchRegistry = vi.fn();
+    let resolveUrl!: (value: string) => void;
+    const resolveAssetUrl = vi.fn(() => new Promise<string>((resolve) => {
+      resolveUrl = resolve;
+    }));
+    const provider = makeProvider({
+      prepareAsset: vi.fn(async () => ({
+        assetId: 'asset-pending',
+        entry: { file: 'fresh-object.mp4', type: 'video/mp4' } as AssetRegistryEntry,
+      })),
+    });
+    const queryClient = new QueryClient();
+    const { result } = renderHook(() => (
+      useAssetOperations(
+        provider,
+        'timeline-1',
+        'user-1',
+        queryClient,
+        pendingOpsRef,
+        undefined,
+        patchRegistry,
+        resolveAssetUrl,
+      )
+    ));
+
+    let uploadPromise!: Promise<unknown>;
+    await act(async () => {
+      uploadPromise = result.current.uploadAsset(new File(['video'], 'clip.mp4', { type: 'video/mp4' }));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(resolveAssetUrl).toHaveBeenCalledWith('fresh-object.mp4');
+    expect(pendingOpsRef.current).toBeGreaterThan(0);
+    resolveUrl('https://cdn.example/fresh-object.mp4');
+    await act(async () => { await uploadPromise; });
+    expect(pendingOpsRef.current).toBe(0);
+    expect(patchRegistry).toHaveBeenCalledWith(
+      'asset-pending',
+      { file: 'fresh-object.mp4', type: 'video/mp4' },
+      'https://cdn.example/fresh-object.mp4',
+    );
+  });
+
+  it('keeps placement preparation write-free and never falls back to provider registry writes', async () => {
+    const pendingOpsRef = { current: 0 };
+    const patchRegistry = vi.fn();
+    const providerRegisterAsset = vi.fn(async () => undefined);
+    const providerUploadAsset = vi.fn(async () => ({
+      assetId: 'legacy-asset',
+      entry: { file: 'legacy.mp4', type: 'video/mp4' } as AssetRegistryEntry,
+    }));
+    const provider = makeProvider({
+      registerAsset: providerRegisterAsset,
+      uploadAsset: providerUploadAsset,
+      prepareAsset: vi.fn(async () => ({
+        assetId: 'prepared-asset',
+        entry: { file: 'prepared.mp4', type: 'video/mp4' } as AssetRegistryEntry,
+      })),
+    });
+    const queryClient = new QueryClient();
+    const { result } = renderHook(() => (
+      useAssetOperations(provider, 'timeline-1', 'user-1', queryClient, pendingOpsRef, undefined, patchRegistry)
+    ));
+
+    let prepared: { assetId: string; entry: AssetRegistryEntry } | undefined;
+    await act(async () => {
+      prepared = await result.current.prepareAssetUpload(
+        new File(['video'], 'prepared.mp4', { type: 'video/mp4' }),
+      );
+    });
+
+    expect(prepared?.assetId).toBe('prepared-asset');
+    expect(patchRegistry).not.toHaveBeenCalled();
+    expect(providerRegisterAsset).not.toHaveBeenCalled();
+    expect(providerUploadAsset).not.toHaveBeenCalled();
+    expect(pendingOpsRef.current).toBe(0);
+  });
+
+  it('prepares an asset-panel batch before handing its entries to the save owner', async () => {
+    const pendingOpsRef = { current: 0 };
+    const patchRegistry = vi.fn();
+    const preparedResolvers = new Map<string, (value: { assetId: string; entry: AssetRegistryEntry }) => void>();
+    const provider = makeProvider({
+      prepareAsset: vi.fn((file: File) => new Promise((resolve) => {
+        preparedResolvers.set(file.name, resolve);
+      })),
+    });
+    const queryClient = new QueryClient();
+    const { result } = renderHook(() => (
+      useAssetOperations(provider, 'timeline-1', 'user-1', queryClient, pendingOpsRef, undefined, patchRegistry)
+    ));
+
+    const uploadPromise = result.current.uploadFiles([
+      new File(['one'], 'one.mp4', { type: 'video/mp4' }),
+      new File(['two'], 'two.mp4', { type: 'video/mp4' }),
+    ]);
+    await Promise.resolve();
+
+    expect(patchRegistry).not.toHaveBeenCalled();
+    preparedResolvers.get('one.mp4')?.({
+      assetId: 'asset-one',
+      entry: { file: 'one.mp4', type: 'video/mp4' },
+    });
+    await Promise.resolve();
+    expect(patchRegistry).not.toHaveBeenCalled();
+    preparedResolvers.get('two.mp4')?.({
+      assetId: 'asset-two',
+      entry: { file: 'two.mp4', type: 'video/mp4' },
+    });
+    await act(async () => { await uploadPromise; });
+
+    expect(patchRegistry).toHaveBeenCalledTimes(2);
+    expect(patchRegistry.mock.calls.map(([assetId]) => assetId)).toEqual(['asset-one', 'asset-two']);
+    expect(pendingOpsRef.current).toBe(0);
+  });
+
+  it('commits successful preparations in order before surfacing a batch failure', async () => {
+    const pendingOpsRef = { current: 0 };
+    const patchRegistry = vi.fn();
+    const provider = makeProvider({
+      prepareAsset: vi.fn(async (file: File) => {
+        if (file.name === 'broken.mp4') {
+          throw new Error('preparation failed');
+        }
+        return {
+          assetId: 'asset-good',
+          entry: { file: file.name, type: 'video/mp4' } as AssetRegistryEntry,
+        };
+      }),
+    });
+    const queryClient = new QueryClient();
+    const { result } = renderHook(() => (
+      useAssetOperations(provider, 'timeline-1', 'user-1', queryClient, pendingOpsRef, undefined, patchRegistry)
+    ));
+
+    await expect(act(async () => {
+      await result.current.uploadFiles([
+        new File(['good'], 'good.mp4', { type: 'video/mp4' }),
+        new File(['broken'], 'broken.mp4', { type: 'video/mp4' }),
+      ]);
+    })).rejects.toThrow('preparation failed');
+
+    expect(patchRegistry).toHaveBeenCalledTimes(1);
+    expect(patchRegistry.mock.calls[0]?.[0]).toBe('asset-good');
     expect(pendingOpsRef.current).toBe(0);
   });
 
@@ -159,12 +344,11 @@ describe('useAssetOperations', () => {
       ...overrides,
     });
 
-    it('calls enrichRegistryEntryWithParsers and persists enriched metadata via registerAsset when parsers are registered', async () => {
+    it('calls enrichRegistryEntryWithParsers and persists enriched metadata via the save owner', async () => {
       const pendingOpsRef = { current: 0 };
-      const registerAsset = vi.fn(async () => undefined);
+      const patchRegistry = vi.fn();
       const provider = makeProvider({
-        registerAsset,
-        uploadAsset: vi.fn(async () => ({
+        prepareAsset: vi.fn(async () => ({
           assetId: 'asset-1',
           entry: { file: 'clip.mp4', type: 'video/mp4' } as AssetRegistryEntry,
         })),
@@ -191,6 +375,7 @@ describe('useAssetOperations', () => {
           queryClient,
           pendingOpsRef,
           [mockParser],
+          patchRegistry,
         ),
       );
 
@@ -208,12 +393,8 @@ describe('useAssetOperations', () => {
         [mockParser],
       );
 
-      // Should call registerAsset with the enriched entry
-      expect(registerAsset).toHaveBeenCalledWith(
-        'timeline-1',
-        'asset-1',
-        enrichedEntry,
-      );
+      // Should call the existing timeline save owner exactly once.
+      expect(patchRegistry).toHaveBeenCalledWith('asset-1', enrichedEntry, 'clip.mp4');
 
       // Should return the enriched entry (metadata persisted)
       expect(uploadResult).toEqual({
@@ -226,20 +407,19 @@ describe('useAssetOperations', () => {
 
     it('does not call enrichRegistryEntryWithParsers when no parsers are registered (undefined)', async () => {
       const pendingOpsRef = { current: 0 };
-      const registerAsset = vi.fn(async () => undefined);
+      const patchRegistry = vi.fn();
       const uploadResult = {
         assetId: 'asset-2',
         entry: { file: 'raw.mp4', type: 'video/mp4' } as AssetRegistryEntry,
       };
       const provider = makeProvider({
-        registerAsset,
-        uploadAsset: vi.fn(async () => uploadResult),
+        prepareAsset: vi.fn(async () => uploadResult),
       });
 
       const queryClient = new QueryClient();
       // No registeredParsers argument — uses default undefined
       const { result } = renderHook(() =>
-        useAssetOperations(provider, 'timeline-2', 'user-1', queryClient, pendingOpsRef),
+        useAssetOperations(provider, 'timeline-2', 'user-1', queryClient, pendingOpsRef, undefined, patchRegistry),
       );
 
       const file = new File(['video'], 'raw.mp4', { type: 'video/mp4' });
@@ -253,25 +433,25 @@ describe('useAssetOperations', () => {
 
       // Returns the original upload result unchanged
       expect(returnedResult).toEqual(uploadResult);
+      expect(patchRegistry).toHaveBeenCalledWith('asset-2', uploadResult.entry, 'raw.mp4');
 
       expect(pendingOpsRef.current).toBe(0);
     });
 
     it('does not call enrichRegistryEntryWithParsers when registeredParsers is an empty array', async () => {
       const pendingOpsRef = { current: 0 };
-      const registerAsset = vi.fn(async () => undefined);
+      const patchRegistry = vi.fn();
       const uploadResult = {
         assetId: 'asset-3',
         entry: { file: 'empty.mp4', type: 'video/mp4' } as AssetRegistryEntry,
       };
       const provider = makeProvider({
-        registerAsset,
-        uploadAsset: vi.fn(async () => uploadResult),
+        prepareAsset: vi.fn(async () => uploadResult),
       });
 
       const queryClient = new QueryClient();
       const { result } = renderHook(() =>
-        useAssetOperations(provider, 'timeline-3', 'user-1', queryClient, pendingOpsRef, []),
+        useAssetOperations(provider, 'timeline-3', 'user-1', queryClient, pendingOpsRef, [], patchRegistry),
       );
 
       const file = new File(['video'], 'empty.mp4', { type: 'video/mp4' });
@@ -281,15 +461,15 @@ describe('useAssetOperations', () => {
 
       // Should NOT call enrich when parsers array is empty
       expect(enrichRegistryEntryWithParsers).not.toHaveBeenCalled();
+      expect(patchRegistry).toHaveBeenCalledWith('asset-3', uploadResult.entry, 'empty.mp4');
       expect(pendingOpsRef.current).toBe(0);
     });
 
     it('propagates parser-produced diagnostics and enriched metadata to the consumer', async () => {
       const pendingOpsRef = { current: 0 };
-      const registerAsset = vi.fn(async () => undefined);
+      const patchRegistry = vi.fn();
       const provider = makeProvider({
-        registerAsset,
-        uploadAsset: vi.fn(async () => ({
+        prepareAsset: vi.fn(async () => ({
           assetId: 'asset-4',
           entry: { file: 'diag.mp4', type: 'video/mp4' } as AssetRegistryEntry,
         })),
@@ -341,6 +521,7 @@ describe('useAssetOperations', () => {
           queryClient,
           pendingOpsRef,
           [mockParser],
+          patchRegistry,
         ),
       );
 
@@ -353,21 +534,16 @@ describe('useAssetOperations', () => {
       expect(enrichRegistryEntryWithParsers).toHaveBeenCalledTimes(1);
 
       // The enriched entry (with metadata including enrichment claims) was persisted
-      expect(registerAsset).toHaveBeenCalledWith(
-        'timeline-4',
-        'asset-4',
-        enrichedEntry,
-      );
+      expect(patchRegistry).toHaveBeenCalledWith('asset-4', enrichedEntry, 'clip.mp4');
 
       expect(pendingOpsRef.current).toBe(0);
     });
 
     it('still decrements pendingOpsRef when enrichRegistryEntryWithParsers throws', async () => {
       const pendingOpsRef = { current: 0 };
-      const registerAsset = vi.fn(async () => undefined);
+      const patchRegistry = vi.fn();
       const provider = makeProvider({
-        registerAsset,
-        uploadAsset: vi.fn(async () => ({
+        prepareAsset: vi.fn(async () => ({
           assetId: 'asset-5',
           entry: { file: 'fail.mp4', type: 'video/mp4' } as AssetRegistryEntry,
         })),
@@ -391,6 +567,7 @@ describe('useAssetOperations', () => {
           queryClient,
           pendingOpsRef,
           [mockParser],
+          patchRegistry,
         ),
       );
 
@@ -404,8 +581,8 @@ describe('useAssetOperations', () => {
       // pendingOpsRef must be decremented even on failure
       expect(pendingOpsRef.current).toBe(0);
 
-      // registerAsset should NOT have been called
-      expect(registerAsset).not.toHaveBeenCalled();
+      // The save owner should not be called when enrichment fails.
+      expect(patchRegistry).not.toHaveBeenCalled();
     });
   });
 });

@@ -27,7 +27,6 @@ import { useVideoEditorRuntime } from '@/tools/video-editor/contexts/VideoEditor
 import type {
   TimelineApplyEdit,
   TimelineInvalidateAssetRegistry,
-  TimelinePatchRegistry,
   TimelineUploadAsset,
 } from '@/tools/video-editor/hooks/timeline-state-types.ts';
 import { type TimelineData } from '@/tools/video-editor/lib/timeline-data.ts';
@@ -69,9 +68,7 @@ async function dispatchTimelineDrop({
   dropPosition,
   selectedTrackId,
   applyEdit,
-  patchRegistry,
   prepareAssetUpload,
-  uploadAsset,
   invalidateAssetRegistry,
   resolveAssetUrl,
   registerGenerationAsset,
@@ -92,9 +89,7 @@ async function dispatchTimelineDrop({
   dropPosition: TimelineDropPosition;
   selectedTrackId: string | null;
   applyEdit: TimelineApplyEdit;
-  patchRegistry: TimelinePatchRegistry;
   prepareAssetUpload?: TimelineUploadAsset;
-  uploadAsset: TimelineUploadAsset;
   invalidateAssetRegistry: TimelineInvalidateAssetRegistry;
   resolveAssetUrl: (file: string) => Promise<string>;
   registerGenerationAsset: UseAssetManagementResult['registerGenerationAsset'];
@@ -129,9 +124,7 @@ async function dispatchTimelineDrop({
     insertAtTop,
     selectedTrackId,
     applyEdit,
-    patchRegistry,
     prepareAssetUpload,
-    uploadAsset,
     invalidateAssetRegistry,
     resolveAssetUrl,
     registerGenerationAsset,
@@ -471,9 +464,7 @@ export interface UseExternalDropArgs {
   scaleWidth: number;
   selectedTrackId: string | null;
   applyEdit: TimelineApplyEdit;
-  patchRegistry: TimelinePatchRegistry;
   prepareAssetUpload?: TimelineUploadAsset;
-  uploadAsset: TimelineUploadAsset;
   invalidateAssetRegistry: TimelineInvalidateAssetRegistry;
   resolveAssetUrl: (file: string) => Promise<string>;
   coordinator: DragCoordinator;
@@ -500,9 +491,7 @@ export function useExternalDrop({
   pendingOpsRef,
   selectedTrackId,
   applyEdit,
-  patchRegistry,
   prepareAssetUpload,
-  uploadAsset,
   invalidateAssetRegistry,
   resolveAssetUrl,
   coordinator,
@@ -542,10 +531,6 @@ export function useExternalDrop({
   const getApplyEdit = useCallback(() => {
     return store?.getState().ops.applyEdit ?? applyEdit;
   }, [applyEdit, store]);
-  const getPatchRegistry = useCallback(() => {
-    return store?.getState().ops.patchRegistry ?? patchRegistry;
-  }, [patchRegistry, store]);
-
   const clearExternalDragState = useCallback(() => {
     if (externalDragFrameRef.current !== null) {
       window.cancelAnimationFrame(externalDragFrameRef.current);
@@ -646,9 +631,7 @@ export function useExternalDrop({
       dropPosition,
       selectedTrackId: getSelectedTrackId(),
       applyEdit: getApplyEdit(),
-      patchRegistry: getPatchRegistry(),
       prepareAssetUpload,
-      uploadAsset,
       invalidateAssetRegistry,
       resolveAssetUrl,
       registerGenerationAsset,
@@ -673,7 +656,6 @@ export function useExternalDrop({
     dropAsset,
     getApplyEdit,
     getDataRef,
-    getPatchRegistry,
     getPendingOpsRef,
     getSelectedTrackId,
     invalidateAssetRegistry,
@@ -688,7 +670,6 @@ export function useExternalDrop({
     finalVideoMap,
     handleAddTextAt,
     onSeekToTime,
-    uploadAsset,
     uploadImageGeneration,
     uploadVideoGeneration,
   ]);

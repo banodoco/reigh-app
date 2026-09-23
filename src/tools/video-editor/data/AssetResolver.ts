@@ -46,6 +46,23 @@ export interface MediaImportOptions {
   durationSeconds?: number;
 }
 
+/**
+ * Workspace Runtime's HTTP/object boundary. Keep callers from reading the
+ * whole browser file or creating an import operation when the request cannot
+ * be accepted by Runtime.
+ */
+export const RUNTIME_MEDIA_IMPORT_MAX_BYTES = 64 * 1024 * 1024;
+
+export function assertRuntimeMediaImportSize(file: Pick<File, 'name' | 'size'>): void {
+  if (file.size <= RUNTIME_MEDIA_IMPORT_MAX_BYTES) {
+    return;
+  }
+
+  throw new Error(
+    `${file.name} exceeds the Workspace Runtime media limit of 64 MiB`,
+  );
+}
+
 export interface AssetResolveRequest {
   file: string;
   assetId?: string;
@@ -148,7 +165,7 @@ export async function prepareAssetWithResolver(
     return resolver.prepareAsset(request.file, request.options);
   }
 
-  return uploadAssetWithResolver(resolver, request);
+  throw new Error('This editor backend does not support write-free asset preparation');
 }
 
 export async function transcodeAssetWithResolver(

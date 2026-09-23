@@ -258,6 +258,7 @@ function useVideoEditorProviderSelection({
       };
     }
 
+    return null;
   }, [
     localProjectSlug,
     localProjectId,
@@ -389,7 +390,7 @@ export default function VideoEditorPage() {
     onBridgeRequest,
   });
 
-  const localProjectId = discovery.projectsQuery.data?.projects.find(
+  const localProjectId = discovery.projectsQuery.data?.projects?.find(
     (project) => project.slug === localProjectSlug,
   )?.project_id ?? null;
 
