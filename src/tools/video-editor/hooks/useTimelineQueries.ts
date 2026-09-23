@@ -7,6 +7,7 @@ export const DEFAULT_TIMELINE_REFRESH_INTERVAL_MS = 30_000;
 
 type RefreshableDataProvider = DataProvider & {
   readonly refreshIntervalMs?: number;
+  readonly timelineQueryIdentity?: string;
 };
 
 /**
@@ -34,15 +35,22 @@ export function useTimelineQueries(
   resolveAssetUrl?: (file: string) => Promise<string>,
 ) {
   const refreshOptions = getTimelineRefreshOptions(provider);
+  const queryIdentity = (provider as RefreshableDataProvider).timelineQueryIdentity;
+  const timelineKey = queryIdentity === undefined
+    ? timelineQueryKey(timelineId)
+    : [...timelineQueryKey(timelineId), queryIdentity] as const;
   const timelineQuery = useQuery({
-    queryKey: timelineQueryKey(timelineId),
+    queryKey: timelineKey,
     enabled: Boolean(timelineId),
     queryFn: () => loadTimelineJsonFromProvider(provider, timelineId, resolveAssetUrl),
     ...refreshOptions,
   });
 
+  const assetRegistryKey = queryIdentity === undefined
+    ? assetRegistryQueryKey(timelineId)
+    : [...assetRegistryQueryKey(timelineId), queryIdentity] as const;
   const assetRegistryQuery = useQuery({
-    queryKey: assetRegistryQueryKey(timelineId),
+    queryKey: assetRegistryKey,
     enabled: Boolean(timelineId),
     queryFn: () => provider.loadAssetRegistry(timelineId),
     ...refreshOptions,

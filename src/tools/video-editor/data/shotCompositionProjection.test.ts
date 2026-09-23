@@ -7,6 +7,9 @@ import {
   managedOutputMatchesOccurrence,
   projectCanonicalComposition,
 } from './shotCompositionProjection.ts';
+import { timelineContentExtentMs } from './shotCompositionTiming.ts';
+import { boundCanonicalClipToOccurrence } from '@/tools/video-editor/lib/canonicalRenderBounds.ts';
+import { getClipTimelineDuration } from '@/tools/video-editor/lib/config-utils.ts';
 
 const prepared = createShotCompositionAdapter({ load: async () => fixture }).prepare(fixture);
 
@@ -118,8 +121,80 @@ describe('canonical shot-composition downstream projection', () => {
     const parentClip = projectCanonicalComposition(source).config.clips.find((clip) => clip.id === 'occ-1:overlong-child');
     const localClip = projectCanonicalComposition(source, undefined, { clampToOccurrenceDuration: false }).config.clips.find((clip) => clip.id === 'occ-1:overlong-child');
 
-    expect(parentClip?.hold).toBe(2);
+    // The child has 5s of content, but occ-2 starts at 4s on the same
+    // parent lane, so the parent projection is half-open at 4s.
+    expect(parentClip?.hold).toBe(4);
     expect(localClip?.hold).toBe(5);
+  });
+
+  it('caps content-derived occurrence duration at the next same-lane cut', () => {
+    const source = withOccurrenceRevision(prepared, 0, (timeline) => ({
+      ...timeline,
+      clips: [{
+        id: 'contiguous-overlong-child',
+        asset: 'alpha-image',
+        clipType: 'image',
+        track: 'video',
+        at: 0,
+        hold: 5,
+      }],
+    }));
+    const clip = projectCanonicalComposition(source).config.clips.find(
+      (candidate) => candidate.id === 'occ-1:contiguous-overlong-child',
+    );
+
+    expect(clip).toMatchObject({ at: 0, hold: 4 });
+    expect(clip?.app?.canonicalTiming).toMatchObject({ occurrenceDurationMs: 4000 });
+  });
+
+  it.each([0.5, 2])('applies playback speed once for video/audio and keeps clipping idempotent at speed %s', (speed) => {
+    const source = withOccurrenceRevision(prepared, 0, (timeline) => ({
+      ...timeline,
+      tracks: [
+        { id: 'video', kind: 'visual' },
+        { id: 'audio', kind: 'audio' },
+      ],
+      clips: [
+        { id: 'video-source', asset: 'alpha-image', clipType: 'media', track: 'video', at_ms: 0, hold: 4, speed },
+        { id: 'audio-source', asset: 'alpha-image', clipType: 'media', track: 'audio', at_ms: 0, hold: 4, speed },
+      ],
+    }));
+    const singleOccurrence = { ...source, occurrences: [source.occurrences[0]!] };
+    const projected = projectCanonicalComposition(singleOccurrence, undefined, { clampToOccurrenceDuration: false });
+    const expectedTimelineDuration = 4 / speed;
+
+    const internal = source.occurrences[0]?.revision.internal_timeline_revision as Record<string, unknown> | undefined;
+    expect(timelineContentExtentMs(internal?.timeline)).toBe(expectedTimelineDuration * 1000);
+    for (const clip of projected.config.clips) {
+      expect(clip.hold).toBe(4);
+      expect(getClipTimelineDuration(clip)).toBe(expectedTimelineDuration);
+      const boundedOnce = boundCanonicalClipToOccurrence({
+        ...clip,
+        app: { ...clip.app, canonicalTiming: { ...clip.app?.canonicalTiming, occurrenceDurationMs: expectedTimelineDuration * 1000 } },
+      });
+      const boundedTwice = boundedOnce && boundCanonicalClipToOccurrence(boundedOnce);
+      expect(boundedOnce?.hold).toBe(4);
+      expect(boundedTwice?.hold).toBe(4);
+      expect(boundedTwice && getClipTimelineDuration(boundedTwice)).toBe(expectedTimelineDuration);
+    }
+
+    // The persisted child timeline remains in source units across a graph
+    // prepare/project round trip; speed is still applied exactly once.
+    const serialized = JSON.parse(JSON.stringify(fixture)) as typeof fixture;
+    const occurrenceRevisionId = source.occurrences[0]!.revisionId;
+    const sourceTimeline = internal?.timeline;
+    serialized.shot_revisions = serialized.shot_revisions.map((revision) => revision.revision_id === occurrenceRevisionId
+      ? {
+          ...revision,
+          internal_timeline_revision: {
+            ...revision.internal_timeline_revision,
+            timeline: sourceTimeline as typeof revision.internal_timeline_revision.timeline,
+          },
+        }
+      : revision);
+    const roundTrip = createShotCompositionAdapter({ load: async () => serialized }).prepare(serialized);
+    const projectedAgain = projectCanonicalComposition({ ...roundTrip, occurrences: [roundTrip.occurrences[0]!] }, undefined, { clampToOccurrenceDuration: false });
+    expect(projectedAgain.config.clips.map((clip) => clip.hold)).toEqual([4, 4]);
   });
 
   it('preserves editor-form seconds and child trim windows when flattening a shot', () => {
@@ -152,6 +227,32 @@ describe('canonical shot-composition downstream projection', () => {
       height: 360,
     });
     expect(clip?.hold).toBeUndefined();
+  });
+
+  it('skips null and malformed revision assets while projecting valid assets', () => {
+    const source: PreparedShotComposition = {
+      ...prepared,
+      occurrences: prepared.occurrences.map((candidate, index) => index === 0
+        ? {
+            ...candidate,
+            revision: {
+              ...candidate.revision,
+              assets: [
+                null,
+                { asset_id: 'malformed-asset' },
+                ...(candidate.revision.assets as Array<Record<string, unknown>>),
+              ],
+            },
+          }
+        : candidate),
+    };
+
+    const projection = projectCanonicalComposition(source);
+
+    expect(projection.config.registry['alpha-image']).toMatchObject({
+      file: 'object-alpha-image',
+    });
+    expect(projection.config.registry).not.toHaveProperty('malformed-asset');
   });
 
   it('uses canonical asset media kinds when the parent registry omitted them', () => {

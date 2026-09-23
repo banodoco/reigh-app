@@ -11,11 +11,31 @@ export type ShotCompositionReadRequest = Readonly<{
   parentDocumentId: string;
 }>;
 
+export type ShotCompositionHeadReadRequest = ShotCompositionReadRequest & Readonly<{
+  /** Immutable parent revision to resolve; never re-read the mutable head. */
+  headRevisionId: string;
+}>;
+
+export type ShotCompositionPublicationReceipt = Readonly<{
+  receiptId?: string;
+  idempotencyKey?: string;
+  requestHash?: string;
+  expectedHead?: string | null;
+  newHead: string;
+  changedIdentities?: readonly string[];
+  diff?: JsonObject;
+  raw?: JsonObject;
+}>;
+
 export type ShotCompositionPublishRequest = Readonly<{
   projectId: string;
   parentDocumentId: string;
   expectedHeadRevisionId: string | null;
   graph: ShotCompositionContract;
+  /** Reuse this key when retrying the same candidate after a lost response. */
+  idempotencyKey?: string;
+  /** Development trace correlation only; not part of the committed graph. */
+  timingTraceId?: string;
 }>;
 
 /**
@@ -27,6 +47,7 @@ export type ShotCompositionPublishRequest = Readonly<{
  */
 export interface ShotCompositionPort {
   load(request: ShotCompositionReadRequest): Promise<unknown>;
+  loadAtHead?(request: ShotCompositionHeadReadRequest): Promise<unknown>;
   publish?(request: ShotCompositionPublishRequest): Promise<unknown>;
 }
 
@@ -65,6 +86,8 @@ export type PreparedShotComposition = Readonly<{
   parentDocumentId: string;
   headRevisionId: string;
   occurrences: readonly CanonicalShotOccurrence[];
+  /** Durable publication receipt, when this graph is the result of a commit. */
+  publicationReceipt?: ShotCompositionPublicationReceipt;
 }>;
 
 function record(value: unknown, label: string): JsonObject {
@@ -95,6 +118,24 @@ function isConflict(error: unknown): boolean {
       || 'code' in error && ['conflict', 'stale_write', 'document_version_conflict'].includes(
         String((error as Error & { code?: unknown }).code),
       ));
+}
+
+function publicationReceipt(value: unknown): ShotCompositionPublicationReceipt | undefined {
+  const candidate = value && typeof value === 'object' && !Array.isArray(value)
+    ? value as JsonObject
+    : undefined;
+  if (!candidate || typeof candidate.new_head !== 'string' || candidate.new_head.length === 0) return undefined;
+  const changed = candidate.changed_identities;
+  return Object.freeze({
+    ...(typeof candidate.receipt_id === 'string' ? { receiptId: candidate.receipt_id } : {}),
+    ...(typeof candidate.idempotency_key === 'string' ? { idempotencyKey: candidate.idempotency_key } : {}),
+    ...(typeof candidate.request_hash === 'string' ? { requestHash: candidate.request_hash } : {}),
+    ...(candidate.expected_head === null || typeof candidate.expected_head === 'string' ? { expectedHead: candidate.expected_head } : {}),
+    newHead: candidate.new_head,
+    ...(Array.isArray(changed) ? { changedIdentities: changed.filter((item): item is string => typeof item === 'string') } : {}),
+    ...(candidate.diff && typeof candidate.diff === 'object' && !Array.isArray(candidate.diff) ? { diff: candidate.diff as JsonObject } : {}),
+    raw: candidate,
+  });
 }
 
 function prepareContract(contract: ShotCompositionContract): PreparedShotComposition {
@@ -160,6 +201,7 @@ function prepareContract(contract: ShotCompositionContract): PreparedShotComposi
     parentDocumentId,
     headRevisionId,
     occurrences: Object.freeze(occurrences),
+    ...(publicationReceipt(contract.publication_receipt) ? { publicationReceipt: publicationReceipt(contract.publication_receipt) } : {}),
   });
 }
 
@@ -197,6 +239,21 @@ export function createShotCompositionAdapter(port: ShotCompositionPort) {
         if (error instanceof ShotCompositionUnavailableError) throw error;
         throw error;
       }
+    },
+
+    async loadAtHead(request: ShotCompositionHeadReadRequest): Promise<PreparedShotComposition> {
+      if (!port.loadAtHead) {
+        throw new ShotCompositionUnavailableError('The canonical shot-composition provider cannot resolve an exact head');
+      }
+      requiredString(request.headRevisionId, 'headRevisionId');
+      const composition = prepareContract(parseShotComposition(await port.loadAtHead(request)));
+      assertRequestIdentity(composition, request);
+      if (composition.headRevisionId !== request.headRevisionId) {
+        throw new ShotCompositionUnavailableError(
+          `Canonical composition resolved head ${composition.headRevisionId}, not requested ${request.headRevisionId}`,
+        );
+      }
+      return composition;
     },
 
     prepare(raw: unknown): PreparedShotComposition {

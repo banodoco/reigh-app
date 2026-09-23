@@ -48,6 +48,8 @@ interface MotionControlAdvancedProps {
 interface MotionControlStateOverrides {
   turboMode?: boolean;
   settingsLoading?: boolean;
+  /** Do not persist a built-in preset selection just because the editor mounted. */
+  suppressDefaultPresetAutoSelect?: boolean;
   smoothContinuations?: boolean;
   onSmoothContinuationsChange?: (value: boolean) => void;
 }

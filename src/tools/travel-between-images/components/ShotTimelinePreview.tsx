@@ -1,32 +1,39 @@
-import { useMemo } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import type { SaveStatus } from '@/tools/video-editor/hooks/useTimelinePersistence.ts';
 import { AlertCircle, Film } from 'lucide-react';
+import { Button } from '@/shared/components/ui/button.tsx';
 import { VideoEditorProvider } from '@/tools/video-editor/contexts/VideoEditorProvider.tsx';
 import { TimelineEditorCore } from '@/tools/video-editor/components/TimelineEditor/TimelineEditorCore.tsx';
 import { RemotionPreview } from '@/tools/video-editor/components/PreviewPanel/RemotionPreview.tsx';
 import { projectCanonicalComposition } from '@/tools/video-editor/data/shotCompositionProjection.ts';
 import { getTimelineDurationInFrames } from '@/tools/video-editor/lib/config-utils.ts';
 import { useTimelinePlaybackContext } from '@/tools/video-editor/hooks/timelineStore.ts';
+import { useTimelineChromeContext } from '@/tools/video-editor/hooks/timelineStore.ts';
+import { useTimelineEditorData } from '@/tools/video-editor/hooks/timelineStore.ts';
 import { createTimelineEditability } from '@/tools/video-editor/lib/timeline-editability.ts';
-import type { DataProvider } from '@/tools/video-editor/data/DataProvider.ts';
+import type { TimelineEditability } from '@/tools/video-editor/lib/timeline-editability.ts';
+import { recordShotTimelinePhase, SHOT_TIMELINE_TIMING_EVENT, type ShotTimelineTimingDetail } from '@/tools/video-editor/lib/shot-timeline-timing.ts';
 import type {
   PreparedShotComposition,
   ShotCompositionAdapter,
 } from '@/tools/video-editor/data/shotCompositionAdapter.ts';
+import { hardDurationMs } from '@/tools/video-editor/data/shotCompositionEditor.ts';
+import type { ResolvedTimelineConfig } from '@/tools/video-editor/types/index.ts';
 import {
-  enqueueCanonicalShotPublish,
-  updateCanonicalShotTimeline,
-} from '@/tools/video-editor/data/shotCompositionEditor.ts';
-import type {
-  AssetRegistry,
-  ResolvedTimelineConfig,
-  TimelineConfig,
-} from '@/tools/video-editor/types/index.ts';
+  createShotTimelineDataProvider,
+  createShotTimelineEditorSessionToken,
+  shotTimelineDurationSeconds,
+  shotTimelineSessionId,
+  type ShotTimelineEditorHeadState,
+} from './shotTimelineDataProvider.ts';
 
 type ShotTimelinePreviewProps = {
   composition: PreparedShotComposition;
   occurrenceId: string;
   shotCompositionAdapter?: ShotCompositionAdapter;
   onCanonicalCompositionPublished?: (composition: PreparedShotComposition) => void;
+  /** Keep an external head refresh from replacing an unsaved nested draft. */
+  onCanonicalDraftStateChange?: (dirty: boolean) => void;
 };
 
 type ProjectionState = {
@@ -34,17 +41,26 @@ type ProjectionState = {
   error: string | null;
 };
 
-function getHardDurationSeconds(
-  composition: PreparedShotComposition,
-  occurrenceId: string,
-): number | undefined {
-  const occurrence = composition.occurrences.find((candidate) => candidate.occurrenceId === occurrenceId);
-  if (!occurrence) return undefined;
-  const next = composition.occurrences
-    .filter((candidate) => candidate.occurrenceId !== occurrenceId)
-    .sort((left, right) => left.atMs - right.atMs || left.ordinal - right.ordinal)
-    .find((candidate) => candidate.atMs >= occurrence.atMs);
-  return next ? Math.max(0, next.atMs - occurrence.atMs) / 1000 : undefined;
+export function boundShotTimelinePreviewConfig(
+  config: ResolvedTimelineConfig,
+  hardDurationSeconds?: number,
+): ResolvedTimelineConfig {
+  const durationMs = Math.ceil(shotTimelineDurationSeconds(config, hardDurationSeconds) * 1000);
+  return {
+    ...config,
+    clips: config.clips.map((clip) => {
+      const app = clip.app && typeof clip.app === 'object' && !Array.isArray(clip.app)
+        ? clip.app
+        : null;
+      const timing = app?.canonicalTiming && typeof app.canonicalTiming === 'object'
+        && !Array.isArray(app.canonicalTiming)
+        ? app.canonicalTiming
+        : null;
+      return app && timing
+        ? { ...clip, app: { ...app, canonicalTiming: { ...timing, occurrenceStartMs: 0, occurrenceDurationMs: durationMs } } }
+        : clip;
+    }),
+  };
 }
 
 function projectShotTimeline(composition: PreparedShotComposition, occurrenceId: string): ProjectionState {
@@ -69,10 +85,26 @@ function projectShotTimeline(composition: PreparedShotComposition, occurrenceId:
       registry: {},
     }, { clampToOccurrenceDuration: false }).config;
     const occurrenceOffset = occurrence.atMs / 1000;
-    const clips = projected.clips.map((clip) => ({
-      ...clip,
-      at: Math.max(0, clip.at - occurrenceOffset),
-    }));
+    const clips = projected.clips.map((clip) => {
+      const app = clip.app && typeof clip.app === 'object' && !Array.isArray(clip.app)
+        ? clip.app
+        : null;
+      const canonicalTiming = app?.canonicalTiming && typeof app.canonicalTiming === 'object'
+        && !Array.isArray(app.canonicalTiming)
+        ? app.canonicalTiming
+        : null;
+      return {
+        ...clip,
+        at: Math.max(0, clip.at - occurrenceOffset),
+        // The popup is a shot-local coordinate system. Keep the canonical
+        // identity, but normalize the render boundary to local zero so the
+        // half-open guard does not discard every preview clip at the parent
+        // document's absolute occurrence offset.
+        ...(app && canonicalTiming
+          ? { app: { ...app, canonicalTiming: { ...canonicalTiming, occurrenceStartMs: 0 } } }
+          : {}),
+      };
+    });
     return { config: { ...projected, clips }, error: null };
   } catch (error) {
     return {
@@ -82,124 +114,114 @@ function projectShotTimeline(composition: PreparedShotComposition, occurrenceId:
   }
 }
 
-function createShotTimelineConfig(config: ResolvedTimelineConfig): TimelineConfig {
-  return {
-    output: config.output,
-    clips: config.clips,
-    tracks: config.tracks,
-    ...(config.theme ? { theme: config.theme } : {}),
-    ...(config.theme_overrides ? { theme_overrides: config.theme_overrides } : {}),
-    ...(config.generation_defaults ? { generation_defaults: config.generation_defaults } : {}),
-    ...(config.app ? { app: config.app } : {}),
-  };
-}
-
-function createCanonicalTimeline(config: TimelineConfig, occurrenceId: string): Record<string, unknown> {
-  const clipPrefix = `${occurrenceId}:`;
-  const clips = (config.clips ?? []).map((clip) => {
-    const app = clip.app && typeof clip.app === 'object' && !Array.isArray(clip.app)
-      ? Object.fromEntries(Object.entries(clip.app).filter(([key]) => !['canonical', 'canonicalTiming'].includes(key)))
-      : clip.app;
-    const { assetEntry: _assetEntry, ...persistedClip } = clip as typeof clip & { assetEntry?: unknown };
-    return {
-      ...persistedClip,
-      id: persistedClip.id.startsWith(clipPrefix) ? persistedClip.id.slice(clipPrefix.length) : persistedClip.id,
-      ...(app && typeof app === 'object' ? { app } : {}),
-    };
-  });
-  return {
-    tracks: config.tracks ?? [],
-    clips,
-    ...(config.theme ? { theme: config.theme } : {}),
-    ...(config.theme_overrides ? { theme_overrides: config.theme_overrides } : {}),
-    ...(config.generation_defaults ? { generation_defaults: config.generation_defaults } : {}),
-    ...(config.app ? { app: config.app } : {}),
-  };
-}
-
-function createShotTimelineDataProvider(
-  config: ResolvedTimelineConfig,
-  composition: PreparedShotComposition,
-  occurrenceId: string,
-  shotCompositionAdapter?: ShotCompositionAdapter,
-  onCanonicalCompositionPublished?: (composition: PreparedShotComposition) => void,
-): DataProvider {
-  const registry: AssetRegistry = {
-    assets: Object.fromEntries(Object.entries(config.registry).map(([assetId, entry]) => ([assetId, {
-      ...entry,
-      file: entry.file ?? entry.media_id ?? entry.src,
-    }]))),
-  };
-  const resolve = async (file: string): Promise<string> => {
-    const entry = Object.values(config.registry).find((candidate) => (
-      candidate.file === file || candidate.media_id === file || candidate.src === file
-    ));
-    return entry?.src ?? file;
-  };
-  const timelineConfig = createShotTimelineConfig(config);
-  let configVersion = 1;
-
-  return {
-    persistenceEnabled: Boolean(shotCompositionAdapter?.publish),
-    supportsEditorSync: false,
-    resolveAssetUrl: resolve,
-    onResolve: async ({ file }) => resolve(file),
-    loadTimeline: async () => ({ config: timelineConfig, configVersion }),
-    loadAssetRegistry: async () => registry,
-    saveTimeline: async (_timelineId, nextConfig) => {
-      if (!shotCompositionAdapter?.publish) {
-        throw new Error('The canonical shot-composition provider is read-only');
-      }
-      const published = await enqueueCanonicalShotPublish(
-        composition.projectId,
-        composition.parentDocumentId,
-        async () => {
-          const current = await shotCompositionAdapter.load({
-            projectId: composition.projectId,
-            parentDocumentId: composition.parentDocumentId,
-          });
-          const graph = await updateCanonicalShotTimeline(
-            current.contract,
-            occurrenceId,
-            createCanonicalTimeline(nextConfig, occurrenceId),
-          );
-          return shotCompositionAdapter.publish!({
-            projectId: current.projectId,
-            parentDocumentId: current.parentDocumentId,
-            expectedHeadRevisionId: current.headRevisionId,
-            graph,
-          });
-        },
-      );
-      onCanonicalCompositionPublished?.(published);
-      configVersion += 1;
-      return configVersion;
-    },
-  };
+function getConfigHeadRevisionId(config: ResolvedTimelineConfig | null | undefined): string | null {
+  const app = config?.app && typeof config.app === 'object' && !Array.isArray(config.app)
+    ? config.app as Record<string, unknown>
+    : null;
+  const canonical = app?.canonicalComposition && typeof app.canonicalComposition === 'object'
+    && !Array.isArray(app.canonicalComposition)
+    ? app.canonicalComposition as Record<string, unknown>
+    : null;
+  return typeof canonical?.headRevisionId === 'string' ? canonical.headRevisionId : null;
 }
 
 function ShotTimelineEditorSurface({
   config,
-  durationLimitSeconds,
   hardDurationSeconds,
+  editorHeadState,
 }: {
   config: ResolvedTimelineConfig;
-  durationLimitSeconds?: number;
   hardDurationSeconds?: number;
+  editorHeadState: { current: ShotTimelineEditorHeadState };
 }) {
   const { previewRef, playerContainerRef, currentTime, onPreviewTimeUpdate } = useTimelinePlaybackContext();
+  const editorData = useTimelineEditorData();
+  const activeConfig = editorData.resolvedConfig ?? config;
+  const displayedHeadRevisionId = getConfigHeadRevisionId(activeConfig);
+  const [, setHeadAdoptionRenderTick] = useState(0);
+  const canonicalHeadRevisionId = editorHeadState.current.canonicalHeadRevisionId;
+  const isAdoptingCanonicalHead = Boolean(
+    canonicalHeadRevisionId
+      && editorHeadState.current.displayedHeadRevisionId !== canonicalHeadRevisionId,
+  );
+  const previousConfigRef = useRef(activeConfig);
+  const pendingTraceRef = useRef<string | null>(null);
+  const draftCommitAtRef = useRef<{ at: number; traceId: string | null } | null>(null);
+  useEffect(() => {
+    const onTimingEvent = (event: Event) => {
+      const detail = (event as CustomEvent<ShotTimelineTimingDetail>).detail;
+      if (detail?.phase === 'local-commit') pendingTraceRef.current = detail.traceId;
+    };
+    globalThis.addEventListener(SHOT_TIMELINE_TIMING_EVENT, onTimingEvent);
+    return () => globalThis.removeEventListener(SHOT_TIMELINE_TIMING_EVENT, onTimingEvent);
+  }, []);
+  if (previousConfigRef.current !== activeConfig) {
+    previousConfigRef.current = activeConfig;
+    draftCommitAtRef.current = import.meta.env.DEV
+      ? { at: performance.now(), traceId: pendingTraceRef.current }
+      : null;
+    pendingTraceRef.current = null;
+  }
+  useLayoutEffect(() => {
+    const pending = draftCommitAtRef.current;
+    if (pending === null || !import.meta.env.DEV) return;
+    const frame = requestAnimationFrame(() => {
+      const elapsedMs = performance.now() - pending.at;
+      // Visible in DevTools without adding production telemetry. This is
+      // React-draft-commit -> next animation frame, not input -> persistence.
+      performance.mark('shot-timeline:local-next-frame');
+      performance.measure('shot-timeline:local-commit-to-next-frame', {
+        start: pending.at,
+        end: performance.now(),
+        detail: { elapsedMs },
+      });
+      if (pending.traceId) recordShotTimelinePhase(pending.traceId, 'local-commit-to-paint', { elapsedMs });
+      draftCommitAtRef.current = null;
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [activeConfig]);
+  useLayoutEffect(() => {
+    if (editorHeadState.current.displayedHeadRevisionId !== displayedHeadRevisionId) {
+      editorHeadState.current.displayedHeadRevisionId = displayedHeadRevisionId;
+      setHeadAdoptionRenderTick((tick) => tick + 1);
+    }
+  }, [displayedHeadRevisionId, editorHeadState]);
+  const durationLimitSeconds = shotTimelineDurationSeconds(activeConfig, hardDurationSeconds);
+  const freeSeconds = hardDurationSeconds === undefined
+    ? undefined
+    : Math.max(0, hardDurationSeconds - durationLimitSeconds);
 
   const durationSeconds = useMemo(() => {
-    return getTimelineDurationInFrames(config, config.output.fps) / config.output.fps;
-  }, [config]);
+    return getTimelineDurationInFrames(activeConfig, activeConfig.output.fps) / activeConfig.output.fps;
+  }, [activeConfig]);
+
+  const previewConfig = useMemo(
+    () => boundShotTimelinePreviewConfig(activeConfig, hardDurationSeconds),
+    [activeConfig, hardDurationSeconds],
+  );
 
   return (
-    <div className="space-y-3" data-shot-timeline-editor="true" data-shot-timeline-current-time={currentTime}>
+    <div
+      className="space-y-3"
+      data-shot-timeline-editor="true"
+      data-shot-timeline-current-time={currentTime}
+    >
+      <ShotTimelineRecoveryControls />
+      {isAdoptingCanonicalHead ? (
+        <div role="status" data-shot-timeline-head-adoption="pending" className="text-xs text-muted-foreground">
+          Updating canonical shot; editing is paused.
+        </div>
+      ) : null}
+      <div className="flex justify-end">
+        <span className="shrink-0 text-right font-mono text-[11px] text-muted-foreground">
+          {activeConfig.output.fps} fps · shot ends {durationLimitSeconds.toFixed(2)}s · {freeSeconds === undefined ? 'no free-space limit' : `${freeSeconds.toFixed(2)}s free`} · {hardDurationSeconds === undefined ? 'no hard stop' : `blocked at ${hardDurationSeconds.toFixed(2)}s`}
+        </span>
+      </div>
       <div className="overflow-hidden rounded-lg border border-border">
         <div className="relative mx-auto aspect-video min-h-[220px] w-full max-w-[640px]">
           <RemotionPreview
             ref={previewRef}
-            config={config}
+            config={previewConfig}
             compact
             currentTime={currentTime}
             onTimeUpdate={onPreviewTimeUpdate}
@@ -210,9 +232,9 @@ function ShotTimelineEditorSurface({
       <div
         className="h-44 min-h-36 overflow-hidden rounded-lg"
         data-shot-timeline-canvas="true"
-        data-shot-timeline-clip-count={config.clips.length}
-        data-shot-timeline-tracks={config.tracks.map((track) => `${track.id}:${track.kind}`).join('|')}
-        data-shot-timeline-clip-assets={config.clips.map((clip) => `${clip.id}:${clip.track}:${clip.at}:${clip.from ?? 'no-from'}:${clip.to ?? 'no-to'}:${clip.hold ?? 'no-hold'}:${clip.clipType ?? 'media'}:${clip.asset ? 'asset' : 'no-asset'}:${clip.assetEntry?.type ?? 'unknown'}`).join('|')}
+        data-shot-timeline-clip-count={activeConfig.clips.length}
+        data-shot-timeline-tracks={activeConfig.tracks.map((track) => `${track.id}:${track.kind}`).join('|')}
+        data-shot-timeline-clip-assets={activeConfig.clips.map((clip) => `${clip.id}:${clip.track}:${clip.at}:${clip.from ?? 'no-from'}:${clip.to ?? 'no-to'}:${clip.hold ?? 'no-hold'}:${clip.clipType ?? 'media'}:${clip.asset ? 'asset' : 'no-asset'}:${clip.assetEntry?.type ?? 'unknown'}`).join('|')}
       >
         <TimelineEditorCore
           durationLimitSeconds={durationLimitSeconds}
@@ -223,43 +245,198 @@ function ShotTimelineEditorSurface({
     </div>
   );
 }
+function ShotTimelineRecoveryControls() {
+  const chrome = useTimelineChromeContext();
+  const recovery = chrome.recoveryDraft;
+  if (!recovery && !chrome.isConflictExhausted) {
+    return null;
+  }
+
+  return (
+    <div className="space-y-2" data-shot-timeline-recovery="true">
+      {recovery ? (
+        <div
+          role="alert"
+          className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm"
+        >
+          <span>
+            Recovered unsaved changes from {new Date(recovery.updatedAt).toLocaleString()}.
+          </span>
+          <div className="flex items-center gap-2">
+            <Button type="button" size="sm" variant="outline" onClick={() => void chrome.retryRecoveredDraft()}>
+              Retry
+            </Button>
+            <Button type="button" size="sm" variant="outline" onClick={() => void chrome.discardRecoveredDraft()}>
+              Discard
+            </Button>
+            <Button type="button" size="sm" variant="outline" onClick={() => void chrome.reloadFromServer().catch(() => undefined)}>
+              Reload
+            </Button>
+          </div>
+        </div>
+      ) : null}
+      {chrome.isConflictExhausted ? (
+        <div
+          role="alert"
+          className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+        >
+          <span>This timeline changed elsewhere. Reload or save your work as a copy.</span>
+          <div className="flex items-center gap-2">
+            <Button type="button" size="sm" variant="outline" onClick={() => void chrome.reloadFromServer().catch(() => undefined)}>
+              Reload
+            </Button>
+            <Button type="button" size="sm" variant="outline" onClick={() => void chrome.retrySaveAfterConflict()}>
+              Save as copy
+            </Button>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 
 export function ShotTimelinePreview({
   composition,
   occurrenceId,
   shotCompositionAdapter,
   onCanonicalCompositionPublished,
+  onCanonicalDraftStateChange,
 }: ShotTimelinePreviewProps) {
-  const projection = useMemo(() => projectShotTimeline(composition, occurrenceId), [composition, occurrenceId]);
-  const occurrence = composition.occurrences.find((candidate) => candidate.occurrenceId === occurrenceId);
-  const hardDurationSeconds = getHardDurationSeconds(composition, occurrenceId);
-  const timelineEditability = useMemo(
-    () => createTimelineEditability({
-      readOnly: !Boolean(shotCompositionAdapter?.publish),
-      hardDurationSeconds,
-    }),
-    [hardDurationSeconds, shotCompositionAdapter?.publish],
+  const [editorSessionToken] = useState(createShotTimelineEditorSessionToken);
+  const [currentComposition, setCurrentComposition] = useState(composition);
+  const ownPublishedHeadRef = useRef<string | null>(null);
+  const [freshHeadStatus, setFreshHeadStatus] = useState<'loading' | 'ready' | 'error'>(
+    shotCompositionAdapter ? 'loading' : 'ready',
   );
+  const [mountedHeadRevisionId, setMountedHeadRevisionId] = useState(composition.headRevisionId);
+  const [draftDirty, setDraftDirty] = useState(false);
+  const editorHeadStateRef = useRef<ShotTimelineEditorHeadState>({
+    canonicalHeadRevisionId: composition.headRevisionId,
+    displayedHeadRevisionId: composition.headRevisionId,
+  });
+  useEffect(() => {
+    let cancelled = false;
+    if (!shotCompositionAdapter) {
+      setCurrentComposition(composition);
+      setFreshHeadStatus('ready');
+      return () => { cancelled = true; };
+    }
+    setFreshHeadStatus('loading');
+    void shotCompositionAdapter.load({
+      projectId: composition.projectId,
+      parentDocumentId: composition.parentDocumentId,
+    }).then((latest) => {
+      if (cancelled) return;
+      if (!latest || latest.projectId !== composition.projectId
+        || latest.parentDocumentId !== composition.parentDocumentId) {
+        setFreshHeadStatus('error');
+        return;
+      }
+      setCurrentComposition(latest);
+      setFreshHeadStatus('ready');
+    }).catch(() => {
+      if (!cancelled) setFreshHeadStatus('error');
+    });
+    return () => { cancelled = true; };
+  // The immutable occurrence/document identity defines one popup opening.
+  // Parent head changes during that mounted session are adopted below without
+  // restarting the editor or its undo history.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shotCompositionAdapter, composition.projectId, composition.parentDocumentId, occurrenceId]);
+  useEffect(() => {
+    if (!shotCompositionAdapter || freshHeadStatus !== 'ready' || draftDirty
+      || composition.headRevisionId === currentComposition.headRevisionId) {
+      return;
+    }
+    let cancelled = false;
+    // A changed parent prop is only a signal to check the canonical head. It
+    // is not itself authority: it may be an older render arriving after a
+    // fresh query. Re-read before replacing the clean mounted editor.
+    void shotCompositionAdapter.load({
+      projectId: composition.projectId,
+      parentDocumentId: composition.parentDocumentId,
+    }).then((latest) => {
+      if (cancelled || !latest || latest.projectId !== composition.projectId
+        || latest.parentDocumentId !== composition.parentDocumentId) return;
+      setCurrentComposition(latest);
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [shotCompositionAdapter, composition.projectId, composition.parentDocumentId,
+    composition.headRevisionId, currentComposition.headRevisionId, draftDirty, freshHeadStatus]);
+  const projection = useMemo(() => projectShotTimeline(currentComposition, occurrenceId), [currentComposition, occurrenceId]);
+  const handleCanonicalCompositionPublished = useCallback((published: PreparedShotComposition) => {
+    ownPublishedHeadRef.current = published.headRevisionId;
+    onCanonicalCompositionPublished?.(published);
+  }, [onCanonicalCompositionPublished]);
+  const projectionConfig = projection.config;
+  const hasProjectionConfig = projectionConfig !== null;
+  const hardDurationMs = hardDurationMsForOccurrence(currentComposition, occurrenceId);
+  const hardDurationSeconds = hardDurationMs === undefined ? undefined : hardDurationMs / 1000;
+  const timelineEditability = useMemo<TimelineEditability>(() => {
+    const base = createTimelineEditability({
+      readOnly: shotCompositionAdapter?.publish === undefined,
+      hardDurationSeconds,
+    });
+    const headIsCurrent = () => {
+      const state = editorHeadStateRef.current;
+      return Boolean(state.canonicalHeadRevisionId)
+        && state.displayedHeadRevisionId === state.canonicalHeadRevisionId;
+    };
+    return {
+      hardDurationSeconds,
+      check: (input) => headIsCurrent()
+        ? base.check(input)
+        : { allowed: false, reason: 'timeline_read_only' },
+      checkMove: (input) => headIsCurrent()
+        ? base.checkMove?.(input) ?? { allowed: true }
+        : { allowed: false, reason: 'timeline_read_only' },
+    };
+  }, [hardDurationSeconds, shotCompositionAdapter?.publish]);
   const dataProvider = useMemo(
-    () => projection.config
+    () => projectionConfig
       ? createShotTimelineDataProvider(
-          projection.config,
-          composition,
+          projectionConfig,
+          currentComposition,
           occurrenceId,
           shotCompositionAdapter,
-          onCanonicalCompositionPublished,
+          handleCanonicalCompositionPublished,
+          editorHeadStateRef,
         )
       : null,
-    [composition, occurrenceId, onCanonicalCompositionPublished, projection.config, shotCompositionAdapter],
+    // Keep one provider/editor session. Its query identity advances with the
+    // clean canonical head, so the H0 cache cannot be reused for H1.
+    // Its initial composition is refreshed by adoptCleanBaseline below, and
+    // its publish callback is refreshed by setPublishCallback on every render;
+    // recreating it for either would reset query/editor/recovery identity.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [hasProjectionConfig, currentComposition.parentDocumentId,
+      currentComposition.projectId, occurrenceId, shotCompositionAdapter],
   );
-  const canEdit = Boolean(shotCompositionAdapter?.publish);
-  const shotTimelineId = `${composition.parentDocumentId}:shot:${occurrenceId}:${composition.headRevisionId}`;
-  const durationLimitSeconds = occurrence ? Math.max(0, occurrence.durationMs / 1000) : undefined;
-  const contentDurationSeconds = projection.config
-    ? getTimelineDurationInFrames(projection.config, projection.config.output.fps) / projection.config.output.fps
-    : 0;
-  const durationDelta = durationLimitSeconds === undefined ? 0 : durationLimitSeconds - contentDurationSeconds;
-
+  const handleSaveStatusChange = useCallback((status: SaveStatus) => {
+    const dirty = status !== 'saved';
+    dataProvider?.setDraftState(dirty);
+    setDraftDirty(dirty);
+    onCanonicalDraftStateChange?.(dirty);
+  }, [dataProvider, onCanonicalDraftStateChange]);
+  useEffect(() => {
+    if (!dataProvider || !projection.config || currentComposition.headRevisionId === mountedHeadRevisionId) {
+      return;
+    }
+    if (!dataProvider.adoptCleanBaseline(projection.config, currentComposition)) {
+      return;
+    }
+    setMountedHeadRevisionId(currentComposition.headRevisionId);
+  }, [currentComposition, dataProvider, draftDirty, mountedHeadRevisionId, projection.config]);
+  dataProvider?.setPublishCallback(handleCanonicalCompositionPublished);
+  const canEdit = shotCompositionAdapter?.publish !== undefined;
+  const shotTimelineId = shotTimelineSessionId(currentComposition.parentDocumentId, occurrenceId, editorSessionToken);
+  if (freshHeadStatus === 'loading') {
+    return <section data-shot-timeline-preview="true" data-shot-timeline-status="loading" aria-label="Shot timeline">Loading current shot timeline…</section>;
+  }
+  if (freshHeadStatus === 'error') {
+    return <section data-shot-timeline-preview="true" data-shot-timeline-status="error" aria-label="Shot timeline">Could not load the current shot timeline.</section>;
+  }
   if (!projection.config) {
     return (
       <section
@@ -289,6 +466,7 @@ export function ShotTimelinePreview({
       className="rounded-xl border border-border bg-card/50 p-3 shadow-sm"
       data-shot-timeline-preview="true"
       data-shot-timeline-status="ready"
+      data-shot-timeline-head-revision-id={currentComposition.headRevisionId}
       aria-label="Shot timeline"
     >
       <div className="mb-2 flex items-center justify-between gap-3">
@@ -301,28 +479,32 @@ export function ShotTimelinePreview({
             </p>
           </div>
         </div>
-        <span className="shrink-0 text-right font-mono text-[11px] text-muted-foreground">
-          {projection.config.output.fps} fps · shot ends {durationLimitSeconds?.toFixed(2) ?? '—'}s · {durationDelta >= 0 ? `${durationDelta.toFixed(2)}s free` : `${Math.abs(durationDelta).toFixed(2)}s over`} · {hardDurationSeconds === undefined ? 'no hard stop' : `blocked at ${hardDurationSeconds.toFixed(2)}s`}
-        </span>
       </div>
 
       <VideoEditorProvider
-        key={`${occurrenceId}:${composition.headRevisionId}`}
         dataProvider={dataProvider!}
-        projectId={composition.projectId}
-        projectSlug={composition.projectId}
+        projectId={currentComposition.projectId}
+        projectSlug={currentComposition.projectId}
         timelineId={shotTimelineId}
         timelineName="Shot timeline"
         userId={null}
         timelineEditability={timelineEditability}
         extensionHostEnabled={false}
+        onSaveStatusChange={handleSaveStatusChange}
       >
         <ShotTimelineEditorSurface
           config={projection.config}
-          durationLimitSeconds={durationLimitSeconds}
           hardDurationSeconds={hardDurationSeconds}
+          editorHeadState={editorHeadStateRef}
         />
       </VideoEditorProvider>
     </section>
   );
+}
+
+function hardDurationMsForOccurrence(
+  composition: PreparedShotComposition,
+  occurrenceId: string,
+): number | undefined {
+  return hardDurationMs(composition.contract, occurrenceId);
 }

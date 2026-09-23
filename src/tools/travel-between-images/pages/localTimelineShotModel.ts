@@ -60,6 +60,7 @@ export type LocalTimelineShotModel = Shot & {
 type JsonObject = Record<string, unknown>;
 const isRecord = (value: unknown): value is JsonObject => value !== null && typeof value === 'object' && !Array.isArray(value);
 const positiveNumber = (value: unknown): number | undefined => typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : undefined;
+const finiteNumber = (value: unknown): number | undefined => typeof value === 'number' && Number.isFinite(value) ? value : undefined;
 const stringValue = (value: unknown): string | undefined => typeof value === 'string' && value.trim() ? value : undefined;
 
 function assetReference(asset: AssetRegistryEntry | undefined): string | undefined {
@@ -89,11 +90,37 @@ function revisionAssets(revision: JsonObject): Map<string, string> {
   }));
 }
 
+function assetIdObjects(assetId: string | undefined, assets: Map<string, string>): string | undefined {
+  if (!assetId) return undefined;
+  return assets.get(assetId) ?? (/^(?:sha256:)?[0-9a-f]{64}$/.test(assetId) ? assetId : undefined);
+}
+
 function registryAsset(registry: AssetRegistry | null | undefined, assetId: string | undefined, objectId: string | undefined): AssetRegistryEntry | undefined {
   const assets = registry?.assets ?? {};
   if (assetId && assets[assetId]) return assets[assetId];
   if (objectId && assets[objectId]) return assets[objectId];
   return Object.values(assets).find((entry) => entry.media_id === objectId);
+}
+
+function clipStartSeconds(clip: JsonObject): number {
+  const atMs = finiteNumber(clip.at_ms);
+  if (atMs !== undefined) return Math.max(0, atMs) / 1000;
+  return Math.max(0, finiteNumber(clip.at) ?? 0);
+}
+
+function clipDurationSeconds(clip: JsonObject): number {
+  const durationMs = positiveNumber(clip.duration_ms);
+  if (durationMs !== undefined) return durationMs / 1000;
+  const duration = positiveNumber(clip.duration);
+  if (duration !== undefined) return duration;
+  const hold = positiveNumber(clip.hold);
+  if (hold !== undefined) return hold;
+  const from = finiteNumber(clip.from);
+  const to = finiteNumber(clip.to);
+  if (from !== undefined && to !== undefined && to > from) return to - from;
+  const at = finiteNumber(clip.at);
+  if (at !== undefined && to !== undefined && to > at) return to - at;
+  return 0;
 }
 
 function shotName(occurrence: CanonicalShotOccurrence): string {
@@ -109,10 +136,18 @@ function toOccurrenceShot(occurrence: CanonicalShotOccurrence, registry: AssetRe
   const clips = rawClips.flatMap((rawClip, clipIndex) => {
     if (!isRecord(rawClip)) return [];
     const clipId = stringValue(rawClip.id) ?? `${occurrence.occurrenceId}-clip-${clipIndex}`;
-    const assetId = stringValue(rawClip.asset_id);
-    const objectId = assetId ? assetObjects.get(assetId) : undefined;
+    // Runtime canonical revisions may expose the same selected asset in the
+    // transport form (`asset_id`) or the editor form (`asset`).  Both are
+    // authored fields of the one internal timeline; treating only the former
+    // as media makes the nested shot editor falsely report no images while
+    // the parent compositor still renders the clip.
+    const assetId = stringValue(rawClip.asset_id) ?? stringValue(rawClip.asset);
+    const objectId = assetIdObjects(assetId, assetObjects);
     const canonicalAsset = Array.isArray(revision.assets)
-      ? revision.assets.find((rawAsset) => isRecord(rawAsset) && rawAsset.asset_id === assetId)
+      ? revision.assets.find((rawAsset) => {
+        if (!isRecord(rawAsset)) return false;
+        return rawAsset.asset_id === assetId || rawAsset.object_id === assetId || rawAsset.media_id === assetId;
+      })
       : undefined;
     const canonicalAssetEntry = isRecord(canonicalAsset) && stringValue(canonicalAsset.object_id)
       ? {
@@ -126,8 +161,8 @@ function toOccurrenceShot(occurrence: CanonicalShotOccurrence, registry: AssetRe
     return [{
       clipId,
       clip: rawClip,
-      durationSeconds: (positiveNumber(rawClip.duration_ms) ?? 0) / 1000,
-      startSeconds: (positiveNumber(rawClip.at_ms) ?? 0) / 1000,
+      durationSeconds: clipDurationSeconds(rawClip),
+      startSeconds: clipStartSeconds(rawClip),
       relativeStartSeconds: 0,
       lane: 0,
       asset,

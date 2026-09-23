@@ -1,5 +1,5 @@
 // Layer map & invariants: docs/structure_detail/tool_video_editor.md
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { MutableRefObject } from 'react';
 import { shallow } from 'zustand/shallow';
 import { userSelectTimelineClip } from '@/shared/state/selectionStore.ts';
@@ -57,6 +57,15 @@ interface UseClipDragLatest {
 
 export interface UseClipDragResult {
   dragSessionRef: MutableRefObject<DragSession | null>;
+  /** Reactive counterpart to the compatibility ref, used by overlay layers. */
+  isDragging: boolean;
+  dragPreview: {
+    clipIds: readonly string[];
+    start: number;
+    end: number;
+    trackId: string;
+    rejected: boolean;
+  } | null;
 }
 
 export type { ActionDragState, DragSession } from '@/tools/video-editor/hooks/useClipDrag.helpers.ts';
@@ -91,6 +100,8 @@ export const useClipDrag = (): UseClipDragResult => {
     scaleWidth: data.scaleWidth,
   }), shallow);
   const dragSessionRef = useRef<DragSession | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragPreview, setDragPreview] = useState<UseClipDragResult['dragPreview']>(null);
   const stateRef = useRef<DragMachineState>({ phase: 'idle' });
   const actionDragStateRef = useRef<ActionDragState | null>(null);
   const crossTrackActiveRef = useRef(false);
@@ -131,6 +142,11 @@ export const useClipDrag = (): UseClipDragResult => {
     const setState = (nextState: DragMachineState) => {
       stateRef.current = nextState;
       setCompatSession(nextState.phase === 'idle' ? null : nextState.session);
+      if (nextState.phase === 'dragging') {
+        setIsDragging(true);
+      } else if (nextState.phase === 'idle') {
+        setIsDragging(false);
+      }
     };
 
     const getActiveState = (): Extract<DragMachineState, { phase: 'pending' | 'dragging' }> | null => {
@@ -145,6 +161,8 @@ export const useClipDrag = (): UseClipDragResult => {
 
       const currentState = getActiveState();
       if (!currentState) {
+        setIsDragging(false);
+        setDragPreview(null);
         actionDragStateRef.current = null;
         if (!deferDeactivate) {
           crossTrackActiveRef.current = false;
@@ -162,6 +180,7 @@ export const useClipDrag = (): UseClipDragResult => {
       }
 
       actionDragStateRef.current = null;
+      setDragPreview(null);
       setState({ phase: 'idle' });
       if (deferDeactivate) {
         window.requestAnimationFrame(() => {
@@ -194,6 +213,13 @@ export const useClipDrag = (): UseClipDragResult => {
         const duration = dragState.initialEnd - dragState.initialStart;
         dragState.latestStart = snappedStart;
         dragState.latestEnd = snappedStart + duration;
+        setDragPreview({
+          clipIds: session.draggedClipIds,
+          start: dragState.latestStart,
+          end: dragState.latestEnd,
+          trackId: nextPosition.trackId ?? session.sourceRowId,
+          rejected: Boolean(nextPosition.isReject),
+        });
       }
 
       const dy = adjustedClientY - session.startClientY;
@@ -459,5 +485,7 @@ export const useClipDrag = (): UseClipDragResult => {
 
   return {
     dragSessionRef,
+    isDragging,
+    dragPreview,
   };
 };

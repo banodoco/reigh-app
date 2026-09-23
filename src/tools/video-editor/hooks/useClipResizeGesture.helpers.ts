@@ -262,6 +262,7 @@ export const resolveClipEdgeResizeContext = (
   clipId: string,
   edge: ResizeDir,
   dataRef: MutableRefObject<TimelineData | null>,
+  hardDurationSeconds?: number,
 ): {
   initialBoundaryTime: number;
   context: ClipEdgeResizeContext;
@@ -287,7 +288,14 @@ export const resolveClipEdgeResizeContext = (
     if (groupChildrenSnapshot.length > 0 && draggedIndex >= 0) {
       return {
         initialBoundaryTime: edge === 'left' ? action.start : action.end,
-        siblingTimes: collectSiblingTimes(row.actions, groupForAction.clipIds),
+        siblingTimes: [
+          ...collectSiblingTimes(row.actions, groupForAction.clipIds),
+          ...(edge === 'right'
+            && typeof hardDurationSeconds === 'number'
+            && Number.isFinite(hardDurationSeconds)
+            ? [hardDurationSeconds]
+            : []),
+        ],
         context: {
           kind: 'group',
           shotId: groupForAction.shotId,
@@ -296,20 +304,41 @@ export const resolveClipEdgeResizeContext = (
           draggedIndex,
           groupClipIds: [...groupForAction.clipIds],
           groupChildrenSnapshot,
+          ...(typeof hardDurationSeconds === 'number' && Number.isFinite(hardDurationSeconds)
+            ? { hardDurationSeconds }
+            : {}),
         },
       };
     }
   }
 
+  const mediaLimits = getMediaResizeLimits(dataRef.current, action, edge);
+  const hardMaximumEnd = edge === 'right'
+    && typeof hardDurationSeconds === 'number'
+    && Number.isFinite(hardDurationSeconds)
+    ? hardDurationSeconds
+    : undefined;
+  const maxEnd = typeof mediaLimits.maxEnd === 'number' && typeof hardMaximumEnd === 'number'
+    ? Math.min(mediaLimits.maxEnd, hardMaximumEnd)
+    : mediaLimits.maxEnd ?? hardMaximumEnd;
+
   return {
     initialBoundaryTime: edge === 'left' ? action.start : action.end,
-    siblingTimes: collectSiblingTimes(row.actions, [action.id]),
+    siblingTimes: [
+      ...collectSiblingTimes(row.actions, [action.id]),
+      ...(edge === 'right'
+        && typeof hardDurationSeconds === 'number'
+        && Number.isFinite(hardDurationSeconds)
+        ? [hardDurationSeconds]
+        : []),
+    ],
     context: {
       kind: 'free',
       clipId: action.id,
       initialStart: action.start,
       initialEnd: action.end,
-      ...getMediaResizeLimits(dataRef.current, action, edge),
+      ...mediaLimits,
+      ...(typeof maxEnd === 'number' ? { maxEnd } : {}),
     },
   };
 };

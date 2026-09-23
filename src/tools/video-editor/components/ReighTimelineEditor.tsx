@@ -57,6 +57,21 @@ interface ReighTimelineEditorProps {
 
 const EMPTY_ASSET_GENERATION_MAP: Record<string, string> = {};
 
+type PublishedCanonicalCompositionOverride = Readonly<{
+  composition: PreparedShotComposition;
+  staleHeadRevisionIds: readonly (string | null)[];
+}>;
+
+export function shouldKeepPublishedCanonicalCompositionOverride(
+  publishedHeadRevisionId: string,
+  staleHeadRevisionIds: readonly (string | null)[],
+  runtimeHeadRevisionId: string | null,
+): boolean {
+  if (runtimeHeadRevisionId === publishedHeadRevisionId) return false;
+  if (runtimeHeadRevisionId === null) return true;
+  return staleHeadRevisionIds.includes(runtimeHeadRevisionId);
+}
+
 function ReighTimelineEditorComponent({ onOpenSequenceCreator, onOpenElementCreationPrompt }: ReighTimelineEditorProps) {
   const [videoModalShot, setVideoModalShot] = useState<Shot | null>(null);
   const [videoModalShowImages, setVideoModalShowImages] = useState(false);
@@ -69,13 +84,32 @@ function ReighTimelineEditorComponent({ onOpenSequenceCreator, onOpenElementCrea
   const runtime = useVideoEditorRuntime();
   const isDocumentShotMode = runtime.userId === null;
   const canonicalOccurrences = runtime.shots?.canonicalOccurrences ?? [];
+  const hasCanonicalOccurrences = canonicalOccurrences.length > 0;
   const isCanonicalEditor = isDocumentShotMode && canonicalOccurrences.length > 0;
-  const [publishedCanonicalComposition, setPublishedCanonicalComposition] = useState<PreparedShotComposition | null>(null);
+  const [publishedCanonicalComposition, setPublishedCanonicalComposition] = useState<PublishedCanonicalCompositionOverride | null>(null);
   useEffect(() => {
     setPublishedCanonicalComposition(null);
   }, [runtime.timelineId]);
+  const runtimeCanonicalHeadRevisionId = runtime.shots?.canonicalComposition?.headRevisionId ?? null;
+  useEffect(() => {
+    if (!publishedCanonicalComposition) return;
+    if (!shouldKeepPublishedCanonicalCompositionOverride(
+      publishedCanonicalComposition.composition.headRevisionId,
+      publishedCanonicalComposition.staleHeadRevisionIds,
+      runtimeCanonicalHeadRevisionId,
+    )) {
+      setPublishedCanonicalComposition(null);
+    }
+  }, [publishedCanonicalComposition, runtimeCanonicalHeadRevisionId]);
   const handleCanonicalCompositionPublished = useCallback((composition: PreparedShotComposition) => {
-    setPublishedCanonicalComposition(composition);
+    const hostHead = runtime.shots?.canonicalComposition?.headRevisionId ?? null;
+    const expectedHead = composition.publicationReceipt?.expectedHead !== undefined
+      ? composition.publicationReceipt.expectedHead
+      : hostHead;
+    setPublishedCanonicalComposition({
+      composition,
+      staleHeadRevisionIds: [...new Set([hostHead, expectedHead])],
+    });
     runtime.shots?.refetchShots();
   }, [runtime.shots]);
   const configVersion = useTimelineConfigVersion();
@@ -534,11 +568,12 @@ function ReighTimelineEditorComponent({ onOpenSequenceCreator, onOpenElementCrea
         onOpenElementCreationPrompt={onOpenElementCreationPrompt}
         finalVideoMap={finalVideoMap}
         shotGroups={shotGroups}
+        canonicalOccurrences={canonicalOccurrences}
         staleShotGroupIds={staleShotGroupIds}
         activeTaskClipIds={activeTaskClipIds}
         shotGroupClipIds={shotGroupClipIds}
         onShotGroupNavigate={isDocumentShotMode ? undefined : handleShotGroupNavigate}
-        onShotGroupOpen={isCanonicalEditor ? handleOpenCanonicalOccurrence : undefined}
+        onShotGroupOpen={hasCanonicalOccurrences ? handleOpenCanonicalOccurrence : undefined}
         onShotGroupGenerateVideo={isDocumentShotMode ? undefined : handleShotGroupGenerateVideo}
         onShotGroupDuplicate={isDocumentShotMode ? handleDuplicateDocumentShotGroup : undefined}
         onShotGroupPromotePrimary={isDocumentShotMode ? handlePromoteDocumentShotGroupPrimary : undefined}
@@ -600,7 +635,7 @@ function ReighTimelineEditorComponent({ onOpenSequenceCreator, onOpenElementCrea
                 timelineRef={canonicalShotEditor.parentDocumentId}
                 shotCompositionAdapter={runtime.shots.shotComposition ?? undefined}
                 shotRef={canonicalShotEditor.stableDeepLink}
-                initialComposition={publishedCanonicalComposition ?? runtime.shots.canonicalComposition}
+                initialComposition={publishedCanonicalComposition?.composition ?? runtime.shots.canonicalComposition ?? undefined}
                 onClose={() => setCanonicalShotEditor(null)}
                 onCanonicalCompositionPublished={handleCanonicalCompositionPublished}
               />

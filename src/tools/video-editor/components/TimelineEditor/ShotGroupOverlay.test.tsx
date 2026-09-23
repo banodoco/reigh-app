@@ -104,8 +104,9 @@ describe('ShotGroupLabels', () => {
     expect(parentContextMenu).not.toHaveBeenCalled();
   });
 
-  it('opens a canonical occurrence with its full pinned identity', () => {
+  it('selects a canonical shot on click and opens it on double-click', () => {
     const onShotGroupOpen = vi.fn();
+    const onSelectClips = vi.fn();
     const canonicalIdentity = {
       projectId: 'project-1',
       occurrenceId: 'occ-1',
@@ -127,11 +128,19 @@ describe('ShotGroupLabels', () => {
         scrollLeft={0}
         scrollTop={0}
         openShotGroupMenu={vi.fn()}
+        onSelectClips={onSelectClips}
         onShotGroupOpen={onShotGroupOpen}
       />,
     );
 
+    fireEvent.click(getByTitle('Opening'));
+    expect(onSelectClips).toHaveBeenCalledWith(['clip-1', 'clip-2']);
+    expect(onShotGroupOpen).not.toHaveBeenCalled();
+
+    onSelectClips.mockClear();
     fireEvent.doubleClick(getByTitle('Opening'));
+    expect(onSelectClips).not.toHaveBeenCalled();
     expect(onShotGroupOpen).toHaveBeenCalledWith(canonicalIdentity);
   });
+
 });

@@ -28,7 +28,7 @@ import {
 import { useClipDrag } from '@/tools/video-editor/hooks/useClipDrag.ts';
 import { useActiveTaskClips } from '@/tools/video-editor/hooks/useActiveTaskClips.ts';
 import { useMarqueeSelect } from '@/tools/video-editor/hooks/useMarqueeSelect.ts';
-import type { ShotGroup } from '@/tools/video-editor/hooks/useShotGroups.ts';
+import { projectCanonicalShotRows, type ShotGroup } from '@/tools/video-editor/hooks/useShotGroups.ts';
 import type { CanonicalShotOccurrence } from '@/tools/video-editor/data/shotCompositionAdapter.ts';
 import { useStaleVariants } from '@/tools/video-editor/hooks/useStaleVariants.ts';
 import { useAddVariantAsGeneration } from '@/tools/video-editor/hooks/useAddVariantAsGeneration.ts';
@@ -100,6 +100,17 @@ export function resolveVideoClipDoubleClickResolution({
   }
 
   return { type: 'none' };
+}
+
+function hasResolvableCanonicalTimeline(occurrence: CanonicalShotOccurrence): boolean {
+  const internal = occurrence.revision.internal_timeline_revision;
+  if (!internal || typeof internal !== 'object' || Array.isArray(internal)) return false;
+  const timeline = (internal as Record<string, unknown>).timeline;
+  if (!timeline || typeof timeline !== 'object' || Array.isArray(timeline)) return false;
+  const clips = (timeline as Record<string, unknown>).clips;
+  return Array.isArray(clips) && clips.some((clip) => (
+    clip !== null && typeof clip === 'object' && !Array.isArray(clip)
+  ));
 }
 
 export function resolveSelectedGenerationIdsForShotCreation({
@@ -186,6 +197,7 @@ export interface TimelineEditorCoreProps {
   onOpenElementCreationPrompt?: (prompt: string) => void;
   finalVideoMap?: Map<string, DoubleClickFinalVideo>;
   shotGroups?: ShotGroup[];
+  canonicalOccurrences?: readonly CanonicalShotOccurrence[];
   staleShotGroupIds?: Set<string>;
   activeTaskClipIds?: Set<string>;
   shotGroupClipIds?: Set<string>;
@@ -223,6 +235,7 @@ function TimelineEditorCoreComponent({
   onOpenElementCreationPrompt,
   finalVideoMap = EMPTY_FINAL_VIDEO_MAP,
   shotGroups = EMPTY_SHOT_GROUPS,
+  canonicalOccurrences = [],
   staleShotGroupIds,
   activeTaskClipIds,
   shotGroupClipIds = EMPTY_CLIP_IDS,
@@ -290,6 +303,16 @@ function TimelineEditorCoreComponent({
     selectedTrackId: timeline.selectedTrackId,
     interactionStateRef: timeline.interactionStateRef,
   }), shallow);
+  const renderRows = useMemo(
+    () => projectCanonicalShotRows(
+      data?.rows ?? EMPTY_ROWS,
+      shotGroups,
+      new Set(Object.entries(data?.meta ?? {})
+        .filter(([, clip]) => clip.clipType === 'shot')
+        .map(([clipId]) => clipId)),
+    ),
+    [data?.meta, data?.rows, shotGroups],
+  );
   const {
     applyEdit,
     selectClips,
@@ -372,7 +395,7 @@ function TimelineEditorCoreComponent({
   const resizeStartHandler: TimelineActionResizeStart = onActionResizeStart;
   const clipEdgeResizeEndHandler: TimelineClipEdgeResizeEnd = onClipEdgeResizeEnd;
 
-  const { dragSessionRef } = useClipDrag();
+  const { dragSessionRef, isDragging, dragPreview } = useClipDrag();
 
   const { marqueeRect, onPointerDown: onMarqueePointerDown } = useMarqueeSelect({
     editAreaRef,
@@ -406,14 +429,14 @@ function TimelineEditorCoreComponent({
   // host below both size themselves from this.
   const timelineExtent = useMemo(() => computeTimelineExtent({
     maxEndSeconds: Math.max(
-      maxClipEndSeconds(data?.rows ?? EMPTY_ROWS),
+      maxClipEndSeconds(renderRows),
       durationLimitSeconds ?? 0,
       hardDurationSeconds ?? 0,
     ),
     scale,
     scaleWidth,
     startLeft: TIMELINE_START_LEFT,
-  }), [data, durationLimitSeconds, hardDurationSeconds, scale, scaleWidth]);
+  }), [durationLimitSeconds, hardDurationSeconds, renderRows, scale, scaleWidth]);
 
   const thumbnailMap = useMemo<Record<string, string>>(() => {
     if (!resolvedConfig) {
@@ -534,8 +557,17 @@ function TimelineEditorCoreComponent({
     const canonicalGroup = shotGroups.find((group) => (
       group.canonicalIdentity && group.clipIds.includes(clipId)
     ));
-    if (canonicalGroup?.canonicalIdentity && onShotGroupOpen) {
-      onShotGroupOpen(canonicalGroup.canonicalIdentity);
+    const canonicalOccurrence = canonicalGroup?.canonicalIdentity
+      ?? canonicalOccurrences.find((occurrence) => (
+        clipId === occurrence.occurrenceId
+        || clipId.startsWith(`${occurrence.occurrenceId}:`)
+      ));
+    if (
+      canonicalOccurrence
+      && hasResolvableCanonicalTimeline(canonicalOccurrence)
+      && onShotGroupOpen
+    ) {
+      onShotGroupOpen(canonicalOccurrence);
       return;
     }
     const assetKey = data?.meta[clipId]?.asset;
@@ -558,7 +590,7 @@ function TimelineEditorCoreComponent({
     if (resolution.type === 'video-modal') {
       onOpenShotVideoModal?.(resolution.shotId, resolution.reason);
     }
-  }, [data?.meta, data?.registry?.assets, dataRef, finalVideoMap, onDoubleClickAsset, onOpenShotVideoModal, onShotGroupOpen, shotGroups]);
+  }, [canonicalOccurrences, data?.meta, data?.registry?.assets, dataRef, finalVideoMap, onDoubleClickAsset, onOpenShotVideoModal, onShotGroupOpen, shotGroups]);
 
   const handleSplitClipHere = useCallback((clipId: string, clientX: number) => {
     const time = clientXToTime(clientX);
@@ -741,7 +773,6 @@ function TimelineEditorCoreComponent({
         onDeleteClip={handleDeleteClip}
         onToggleMuteClips={handleToggleMuteClips}
         onOpenSequenceCreator={onOpenSequenceCreator}
-        onOpenElementCreationPrompt={onOpenElementCreationPrompt}
         isTaskActive={isTaskActive}
         isVariantStale={isStale && !isDismissed}
         isGenerationAsset={isGenAsset}
@@ -843,7 +874,7 @@ function TimelineEditorCoreComponent({
       >
         <TimelineCanvas
           ref={timelineRef as React.RefObject<import('@/tools/video-editor/types/timeline-canvas').TimelineCanvasHandle>}
-          rows={data.rows}
+          rows={renderRows}
           tracks={data.tracks}
           nestedAudioTrackIds={nestedAudioTrackIds}
           deviceClass={deviceClass}
@@ -907,6 +938,8 @@ function TimelineEditorCoreComponent({
           canCreateShotFromSelection={canCreateShotFromSelection}
           isCreatingShot={isCreatingShot}
           selectedClipCount={selectedClipIds.size}
+          isDragging={isDragging}
+          dragPreview={dragPreview}
           durationLimitSeconds={durationLimitSeconds}
           hardDurationSeconds={hardDurationSeconds}
         />

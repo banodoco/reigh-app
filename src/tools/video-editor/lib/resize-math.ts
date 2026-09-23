@@ -41,6 +41,8 @@ export interface GroupClipEdgeResizeContext {
   draggedIndex: number;
   groupClipIds: string[];
   groupChildrenSnapshot: ClipEdgeResizeUpdate[];
+  /** Optional hard end for the enclosing shot-local timeline. */
+  hardDurationSeconds?: number;
 }
 
 export type ClipEdgeResizeContext =
@@ -153,8 +155,16 @@ const applyGroupClipEdgeMove = (
   const dragged = children[draggedIndex];
 
   // Clamp so the dragged clip can't collapse below minimum duration
+  const trailingDuration = children[children.length - 1].end - dragged.end;
+  const hardMaximumBoundary = typeof context.hardDurationSeconds === 'number'
+    && Number.isFinite(context.hardDurationSeconds)
+    ? context.hardDurationSeconds - trailingDuration
+    : undefined;
   const boundary = edge === 'right'
-    ? Math.max(dragged.start + MIN_CLIP_EDGE_RESIZE_DURATION, newBoundaryTime)
+    ? Math.min(
+        Math.max(dragged.start + MIN_CLIP_EDGE_RESIZE_DURATION, newBoundaryTime),
+        Math.max(dragged.start + MIN_CLIP_EDGE_RESIZE_DURATION, hardMaximumBoundary ?? Number.POSITIVE_INFINITY),
+      )
     : Math.min(dragged.end - MIN_CLIP_EDGE_RESIZE_DURATION, newBoundaryTime);
 
   const wasClamped = boundary !== newBoundaryTime;

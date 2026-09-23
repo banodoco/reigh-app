@@ -331,6 +331,7 @@ function renderCanvas(params?: {
   row?: TimelineRow;
   actionId?: string;
   shotGroups?: React.ComponentProps<typeof TimelineCanvas>['shotGroups'];
+  isDragging?: React.ComponentProps<typeof TimelineCanvas>['isDragging'];
   finalVideoMap?: React.ComponentProps<typeof TimelineCanvas>['finalVideoMap'];
   onShotGroupNavigate?: React.ComponentProps<typeof TimelineCanvas>['onShotGroupNavigate'];
   onSelectClips?: React.ComponentProps<typeof TimelineCanvas>['onSelectClips'];
@@ -421,6 +422,7 @@ function renderCanvas(params?: {
       onActionResizeStart={onActionResizeStart}
       onClipEdgeResizeEnd={onClipEdgeResizeEnd}
       shotGroups={params?.shotGroups}
+      isDragging={params?.isDragging}
       finalVideoMap={params?.finalVideoMap}
       onShotGroupNavigate={params?.onShotGroupNavigate}
       onSelectClips={params?.onSelectClips}
@@ -1666,6 +1668,16 @@ describe('TimelineCanvas resize pending ops', () => {
       top: '16px',
       height: '18px',
     });
+  });
+
+  it('hides shot overlays while a clip drag is active', () => {
+    const { queryByTitle } = renderCanvas({
+      shotGroups: [pinnedShotGroup],
+      isDragging: true,
+      allowMissingHandles: true,
+    });
+
+    expect(queryByTitle('Pinned Shot')).toBeNull();
   });
 
   it('double-clicks a shot group label to jump to the shot', () => {

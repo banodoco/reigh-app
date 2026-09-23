@@ -140,7 +140,11 @@ export const useShotSettings = (
   // loader would otherwise overwrite state.
   const appliedInheritedShotIdRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!inheritedSettings || !shotId || hasShotSettings) return;
+    // A canonical popup is a view of a pinned document revision. Applying
+    // session-inherited defaults while it mounts is an initialization write,
+    // not an edit to that occurrence; keep them display-only until the user
+    // changes a setting.
+    if (options.customLoadSave || !inheritedSettings || !shotId || hasShotSettings) return;
     if (appliedInheritedShotIdRef.current === shotId) return;
     appliedInheritedShotIdRef.current = shotId;
     try {
@@ -149,7 +153,7 @@ export const useShotSettings = (
       appliedInheritedShotIdRef.current = null;
       normalizeAndPresentError(err, { context: 'useShotSettings', showToast: false });
     }
-  }, [inheritedSettings, shotId, hasShotSettings, autoSaveUpdateFields]);
+  }, [autoSaveUpdateFields, hasShotSettings, inheritedSettings, options.customLoadSave, shotId]);
 
   useEffect(() => {
     appliedInheritedShotIdRef.current = null;
@@ -158,6 +162,7 @@ export const useShotSettings = (
   useEffect(() => {
     if (
       !shotId
+      || options.customLoadSave
       || status !== 'ready'
       || hasShotSettings
       || inheritedSettings
@@ -207,7 +212,7 @@ export const useShotSettings = (
     return () => {
       cancelled = true;
     };
-  }, [hasShotSettings, inheritedSettings, isLocalMode, projectId, saveImmediate, settings, shotId, status]);
+  }, [hasShotSettings, inheritedSettings, isLocalMode, options.customLoadSave, projectId, saveImmediate, settings, shotId, status]);
   
   // Persist settings to localStorage for future inheritance
   useEffect(() => {

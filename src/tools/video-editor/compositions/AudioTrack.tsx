@@ -11,6 +11,7 @@ import {
 } from '@/tools/video-editor/lib/config-utils.ts';
 import { MediaErrorBoundary } from '@/tools/video-editor/compositions/MediaErrorBoundary.tsx';
 import type { ResolvedTimelineClip, TrackDefinition } from '@/tools/video-editor/types/index.ts';
+import { boundCanonicalClipToOccurrence } from '@/tools/video-editor/lib/canonicalRenderBounds.ts';
 
 const AudioTrackComponent: FC<{
   track: TrackDefinition;
@@ -25,8 +26,11 @@ const AudioTrackComponent: FC<{
   return (
     <>
       {clips.map((clip) => {
-        const mediaSrc = getSanitizedMediaSrc(clip.assetEntry?.src);
-        const assetType = clip.assetEntry?.type?.toLowerCase() ?? '';
+        const boundedClip = boundCanonicalClipToOccurrence(clip);
+        if (!boundedClip) return null;
+        const renderClip = boundedClip;
+        const mediaSrc = getSanitizedMediaSrc(renderClip.assetEntry?.src);
+        const assetType = renderClip.assetEntry?.type?.toLowerCase() ?? '';
         // Astrid's registry uses both MIME types (for example audio/mpeg) and
         // the canonical media-family values (audio/video). Treat both forms
         // as playable here; otherwise generic `audio` entries silently vanish
@@ -35,23 +39,23 @@ const AudioTrackComponent: FC<{
           || assetType === 'video'
           || assetType.startsWith('audio/')
           || assetType.startsWith('video/');
-        const effectiveVolume = track.muted ? 0 : getSanitizedVolume(track.volume) * getSanitizedVolume(clip.volume);
-        const playbackRate = getSanitizedPlaybackRate(clip.speed);
-        const trimProps = getSanitizedMediaTrimProps(clip, fps);
+        const effectiveVolume = track.muted ? 0 : getSanitizedVolume(track.volume) * getSanitizedVolume(renderClip.volume);
+        const playbackRate = getSanitizedPlaybackRate(renderClip.speed);
+        const trimProps = getSanitizedMediaTrimProps(renderClip, fps);
 
         return (
           <Sequence
             // Remotion's Sequence + Audio timing is not fully updated by prop changes during playback,
             // so audio clips need a remount whenever timing or playback-rate inputs change.
-            key={`${clip.id}-${clip.at}-${clip.from ?? 0}-${clip.to ?? ''}-${clip.speed ?? 1}`}
-            from={secondsToFrames(clip.at, fps)}
-            durationInFrames={getClipDurationInFrames(clip, fps)}
-            premountFor={fps}
+            key={`${renderClip.id}-${renderClip.at}-${renderClip.from ?? 0}-${renderClip.to ?? ''}-${renderClip.speed ?? 1}`}
+            from={secondsToFrames(renderClip.at, fps)}
+            durationInFrames={getClipDurationInFrames(renderClip, fps)}
+            premountFor={renderClip.app?.canonicalTiming ? 0 : fps}
           >
             {mediaSrc && isPlayableAudio ? (
               <MediaErrorBoundary
-                clipId={clip.id}
-                resetKey={`${clip.id}:${mediaSrc}:${trimProps.trimBefore}:${trimProps.trimAfter ?? 'none'}:${playbackRate}:${effectiveVolume}:audio`}
+                clipId={renderClip.id}
+                resetKey={`${renderClip.id}:${mediaSrc}:${trimProps.trimBefore}:${trimProps.trimAfter ?? 'none'}:${playbackRate}:${effectiveVolume}:audio`}
                 fallback={null}
               >
                 <AudioComponent

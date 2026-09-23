@@ -10,6 +10,8 @@ import {
 import { TIMELINE_START_LEFT } from '@/tools/video-editor/lib/coordinate-utils';
 import { EDIT_AREA_SELECTOR } from '@/tools/video-editor/lib/timeline-dom';
 import { computeTimelineExtent, maxClipEndSeconds } from '@/tools/video-editor/lib/timeline-scale';
+import type { CanonicalShotOccurrence } from '@/tools/video-editor/data/shotCompositionAdapter';
+import type { ShotGroup } from '@/tools/video-editor/hooks/useShotGroups';
 
 // ---------------------------------------------------------------------------
 // Mocks for hooks that require deep context chains
@@ -63,11 +65,12 @@ const setGestureOwner = vi.fn();
 // ---------------------------------------------------------------------------
 
 const defaultData = {
+  config: { pinnedShotGroups: [] },
   rows: [
     { id: 'V1', actions: [{ id: 'clip-1', start: 0, end: 2, effectId: 'effect-clip-1' }] },
   ],
   tracks: [{ id: 'V1', kind: 'visual' as const, label: 'V1' }],
-  registry: { assets: {} },
+  registry: { assets: { 'asset-1': { type: 'video/mp4', file: 'test.mp4' } } },
   meta: {
     'clip-1': { asset: 'asset-1', track: 'V1' },
   },
@@ -87,13 +90,22 @@ const defaultResolvedConfig = {
 };
 
 /** Creates a fresh timeline store with all slices wired for overlay tests. */
-function createOverlayTestStore(options: { resolvedConfig?: typeof defaultResolvedConfig & { app?: Record<string, unknown> } } = {}) {
+function createOverlayTestStore(options: {
+  resolvedConfig?: typeof defaultResolvedConfig & { app?: Record<string, unknown> };
+  canonicalShotClip?: boolean;
+} = {}) {
   const store = createTimelineStore();
+  const testData = options.canonicalShotClip
+    ? {
+      ...defaultData,
+      meta: { ...defaultData.meta, 'clip-1': { ...defaultData.meta['clip-1'], clipType: 'shot' } },
+    }
+    : defaultData;
   const selectedClipIds = new Set<string>();
   const selectedClipIdsRef = { current: new Set<string>() };
   store.getState().syncSlices({
     data: {
-      data: defaultData,
+      data: testData,
       resolvedConfig: options.resolvedConfig ?? defaultResolvedConfig,
       deviceClass: 'desktop' as const,
       inputModality: 'mouse' as const,
@@ -125,7 +137,7 @@ function createOverlayTestStore(options: { resolvedConfig?: typeof defaultResolv
       scale: 30,
       scaleWidth: 30,
       isLoading: false,
-      dataRef: { current: defaultData },
+      dataRef: { current: testData },
       pendingOpsRef: { current: 0 },
       interactionStateRef: { current: null },
       coordinator: {
@@ -195,7 +207,10 @@ function createOverlayTestStore(options: { resolvedConfig?: typeof defaultResolv
   return store;
 }
 
-function renderWithStore(ui: React.ReactElement, options: { resolvedConfig?: typeof defaultResolvedConfig & { app?: Record<string, unknown> } } = {}) {
+function renderWithStore(ui: React.ReactElement, options: {
+  resolvedConfig?: typeof defaultResolvedConfig & { app?: Record<string, unknown> };
+  canonicalShotClip?: boolean;
+} = {}) {
   const store = createOverlayTestStore(options);
   return {
     store,
@@ -267,6 +282,107 @@ describe('TimelineEditorCore', () => {
       });
     });
   });
+
+  describe('clip double-click routing', () => {
+    const occurrence = (timeline: Record<string, unknown> | undefined): CanonicalShotOccurrence => ({
+      projectId: 'project-1',
+      occurrenceId: 'occurrence-1',
+      parentDocumentId: 'parent-1',
+      shotId: 'shot-1',
+      revisionId: 'revision-1',
+      ordinal: 0,
+      atMs: 0,
+      durationMs: 2000,
+      stableDeepLink: '/shots/shot-1',
+      outputIdentity: 'output-1',
+      revision: {
+        internal_timeline_revision: timeline ? { revision_id: 'internal-1', timeline } : undefined,
+      },
+    });
+
+    const canonicalGroup = (identity: CanonicalShotOccurrence): ShotGroup => ({
+      shotId: identity.shotId,
+      shotName: identity.shotId,
+      rowId: 'V1',
+      rowIndex: 0,
+      start: 0,
+      end: 2,
+      clipIds: ['clip-1'],
+      children: [{ clipId: 'clip-1', offset: 0, duration: 2 }],
+      color: '#000000',
+      poolGenerationIds: [],
+      variantIdsByGenerationId: {},
+      canonicalIdentity: identity,
+    });
+
+    it('opens a canonical shot occurrence with an internal timeline from the clip double-click path', () => {
+      const onShotGroupOpen = vi.fn();
+      const { container, store } = renderWithStore(
+        <TimelineEditorCore
+          shotGroups={[canonicalGroup(occurrence({ tracks: [], clips: [{ id: 'child-1' }] }))]}
+          onShotGroupOpen={onShotGroupOpen}
+        />,
+        { canonicalShotClip: true },
+      );
+      const clip = container.querySelector('[data-clip-id="clip-1"]');
+      expect(clip).toBeTruthy();
+
+      fireEvent.doubleClick(clip!);
+
+      expect(onShotGroupOpen).toHaveBeenCalledWith(canonicalGroup(occurrence({ tracks: [], clips: [{ id: 'child-1' }] })).canonicalIdentity);
+      expect(store.getState().ops.onDoubleClickAsset).not.toHaveBeenCalled();
+    });
+
+    it('keeps the asset lightbox route when canonical identity has no resolvable internal timeline', () => {
+      const onShotGroupOpen = vi.fn();
+      const { container, store } = renderWithStore(
+        <TimelineEditorCore
+          shotGroups={[canonicalGroup(occurrence(undefined))]}
+          onShotGroupOpen={onShotGroupOpen}
+        />,
+        { canonicalShotClip: true },
+      );
+      const clip = container.querySelector('[data-clip-id="clip-1"]');
+      expect(clip).toBeTruthy();
+
+      fireEvent.doubleClick(clip!);
+
+      expect(onShotGroupOpen).not.toHaveBeenCalled();
+      expect(store.getState().ops.onDoubleClickAsset).toHaveBeenCalledWith('asset-1', 'clip-1');
+    });
+
+    it('does not open an unrelated canonical occurrence when the clip identity does not match', () => {
+      const unrelatedOccurrence = occurrence({ tracks: [], clips: [{ id: 'child-1' }] });
+      const onShotGroupOpen = vi.fn();
+      const { container, store } = renderWithStore(
+        <TimelineEditorCore
+          canonicalOccurrences={[unrelatedOccurrence]}
+          onShotGroupOpen={onShotGroupOpen}
+        />,
+        { canonicalShotClip: true },
+      );
+      const clip = container.querySelector('[data-clip-id="clip-1"]');
+      expect(clip).toBeTruthy();
+
+      fireEvent.doubleClick(clip!);
+
+      expect(onShotGroupOpen).not.toHaveBeenCalled();
+      expect(store.getState().ops.onDoubleClickAsset).toHaveBeenCalledWith('asset-1', 'clip-1');
+    });
+
+    it('keeps ordinary non-canonical video assets on the lightbox route', () => {
+      const onShotGroupOpen = vi.fn();
+      const { container, store } = renderWithStore(<TimelineEditorCore onShotGroupOpen={onShotGroupOpen} />);
+      const clip = container.querySelector('[data-clip-id="clip-1"]');
+      expect(clip).toBeTruthy();
+
+      fireEvent.doubleClick(clip!);
+
+      expect(onShotGroupOpen).not.toHaveBeenCalled();
+      expect(store.getState().ops.onDoubleClickAsset).toHaveBeenCalledWith('asset-1', 'clip-1');
+    });
+  });
+
 });
 
 describe('TimelineEditorCore — geometry', () => {

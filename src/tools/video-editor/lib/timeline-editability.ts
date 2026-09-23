@@ -16,6 +16,11 @@ export interface TimelineEditabilityResult {
 }
 
 export interface TimelineEditability {
+  /**
+   * Optional hard end used by timeline interactions as a snap target. This is
+   * deliberately runtime-only; it is not part of the persisted timeline.
+   */
+  readonly hardDurationSeconds?: number;
   check(input: {
     clipId: string;
     sourceTrackId: string | null;
@@ -41,6 +46,7 @@ export function createTimelineEditability(options: TimelineEditabilityOptions = 
   const lockedClipIds = new Set(options.lockedClipIds ?? []);
   const lockedTrackIds = new Set(options.lockedTrackIds ?? []);
   return {
+    hardDurationSeconds: options.hardDurationSeconds,
     check({ clipId, sourceTrackId, targetTrackId }) {
       if (options.readOnly) return { allowed: false, reason: 'timeline_read_only' };
       if (lockedClipIds.has(clipId)) return { allowed: false, reason: 'clip_locked' };

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useShotFinalVideos, type ShotFinalVideo } from '@/tools/travel-between-images/hooks/video/useShotFinalVideos.ts';
 import type { VideoEditorShotsHost } from '@/tools/video-editor/runtime/ports.ts';
 import {
@@ -26,34 +26,60 @@ export function useReighShotsHost(
   const [preparedComposition, setPreparedComposition] = useState<Awaited<ReturnType<NonNullable<typeof shotComposition>['load']>> | null>(null);
   const [canonicalLoading, setCanonicalLoading] = useState(false);
   const [reloadToken, setReloadToken] = useState(0);
+  const refreshInFlightRef = useRef(false);
+  const hasPreparedCompositionRef = useRef(false);
+  const mountedRef = useRef(false);
+  const loadGenerationRef = useRef(0);
 
-  useEffect(() => {
-    let active = true;
+  const loadCanonicalComposition = useCallback(async (showLoading: boolean, generation: number) => {
+    if (generation !== loadGenerationRef.current) return;
     if (!projectId || !parentDocumentId || !shotComposition) {
+      hasPreparedCompositionRef.current = false;
       setPreparedComposition(null);
       setCanonicalLoading(false);
       setCanonicalCompositionError(new ShotCompositionUnavailableError(
         'The canonical shot-composition provider is unavailable for this editor.',
       ));
-      return () => { active = false; };
+      return;
     }
-    setCanonicalLoading(true);
-    setCanonicalCompositionError(null);
-    void shotComposition.load({ projectId, parentDocumentId })
-      .then((composition) => {
-        if (!active) return;
-        setPreparedComposition(composition);
-        setCanonicalLoading(false);
-        setCanonicalCompositionError(null);
-      })
-      .catch((loadError: unknown) => {
-        if (!active) return;
-        setPreparedComposition(null);
-        setCanonicalLoading(false);
-        setCanonicalCompositionError(loadError instanceof Error ? loadError : new Error(String(loadError)));
-      });
-    return () => { active = false; };
-  }, [parentDocumentId, projectId, reloadToken, shotComposition]);
+    if (refreshInFlightRef.current) return;
+    refreshInFlightRef.current = true;
+    if (showLoading) setCanonicalLoading(true);
+    try {
+      const composition = await shotComposition.load({ projectId, parentDocumentId });
+      if (!mountedRef.current || generation !== loadGenerationRef.current) return;
+      hasPreparedCompositionRef.current = true;
+      setPreparedComposition((current) => current?.headRevisionId === composition.headRevisionId ? current : composition);
+      setCanonicalCompositionError(null);
+      setCanonicalLoading(false);
+    } catch (loadError: unknown) {
+      if (!mountedRef.current || generation !== loadGenerationRef.current) return;
+      // A transient poll failure must not erase the last coherent pinned head.
+      // Initial failures still surface normally to the editor.
+      setCanonicalCompositionError((current) => hasPreparedCompositionRef.current
+        ? current
+        : loadError instanceof Error ? loadError : new Error(String(loadError)));
+      setCanonicalLoading(false);
+    } finally {
+      refreshInFlightRef.current = false;
+    }
+  }, [parentDocumentId, projectId, shotComposition]);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    const generation = ++loadGenerationRef.current;
+    void loadCanonicalComposition(true, generation);
+    if (!projectId || !parentDocumentId || !shotComposition) {
+      return () => { mountedRef.current = false; };
+    }
+    const interval = globalThis.setInterval(() => {
+      void loadCanonicalComposition(false, generation);
+    }, 2_000);
+    return () => {
+      mountedRef.current = false;
+      globalThis.clearInterval(interval);
+    };
+  }, [loadCanonicalComposition, parentDocumentId, projectId, reloadToken, shotComposition]);
 
   // A previous document's prepared graph may remain in React state for one
   // render while the next Runtime read is in flight. Scope the exposed graph

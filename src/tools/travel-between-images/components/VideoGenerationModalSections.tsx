@@ -15,6 +15,7 @@ import {
   useMotionSettings,
   useModelSettings,
   useSettingsSave,
+  useVideoTravelSettingsStatus,
 } from '@/tools/travel-between-images/providers';
 import { useModalImageHandlers } from './hooks/useModalImageHandlers';
 import { useSegmentOutputsForShot } from '@/shared/hooks/segments/useSegmentOutputsForShot';
@@ -168,6 +169,7 @@ export function VideoGenerationModalFormContent({
   const motionSettings = useMotionSettings();
   const modelSettings = useModelSettings();
   const { onBlurSave } = useSettingsSave();
+  const { canonicalPersistence } = useVideoTravelSettingsStatus();
 
   const ltxSelected = getModelSpec(selectedModel).modelFamily === 'ltx';
   const handleSelectedModelChange = (nextModel: SelectedModel) => {
@@ -280,6 +282,7 @@ export function VideoGenerationModalFormContent({
             stateOverrides={{
               turboMode: settings.turboMode || false,
               settingsLoading: status !== 'ready' && status !== 'saving',
+              suppressDefaultPresetAutoSelect: canonicalPersistence,
             }}
           />
         </div>

@@ -255,6 +255,7 @@ vi.mock('@/tools/travel-between-images/providers', () => ({
   }),
   useVideoTravelSettingsStatus: () => ({
     isLoading: false,
+    canonicalPersistence: false,
   }),
 }));
 
@@ -306,6 +307,9 @@ describe('BatchModeContent', () => {
     expect(batchSettingsFormSpy).toHaveBeenCalledWith(expect.objectContaining({ imageCount: 3 }));
     expect(generateVideoCtaSpy).toHaveBeenCalledWith(expect.objectContaining({ videoCount: 2, stitchEnabled: true, variantName: 'Variant A' }));
     expect(joinClipsSettingsFormSpy).toHaveBeenCalledTimes(1);
+    expect(motionControlSpy).toHaveBeenCalledWith(expect.objectContaining({
+      stateOverrides: expect.objectContaining({ suppressDefaultPresetAutoSelect: false }),
+    }));
 
     fireEvent.click(screen.getByTestId('generate-video-button'));
     expect(handleGenerateBatchMock).toHaveBeenCalledWith('Variant A');

@@ -86,19 +86,23 @@
 
 .drop-indicator-ghost {
   position: fixed;
-  background: var(--video-editor-accent-bg-strong);
-  border: 1px dashed var(--video-editor-accent-border);
+  background: color-mix(in srgb, var(--video-editor-accent-bg-strong) 86%, transparent);
+  border: 2px dashed var(--video-editor-accent-border-strong);
   border-radius: 4px;
   pointer-events: none;
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: 0 0 0 1px var(--video-editor-accent-ring), 0 0 12px var(--video-editor-accent-shadow-soft);
 }
 
 .drop-indicator-ghost-label {
+  background: var(--video-editor-accent-border-strong);
+  border-radius: 3px;
+  padding: 2px 5px;
   font-size: 9px;
   font-weight: 600;
-  color: var(--video-editor-accent-border-strong);
+  color: hsl(var(--background));
 }
 
 .drop-indicator-label {
@@ -138,6 +142,27 @@
   background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--video-editor-success-bg) 22%, transparent));
 }
 
+.timeline-duration-content-end,
+.timeline-duration-proposed-end {
+  position: absolute;
+  width: 1px;
+  pointer-events: none;
+  z-index: 7;
+}
+
+.timeline-duration-content-end {
+  background: var(--video-editor-success-border);
+  opacity: 0.75;
+}
+
+.timeline-duration-proposed-end {
+  border-left: 2px dashed var(--video-editor-accent-border-strong);
+}
+
+.timeline-duration-proposed-end--overrun {
+  border-left-color: var(--video-editor-reject-border);
+}
+
 .timeline-duration-expandable {
   background: repeating-linear-gradient(135deg, transparent 0 8px, color-mix(in srgb, var(--video-editor-accent-bg) 34%, transparent) 8px 10px);
 }
@@ -175,6 +200,22 @@
 
 .timeline-duration-limit--overrun .timeline-duration-limit-label {
   background: var(--video-editor-reject-border);
+}
+
+.timeline-duration-overflow-reason {
+  position: absolute;
+  top: 4px;
+  left: 8px;
+  z-index: 10;
+  max-width: 240px;
+  pointer-events: none;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--video-editor-reject-bg) 88%, transparent);
+  color: var(--video-editor-reject-text);
+  padding: 2px 5px;
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 1.25;
 }
 
 .timeline-duration-hard-limit {

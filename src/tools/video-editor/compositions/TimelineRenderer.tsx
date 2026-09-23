@@ -59,6 +59,7 @@ import { PostprocessShaderPreviewCanvas } from '@/tools/video-editor/shaders/pre
 import { useShaderEffectRegistrySnapshot } from '@/tools/video-editor/shaders/registry/index.ts';
 import { tryCompileSequenceComponentAsync } from '@/tools/video-editor/sequences/compileSequenceComponent.tsx';
 import { resolveAstridElementComponent } from '@/tools/video-editor/runtime/astrid-element-components.tsx';
+import { boundCanonicalConfigClips } from '@/tools/video-editor/lib/canonicalRenderBounds.ts';
 
 // Phase 4d (Sprint 5): EFFECT_REGISTRY dispatch.
 //
@@ -243,7 +244,10 @@ const ShotClipSequence: FC<{ clip: ResolvedTimelineClip; fps: number }> = ({ cli
       // Premount so the next shot's cached child config is mounted (hidden,
       // audio muted) BEFORE the playhead crosses the boundary — the crossing
       // renders cached content immediately instead of a dark placeholder.
-      premountFor={fps * 2}
+      // Canonical occurrences are half-open render intervals. Premounting a
+      // child occurrence would make the previous/next shot's content visible
+      // outside that interval, so only legacy non-canonical shells use it.
+      premountFor={clip.app?.canonicalTiming ? 0 : fps * 2}
     >
       {childConfig ? (
         <TimelineRenderer config={childConfig} />
@@ -278,6 +282,14 @@ type ThemeEffectSequenceProps = {
   dynamicEntries: readonly DynamicSequenceComponentEntry[];
 };
 
+const resolveAstridComponentAssetEntry = (
+  assetEntry: ResolvedTimelineClip['assetEntry'],
+): ResolvedTimelineClip['assetEntry'] => (
+  assetEntry?.src
+    ? { ...assetEntry, file: assetEntry.src }
+    : assetEntry
+);
+
 const ThemePackageComponent: FC<{
   component: FC<{
     clip: ResolvedTimelineClip;
@@ -293,9 +305,7 @@ const ThemePackageComponent: FC<{
   // `file` is the persisted locator; `src` is the host-resolved browser URL.
   // Pack effects consume the component contract's `assetEntry.file`, so make
   // the resolved URL the file presented to them without mutating timeline data.
-  const assetEntry = clip.assetEntry?.src
-    ? { ...clip.assetEntry, file: clip.assetEntry.src }
-    : clip.assetEntry;
+  const assetEntry = resolveAstridComponentAssetEntry(clip.assetEntry);
   return <Component clip={clip} params={clip.params} theme={theme} fps={fps} assetEntry={assetEntry} />;
 };
 
@@ -436,13 +446,15 @@ const AstridEffectPreviewSequence: FC<{
   clip: ResolvedTimelineClip;
   fps: number;
   theme: RuntimeTheme;
+  assetEntry?: ResolvedTimelineClip['assetEntry'];
   component?: ComponentType<{
     clip: ResolvedTimelineClip;
     params: Record<string, unknown>;
     theme: RuntimeTheme;
     fps: number;
+    assetEntry?: ResolvedTimelineClip['assetEntry'];
   }>;
-}> = ({ clip, fps, theme, component }) => {
+}> = ({ clip, fps, theme, assetEntry, component }) => {
   const Component = component ?? (clip.elementRef
     ? resolveAstridElementComponent(clip.elementRef.id, clip.elementRef.kind)
     : undefined);
@@ -455,7 +467,13 @@ const AstridEffectPreviewSequence: FC<{
       durationInFrames={durationInFrames}
     >
       <ThemeProvider value={theme}>
-        <Component clip={clip} params={clip.params ?? {}} theme={theme} fps={fps} />
+        <Component
+          clip={clip}
+          params={clip.params ?? {}}
+          theme={theme}
+          fps={fps}
+          assetEntry={resolveAstridComponentAssetEntry(assetEntry)}
+        />
       </ThemeProvider>
     </Sequence>
   );
@@ -1423,6 +1441,7 @@ const VisualTrack: FC<VisualTrackProps> = ({
                 clip={clip}
                 fps={fps}
                 theme={theme}
+                assetEntry={clip.assetEntry}
               />
             );
           }
@@ -1510,6 +1529,7 @@ const VisualTrack: FC<VisualTrackProps> = ({
                 clip={clip}
                 fps={fps}
                 theme={theme}
+                assetEntry={clip.assetEntry}
                 component={astridEffect}
               />
             );
@@ -1643,7 +1663,14 @@ export const TimelineRenderer: FC<{ config: ResolvedTimelineConfig }> = memo(({ 
     () => liveDataRegistry?.getSnapshot(),
     () => liveDataRegistry?.getSnapshot(),
   );
-  const renderConfig = useMemo(() => materializeResolvedSequenceConfig(config), [config]);
+  const renderConfig = useMemo(() => {
+    const materialized = materializeResolvedSequenceConfig(config);
+    const boundedClips = boundCanonicalConfigClips(materialized.clips);
+    return boundedClips.length === materialized.clips.length
+      && boundedClips.every((clip, index) => clip === materialized.clips[index])
+      ? materialized
+      : { ...materialized, clips: boundedClips };
+  }, [config]);
   const shaderSnapshot = useShaderEffectRegistrySnapshot();
   const fps = renderConfig.output.fps;
   const theme = useMemo(() => resolveTimelineRenderTheme(renderConfig), [renderConfig]);

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ReighRuntimeClient, RuntimeAuthenticationError } from './client.ts';
-import { RuntimeDataProvider } from './dataProvider.ts';
+import { RuntimeDataProvider, toRuntimePublication } from './dataProvider.ts';
 import { createDefaultTimelineConfig } from '@/tools/video-editor/lib/defaults.ts';
 
 const PROJECT_ID = 'project-r1';
@@ -128,6 +128,39 @@ function runtimeFixture(options: { mediaEtag?: string } = {}) {
 }
 
 describe('RuntimeDataProvider', () => {
+  it('serializes canonical placement start after stale nested placement metadata', async () => {
+    const publication = await toRuntimePublication({
+      primary_timeline: { head: { revision_id: 'head-1' } },
+      shot_revisions: [{
+        shot_id: 'shot-placement',
+        revision_id: 'revision-placement',
+        publish: true,
+        internal_timeline_revision: {
+          timeline_id: TIMELINE_ID,
+          revision_id: 'timeline-placement',
+          publish: true,
+          timeline: { tracks: [{ id: 'video', kind: 'visual' }], clips: [{ id: 'clip', at_ms: 0, duration_ms: 2000 }] },
+        },
+      }],
+      occurrences: [{
+        occurrence_id: 'occ-placement',
+        shot_id: 'shot-placement',
+        revision_id: 'revision-placement',
+        at_ms: 1500,
+        duration_ms: 2000,
+        placement: { start_ms: 0, track: 'video' },
+      }],
+      parent_composition: { config: {}, registry: {}, clips: [] },
+    }, PROJECT_ID, TIMELINE_ID, 'head-1');
+
+    expect((publication.parent_composition as Record<string, unknown>).occurrences).toEqual([
+      expect.objectContaining({
+        occurrence_id: 'occ-placement',
+        placement: { start_ms: 1500, track: 'video' },
+      }),
+    ]);
+  });
+
   it('loads the lightbox primary from the complete paginated variant set', async () => {
     const requests: string[] = [];
     const transport = async (method: string, path: string) => {

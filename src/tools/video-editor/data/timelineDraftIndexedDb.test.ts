@@ -8,8 +8,10 @@ vi.stubGlobal('IDBKeyRange', (await import('fake-indexeddb')).IDBKeyRange);
 
 import {
   clearTimelineDraft,
+  clearTimelineDraftIfMatches,
   loadTimelineDraft,
   saveTimelineDraft,
+  saveTimelineDraftIfOwner,
 } from '@/tools/video-editor/data/timelineDraftIndexedDb.ts';
 
 describe('timelineDraftIndexedDb — one-slot recovery draft (plan-v5 B9)', () => {
@@ -49,14 +51,88 @@ describe('timelineDraftIndexedDb — one-slot recovery draft (plan-v5 B9)', () =
   });
 
   it('compare-and-delete never lets an old acknowledgement clear a newer owner', async () => {
-    await saveTimelineDraft('tl-1', { config: { name: 'first' } }, 1, 'owner-1');
-    await saveTimelineDraft('tl-1', { config: { name: 'newer' } }, 1, 'owner-2');
+    const recoveryKey = 'tl-1:occurrence-1';
+    await saveTimelineDraft('tl-1', { config: { name: 'first' } }, 1, {
+      recoveryKey,
+      draftIdentity: 'edit-1',
+      ownerId: 'owner-1',
+    });
+    await saveTimelineDraft('tl-1', { config: { name: 'newer' } }, 1, {
+      recoveryKey,
+      draftIdentity: 'edit-2',
+      ownerId: 'owner-2',
+    });
 
-    await clearTimelineDraft('tl-1', 'owner-1');
-    expect((await loadTimelineDraft('tl-1'))?.draft).toEqual({ config: { name: 'newer' } });
+    await clearTimelineDraft(recoveryKey, 'owner-1');
+    expect(await loadTimelineDraft(recoveryKey)).toMatchObject({
+      ownerId: 'owner-2',
+      draftIdentity: 'edit-2',
+      draft: { config: { name: 'newer' } },
+    });
 
-    await clearTimelineDraft('tl-1', 'owner-2');
-    expect(await loadTimelineDraft('tl-1')).toBeNull();
+    await clearTimelineDraft(recoveryKey, 'owner-2');
+    expect(await loadTimelineDraft(recoveryKey)).toBeNull();
+  });
+
+  it('conditionally acknowledges only the matching publication identity', async () => {
+    await saveTimelineDraft('session-a', { config: { name: 'A' } }, 1, {
+      recoveryKey: 'occurrence-1',
+      draftIdentity: 'edit-A',
+      acknowledgementIdentity: 'publish-A',
+    });
+    await saveTimelineDraft('session-b', { config: { name: 'B' } }, 1, {
+      recoveryKey: 'occurrence-1',
+      draftIdentity: 'edit-B',
+    });
+
+    expect(await clearTimelineDraftIfMatches('occurrence-1', 'publish-A')).toBe(false);
+    expect((await loadTimelineDraft('occurrence-1'))?.draft).toEqual({ config: { name: 'B' } });
+  });
+  it('preserves a newer B queued ahead of A publication and protects it from A acknowledgement', async () => {
+      const key = 'occurrence-concurrent';
+      await saveTimelineDraft('session-a', { config: { name: 'A' } }, 1, {
+        recoveryKey: key,
+        draftIdentity: 'edit-A',
+      });
+      const writeA = () => saveTimelineDraftIfOwner(
+        'session-a',
+        { config: { name: 'A-published' }, canonicalPublication: { idempotencyKey: 'publish-A' } },
+        1,
+        {
+          recoveryKey: key,
+          draftIdentity: 'publish-A',
+          acknowledgementIdentity: 'publish-A',
+        },
+        'edit-A',
+        (current, candidate) => ({
+          ...current,
+          // Preserve B's durable config, CAS base, and owner while retaining
+          // A's exact retry candidate for explicit recovery if needed.
+          draft: { ...current.draft, canonicalPublication: candidate.draft.canonicalPublication },
+        }),
+      );
+      const writeB = () => saveTimelineDraft('session-b', { config: { name: 'B' } }, 2, {
+        recoveryKey: key,
+        baseHeadRevisionId: 'head-B',
+        baseCanonicalGraph: { head: 'head-B' },
+        draftIdentity: 'edit-B',
+      });
+
+      // Start both independent read-write transactions without awaiting
+      // either. B is queued first, so A's conditional transaction must observe
+      // the newer owner and merge only the publication retry metadata.
+      await Promise.all([writeB(), writeA()]);
+
+      expect(await clearTimelineDraftIfMatches(key, 'publish-A')).toBe(false);
+      const reopened = await loadTimelineDraft(key);
+      expect(reopened).toMatchObject({
+        baseVersion: 2,
+        baseHeadRevisionId: 'head-B',
+        baseCanonicalGraph: { head: 'head-B' },
+        draftIdentity: 'edit-B',
+        draft: { config: { name: 'B' } },
+      });
+      expect(reopened?.draft.canonicalPublication).toEqual({ idempotencyKey: 'publish-A' });
   });
 
   it('drafts for different timelines do not collide', async () => {

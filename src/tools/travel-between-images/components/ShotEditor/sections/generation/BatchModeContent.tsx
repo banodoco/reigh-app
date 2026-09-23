@@ -71,7 +71,7 @@ export const BatchModeContent: React.FC<BatchModeContentProps> = ({
   const phaseConfigSettings = usePhaseConfigSettings();
   const generationModeSettings = useGenerationModeSettings();
   const loraSettingsFromContext = useLoraSettings();
-  const { isLoading: settingsLoadingFromContext } = useVideoTravelSettingsStatus();
+  const { isLoading: settingsLoadingFromContext, canonicalPersistence } = useVideoTravelSettingsStatus();
   const { onBlurSave: blurSaveHandler } = useSettingsSave();
 
   const advancedMode = motionSettings.motionMode === 'advanced';
@@ -235,6 +235,7 @@ export const BatchModeContent: React.FC<BatchModeContentProps> = ({
             stateOverrides={{
               turboMode: motionSettings.turboMode,
               settingsLoading: settingsLoadingFromContext,
+              suppressDefaultPresetAutoSelect: canonicalPersistence,
             }}
           />
         </div>

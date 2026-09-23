@@ -76,6 +76,29 @@ describe('useTimelineQueries', () => {
       expect(result.current.timelineQuery.data?.configVersion).toBe(2);
     });
   });
+  it('uses the provider head identity to avoid reusing a stale popup query cache', async () => {
+    const loadTimeline = vi.fn()
+      .mockResolvedValueOnce({ config: createDefaultTimelineConfig(), configVersion: 1 } as never)
+      .mockResolvedValueOnce({ config: createDefaultTimelineConfig(), configVersion: 2 } as never);
+    const provider = makeProvider(loadTimeline) as DataProvider & { timelineQueryIdentity: string };
+    provider.timelineQueryIdentity = 'head-0';
+
+    const { result, rerender } = renderHook(
+      ({ identity }: { identity: string }) => {
+        provider.timelineQueryIdentity = identity;
+        return useTimelineQueries(provider, 'timeline-1');
+      },
+      { wrapper: createWrapper(), initialProps: { identity: 'head-0' } },
+    );
+
+    await waitFor(() => expect(result.current.timelineQuery.data?.configVersion).toBe(1));
+    rerender({ identity: 'head-1' });
+    await waitFor(() => {
+      expect(loadTimeline).toHaveBeenCalledTimes(2);
+      expect(result.current.timelineQuery.data?.configVersion).toBe(2);
+    });
+  });
+
 
   it('surfaces a rejected loadTimeline as timelineQuery.error', async () => {
     const failure = new Error('Astrid bridge returned a malformed timeline payload: config: expected object, received string');

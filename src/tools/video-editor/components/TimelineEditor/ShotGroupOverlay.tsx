@@ -82,16 +82,12 @@ export const ShotGroupLabels = React.memo(function ShotGroupLabels({
             }}
             onDoubleClick={(event) => {
               event.stopPropagation();
-              if (onShotGroupNavigate) {
-                if (group.canonicalIdentity && onShotGroupOpen) {
-                  onShotGroupOpen(group.canonicalIdentity);
-                  return;
-                }
-                onShotGroupNavigate(group.shotId);
-                return;
-              }
               if (group.canonicalIdentity && onShotGroupOpen) {
                 onShotGroupOpen(group.canonicalIdentity);
+                return;
+              }
+              if (onShotGroupNavigate) {
+                onShotGroupNavigate(group.shotId);
                 return;
               }
               onSelectClips?.(group.clipIds);

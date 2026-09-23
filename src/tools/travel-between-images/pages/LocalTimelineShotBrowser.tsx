@@ -101,6 +101,10 @@ function useLocalTimelineDocument(
     // composition while the Runtime read is catching up.
     gcTime: 0,
     refetchOnMount: 'always',
+    // Runtime has no public event cursor yet; its immutable composition read
+    // is the bounded catch-up path for standalone nested/player views too.
+    refetchInterval: (provider as { refreshIntervalMs?: number }).refreshIntervalMs ?? false,
+    refetchOnReconnect: true,
     queryFn: async () => {
       if (!compositionAdapter) {
         throw new Error('Canonical shot-composition provider is unavailable for this timeline.');
@@ -143,6 +147,7 @@ export function LocalTimelineShotBrowser({ projectSlug, projectId, timelineRef, 
   const identityProjectId = projectId ?? projectSlug;
   const documentQuery = useLocalTimelineDocument(projectSlug, projectId, timelineRef, shotCompositionPort, shotCompositionAdapter);
   const [compositionOverride, setCompositionOverride] = useState<PreparedShotComposition | null>(initialComposition ?? null);
+  const [canonicalDraftDirty, setCanonicalDraftDirty] = useState(false);
   const loadedComposition = documentQuery.data?.composition;
   useEffect(() => {
     if (!loadedComposition) return;
@@ -157,9 +162,13 @@ export function LocalTimelineShotBrowser({ projectSlug, projectId, timelineRef, 
   }, [loadedComposition]);
   useEffect(() => {
     if (initialComposition) {
+      // The parent host polls for external head changes. Preserve the pinned
+      // mounted graph while a nested editor has unsaved work; its CAS publish
+      // will explicitly advance this override after acknowledgement.
+      if (canonicalDraftDirty) return;
       setCompositionOverride(initialComposition);
     }
-  }, [initialComposition]);
+  }, [canonicalDraftDirty, initialComposition]);
   const composition = compositionOverride ?? loadedComposition;
   const shots = useMemo(
     () => selectCanonicalShotOccurrences(composition, documentQuery.data?.registry, identityProjectId),
@@ -267,6 +276,7 @@ export function LocalTimelineShotBrowser({ projectSlug, projectId, timelineRef, 
           shotSortMode="ordered"
           onClose={onClose}
           onCanonicalCompositionPublished={handleCanonicalCompositionPublished}
+          onCanonicalDraftStateChange={setCanonicalDraftDirty}
         />
       ) : (
         <section className="mx-auto w-full max-w-7xl" aria-label="Timeline shots">

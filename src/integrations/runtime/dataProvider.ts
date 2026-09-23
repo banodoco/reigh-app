@@ -34,10 +34,10 @@ import { parseTimelineBundle } from '@/tools/video-editor/data/typed/timelineBun
 import { withDefaultTimelineOutput } from '@/tools/video-editor/lib/defaults.ts';
 import {
   ShotCompositionUnavailableError,
+  type ShotCompositionHeadReadRequest,
   type ShotCompositionPort,
 } from '@/tools/video-editor/data/shotCompositionAdapter.ts';
 import {
-  assertExpectedHead,
   stableOccurrenceDeepLink,
   stableOutputIdentity,
   StaleWriteError,
@@ -48,6 +48,7 @@ import {
   selectRuntimePrimaryVariant,
 } from './generationProjection.ts';
 import { listAllRuntimeVariants } from './generationAccess.ts';
+import { recordShotTimelinePhase } from '@/tools/video-editor/lib/shot-timeline-timing.ts';
 
 type RuntimeRecord = Record<string, unknown>;
 
@@ -79,18 +80,65 @@ export class RuntimeDataProvider implements DataProvider {
   readonly apiBaseUrl: string;
   readonly shotComposition: ShotCompositionPort = {
     load: async (request) => this.loadRuntimeShotComposition(request.projectId, request.parentDocumentId),
+    loadAtHead: async (request) => this.loadRuntimeShotCompositionAtHead(request),
     publish: async (request) => {
+      const publishStartedAt = import.meta.env.DEV ? performance.now() : 0;
       try {
         assertGraphRequestIdentity(request.graph, request.projectId, request.parentDocumentId);
+        const headReadStartedAt = import.meta.env.DEV ? performance.now() : 0;
         const timeline = await this.client.getProjectTimeline(request.projectId, request.parentDocumentId);
+        this.logShotTimelineLatency('runtime-head-read', headReadStartedAt, request.timingTraceId);
         assertRuntimeIdentity(timeline, request.projectId, request.parentDocumentId, 'timeline');
-        const currentHead = nullableString(timeline.head_revision_id, 'timeline.head_revision_id');
-        assertExpectedHead(request.expectedHeadRevisionId, currentHead);
+        // Do not reject a retry merely because the mutable head has advanced:
+        // Runtime checks durable idempotency replay before its CAS comparison.
+        // A new key still receives the Runtime's explicit stale-head 409.
+        nullableString(timeline.head_revision_id, 'timeline.head_revision_id');
         const publication = await toRuntimePublication(request.graph, request.projectId, request.parentDocumentId, request.expectedHeadRevisionId);
-        await this.client.publishParentComposition(request.projectId, request.parentDocumentId, publication);
-        // The mutation receipt is not the canonical graph. Reload the committed
-        // head and its immutable closure so callers only observe durable bytes.
-        return await this.loadRuntimeShotComposition(request.projectId, request.parentDocumentId);
+        const idempotencyKey = request.idempotencyKey ?? await stablePublicationKey(
+          request.projectId,
+          request.parentDocumentId,
+          request.expectedHeadRevisionId,
+          request.graph,
+        );
+        const commitStartedAt = import.meta.env.DEV ? performance.now() : 0;
+        const committed = await this.client.publishParentComposition(
+          request.projectId,
+          request.parentDocumentId,
+          publication,
+          idempotencyKey,
+        );
+        this.logShotTimelineLatency('runtime-publish-request', commitStartedAt, request.timingTraceId);
+        // Never reload the mutable current head here: another writer may have
+        // advanced it before the response arrived. Pin the returned receipt's
+        // exact immutable revision and carry the receipt/diff alongside it.
+        const committedHead = committed.revision_id ?? committed.parent_revision_id ?? committed.new_head;
+        if (typeof committedHead !== 'string' || committedHead.length === 0) {
+          throw new Error('Workspace Runtime publication receipt omitted its committed parent head');
+        }
+        const reloadStartedAt = import.meta.env.DEV ? performance.now() : 0;
+        const graph = await this.loadRuntimeShotCompositionAtHead({
+          projectId: request.projectId,
+          parentDocumentId: request.parentDocumentId,
+          headRevisionId: committedHead,
+        });
+        this.logShotTimelineLatency('runtime-exact-head-reload', reloadStartedAt, request.timingTraceId);
+        const receipt = asRecord((committed as RuntimeRecord).receipt);
+        const result = asRecord(receipt?.result);
+        const changedIdentities = publicationChangedIdentities(result, committedHead);
+        const publishedGraph = {
+          ...(graph as RuntimeRecord),
+          publication_receipt: {
+            ...(typeof receipt?.receipt_id === 'string' ? { receipt_id: receipt.receipt_id } : {}),
+            idempotency_key: idempotencyKey,
+            ...(typeof receipt?.request_hash === 'string' ? { request_hash: receipt.request_hash } : {}),
+            expected_head: request.expectedHeadRevisionId,
+            new_head: committedHead,
+            changed_identities: changedIdentities,
+            diff: result ?? {},
+          },
+        };
+        this.logShotTimelineLatency('runtime-publish-total', publishStartedAt, request.timingTraceId);
+        return publishedGraph;
       } catch (error) {
         if (error instanceof ApiError && error.status === 409) {
           throw new StaleWriteError(`Workspace Runtime rejected a stale shot-composition write: ${error.message}`);
@@ -113,6 +161,7 @@ export class RuntimeDataProvider implements DataProvider {
   }
 
   private async loadRuntimeShotComposition(projectId: string, timelineId: string): Promise<unknown> {
+    const startedAt = import.meta.env.DEV ? performance.now() : 0;
     const timeline = await this.client.getProjectTimeline(projectId, timelineId);
     assertRuntimeIdentity(timeline, projectId, timelineId, 'timeline');
     const headRevisionId = nullableString(timeline.head_revision_id, 'timeline.head_revision_id');
@@ -121,6 +170,25 @@ export class RuntimeDataProvider implements DataProvider {
         `Workspace Runtime timeline ${timelineId} has no published canonical shot-composition head`,
       );
     }
+    const graph = await this.loadRuntimeShotCompositionAtHead({ projectId, parentDocumentId: timelineId, headRevisionId });
+    this.logShotTimelineLatency('runtime-composition-load', startedAt);
+    return graph;
+  }
+
+  private logShotTimelineLatency(phase: string, startedAt: number, traceId?: string): void {
+    if (!import.meta.env.DEV) return;
+    const durationMs = Math.round(performance.now() - startedAt);
+    if (traceId) {
+      recordShotTimelinePhase(traceId, phase, { durationMs });
+      return;
+    }
+    console.debug('[ShotTimelineLatency]', {
+      phase,
+      durationMs,
+    });
+  }
+
+  private async loadRuntimeShotCompositionAtHead({ projectId, parentDocumentId: timelineId, headRevisionId }: ShotCompositionHeadReadRequest): Promise<unknown> {
     const parent = await this.client.getProjectParentCompositionRevision(projectId, timelineId, headRevisionId);
     assertRuntimeIdentity(parent, projectId, timelineId, 'parent composition revision');
     assertRevisionIdentity(parent, headRevisionId, 'parent composition revision');
@@ -161,7 +229,13 @@ export class RuntimeDataProvider implements DataProvider {
       assertRevisionIdentity(internal, internalRevisionId, 'internal timeline revision');
       return { shot, internal };
     }));
-    return runtimeGraphToContract(projectId, timelineId, timeline, parent, resolved);
+    return runtimeGraphToContract(
+      projectId,
+      timelineId,
+      { project_id: projectId, timeline_id: timelineId, version: 1, head_revision_id: headRevisionId },
+      parent,
+      resolved,
+    );
   }
 
   /** Re-open the cached Runtime handshake before the next hosted read. */
@@ -722,6 +796,47 @@ function canonicalArray(value: unknown, fallback: unknown[] = []): unknown[] {
   return Array.isArray(value) ? value : fallback;
 }
 
+function stableJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(stableJson).join(',')}]`;
+  if (value !== null && typeof value === 'object') {
+    return `{${Object.entries(value as RuntimeRecord)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, item]) => `${JSON.stringify(key)}:${stableJson(item)}`)
+      .join(',')}}`;
+  }
+  return JSON.stringify(value);
+}
+
+async function stablePublicationKey(
+  projectId: string,
+  timelineId: string,
+  expectedHead: string | null,
+  graph: unknown,
+): Promise<string> {
+  const bytes = new TextEncoder().encode(stableJson({ projectId, timelineId, expectedHead, graph }));
+  const digest = await globalThis.crypto.subtle.digest('SHA-256', bytes);
+  // Runtime's idempotency-key grammar accepts dots/dashes but not colons.
+  return `reigh.shot-composition.${Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('')}`;
+}
+
+function publicationChangedIdentities(result: RuntimeRecord | null, parentRevisionId: string): string[] {
+  const identities = new Set<string>([parentRevisionId]);
+  const manifest = asRecord(result?.dependency_manifest);
+  for (const section of ['shots', 'internal_timelines', 'timelines', 'media']) {
+    const values = manifest && Array.isArray(manifest[section]) ? manifest[section] : [];
+    for (const raw of values) {
+      const item = asRecord(raw);
+      if (!item) continue;
+      for (const field of ['shot_id', 'timeline_id', 'revision_id', 'internal_timeline_revision_id', 'content_digest']) {
+        if (typeof item[field] === 'string' && item[field].length > 0) identities.add(item[field] as string);
+      }
+    }
+  }
+  const contentDigests = asRecord(result?.content_digests);
+  if (contentDigests) Object.keys(contentDigests).forEach((identity) => identities.add(identity));
+  return [...identities];
+}
+
 function canonicalAudio(payload: RuntimeRecord, projectId: string, shotId: string, revisionId: string): RuntimeRecord {
   const candidate = Array.isArray(payload.audio) ? payload.audio[0] : payload.audio;
   const audio = candidate && typeof candidate === 'object' && !Array.isArray(candidate)
@@ -931,7 +1046,7 @@ function runtimePayloadWithoutCanonicalEnvelope(revision: RuntimeRecord): Runtim
   return payload;
 }
 
-async function toRuntimePublication(
+export async function toRuntimePublication(
   graph: RuntimeRecord,
   projectId: string,
   timelineId: string,
@@ -984,7 +1099,9 @@ async function toRuntimePublication(
       occurrence_id: requiredString(occurrence.occurrence_id, `occurrences[${ordinal}].occurrence_id`),
       shot_id: requiredString(occurrence.shot_id, `occurrences[${ordinal}].shot_id`),
       shot_revision_id: requiredString(occurrence.revision_id, `occurrences[${ordinal}].revision_id`),
-      placement: { start_ms: Number(occurrence.at_ms ?? 0), ...(occurrence.placement as RuntimeRecord ?? {}) },
+      // `at_ms` is the canonical occurrence field. Spread legacy placement
+      // metadata first so a stale nested start cannot overwrite a fresh drag.
+      placement: { ...(occurrence.placement as RuntimeRecord ?? {}), start_ms: Number(occurrence.at_ms ?? 0) },
       source_offset: occurrence.source_offset ?? 0,
       duration_ms: Number(occurrence.duration_ms ?? 0),
       speed: occurrence.speed ?? 1,

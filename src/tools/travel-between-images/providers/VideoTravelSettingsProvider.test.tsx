@@ -12,19 +12,25 @@ import {
   useFrameSettings,
   useModelSettings,
   useMotionSettings,
+  useVideoTravelSettingsStatus,
 } from './VideoTravelSettingsProvider';
 import {
   createDefaultVideoTravelSettings,
   type VideoTravelSettings,
 } from '../settings';
 
+const { mockProviderUpdateFields } = vi.hoisted(() => ({
+  mockProviderUpdateFields: vi.fn(),
+}));
+
 let mockInitialSettings: VideoTravelSettings = createDefaultVideoTravelSettings();
+let mockShotSettingsOptions: { customLoadSave?: unknown; bootstrapData?: unknown } | undefined;
 
 vi.mock('../hooks/settings/useShotSettings', async () => {
   const ReactModule = await import('react');
-
   return {
-    useShotSettings: () => {
+    useShotSettings: (_shotId: string | null | undefined, _projectId: string | null | undefined, options?: { customLoadSave?: unknown; bootstrapData?: unknown }) => {
+      mockShotSettingsOptions = options;
       const [settings, setSettings] = ReactModule.useState<VideoTravelSettings>(mockInitialSettings);
 
       return {
@@ -37,6 +43,7 @@ vi.mock('../hooks/settings/useShotSettings', async () => {
           setSettings((current) => ({ ...current, [key]: value }));
         },
         updateFields: (updates: Partial<VideoTravelSettings>) => {
+          mockProviderUpdateFields(updates);
           setSettings((current) => ({ ...current, ...updates }));
         },
         applyShotSettings: vi.fn(),
@@ -92,6 +99,7 @@ function Consumer() {
   const frameSettings = useFrameSettings();
   const modelSettings = useModelSettings();
   const motionSettings = useMotionSettings();
+  const settingsStatus = useVideoTravelSettingsStatus();
 
   return (
     <div>
@@ -100,6 +108,7 @@ function Consumer() {
       <div data-testid="steps">{frameSettings.batchVideoSteps}</div>
       <div data-testid="guidance">{modelSettings.guidanceScale ?? 'none'}</div>
       <div data-testid="turbo">{String(motionSettings.turboMode)}</div>
+      <div data-testid="canonical-persistence">{String(settingsStatus.canonicalPersistence)}</div>
       <button type="button" onClick={() => frameSettings.setFrames(49)}>set-frames-49</button>
       <button type="button" onClick={() => frameSettings.setSteps(20)}>set-steps-20</button>
       <button type="button" onClick={() => modelSettings.setGuidanceScale(5)}>set-guidance-5</button>
@@ -111,6 +120,8 @@ function Consumer() {
 
 describe('VideoTravelSettingsProvider', () => {
   beforeEach(() => {
+    mockProviderUpdateFields.mockClear();
+    mockShotSettingsOptions = undefined;
     mockInitialSettings = {
       ...createDefaultVideoTravelSettings(),
       selectedModel: 'wan-2.2',
@@ -118,6 +129,61 @@ describe('VideoTravelSettingsProvider', () => {
       motionMode: 'advanced',
       advancedMode: true,
     };
+  });
+
+  it('does not bootstrap canonical settings from a stale selected-shot snapshot', () => {
+    const customPersistence = {
+      entityId: 'shot-1',
+      domainKey: 'canonical-shot-settings:test',
+      load: async () => null,
+      save: async () => {},
+    };
+    renderWithClient(
+      <VideoTravelSettingsProvider
+        projectId="project-1"
+        shotId="shot-1"
+        selectedShot={{ settings: { travel_between_images: { selectedModel: 'wan-2.2' } } } as never}
+        availableLoras={[]}
+        updateShotMode={vi.fn()}
+        shotSettingsPersistence={customPersistence}
+      >
+        <Consumer />
+      </VideoTravelSettingsProvider>,
+    );
+
+    expect(mockShotSettingsOptions?.customLoadSave).toBe(customPersistence);
+    expect(mockShotSettingsOptions?.bootstrapData).toBeUndefined();
+    expect(screen.getByTestId('canonical-persistence')).toHaveTextContent('true');
+  });
+
+  it('does not normalize and publish canonical settings during popup mount', () => {
+    mockInitialSettings = {
+      ...createDefaultVideoTravelSettings(),
+      batchVideoFrames: 9999,
+    };
+    const customPersistence = {
+      entityId: 'shot-1',
+      domainKey: 'canonical-settings-mount-noop',
+      load: async () => null,
+      save: vi.fn(async () => {}),
+    };
+
+    renderWithClient(
+      <VideoTravelSettingsProvider
+        projectId="project-1"
+        shotId="shot-1"
+        selectedShot={null}
+        availableLoras={[]}
+        updateShotMode={vi.fn()}
+        shotSettingsPersistence={customPersistence}
+      >
+        <Consumer />
+      </VideoTravelSettingsProvider>,
+    );
+
+    expect(mockProviderUpdateFields).not.toHaveBeenCalled();
+    expect(customPersistence.save).not.toHaveBeenCalled();
+    expect(screen.getByTestId('canonical-persistence')).toHaveTextContent('true');
   });
 
   it('stores and restores per-model substate while clearing LTX-incompatible toggles', () => {
@@ -159,6 +225,22 @@ describe('VideoTravelSettingsProvider', () => {
     expect(screen.getByTestId('frames')).toHaveTextContent('49');
     expect(screen.getByTestId('steps')).toHaveTextContent('20');
     expect(screen.getByTestId('guidance')).toHaveTextContent('5');
+  });
+
+  it('keeps canonical persistence disabled for the normal modal provider', () => {
+    renderWithClient(
+      <VideoTravelSettingsProvider
+        projectId="project-1"
+        shotId="shot-1"
+        selectedShot={null}
+        availableLoras={[]}
+        updateShotMode={vi.fn()}
+      >
+        <Consumer />
+      </VideoTravelSettingsProvider>,
+    );
+
+    expect(screen.getByTestId('canonical-persistence')).toHaveTextContent('false');
   });
 
   it('coerces invalid persisted selectedModel values before switching models', () => {

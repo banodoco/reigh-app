@@ -26,6 +26,7 @@ interface UseMotionControlPresetStateParams {
   onPhasePresetRemove: () => void;
   motionMode: 'basic' | 'advanced';
   settingsLoading?: boolean;
+  autoSelectDefaultPreset?: boolean;
   onMotionModeChange: (mode: 'basic' | 'advanced') => void;
 }
 
@@ -79,6 +80,7 @@ export function useMotionControlPresetState({
   onPhasePresetRemove,
   motionMode,
   settingsLoading,
+  autoSelectDefaultPreset = true,
   onMotionModeChange,
 }: UseMotionControlPresetStateParams) {
   const [isPresetModalOpen, setIsPresetModalOpen] = useState(false);
@@ -93,7 +95,9 @@ export function useMotionControlPresetState({
     [generationTypeMode],
   );
 
-  const isCustomConfig = !selectedPhasePresetId;
+  const displaySelectedPhasePresetId = selectedPhasePresetId
+    ?? (autoSelectDefaultPreset === false && motionMode === 'basic' ? builtinDefaultPreset.id : null);
+  const isCustomConfig = !displaySelectedPhasePresetId;
 
   const { data: additionalPresets } = useQuery({
     queryKey: presetQueryKeys.featured(featuredPresetIds),
@@ -163,6 +167,7 @@ export function useMotionControlPresetState({
     onPhasePresetSelect,
     settingsLoading,
     motionMode,
+    enabled: autoSelectDefaultPreset,
   });
 
   const openPresetModal = useCallback(() => {
@@ -200,6 +205,7 @@ export function useMotionControlPresetState({
     allPresets,
     builtinDefaultId,
     isCustomConfig,
+    displaySelectedPhasePresetId,
     isSelectedPresetKnown,
     handleSwitchToAdvanced,
     handleCustomClick,

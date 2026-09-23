@@ -25,6 +25,20 @@ export interface TimelineDraftRecord {
    */
   ownerId?: string;
   updatedAt: string;
+  baseHeadRevisionId?: string | null;
+  baseCanonicalGraph?: Record<string, unknown>;
+  draftIdentity?: string;
+  acknowledgementIdentity?: string;
+}
+
+export interface TimelineDraftRecoveryMetadata {
+  recoveryKey?: string;
+  /** Compare-and-delete owner for editor save acknowledgements. */
+  ownerId?: string;
+  baseHeadRevisionId?: string | null;
+  baseCanonicalGraph?: Record<string, unknown>;
+  draftIdentity?: string;
+  acknowledgementIdentity?: string;
 }
 
 function getIndexedDb(): IDBFactory {
@@ -55,24 +69,91 @@ function buildKey(timelineId: string): string {
   return timelineId;
 }
 
+function createDraftRecord(
+  timelineId: string,
+  draft: Record<string, unknown>,
+  baseVersion: number,
+  recoveryMetadata: TimelineDraftRecoveryMetadata,
+): TimelineDraftRecord {
+  return {
+    key: buildKey(recoveryMetadata.recoveryKey ?? timelineId),
+    timelineId,
+    draft,
+    baseVersion,
+    updatedAt: new Date().toISOString(),
+    ...(recoveryMetadata.ownerId === undefined ? {} : { ownerId: recoveryMetadata.ownerId }),
+    ...(recoveryMetadata.baseHeadRevisionId !== undefined
+      ? { baseHeadRevisionId: recoveryMetadata.baseHeadRevisionId }
+      : {}),
+    ...(recoveryMetadata.baseCanonicalGraph
+      ? { baseCanonicalGraph: recoveryMetadata.baseCanonicalGraph }
+      : {}),
+    ...(recoveryMetadata.draftIdentity ? { draftIdentity: recoveryMetadata.draftIdentity } : {}),
+    ...(recoveryMetadata.acknowledgementIdentity
+      ? { acknowledgementIdentity: recoveryMetadata.acknowledgementIdentity }
+      : {}),
+  };
+}
+
+export type TimelineDraftOwnershipConflictMerge = (
+  current: TimelineDraftRecord,
+  candidate: TimelineDraftRecord,
+) => TimelineDraftRecord;
+
+/**
+ * Atomically compare the durable owner and replace the record. A conflict
+ * merge, when supplied, runs inside the same read-write transaction, so a
+ * newer draft cannot arrive between the ownership read and the write.
+ */
+export async function saveTimelineDraftIfOwner(
+  timelineId: string,
+  draft: Record<string, unknown>,
+  baseVersion: number,
+  recoveryMetadata: TimelineDraftRecoveryMetadata,
+  expectedDraftIdentity: string | null,
+  mergeOnOwnershipConflict?: TimelineDraftOwnershipConflictMerge,
+): Promise<boolean> {
+  if (typeof indexedDB === 'undefined') {
+    return false;
+  }
+  const database = await openDatabase();
+  const candidate = createDraftRecord(timelineId, draft, baseVersion, recoveryMetadata);
+  const saved = await new Promise<boolean>((resolve, reject) => {
+    const transaction = database.transaction(DRAFT_STORE_NAME, 'readwrite');
+    const store = transaction.objectStore(DRAFT_STORE_NAME);
+    const request = store.get(buildKey(candidate.key));
+    let result = false;
+    request.addEventListener('success', () => {
+      const current = request.result as TimelineDraftRecord | undefined;
+      const ownsRecord = expectedDraftIdentity === null
+        ? current === undefined
+        : current?.draftIdentity === expectedDraftIdentity;
+      if (ownsRecord) {
+        store.put(candidate);
+        result = true;
+      } else if (current && mergeOnOwnershipConflict) {
+        store.put(mergeOnOwnershipConflict(current, candidate));
+      }
+    });
+    request.addEventListener('error', () => reject(request.error));
+    transaction.addEventListener('complete', () => resolve(result));
+    transaction.addEventListener('error', () => reject(transaction.error));
+  });
+  database.close();
+  return saved;
+}
+
 export async function saveTimelineDraft(
   timelineId: string,
   draft: Record<string, unknown>,
   baseVersion: number,
-  ownerId?: string,
+  recoveryMetadata: TimelineDraftRecoveryMetadata = {},
 ): Promise<void> {
   if (typeof indexedDB === 'undefined') {
     return;
   }
   const database = await openDatabase();
-  const record: TimelineDraftRecord = {
-    key: buildKey(timelineId),
-    timelineId,
-    draft,
-    baseVersion,
-    ...(ownerId === undefined ? {} : { ownerId }),
-    updatedAt: new Date().toISOString(),
-  };
+  const record = createDraftRecord(timelineId, draft, baseVersion, recoveryMetadata);
   await new Promise<void>((resolve, reject) => {
     const transaction = database.transaction(DRAFT_STORE_NAME, 'readwrite');
     transaction.objectStore(DRAFT_STORE_NAME).put(record);
@@ -122,4 +203,59 @@ export async function clearTimelineDraft(timelineId: string, expectedOwnerId?: s
     transaction.addEventListener('error', () => reject(transaction.error));
   });
   database.close();
+}
+
+/** Delete only the exact draft identity acknowledged by a completed save. */
+export async function clearTimelineDraftIfMatches(
+  recoveryKey: string,
+  acknowledgementIdentity: string,
+): Promise<boolean> {
+  if (typeof indexedDB === 'undefined') return false;
+  const database = await openDatabase();
+  const cleared = await new Promise<boolean>((resolve, reject) => {
+    const transaction = database.transaction(DRAFT_STORE_NAME, 'readwrite');
+    const store = transaction.objectStore(DRAFT_STORE_NAME);
+    const request = store.get(buildKey(recoveryKey));
+    let matched = false;
+    request.addEventListener('success', () => {
+      const current = request.result as TimelineDraftRecord | undefined;
+      if (current?.acknowledgementIdentity === acknowledgementIdentity) {
+        matched = true;
+        store.delete(buildKey(recoveryKey));
+      }
+    });
+    request.addEventListener('error', () => reject(request.error));
+    transaction.addEventListener('complete', () => resolve(matched));
+    transaction.addEventListener('error', () => reject(transaction.error));
+  });
+  database.close();
+  return cleared;
+}
+
+/** Clear only the recovery snapshot observed by an explicit reload/discard. */
+export async function clearTimelineDraftIfSnapshotMatches(
+  recoveryKey: string,
+  snapshot: Pick<TimelineDraftRecord, 'updatedAt' | 'draftIdentity'>,
+): Promise<boolean> {
+  if (typeof indexedDB === 'undefined') return false;
+  const database = await openDatabase();
+  const cleared = await new Promise<boolean>((resolve, reject) => {
+    const transaction = database.transaction(DRAFT_STORE_NAME, 'readwrite');
+    const store = transaction.objectStore(DRAFT_STORE_NAME);
+    const request = store.get(buildKey(recoveryKey));
+    let matched = false;
+    request.addEventListener('success', () => {
+      const current = request.result as TimelineDraftRecord | undefined;
+      if (current?.updatedAt === snapshot.updatedAt
+        && current.draftIdentity === snapshot.draftIdentity) {
+        matched = true;
+        store.delete(buildKey(recoveryKey));
+      }
+    });
+    request.addEventListener('error', () => reject(request.error));
+    transaction.addEventListener('complete', () => resolve(matched));
+    transaction.addEventListener('error', () => reject(transaction.error));
+  });
+  database.close();
+  return cleared;
 }

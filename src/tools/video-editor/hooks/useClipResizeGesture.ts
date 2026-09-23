@@ -70,6 +70,7 @@ interface UseClipResizeGestureLatest {
   pixelToTime: (pixel: number) => number;
   pixelsPerSecond: number;
   minDuration: number;
+  hardDurationSeconds?: number;
 }
 
 export interface UseClipResizeGestureArgs extends UseClipResizeGestureLatest {
@@ -100,6 +101,7 @@ export const useClipResizeGesture = ({
   pixelToTime,
   pixelsPerSecond,
   minDuration,
+  hardDurationSeconds,
 }: UseClipResizeGestureArgs): UseClipResizeGestureResult => {
   const storeData = useTimelineEditorDataSafe();
   const storeOps = useTimelineEditorOpsSafe();
@@ -138,6 +140,7 @@ export const useClipResizeGesture = ({
     pixelToTime,
     pixelsPerSecond,
     minDuration,
+    hardDurationSeconds,
   });
   latestRef.current = {
     gestureOwner: effectiveGestureOwner,
@@ -154,6 +157,7 @@ export const useClipResizeGesture = ({
     pixelToTime,
     pixelsPerSecond,
     minDuration,
+    hardDurationSeconds,
   };
 
   useEffect(() => {
@@ -248,6 +252,7 @@ export const useClipResizeGesture = ({
         clipId,
         edge,
         effectiveDataRef,
+        latestRef.current.hardDurationSeconds,
       );
       if (!resolved) {
         return;

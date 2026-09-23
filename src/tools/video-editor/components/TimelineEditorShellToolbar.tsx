@@ -1,4 +1,4 @@
-import type { Dispatch, MouseEvent as ReactMouseEvent, ReactNode, SetStateAction } from 'react';
+import type { Dispatch, PointerEvent as ReactPointerEvent, ReactNode, SetStateAction } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { GripHorizontal, History, Maximize2, Minimize2, Redo2, RefreshCw, Sparkles, Undo2, ZoomIn, ZoomOut } from 'lucide-react';
 import { Badge } from '@/shared/components/ui/badge.tsx';
@@ -41,7 +41,11 @@ export function TimelineEditorShellToolbar({
   touchChrome,
   condensed,
   toolbarModeSwitcher,
-  onDividerMouseDown,
+  onDividerPointerDown,
+  onDividerPointerMove,
+  onDividerPointerUp,
+  onDividerPointerCancel,
+  onDividerLostPointerCapture,
   isTimelineMaximized,
   setIsTimelineMaximized,
   onOpenElements,
@@ -51,7 +55,11 @@ export function TimelineEditorShellToolbar({
   touchChrome: boolean;
   condensed: boolean;
   toolbarModeSwitcher: ReactNode;
-  onDividerMouseDown: (event: ReactMouseEvent) => void;
+  onDividerPointerDown: (event: ReactPointerEvent<HTMLElement>) => void;
+  onDividerPointerMove: (event: ReactPointerEvent<HTMLElement>) => void;
+  onDividerPointerUp: (event: ReactPointerEvent<HTMLElement>) => void;
+  onDividerPointerCancel: (event: ReactPointerEvent<HTMLElement>) => void;
+  onDividerLostPointerCapture: (event: ReactPointerEvent<HTMLElement>) => void;
   isTimelineMaximized: boolean;
   setIsTimelineMaximized: Dispatch<SetStateAction<boolean>>;
   onOpenElements: () => void;
@@ -171,7 +179,7 @@ export function TimelineEditorShellToolbar({
   return (
     <div
       className={cn(
-        'flex min-w-0 max-w-full items-center justify-between gap-2 rounded-lg border border-border/70 bg-card/80 px-2 text-muted-foreground',
+        'relative flex min-w-0 max-w-full items-center justify-between gap-2 rounded-lg border border-border/70 bg-card/80 px-2 text-muted-foreground',
         touchChrome ? 'min-h-11 py-1' : 'h-7',
         condensed && 'h-auto flex-wrap',
         // The compact mode switcher rides in this row. It fits inline on tablet
@@ -198,11 +206,17 @@ export function TimelineEditorShellToolbar({
       </div>
       {toolbarModeSwitcher}
       {!condensed && (
-        <div
-          className="flex h-full flex-1 cursor-row-resize items-center justify-center"
-          onMouseDown={onDividerMouseDown}
-        >
-          <GripHorizontal className="h-4 w-4 text-border" />
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+          <div
+            className="pointer-events-auto flex h-full w-12 cursor-row-resize touch-none select-none items-center justify-center"
+            onPointerDown={onDividerPointerDown}
+            onPointerMove={onDividerPointerMove}
+            onPointerUp={onDividerPointerUp}
+            onPointerCancel={onDividerPointerCancel}
+            onLostPointerCapture={onDividerLostPointerCapture}
+          >
+            <GripHorizontal className="h-4 w-4 text-border" />
+          </div>
         </div>
       )}
       <div className="flex shrink-0 items-center gap-1">

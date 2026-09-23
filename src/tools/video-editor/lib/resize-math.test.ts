@@ -188,6 +188,30 @@ describe('applyClipEdgeMove', () => {
       { clipId: 'clip-c', start: 2.5, end: 3.5 },
     ]);
   });
+
+  it('keeps a grouped right-edge resize within the hard shot stop', () => {
+    const result = applyClipEdgeMove({
+      kind: 'group',
+      shotId: 'shot-1',
+      trackId: 'row-1',
+      draggedClipId: 'clip-b',
+      draggedIndex: 1,
+      groupClipIds: ['clip-a', 'clip-b', 'clip-c'],
+      groupChildrenSnapshot: [
+        { clipId: 'clip-a', start: 0, end: 1 },
+        { clipId: 'clip-b', start: 1, end: 2 },
+        { clipId: 'clip-c', start: 2, end: 3 },
+      ],
+      hardDurationSeconds: 3.25,
+    }, 'right', 2.8);
+
+    expect(result.wasClamped).toBe(true);
+    expect(result.updates).toEqual([
+      { clipId: 'clip-a', start: 0, end: 1 },
+      { clipId: 'clip-b', start: 1, end: 2.25 },
+      { clipId: 'clip-c', start: 2.25, end: 3.25 },
+    ]);
+  });
 });
 
 describe('snapBoundaryToSiblings', () => {

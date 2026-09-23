@@ -90,6 +90,8 @@ interface VideoTravelSettingsStatusValue {
   status: VideoTravelSettingsContextValue['status'];
   isDirty: boolean;
   isLoading: boolean;
+  /** True when this provider writes settings through the canonical shot document. */
+  canonicalPersistence: boolean;
   shotId: string | null;
   projectId: string | null;
   save: () => Promise<void>;
@@ -169,19 +171,13 @@ export const VideoTravelSettingsProvider: React.FC<VideoTravelSettingsProviderPr
   // fetch resolves instantly from cache instead of re-fetching the same DB row.
   useSeedSettingsCache(shotId, projectId, selectedShot);
 
-  // Core settings hook - manages state + persistence
-  const canonicalBootstrapSettings = useMemo(() => {
-    if (!shotSettingsPersistence || !selectedShot?.settings || typeof selectedShot.settings !== 'object') {
-      return null;
-    }
-    const raw = (selectedShot.settings as Record<string, unknown>)[TOOL_IDS.TRAVEL_BETWEEN_IMAGES];
-    return raw && typeof raw === 'object' && !Array.isArray(raw)
-      ? normalizeVideoTravelSettings(raw)
-      : null;
-  }, [selectedShot, shotSettingsPersistence]);
+  // Canonical settings are loaded from the prepared occurrence through the
+  // custom persistence port. Do not bootstrap from selectedShot.settings:
+  // that in-memory snapshot can lag the authoritative graph on popup remount,
+  // and the settings store would treat the async correction as local dirty
+  // state and publish it during mount.
   const shotSettings = useShotSettings(shotId, projectId, {
     customLoadSave: shotSettingsPersistence,
-    bootstrapData: canonicalBootstrapSettings,
   });
 
   console.log('[ModeDebug][SettingsProvider] shotId=%s status=%s generationMode=%s', shotId, shotSettings.status, shotSettings.settings?.generationMode ?? 'NOT SET');
@@ -259,6 +255,11 @@ export const VideoTravelSettingsProvider: React.FC<VideoTravelSettingsProviderPr
   }, []);
 
   useEffect(() => {
+    // Canonical document state must not be rewritten by popup initialization.
+    // Controls still render from the current settings/defaults; the next
+    // deliberate user update goes through the normal persistence path.
+    if (shotSettingsPersistence) return;
+
     const currentSettings = shotSettings.settings;
     const currentModel = coerceSelectedModel(currentSettings.selectedModel);
     const spec = getModelSpec(currentModel);
@@ -307,6 +308,7 @@ export const VideoTravelSettingsProvider: React.FC<VideoTravelSettingsProviderPr
     shotSettings.settings.smoothContinuations,
     shotSettings.settings.modelSettingsByModel,
     shotSettings.updateFields,
+    shotSettingsPersistence,
   ]);
 
   const setGuidanceScale = useCallback((guidanceScale: number) => {
@@ -336,6 +338,7 @@ export const VideoTravelSettingsProvider: React.FC<VideoTravelSettingsProviderPr
     status: shotSettings.status,
     isDirty: shotSettings.isDirty,
     isLoading: shotSettings.status === 'loading' || shotSettings.status === 'idle',
+    canonicalPersistence: Boolean(shotSettingsPersistence),
     shotId: shotSettings.shotId,
     projectId: projectId || null,
     updateField: shotSettings.updateField,
@@ -351,6 +354,7 @@ export const VideoTravelSettingsProvider: React.FC<VideoTravelSettingsProviderPr
     shotSettings.save,
     shotSettings.saveImmediate,
     projectId,
+    shotSettingsPersistence,
   ]);
 
   return (

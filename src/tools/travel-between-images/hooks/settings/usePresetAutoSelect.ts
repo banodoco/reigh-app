@@ -16,6 +16,8 @@ interface UsePresetAutoSelectParams {
   settingsLoading?: boolean;
   /** Current motion mode (basic or advanced) */
   motionMode: 'basic' | 'advanced';
+  /** Disable implicit selection when selection itself would mutate canonical data. */
+  enabled?: boolean;
 }
 
 /**
@@ -28,6 +30,7 @@ export function usePresetAutoSelect({
   onPhasePresetSelect,
   settingsLoading,
   motionMode,
+  enabled = true,
 }: UsePresetAutoSelectParams) {
   // Track if we've done initial auto-select
   const hasAutoSelectedRef = useRef(false);
@@ -55,6 +58,11 @@ export function usePresetAutoSelect({
       return;
     }
 
+    // Canonical shot settings treat selecting a preset as an explicit edit.
+    if (!enabled) {
+      return;
+    }
+
     // Initial auto-select: only if no preset selected and we haven't auto-selected yet
     if (!selectedPhasePresetId && !hasAutoSelectedRef.current) {
       hasAutoSelectedRef.current = true;
@@ -70,5 +78,6 @@ export function usePresetAutoSelect({
     onPhasePresetSelect,
     settingsLoading,
     motionMode,
+    enabled,
   ]);
 }

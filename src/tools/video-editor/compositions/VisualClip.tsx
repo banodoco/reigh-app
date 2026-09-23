@@ -593,7 +593,23 @@ export const VisualClipSequence: FC<VisualClipProps> = ({
   // Extend by transitionFrames so the clip isn't cut short when `from` is
   // pulled back for a transition-in, plus 1 overlap frame so the outgoing
   // clip stays mounted while the next clip's <Video> element loads.
-  const effectiveDuration = durationInFrames + transitionFrames + 1;
+  const canonicalTiming = clip.app?.canonicalTiming as
+    | { occurrenceStartMs?: unknown; occurrenceDurationMs?: unknown }
+    | undefined;
+  const canonicalEndMs = typeof canonicalTiming?.occurrenceStartMs === 'number'
+    && typeof canonicalTiming.occurrenceDurationMs === 'number'
+    ? canonicalTiming.occurrenceStartMs + canonicalTiming.occurrenceDurationMs
+    : undefined;
+  // Remotion renders Sequence frames in [from, from + durationInFrames).
+  // Transition-in pre-roll changes `from`, and the legacy overlap frame
+  // extends the visual past a canonical occurrence's excluded end. Canonical
+  // clips therefore end at the actual half-open boundary after expansion.
+  const effectiveDuration = canonicalEndMs === undefined
+    ? durationInFrames + transitionFrames + 1
+    : Math.max(0, Math.min(
+        durationInFrames + transitionFrames,
+        Math.ceil((canonicalEndMs / 1000) * fps) - from,
+      ));
 
   return (
     <Sequence

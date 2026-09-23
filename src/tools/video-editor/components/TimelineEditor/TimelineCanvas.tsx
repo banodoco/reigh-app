@@ -70,7 +70,6 @@ import {
 import {
   clampTimelineScaleWidth,
   computeTimelineExtent,
-  maxClipEndSeconds,
 } from '@/tools/video-editor/lib/timeline-scale.ts';
 import { createTimelineOverlayGeometry } from '@reigh/editor-sdk';
 import { createTimelineOverlayStores } from '@/tools/video-editor/lib/timeline-overlay-stores.ts';
@@ -185,6 +184,15 @@ export interface TimelineCanvasProps {
   canCreateShotFromSelection?: boolean;
   isCreatingShot?: boolean;
   selectedClipCount?: number;
+  /** Reactive drag state so floating cross-track ghosts cannot leave labels behind. */
+  isDragging?: boolean;
+  dragPreview?: {
+    clipIds: readonly string[];
+    start: number;
+    end: number;
+    trackId: string;
+    rejected: boolean;
+  } | null;
   /** Fixed output duration for an embedded shot timeline, in seconds. */
   durationLimitSeconds?: number;
   /** Start of the next shot relative to this shot, in seconds. */
@@ -375,6 +383,8 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
   canCreateShotFromSelection,
   isCreatingShot,
   selectedClipCount = 0,
+  isDragging,
+  dragPreview,
   durationLimitSeconds,
   hardDurationSeconds,
 }: TimelineCanvasProps, ref) {
@@ -511,6 +521,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
     pixelToTime,
     pixelsPerSecond,
     minDuration,
+    hardDurationSeconds,
   });
   const actionHeight = Math.max(12, rowHeight - ACTION_VERTICAL_MARGIN * 2);
   // Only the same visible lanes that DataLaneList mounts may affect viewport
@@ -532,7 +543,23 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
     [mountedDataLanes],
   );
   const scrollContentHeight = (rows.length + 1) * rowHeight + dataLanesHeight;
-  const maxClipEnd = useMemo(() => maxClipEndSeconds(rows), [rows]);
+  const maxClipEnd = useMemo(() => rows.reduce((currentMax, row) => row.actions.reduce(
+    (rowMax, action) => Math.max(rowMax, resizePreviewSnapshot[action.id]?.end ?? action.end),
+    currentMax,
+  ), 0), [resizePreviewSnapshot, rows]);
+  const proposedMaxClipEnd = useMemo(() => {
+    if (dragPreview) {
+      const draggedIds = new Set(dragPreview.clipIds);
+      const remainingEnd = rows.reduce((currentMax, row) => row.actions.reduce(
+        (rowMax, action) => draggedIds.has(action.id) ? rowMax : Math.max(rowMax, action.end),
+        currentMax,
+      ), 0);
+      return Math.max(remainingEnd, dragPreview.end);
+    }
+    // Resize previews already replace the rendered action end. Expose the
+    // same proposed boundary line while that transient snapshot is active.
+    return Object.keys(resizePreviewSnapshot).length > 0 ? maxClipEnd : undefined;
+  }, [dragPreview, maxClipEnd, resizePreviewSnapshot, rows]);
   const maxEnd = Math.max(maxClipEnd, maxDataLaneEnd);
   const dataLaneScaleCount = Math.ceil(
     maxDataLaneEnd / Math.max(scale, Number.EPSILON),
@@ -796,7 +823,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
       scheduleCenterClipInViewport(pendingClipId);
     }
   }, [rows, scheduleCenterClipInViewport]);
-  const hideShotGroups = dragSessionRef?.current !== null;
+  const hideShotGroups = isDragging ?? dragSessionRef?.current !== null;
   const showTouchShotGroupActions = deviceClass !== 'desktop';
   const openShotGroupMenu = useCallback((
     x: number,
@@ -1178,6 +1205,8 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
               durationSeconds={durationLimitSeconds}
               hardDurationSeconds={hardDurationSeconds}
               maxClipEndSeconds={maxClipEnd}
+              proposedMaxClipEndSeconds={proposedMaxClipEnd}
+              proposalRejected={Boolean(dragPreview?.rejected || resizeClampedActionId)}
               startLeft={startLeft}
               pixelsPerSecond={pixelsPerSecond}
               totalWidth={totalWidth}

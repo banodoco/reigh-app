@@ -45,6 +45,11 @@ import {
   LOCAL_BRIDGE_BASE_URL,
   useAstridBridgeDiscovery,
 } from '@/tools/video-editor/hooks/useAstridBridgeDiscovery.ts';
+import {
+  ASTRID_DEMO_BRIDGE_COMMAND,
+  ASTRID_LOCAL_RUNTIME_START_COMMAND,
+  REIGH_LOCAL_DEV_COMMAND,
+} from '@/shared/lib/localAstridRuntime.ts';
 import { RuntimeDataProvider } from '@/integrations/runtime/dataProvider.ts';
 import {
   RuntimeAuthenticationError,
@@ -87,11 +92,14 @@ type ProviderSelection = {
  */
 const TIMELINE_OVERLAY_CANARY_PARAM = 'timelineOverlayCanary';
 
+/** Keep the manual ACP lifecycle inspector out of normal editor chrome. */
+const ACP_DEBUG_PARAM = 'acpDebug';
+
 /**
  * Every page-level bridge read goes through the shared wire contract
  * (`bridgeContract.ts`) rather than a bare `as T` assertion, and every one of
  * them is bounded by the same transport deadline as the provider's requests —
- * a hung `astrid serve` must not park the entry screen forever.
+ * a hung local runtime must not park the entry screen forever.
  */
 async function fetchBridgeJson<Schema extends ZodType>(
   path: string,
@@ -364,6 +372,7 @@ export default function VideoEditorPage() {
   const runtimeProjectId = searchParams.get('runtimeProject');
   const runtimeTimelineId = searchParams.get('runtimeTimeline');
   const runtimeMode = searchParams.get('runtime') === '1';
+  const acpDebugEnabled = runtimeMode && searchParams.get(ACP_DEBUG_PARAM) === '1';
   const localProjectSlug = searchParams.get('localProject');
   const localTimelineId = searchParams.get('localTimeline');
   const mode: VideoEditorMode = runtimeMode
@@ -616,15 +625,15 @@ export default function VideoEditorPage() {
       <div className="min-w-0 flex-1">{selectors}</div>
     </div>
   ), [selectors]);
-  // Keep the existing Runtime identity selector and the host-owned ACP
-  // controls together on the canonical Runtime entry. The ACP connection is
-  // independent of Runtime storage and remains ephemeral in the browser tab.
+  // Keep the Runtime identity selector in the normal header. The chat owns its
+  // ACP lifecycle lazily; the manual controls are only a deliberate debug
+  // escape hatch because they create a separate, non-chat connection.
   const runtimeNavigationControls = useMemo(() => (
     <div className="flex min-w-0 flex-col gap-2 xl:flex-row xl:items-center">
       <div className="min-w-0 flex-1">{runtimeSelectors}</div>
-      <AstridAcpSessionControls enabled={mode === 'runtime'} />
+      <AstridAcpSessionControls enabled={acpDebugEnabled} />
     </div>
-  ), [mode, runtimeProjectId, runtimeTimelineId]);
+  ), [acpDebugEnabled, runtimeProjectId, runtimeTimelineId]);
 
   // Loaded editor chrome owns the project/timeline controls. Keep the shared
   // app header free of editor selectors so the same selector is not rendered
@@ -772,24 +781,29 @@ export default function VideoEditorPage() {
               ) : discovery.bridgeDown ? (
                 <Card className="w-full max-w-md">
                   <CardHeader>
-                    <CardTitle>Unable to reach the local bridge</CardTitle>
+                    <CardTitle>Unable to connect to the local Astrid workspace</CardTitle>
                     <CardDescription>
                       {discovery.healthQuery.error?.message ?? 'The Astrid bridge did not report healthy.'}
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
                     <p className="text-sm text-muted-foreground">
-                      Make sure Astrid is running locally:
+                      From the Reigh checkout, start the installed Astrid runtime:
                     </p>
                     <code className="mt-2 block rounded bg-muted px-2 py-1 text-xs">
-                      cd ../Astrid &amp;&amp; astrid serve --port 17333
+                      {ASTRID_LOCAL_RUNTIME_START_COMMAND}
                     </code>
                     <p className="mt-3 text-sm text-muted-foreground">
-                      No Astrid checkout? This repo ships a demo bridge that serves
-                      demo-project/demo-timeline:
+                      Then start Reigh with the discovered runtime connection:
                     </p>
                     <code className="mt-2 block rounded bg-muted px-2 py-1 text-xs">
-                      npm run dev:editor:bridge
+                      {REIGH_LOCAL_DEV_COMMAND}
+                    </code>
+                    <p className="mt-3 text-sm text-muted-foreground">
+                      For the bundled demo only:
+                    </p>
+                    <code className="mt-2 block rounded bg-muted px-2 py-1 text-xs">
+                      {ASTRID_DEMO_BRIDGE_COMMAND}
                     </code>
                   </CardContent>
                 </Card>

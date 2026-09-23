@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   useMotionSettings: vi.fn(),
   useModelSettings: vi.fn(),
   useSettingsSave: vi.fn(),
+  useVideoTravelSettingsStatus: vi.fn(),
   handleGenerationTypeModeChange: vi.fn(),
   handlePhaseConfigChange: vi.fn(),
   handlePhasePresetRemove: vi.fn(),
@@ -109,6 +110,7 @@ vi.mock('@/tools/travel-between-images/providers', () => ({
   useMotionSettings: (...args: unknown[]) => mocks.useMotionSettings(...args),
   useModelSettings: (...args: unknown[]) => mocks.useModelSettings(...args),
   useSettingsSave: (...args: unknown[]) => mocks.useSettingsSave(...args),
+  useVideoTravelSettingsStatus: (...args: unknown[]) => mocks.useVideoTravelSettingsStatus(...args),
 }));
 
 vi.mock('@/tools/travel-between-images/components/BatchSettingsForm', () => ({
@@ -126,6 +128,7 @@ vi.mock('@/shared/components/ImageGenerationForm/components', () => ({
 describe('VideoGenerationModalSections', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.useVideoTravelSettingsStatus.mockReturnValue({ canonicalPersistence: false });
     mocks.useVideoTravelSettingsHandlers.mockReturnValue({
       handleGenerationTypeModeChange: mocks.handleGenerationTypeModeChange,
       handlePhaseConfigChange: mocks.handlePhaseConfigChange,
@@ -238,7 +241,39 @@ describe('VideoGenerationModalSections', () => {
         mode: expect.objectContaining({
           guidanceKind: 'flow',
         }),
+        stateOverrides: expect.objectContaining({ suppressDefaultPresetAutoSelect: false }),
       }),
     );
+  });
+
+  it('passes canonical persistence mode through to MotionControl', () => {
+    mocks.useVideoTravelSettingsStatus.mockReturnValue({ canonicalPersistence: true });
+
+    render(
+      <VideoGenerationModalFormContent
+        settings={{ prompt: '', motionMode: 'basic' } as never}
+        updateField={vi.fn() as never}
+        projects={[]}
+        selectedProjectId={null}
+        selectedLoras={[]}
+        availableLoras={[]}
+        accelerated={false}
+        onAcceleratedChange={vi.fn()}
+        randomSeed={false}
+        onRandomSeedChange={vi.fn()}
+        imageCount={0}
+        hasStructureVideo={false}
+        validPresetId={undefined}
+        status="ready"
+        onOpenLoraModal={vi.fn()}
+        onRemoveLora={vi.fn()}
+        onLoraStrengthChange={vi.fn()}
+        onAddTriggerWord={vi.fn()}
+      />,
+    );
+
+    expect(mocks.motionControl).toHaveBeenCalledWith(expect.objectContaining({
+      stateOverrides: expect.objectContaining({ suppressDefaultPresetAutoSelect: true }),
+    }));
   });
 });

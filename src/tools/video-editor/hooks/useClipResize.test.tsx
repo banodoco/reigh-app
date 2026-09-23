@@ -241,6 +241,26 @@ function expectRowBounds(
 }
 
 describe('useClipResize — unified clip-edge commit path', () => {
+  it('adds the shot hard stop as a right-edge snap target', () => {
+    const data = makeData({
+      groupClipIds: [],
+      freeClips: [{ id: 'free', at: 1, hold: 1, trackId: 'V2' }],
+    });
+
+    const resolved = resolveClipEdgeResizeContext(
+      data.rows,
+      [],
+      {},
+      'V2',
+      'free',
+      'right',
+      { current: data },
+      4,
+    );
+
+    expect(resolved?.siblingTimes).toContain(4);
+  });
+
   it('commits free clip resize from unified updates', () => {
     const data = makeData({
       groupClipIds: ['a', 'b', 'c'],

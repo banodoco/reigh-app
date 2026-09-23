@@ -92,9 +92,9 @@ vi.mock('@/shared/contexts/ShotsContext', () => ({
   useShots: () => ({ shots: mocks.shots }),
 }));
 
-vi.mock('@/tools/video-editor/hooks/useShotGroups', () => ({
-  useShotGroups: () => [],
-}));
+vi.mock('@/tools/video-editor/hooks/useShotGroups', async (importOriginal) => (
+  importOriginal<typeof import('@/tools/video-editor/hooks/useShotGroups')>()
+));
 
 vi.mock('@/tools/video-editor/hooks/usePinnedShotGroups', () => ({
   usePinnedShotGroupViews: () => [],
@@ -140,6 +140,10 @@ vi.mock('@/tools/travel-between-images/components/VideoGenerationModal', () => (
   VideoGenerationModal: () => null,
 }));
 
+vi.mock('@/tools/travel-between-images/pages/LocalTimelineShotBrowser', () => ({
+  LocalTimelineShotBrowser: () => null,
+}));
+
 // ---------------------------------------------------------------------------
 // Store data fixture: a minimal but structurally valid TimelineData
 // ---------------------------------------------------------------------------
@@ -172,12 +176,12 @@ const timelineData: TimelineData = {
   stableSignature: 'stable-signature',
 };
 
-function createTestStore() {
+function createTestStore(data: TimelineData = timelineData) {
   const store = createTimelineStore();
   store.getState().syncSlices({
     data: {
-      data: timelineData,
-      resolvedConfig: timelineData.resolvedConfig,
+      data,
+      resolvedConfig: data.resolvedConfig,
       deviceClass: 'desktop' as const,
       inputModality: 'mouse' as const,
       interactionMode: 'browse' as const,
@@ -208,7 +212,7 @@ function createTestStore() {
       scale: 30,
       scaleWidth: 30,
       isLoading: false,
-      dataRef: { current: timelineData },
+      dataRef: { current: data },
       pendingOpsRef: { current: 0 },
       interactionStateRef: { current: null },
       coordinator: {
@@ -278,8 +282,8 @@ function createTestStore() {
   return store;
 }
 
-function renderEditor() {
-  const store = createTestStore();
+function renderEditor(options: { data?: TimelineData; runtime?: Record<string, unknown> } = {}) {
+  const store = createTestStore(options.data);
   const result = render(
     <TimelineStoreProvider store={store}>
       <VideoEditorRuntimeProvider value={{
@@ -287,6 +291,7 @@ function renderEditor() {
         timelineId: 'timeline-1',
         project: { projectId: 'project-1' },
         provider: {},
+        ...options.runtime,
       } as never}>
         <ReighTimelineEditor />
       </VideoEditorRuntimeProvider>
@@ -368,5 +373,54 @@ describe('ReighTimelineEditor empty-area shot creation', () => {
     });
     expect(mocks.navigateToShot).not.toHaveBeenCalled();
     expect(store.getState().ops.applyEdit).not.toHaveBeenCalled();
+  });
+});
+
+describe('ReighTimelineEditor canonical shot opening', () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('opens the existing shot popup for an ordinary-mode canonical occurrence double-click', () => {
+    const occurrenceId = 'occurrence-ordinary';
+    const clipId = occurrenceId;
+    const occurrence = {
+      projectId: 'project-1',
+      occurrenceId,
+      parentDocumentId: 'timeline-1',
+      shotId: 'shot-ordinary',
+      revisionId: 'revision-1',
+      ordinal: 0,
+      atMs: 0,
+      durationMs: 2000,
+      stableDeepLink: '/shots/shot-ordinary',
+      outputIdentity: 'output-1',
+      revision: {
+        internal_timeline_revision: {
+          revision_id: 'internal-1',
+          timeline: { tracks: [], clips: [{ id: 'child-1' }] },
+        },
+      },
+    };
+    const data: TimelineData = {
+      ...timelineData,
+      rows: [{ id: 'V1', actions: [{ id: clipId, start: 0, end: 2 }] }],
+      meta: { [clipId]: { asset: 'asset-1', track: 'V1', clipType: 'shot' } },
+    };
+    const { container } = renderEditor({
+      data,
+      runtime: {
+        userId: 'user-1',
+        shots: { canonicalOccurrences: [occurrence] },
+      },
+    });
+    const clip = container.querySelector(`[data-clip-id="${clipId}"]`);
+    expect(clip).toBeTruthy();
+
+    fireEvent.doubleClick(clip!);
+
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(screen.getByText('Edit shot-ordinary')).toBeInTheDocument();
+    expect(container.querySelector('[data-action-id="shot-group-label"]')).toBeNull();
   });
 });

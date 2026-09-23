@@ -105,4 +105,31 @@ describe('useMotionControlPresetState', () => {
     expect(result.current.builtinDefaultId).toBe(BUILTIN_DEFAULT_VACE_ID);
     expect(result.current.isSelectedPresetKnown).toBe(false);
   });
+
+  it('keeps the built-in default visually selected without persisting it on canonical mount', () => {
+    const onPhasePresetSelect = vi.fn();
+    const { result } = renderHook(() => useMotionControlPresetState({
+      generationTypeMode: 'i2v',
+      featuredPresetIds: [],
+      selectedPhasePresetId: null,
+      onPhasePresetSelect,
+      onPhasePresetRemove: vi.fn(),
+      motionMode: 'basic',
+      settingsLoading: false,
+      autoSelectDefaultPreset: false,
+      onMotionModeChange: vi.fn(),
+    }));
+
+    expect(result.current.displaySelectedPhasePresetId).toBe(BUILTIN_DEFAULT_I2V_ID);
+    expect(result.current.isCustomConfig).toBe(false);
+    expect(mocks.usePresetAutoSelect).toHaveBeenCalledWith(expect.objectContaining({ enabled: false }));
+    expect(onPhasePresetSelect).not.toHaveBeenCalled();
+
+    act(() => result.current.handlePresetSelect(result.current.allPresets[0]));
+    expect(onPhasePresetSelect).toHaveBeenCalledWith(
+      BUILTIN_DEFAULT_I2V_ID,
+      result.current.allPresets[0].metadata.phaseConfig,
+      result.current.allPresets[0].metadata,
+    );
+  });
 });

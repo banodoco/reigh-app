@@ -109,6 +109,7 @@ vi.mock('@/tools/video-editor/hooks/useShotGroups.ts', () => ({
     variantIdsByGenerationId: { 'gen-a': 'variant-current' },
     ...(mocks.canonicalMode ? { canonicalIdentity: mocks.canonicalOccurrence } : {}),
   }],
+  projectCanonicalShotRows: (rows: unknown[]) => rows,
 }));
 vi.mock('@/tools/video-editor/hooks/useActiveTaskClips.ts', () => ({ useActiveTaskClips: () => ({ activeTaskAssetKeys: new Set() }) }));
 vi.mock('@/tools/video-editor/hooks/useFinalVideoAvailable.ts', () => ({
@@ -155,13 +156,33 @@ vi.mock('@/tools/video-editor/components/TimelineEditor/TimelineEditorCore.tsx',
 }));
 vi.mock('@/tools/video-editor/lib/generation-utils.ts', () => ({ duplicateGenerationAsset: vi.fn() }));
 vi.mock('@/tools/travel-between-images/components/VideoGenerationModal.tsx', () => ({ VideoGenerationModal: () => null }));
+vi.mock('@/tools/travel-between-images/pages/LocalTimelineShotBrowser.tsx', () => ({
+  LocalTimelineShotBrowser: (props: { shotRef?: string; onClose?: () => void }) => (
+    <div data-testid="canonical-shot-editor">
+      <output>{props.shotRef}</output>
+      <button type="button" onClick={props.onClose}>Close canonical shot editor</button>
+    </div>
+  ),
+}));
 
-import { ReighTimelineEditor } from './ReighTimelineEditor.tsx';
+import {
+  ReighTimelineEditor,
+  shouldKeepPublishedCanonicalCompositionOverride,
+} from './ReighTimelineEditor.tsx';
 
 describe('ReighTimelineEditor document-derived shot consumer', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.canonicalMode = false;
+  });
+
+  it('holds a just-published graph only while the host still reports a known pre-publish head', () => {
+    const staleHeads = ['host-before-save', 'expected-head'];
+    expect(shouldKeepPublishedCanonicalCompositionOverride('published-head', staleHeads, 'host-before-save')).toBe(true);
+    expect(shouldKeepPublishedCanonicalCompositionOverride('published-head', staleHeads, 'expected-head')).toBe(true);
+    expect(shouldKeepPublishedCanonicalCompositionOverride('published-head', staleHeads, 'published-head')).toBe(false);
+    expect(shouldKeepPublishedCanonicalCompositionOverride('published-head', staleHeads, 'later-head')).toBe(false);
+    expect(shouldKeepPublishedCanonicalCompositionOverride('published-head', staleHeads, null)).toBe(true);
   });
 
   it('targets the active timeline/version, refreshes, and leaves relational shot actions dormant', async () => {
@@ -189,14 +210,19 @@ describe('ReighTimelineEditor document-derived shot consumer', () => {
     expect(mocks.createShot).not.toHaveBeenCalled();
   });
 
-  it('navigates to a canonical shot without reloading the document', () => {
+  it('opens a canonical shot editor overlay without reloading the document', () => {
     mocks.canonicalMode = true;
     render(<ReighTimelineEditor />);
 
     fireEvent.click(screen.getByText('Open canonical document shot'));
 
-    expect(mocks.navigate).toHaveBeenCalledWith(
-      '/tools/travel-between-images?localProject=astrid-project&localTimeline=timeline-1#project%2Fproject-001%2Fdocument%2Ftimeline-1%2Fshot%2Fshot-1%2Frevision%2Frev-1%2Foccurrence%2Focc-1',
-    );
+    expect(screen.getByTestId('canonical-shot-editor')).toBeInTheDocument();
+    expect(screen.getByTestId('canonical-shot-editor')).toHaveTextContent(mocks.canonicalOccurrence.stableDeepLink);
+    expect(mocks.navigate).not.toHaveBeenCalled();
+
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toHaveClass('max-w-4xl');
+    fireEvent.keyDown(dialog, { key: 'Escape' });
+    expect(screen.queryByTestId('canonical-shot-editor')).not.toBeInTheDocument();
   });
 });

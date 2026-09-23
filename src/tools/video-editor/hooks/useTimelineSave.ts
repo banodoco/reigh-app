@@ -95,7 +95,9 @@ export function useTimelineSave(
     updatedAt: string;
     baseVersion: number;
   } | null>(null);
+  const [recoveredAsDirty, setRecoveredAsDirty] = useState(false);
   const recoveryOfferedRef = useRef(false);
+  const recoveryKey = provider.getTimelineDraftRecoveryMetadata?.().recoveryKey ?? timelineId;
 
   useEffect(() => {
     if (recoveryOfferedRef.current || !commit.data) {
@@ -105,7 +107,7 @@ export function useTimelineSave(
     let cancelled = false;
     // Best-effort: IndexedDB unavailable (private mode) or a corrupt store
     // simply means no recovery offer; never an unhandled rejection.
-    void loadTimelineDraft(timelineId)
+    void loadTimelineDraft(recoveryKey)
       .then((record) => {
         if (cancelled || !record) {
           return;
@@ -121,10 +123,20 @@ export function useTimelineSave(
           && getStableConfigSignature(draft.config, draft.registry ?? { assets: {} })
             === loadedData.stableSignature
         ) {
-          void clearTimelineDraft(timelineId).catch(() => {});
+          if (recoveryKey === timelineId) {
+            void clearTimelineDraft(recoveryKey).catch(() => {});
+            return;
+          }
+          // Some providers hydrate this stable occurrence slot directly into
+          // the visible editor. It is still an unacknowledged draft and must
+          // remain retryable even though its signature matches the loaded data.
+          setRecoveredAsDirty(true);
+          recoveryOfferedRef.current = true;
+          setRecoveryDraft({ updatedAt: record.updatedAt, baseVersion: record.baseVersion });
           return;
         }
         recoveryOfferedRef.current = true;
+        setRecoveredAsDirty(recoveryKey !== timelineId);
         setRecoveryDraft({ updatedAt: record.updatedAt, baseVersion: record.baseVersion });
       })
       .catch(() => {
@@ -133,23 +145,33 @@ export function useTimelineSave(
     return () => {
       cancelled = true;
     };
-  }, [commit.data, timelineId]);
+  }, [commit.data, recoveryKey, timelineId]);
+  useEffect(() => {
+    return eventBusRef.current.on('saveSuccess', () => {
+      // Retry stays visible until the durable acknowledgement, not merely
+      // until the save request is queued.
+      setRecoveryDraft(null);
+      setRecoveredAsDirty(false);
+    });
+  }, []);
 
   const retryRecoveredDraft = useCallback(async () => {
     let record: Awaited<ReturnType<typeof loadTimelineDraft>>;
     try {
-      record = await loadTimelineDraft(timelineId);
+      record = await loadTimelineDraft(recoveryKey);
     } catch {
       setRecoveryDraft(null);
       return;
     }
     if (!record) {
       setRecoveryDraft(null);
+      setRecoveredAsDirty(false);
       return;
     }
     const draft = record.draft as { config?: TimelineConfig; registry?: AssetRegistry };
     if (!draft.config || !commit.data) {
       setRecoveryDraft(null);
+      setRecoveredAsDirty(false);
       return;
     }
     const recovered = await buildTimelineData(
@@ -162,21 +184,32 @@ export function useTimelineSave(
     // polled version here would turn a stale recovery into an unconditional
     // overwrite instead of an honest CAS conflict.
     configVersionRef.current = record.baseVersion;
-    // Keep the slot until the retry receives a durable ACK. A 409 or
-    // transport failure must leave the recovered work available for another
-    // reload/recovery attempt.
-    setRecoveryDraft(null);
+    // Keep the slot and visible recovery controls until a durable ACK. A 409
+    // or transport failure must leave the recovered work retryable.
+    setRecoveredAsDirty(true);
     commit.commitData(recovered, { save: true });
-  }, [commit, configVersionRef, provider, resolveAssetUrl, timelineId]);
+  }, [commit, configVersionRef, provider, recoveryKey, resolveAssetUrl]);
 
+  const reloadFromServer = useCallback(async (options?: { clearDraft?: boolean; preserveDraft?: boolean }) => {
+    await persistence.reloadFromServer(options);
+    const shouldClearRecovery = options?.clearDraft ?? !options?.preserveDraft;
+    if (shouldClearRecovery) {
+      setRecoveryDraft(null);
+      setRecoveredAsDirty(false);
+    }
+  }, [persistence.reloadFromServer]);
   const discardRecoveredDraft = useCallback(async () => {
     try {
-      await clearTimelineDraft(timelineId);
+      // Reload first. The persistence path clears the slot only after it has
+      // built and committed fresh canonical data, so discarded content cannot
+      // remain visible while the editor reports saved.
+      await reloadFromServer({ clearDraft: true });
     } catch {
-      // Best-effort; the offer disappears either way.
+      return;
     }
     setRecoveryDraft(null);
-  }, [timelineId]);
+    setRecoveredAsDirty(false);
+  }, [reloadFromServer]);
 
   return {
     data: commit.data,
@@ -184,7 +217,7 @@ export function useTimelineSave(
     isConflictExhausted: persistence.isConflictExhausted,
     selectedClipId: commit.selectedClipId,
     selectedTrackId: commit.selectedTrackId,
-    saveStatus: persistence.saveStatus,
+    saveStatus: recoveredAsDirty && persistence.saveStatus === 'saved' ? 'dirty' : persistence.saveStatus,
     schemaIncompatible: persistence.schemaIncompatible,
     flushPendingSave: persistence.flushPendingSave,
     setSelectedTrackId: commit.setSelectedTrackId,
@@ -193,7 +226,7 @@ export function useTimelineSave(
     unpatchRegistry: commit.unpatchRegistry,
     commitData: commit.commitData,
     eventBus: eventBusRef.current,
-    reloadFromServer: persistence.reloadFromServer,
+    reloadFromServer,
     retrySaveAfterConflict: persistence.retrySaveAfterConflict,
     editSeqRef: commit.editSeqRef,
     pendingOpsRef: commit.pendingOpsRef,

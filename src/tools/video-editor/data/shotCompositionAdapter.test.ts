@@ -52,6 +52,33 @@ describe('shot-composition product adapter', () => {
     }));
   });
 
+  it('resolves an explicitly requested immutable head and exposes the publication receipt', async () => {
+    const loadAtHead = vi.fn().mockResolvedValue({
+      ...fixture,
+      publication_receipt: {
+        receipt_id: 'receipt-1',
+        idempotency_key: 'retry-1',
+        expected_head: 'timeline-rev-1',
+        new_head: 'timeline-rev-2',
+        changed_identities: ['shot-revision-2'],
+        diff: { changed: ['occ-1'] },
+      },
+    });
+    const adapter = createShotCompositionAdapter({ load: vi.fn(), loadAtHead });
+    const composition = await adapter.loadAtHead!({
+      projectId: 'project-001',
+      parentDocumentId: 'document-primary',
+      headRevisionId: 'timeline-rev-2',
+    });
+    expect(loadAtHead).toHaveBeenCalledWith(expect.objectContaining({ headRevisionId: 'timeline-rev-2' }));
+    expect(composition.headRevisionId).toBe('timeline-rev-2');
+    expect(composition.publicationReceipt).toMatchObject({
+      newHead: 'timeline-rev-2',
+      idempotencyKey: 'retry-1',
+      changedIdentities: ['shot-revision-2'],
+    });
+  });
+
   it('rejects a submitted graph whose project or timeline identity does not match the request', async () => {
     const publish = vi.fn();
     const graph = JSON.parse(JSON.stringify(fixture)) as Record<string, any>;

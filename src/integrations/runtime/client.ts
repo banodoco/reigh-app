@@ -182,12 +182,13 @@ export class ReighRuntimeClient {
     projectId: string,
     timelineId: string,
     publication: Record<string, unknown>,
+    idempotencyKeyValue?: string,
   ): Promise<MutationResult<Record<string, unknown>>> {
     return this.withSession(() => this.client.publishParentComposition(
       projectId,
       timelineId,
       publication,
-      idempotencyKey(),
+      idempotencyKeyValue ?? idempotencyKey(),
     ));
   }
 

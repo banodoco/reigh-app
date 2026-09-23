@@ -62,4 +62,31 @@ describe('canonical local timeline shot model', () => {
       parentDocumentId: 'document-primary',
     })).rejects.toThrow(/dependency revision is missing/);
   });
+
+  it('projects editor-form asset and hold fields into nested shot images', async () => {
+    const editorForm = JSON.parse(JSON.stringify(fixture)) as typeof fixture;
+    const revision = editorForm.shot_revisions.find((candidate) => candidate.shot_id === 'shot-alpha' && candidate.revision_id === 'rev-a');
+    if (!revision) throw new Error('fixture alpha revision is missing');
+    const timeline = revision.internal_timeline_revision.timeline;
+    const clip = timeline.clips[0] as Record<string, unknown>;
+    delete clip.asset_id;
+    clip.asset = 'beta-image';
+    clip.at = 0.25;
+    clip.hold = 1.5;
+    delete clip.at_ms;
+    delete clip.duration_ms;
+
+    const composition = await createShotCompositionAdapter({ load: async () => editorForm }).load({
+      projectId: 'project-001',
+      parentDocumentId: 'document-primary',
+    });
+    const models = selectCanonicalShotModels(composition, registry, 'demo');
+
+    expect(models[0]?.images).toHaveLength(1);
+    expect(models[0]?.images[0]).toMatchObject({
+      generation_id: 'object-beta-image',
+      timeline_frame: 8,
+      metadata: { clipId: 'alpha-video' },
+    });
+  });
 });

@@ -77,6 +77,21 @@ describe('pointer anchoring', () => {
 });
 
 describe('shot duration boundary', () => {
+  it('snaps a clip end to the hard stop when the pointer is within the snap threshold', () => {
+    const plan = planClipDrag(defaults({
+      pointerTime: 2.6,
+      clipDuration: 2,
+      rows: [makeRow('V1', [])],
+      editability: createTimelineEditability({ hardDurationSeconds: 4 }),
+    }));
+
+    expect(plan.valid).toBe(true);
+    expect(plan.resolvedStart).toBe(2);
+    expect(plan.resolvedStart + 2).toBe(4);
+    expect(plan.snapped).toBe(true);
+    expect(plan.snapEdgeType).toBe('hard-duration-end');
+  });
+
   it('rejects a move crossing the hard stop and previews it at the last valid start', () => {
     const plan = planClipDrag(defaults({
       pointerTime: 3,

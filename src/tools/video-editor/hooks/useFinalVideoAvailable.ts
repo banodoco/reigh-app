@@ -230,7 +230,16 @@ export function useFinalVideoAvailable() {
     [runtimeTasks.data],
   );
   const runtimeFinalVideos = useQuery<Map<string, ShotFinalVideo>, Error>({
-    queryKey: ['runtime-final-videos', runtimeBaseUrl ?? RUNTIME_BASE_URL, projectSlug ?? '__no-project__', runtimeTaskFingerprint],
+    // Canonical output ownership is pinned to the same immutable parent head
+    // as the editor/player graph. A head advance must invalidate this cache
+    // even when the underlying render-task list is unchanged.
+    queryKey: [
+      'runtime-final-videos',
+      runtimeBaseUrl ?? RUNTIME_BASE_URL,
+      projectSlug ?? '__no-project__',
+      canonicalComposition?.headRevisionId ?? '__no-canonical-head__',
+      runtimeTaskFingerprint,
+    ],
     queryFn: () => readRuntimeFinalVideos(runtimeClient, projectSlug!, runtimeTasks.data, canonicalComposition),
     enabled: isRuntimeMode && Boolean(projectSlug) && runtimeTasks.data !== undefined,
     staleTime: 0,

@@ -8,15 +8,23 @@ import {
   isTimelineNotFoundError,
   isTimelineSchemaIncompatibleError,
   isTimelineVersionConflictError,
+  TimelineVersionConflictError,
   type DataProvider,
   type TimelineSchemaIssue,
 } from '@/tools/video-editor/data/DataProvider.ts';
+import { StaleWriteError } from '@/tools/video-editor/data/shotComposition.ts';
 import { buildTimelineData, buildTimelineDataWithResolver, type TimelineData } from '@/tools/video-editor/lib/timeline-data.ts';
 import { getStableConfigSignature } from '@/tools/video-editor/lib/config-utils.ts';
 import type { AssetResolver } from '@/tools/video-editor/data/AssetResolver.ts';
 import { BRIDGE_REQUEST_TIMEOUT_MS } from '@/tools/video-editor/data/bridgeContract.ts';
 import { invalidateReferencedTimelineCache } from '@/tools/video-editor/compositions/TimelineRenderer.tsx';
-import { clearTimelineDraft, saveTimelineDraft } from '@/tools/video-editor/data/timelineDraftIndexedDb.ts';
+import {
+  clearTimelineDraft,
+  clearTimelineDraftIfSnapshotMatches,
+  loadTimelineDraft,
+  saveTimelineDraft,
+} from '@/tools/video-editor/data/timelineDraftIndexedDb.ts';
+import { recordShotTimelinePhase } from '@/tools/video-editor/lib/shot-timeline-timing.ts';
 import { canonicalJsonStringify, type TimelineBundleEnvelope } from '@/tools/video-editor/data/typed/timelineBundle.ts';
 import type { AssetRegistry, TimelineConfig } from '@/tools/video-editor/types/index.ts';
 import type { CommitDataOptions, ScheduleSaveFn } from '@/tools/video-editor/hooks/useTimelineCommit.ts';
@@ -26,6 +34,12 @@ export type SaveStatus = 'saved' | 'saving' | 'dirty' | 'retrying' | 'error';
 
 const TIMELINE_SYNC_LOG_TAG = '[TimelineSync]';
 const SAVE_DEBOUNCE_MS = 500;
+let shotTimelineTraceSequence = 0;
+
+function createShotTimelineTraceId(timelineId: string): string {
+  shotTimelineTraceSequence += 1;
+  return `${timelineId}:${shotTimelineTraceSequence}`;
+}
 /**
  * Backoff for the *transport* retry (a 500, a dropped connection — anything that
  * is neither a version conflict nor a missing timeline). It must be a real timer:
@@ -81,7 +95,9 @@ interface ScheduledSave {
   data: TimelineData;
   seq: number;
   draftOwnerId: string;
+  draftRecoveryKey: string;
   draftWrite: Promise<void>;
+  traceId: string;
   /** Complete document value used for recovery/draft comparison. */
   effectiveBundle: TimelineBundleEnvelope | null;
   /** Provider wire semantics: undefined preserves an already stored bundle. */
@@ -162,6 +178,11 @@ export function useTimelinePersistence({
   const deferredSaveRef = useRef<{ save: ScheduledSave; preserveStatus?: boolean } | null>(null);
   const latestScheduledSaveRef = useRef<ScheduledSave | null>(null);
   const isSavingRef = useRef(false);
+  const reloadInProgressRef = useRef(false);
+  const reloadCancelledRef = useRef(false);
+  const reloadPromiseRef = useRef<Promise<void> | null>(null);
+  const deferredDuringReloadRef = useRef<{ save: ScheduledSave; preserveStatus?: boolean } | null>(null);
+  const saveDrainWaitersRef = useRef<Array<() => void>>([]);
   /**
    * The bundle carried by the most recent server reload (`reloadFromServer`).
    * [V2-B4 handoff] the assembly authority supersedes this ref as the
@@ -237,15 +258,18 @@ export function useTimelinePersistence({
       bundle,
       attemptProvider,
       attemptTimelineId,
+      traceId,
     }: {
       config: TimelineConfig;
       expectedVersion: number;
       registry?: AssetRegistry;
+      traceId: string;
       /** `undefined` keeps the stored bundle; `null` clears it. */
       bundle?: TimelineBundleEnvelope | null;
       attemptProvider: DataProvider;
       attemptTimelineId: string;
     }) => {
+      attemptProvider.setShotTimelineTraceId?.(traceId);
       const saved = attemptProvider.saveTimeline(attemptTimelineId, config, expectedVersion, registry, bundle);
       // Drop any cached resolved preview of THIS timeline used by a parent
       // composition's shot clips, so the next boundary crossing reloads the
@@ -346,13 +370,33 @@ export function useTimelinePersistence({
     errorRetryRef.current = 0;
   }, [cancelErrorRetryTimer]);
 
+  const waitForRecoveryDraftWrites = useCallback(async () => {
+    let observed: Promise<void>;
+    do {
+      observed = draftWriteChainRef.current;
+      await observed.catch(() => {});
+    } while (observed !== draftWriteChainRef.current);
+  }, []);
+
+  const waitForSaveDrain = useCallback(() => {
+    if (!isSavingRef.current && !pendingSaveRef.current) return Promise.resolve();
+    return new Promise<void>((resolve) => saveDrainWaitersRef.current.push(resolve));
+  }, []);
+
+  const resolveSaveDrainWaiters = useCallback(() => {
+    if (isSavingRef.current || pendingSaveRef.current) return;
+    const waiters = saveDrainWaitersRef.current;
+    saveDrainWaitersRef.current = [];
+    waiters.forEach((resolve) => resolve());
+  }, []);
+
   /**
    * Re-attempt a save that failed for transport reasons, on an exponential
    * backoff, from a timer this hook owns and cancels on unmount. Unbounded in
    * attempts (the edit must eventually land) but bounded in rate.
    */
   const scheduleErrorRetry = useCallback((attemptToRetry: SaveAttempt) => {
-    if (!isMountedRef.current) {
+    if (!isMountedRef.current || reloadInProgressRef.current) {
       return;
     }
     if (isConflictExhaustedRef.current || isSchemaIncompatibleRef.current) {
@@ -370,7 +414,7 @@ export function useTimelinePersistence({
 
     errorRetryTimer.current = setTimeout(() => {
       errorRetryTimer.current = null;
-      if (!isMountedRef.current) {
+      if (!isMountedRef.current || reloadInProgressRef.current) {
         return;
       }
       if (isConflictExhaustedRef.current || isSchemaIncompatibleRef.current) {
@@ -435,6 +479,7 @@ export function useTimelinePersistence({
       bypassQueue?: boolean;
       completedSeqRef?: { current: number | null };
       attemptKind?: 'initial' | 'transport-retry';
+      traceId?: string;
     },
   ) => {
     if (isSavingRef.current && !options?.bypassQueue) {
@@ -472,6 +517,7 @@ export function useTimelinePersistence({
           bundle: attempt.wireBundle,
           attemptProvider: attempt.provider,
           attemptTimelineId: attempt.timelineId,
+          traceId: attempt.traceId,
         },
         {
           onSuccess: (nextVersion) => {
@@ -493,6 +539,7 @@ export function useTimelinePersistence({
               );
             }
             logConfigVersionUpdate('save', nextVersion);
+            recordShotTimelinePhase(attempt.traceId, 'editor-ack', { version: nextVersion });
             configVersionRef.current = nextVersion;
             // Advance the canonical version channel OUTSIDE the data object:
             // a receipt-only ack must NOT commit a new data object (that
@@ -518,32 +565,38 @@ export function useTimelinePersistence({
             // sole write-ack watchdog while a newer edit is still unsaved.
             // The queued newer save drains right after and emits its own
             // saveSuccess when it lands.
-            if (attempt.seq >= editSeqRef.current) {
+            if (attempt.seq >= editSeqRef.current && !reloadInProgressRef.current) {
               eventBus.emit('saveSuccess');
               // The recovery slot is cleared only by a durable receipt that
               // covers the current edit. An older ACK must leave the newer
               // mutation's draft intact. IndexedDB is best-effort (private
               // mode/quota failures must never become unhandled rejections).
               void attempt.draftWrite
-                .then(() => clearTimelineDraft(attempt.timelineId, attempt.draftOwnerId))
+                .then(() => clearTimelineDraft(attempt.draftRecoveryKey, attempt.draftOwnerId))
                 .catch(() => {});
             }
           },
         },
       );
     } catch (error) {
-      if (isTimelineNotFoundError(error)) {
+      // Canonical composition writes use a typed stale-head error, while the
+      // editor persistence state is deliberately transport-agnostic. Translate
+      // it once into the terminal CAS-diverged error path; never retry/rebase.
+      const persistenceError = error instanceof StaleWriteError
+        ? new TimelineVersionConflictError(error.message)
+        : error;
+      if (isTimelineNotFoundError(persistenceError)) {
         console.log('[TimelineSave] timeline not found, cannot save');
         handleConflictExhausted({
           expectedVersion: configVersionRef.current,
           retries: 0,
           reason: 'missing_local_data',
         });
-        rejectFlushWaiters(error);
+        rejectFlushWaiters(persistenceError);
         return;
       }
 
-      if (isTimelineVersionConflictError(error)) {
+      if (isTimelineVersionConflictError(persistenceError)) {
         if (options?.attemptKind === 'transport-retry') {
           const reconciliation = await inspectLostAck(attempt);
           console.log('[TimelineSave] retry conflict reconciliation', {
@@ -563,7 +616,7 @@ export function useTimelinePersistence({
           retries: 0,
           reason: 'max_retries',
         });
-        rejectFlushWaiters(error);
+        rejectFlushWaiters(persistenceError);
         return;
       }
 
@@ -579,7 +632,7 @@ export function useTimelinePersistence({
 
       rejectFlushWaiters(error);
 
-      if (attempt.data) {
+      if (attempt.data && !reloadInProgressRef.current) {
         // Recoverable transport failure (timeout, 5xx, dropped connection):
         // the retry backoff owns recovery, so this is not a destructive
         // error — the user sees a neutral `retrying` badge while the backend
@@ -598,11 +651,14 @@ export function useTimelinePersistence({
         if (pendingSave && !retryScheduled) {
           pendingSaveRef.current = null;
           if (completedSeqRef.current === null || pendingSave.seq > completedSeqRef.current) {
-            if (!isConflictExhaustedRef.current && !isSchemaIncompatibleRef.current) {
+            if (!reloadInProgressRef.current
+              && !isConflictExhaustedRef.current
+              && !isSchemaIncompatibleRef.current) {
               void doSave(pendingSave);
             }
           }
         }
+        resolveSaveDrainWaiters();
       }
     }
   }, [
@@ -621,6 +677,7 @@ export function useTimelinePersistence({
     inspectLostAck,
     provider,
     timelineId,
+    resolveSaveDrainWaiters,
   ]);
 
   // `scheduleErrorRetry` fires `doSave` from a timer, and `doSave` schedules the
@@ -629,7 +686,10 @@ export function useTimelinePersistence({
 
   const createScheduledSave = useCallback((nextData: TimelineData, seq: number): ScheduledSave => {
     const draftOwnerId = generateUUID();
+    const recoveryMetadata = provider.getTimelineDraftRecoveryMetadata?.() ?? {};
+    const draftRecoveryKey = recoveryMetadata.recoveryKey ?? timelineId;
     const draftBaseVersion = configVersionRef.current;
+    const traceId = createShotTimelineTraceId(timelineId);
     const wireBundle = loadedBundleRef.current === null
       ? undefined
       : cloneAttemptValue(loadedBundleRef.current);
@@ -652,7 +712,11 @@ export function useTimelinePersistence({
         timelineId,
         draft,
         draftBaseVersion,
-        draftOwnerId,
+        {
+          ...recoveryMetadata,
+          ownerId: draftOwnerId,
+          draftIdentity: recoveryMetadata.draftIdentity ?? draftOwnerId,
+        },
       ));
     draftWriteChainRef.current = draftWrite;
     void draftWrite.catch(() => {});
@@ -660,13 +724,15 @@ export function useTimelinePersistence({
       data: nextData,
       seq,
       draftOwnerId,
+      draftRecoveryKey,
       draftWrite,
+      traceId,
       effectiveBundle,
       wireBundle,
     };
     latestScheduledSaveRef.current = scheduledSave;
     return scheduledSave;
-  }, [configVersionRef, timelineId]);
+  }, [configVersionRef, provider, timelineId]);
 
   const scheduleSave = useCallback<ScheduleSaveFn>((nextData, options) => {
     // Every mutation gets the latest coalesced recovery slot before any
@@ -674,6 +740,16 @@ export function useTimelinePersistence({
     // serialized so an older IndexedDB transaction cannot land after a newer
     // mutation, and each receipt can compare-and-delete only its own slot.
     const scheduledSave = createScheduledSave(nextData, editSeqRef.current);
+
+    if (reloadInProgressRef.current) {
+      // A user edit made while canonical Reload is pending supersedes that
+      // reload. Keep it durably recoverable, then resume its normal autosave
+      // path once the reload has stopped; never let the reload commit over it.
+      reloadCancelledRef.current = true;
+      deferredDuringReloadRef.current = { save: scheduledSave, preserveStatus: options?.preserveStatus };
+      if (!options?.preserveStatus) setSaveStatus('dirty');
+      return;
+    }
 
     if (!persistenceEnabled) {
       if (saveTimer.current) {
@@ -750,8 +826,10 @@ export function useTimelinePersistence({
       return;
     }
 
+    recordShotTimelinePhase(scheduledSave.traceId, 'local-commit', { saveDelayMs: SAVE_DEBOUNCE_MS });
     saveTimer.current = setTimeout(() => {
       saveTimer.current = null;
+      recordShotTimelinePhase(scheduledSave.traceId, 'debounce-fired');
       void doSave(scheduledSave);
     }, SAVE_DEBOUNCE_MS);
   }, [armWatchdog, createScheduledSave, disarmWatchdog, doSave, editSeqRef, getInteractionStateRef, isConflictExhausted, persistenceEnabled, schemaIncompatible]);
@@ -843,60 +921,122 @@ export function useTimelinePersistence({
     });
   }, [getInteractionStateRef, scheduleSave]);
 
-  const reloadFromServer = useCallback(async (options?: { clearDraft?: boolean; preserveDraft?: boolean }) => {
-    const [loadedTimeline, registry] = await Promise.all([
-      provider.loadTimeline(timelineId),
-      provider.loadAssetRegistry(timelineId),
-    ]);
+  const reloadFromServer = useCallback((options?: { clearDraft?: boolean; preserveDraft?: boolean }) => {
+    if (reloadPromiseRef.current) return reloadPromiseRef.current;
 
+    reloadInProgressRef.current = true;
+    reloadCancelledRef.current = false;
+    deferredDuringReloadRef.current = null;
+    if (saveTimer.current) {
+      clearTimeout(saveTimer.current);
+      saveTimer.current = null;
+    }
     pendingSaveRef.current = null;
+    deferredSaveRef.current = null;
     clearErrorRetry();
     clearWatchdog();
-    setIsConflictExhausted(false);
-    setSchemaIncompatible(null);
-    isSchemaIncompatibleRef.current = false;
-    editSeqRef.current = savedSeqRef.current;
-    logConfigVersionUpdate('reload', loadedTimeline.configVersion);
-    configVersionRef.current = loadedTimeline.configVersion;
-    store?.getState().setConfigVersion(loadedTimeline.configVersion);
-    // E4 seam 3: keep the reloaded bundle reachable downstream instead of
-    // dropping it — saves re-persist it; [V2-B4] the assembly authority
-    // consumes this ref for repaint.
-    loadedBundleRef.current = loadedTimeline.bundle ?? null;
 
-    // E4 seam 3 → B4: the reloaded bundle's SOURCE items ride into the
-    // rebuilt TimelineData so lanes repaint from persisted state.
-    const reloadedData = assetResolver
-      ? await buildTimelineDataWithResolver(
-          loadedTimeline.config,
-          registry,
-          assetResolver,
-          loadedTimeline.configVersion,
-          timelineId,
-          loadedBundleRef.current?.itemsBySchemaRef,
-        )
-      : await buildTimelineData(
-          loadedTimeline.config,
-          registry,
-          resolveAssetUrl ?? ((file) => provider.resolveAssetUrl(file)),
-          loadedTimeline.configVersion,
-          loadedBundleRef.current?.itemsBySchemaRef,
-        );
+    const reloadTask = (async () => {
+      try {
+        // Cancel not-yet-started work above, then wait for any transport that
+        // already crossed the write boundary. Its acknowledgement (including
+        // an ambiguous/lost-ack retry) must settle before canonical is read.
+        await waitForSaveDrain();
+        await waitForRecoveryDraftWrites();
+        if (reloadCancelledRef.current) {
+          throw new Error('Canonical reload was superseded by a new timeline edit.');
+        }
 
-    // Explicit server adoption discards the local recovery slot. Save-as-copy
-    // calls this same reload with preserveDraft so its intentionally stashed
-    // work survives for a later recovery offer.
-    const shouldClearDraft = options?.clearDraft ?? !options?.preserveDraft;
-    if (shouldClearDraft) await clearTimelineDraft(timelineId).catch(() => {});
+        const loadedTimeline = await (provider.loadCanonicalTimeline ?? provider.loadTimeline).call(provider, timelineId);
+        const registry = await provider.loadAssetRegistry(timelineId);
+        const bundle = loadedTimeline.bundle ?? null;
+        const reloadedData = assetResolver
+          ? await buildTimelineDataWithResolver(
+              loadedTimeline.config,
+              registry,
+              assetResolver,
+              loadedTimeline.configVersion,
+              timelineId,
+              bundle?.itemsBySchemaRef,
+            )
+          : await buildTimelineData(
+              loadedTimeline.config,
+              registry,
+              resolveAssetUrl ?? ((file) => provider.resolveAssetUrl(file)),
+              loadedTimeline.configVersion,
+              bundle?.itemsBySchemaRef,
+            );
 
-    commitData(reloadedData, {
-      save: false,
-      skipHistory: true,
-      updateLastSavedSignature: true,
-      selectedClipId: selectedClipIdRef.current,
-      selectedTrackId: selectedTrackIdRef.current,
-    });
-    setSaveStatus('saved');
+        if (reloadCancelledRef.current) {
+          throw new Error('Canonical reload was superseded by a new timeline edit.');
+        }
+
+        // Clear only the exact durable draft snapshot the user chose to
+        // discard. IndexedDB compares and deletes in one transaction, so a
+        // newer edit written concurrently cannot be erased by this reload.
+        const shouldClearDraft = options?.clearDraft ?? !options?.preserveDraft;
+        if (shouldClearDraft) {
+          await waitForRecoveryDraftWrites();
+          if (reloadCancelledRef.current) {
+            throw new Error('Canonical reload was superseded by a new timeline edit.');
+          }
+          const recoveryKey = provider.getTimelineDraftRecoveryMetadata?.().recoveryKey ?? timelineId;
+          const recoverySnapshot = await loadTimelineDraft(recoveryKey);
+          if (reloadCancelledRef.current) {
+            throw new Error('Canonical reload was superseded by a new timeline edit.');
+          }
+          if (recoverySnapshot) {
+            const cleared = await clearTimelineDraftIfSnapshotMatches(recoveryKey, recoverySnapshot);
+            if (!cleared) {
+              throw new Error('The recovery draft changed during reload; it was kept for safety.');
+            }
+          }
+          if (reloadCancelledRef.current) {
+            throw new Error('Canonical reload was superseded by a new timeline edit.');
+          }
+        }
+
+        clearErrorRetry();
+        clearWatchdog();
+        setIsConflictExhausted(false);
+        isConflictExhaustedRef.current = false;
+        setSchemaIncompatible(null);
+        isSchemaIncompatibleRef.current = false;
+        editSeqRef.current = savedSeqRef.current;
+        logConfigVersionUpdate('reload', loadedTimeline.configVersion);
+        configVersionRef.current = loadedTimeline.configVersion;
+        store?.getState().setConfigVersion(loadedTimeline.configVersion);
+        // Keep a reloaded assembly bundle reachable downstream so the next
+        // save cannot silently drop the server-owned source items.
+        loadedBundleRef.current = bundle;
+        commitData(reloadedData, {
+          save: false,
+          skipHistory: true,
+          updateLastSavedSignature: true,
+          selectedClipId: selectedClipIdRef.current,
+          selectedTrackId: selectedTrackIdRef.current,
+        });
+        setSaveStatus('saved');
+      } catch (error) {
+        if (!reloadCancelledRef.current) setSaveStatus('error');
+        throw error;
+      } finally {
+        const wasCancelled = reloadCancelledRef.current;
+        reloadInProgressRef.current = false;
+        reloadCancelledRef.current = false;
+        const deferred = deferredDuringReloadRef.current;
+        deferredDuringReloadRef.current = null;
+        if (wasCancelled && deferred) {
+          scheduleSave(deferred.save.data, { preserveStatus: deferred.preserveStatus });
+        }
+      }
+    })();
+    reloadPromiseRef.current = reloadTask;
+    void reloadTask.then(
+      () => { if (reloadPromiseRef.current === reloadTask) reloadPromiseRef.current = null; },
+      () => { if (reloadPromiseRef.current === reloadTask) reloadPromiseRef.current = null; },
+    );
+    return reloadTask;
   }, [
     assetResolver,
     clearErrorRetry,
@@ -907,10 +1047,14 @@ export function useTimelinePersistence({
     logConfigVersionUpdate,
     provider,
     resolveAssetUrl,
+    scheduleSave,
     savedSeqRef,
     selectedClipIdRef,
     selectedTrackIdRef,
+    store,
     timelineId,
+    waitForRecoveryDraftWrites,
+    waitForSaveDrain,
   ]);
 
   /**

@@ -54,6 +54,7 @@ export const MotionControl: React.FC<MotionControlProps> = ({
     settingsLoading,
     smoothContinuations,
     onSmoothContinuationsChange,
+    suppressDefaultPresetAutoSelect = false,
   } = stateOverrides ?? {};
 
   const {
@@ -63,6 +64,7 @@ export const MotionControl: React.FC<MotionControlProps> = ({
     allPresets,
     builtinDefaultId,
     isCustomConfig,
+    displaySelectedPhasePresetId,
     isSelectedPresetKnown,
     handleSwitchToAdvanced,
     handleCustomClick,
@@ -75,6 +77,7 @@ export const MotionControl: React.FC<MotionControlProps> = ({
     onPhasePresetRemove,
     motionMode,
     settingsLoading,
+    autoSelectDefaultPreset: !suppressDefaultPresetAutoSelect,
     onMotionModeChange,
   });
 
@@ -118,7 +121,7 @@ export const MotionControl: React.FC<MotionControlProps> = ({
               isSelectedPresetKnown={isSelectedPresetKnown}
               allPresets={allPresets}
               isCustomConfig={isCustomConfig}
-              selectedPhasePresetId={selectedPhasePresetId}
+              selectedPhasePresetId={displaySelectedPhasePresetId}
               builtinDefaultId={builtinDefaultId}
               onPresetSelect={handlePresetSelect}
               onCustomClick={handleCustomClick}

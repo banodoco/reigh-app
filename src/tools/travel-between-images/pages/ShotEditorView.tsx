@@ -72,6 +72,8 @@ interface ShotEditorViewProps {
   onClose?: () => void;
   /** Receives the durable graph after a canonical shot edit is published. */
   onCanonicalCompositionPublished?: (composition: PreparedShotComposition) => void;
+  /** Reports unsaved shot-local edits so parent-head refreshes do not overwrite them. */
+  onCanonicalDraftStateChange?: (dirty: boolean) => void;
 }
 
 /**
@@ -91,6 +93,7 @@ export function ShotEditorView({
   canonicalComposition,
   onClose,
   onCanonicalCompositionPublished,
+  onCanonicalDraftStateChange,
 }: ShotEditorViewProps) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -330,6 +333,7 @@ export function ShotEditorView({
             occurrenceId={canonicalOccurrence.occurrenceId}
             shotCompositionAdapter={canonicalShotComposition}
             onCanonicalCompositionPublished={onCanonicalCompositionPublished}
+            onCanonicalDraftStateChange={onCanonicalDraftStateChange}
           />
         ) : null}
         <Suspense fallback={<LoadingSkeleton type="editor" />}>

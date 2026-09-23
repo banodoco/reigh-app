@@ -358,6 +358,11 @@ export type TimelineConfigAppMetadata = Record<string, unknown> & {
 
 export type TimelineClip = {
   id: string;
+  enabled?: boolean;
+  active?: boolean;
+  disabled?: boolean;
+  hidden?: boolean;
+  deleted?: boolean;
   at: number;
   track: string;
   clipType?: ClipType;

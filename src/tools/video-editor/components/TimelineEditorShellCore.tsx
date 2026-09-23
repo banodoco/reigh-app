@@ -150,9 +150,14 @@ function TimelineEditorShellCoreComponent({
   const {
     containerRef,
     dividerRef,
+    timelineRef,
     isTimelineMaximized,
     setIsTimelineMaximized,
-    onDividerMouseDown,
+    onDividerPointerDown,
+    onDividerPointerMove,
+    onDividerPointerUp,
+    onDividerPointerCancel,
+    onDividerLostPointerCapture,
     gridTemplateRows,
   } = useTimelineShellDividerDrag(hasActivityRegion);
   const [condensedRightPanel, setCondensedRightPanel] = useState<'preview' | 'properties'>('preview');
@@ -418,7 +423,11 @@ function TimelineEditorShellCoreComponent({
       touchChrome={touchChrome}
       condensed={condensed}
       toolbarModeSwitcher={toolbarModeSwitcher}
-      onDividerMouseDown={onDividerMouseDown}
+      onDividerPointerDown={onDividerPointerDown}
+      onDividerPointerMove={onDividerPointerMove}
+      onDividerPointerUp={onDividerPointerUp}
+      onDividerPointerCancel={onDividerPointerCancel}
+      onDividerLostPointerCapture={onDividerLostPointerCapture}
       isTimelineMaximized={isTimelineMaximized}
       setIsTimelineMaximized={setIsTimelineMaximized}
       onOpenElements={() => setIsElementsOpen(true)}
@@ -815,7 +824,7 @@ function TimelineEditorShellCoreComponent({
               </div>
             )}
 
-            <div className="relative min-h-0 overflow-hidden" style={{ gridColumn: leftPanelSlot ? '2 / span 2' : '1 / span 2' }}>
+            <div ref={timelineRef} className="relative min-h-0 overflow-hidden" style={{ gridColumn: leftPanelSlot ? '2 / span 2' : '1 / span 2' }}>
               {timelineRegion}
               {timelineFooterSlot}
             </div>

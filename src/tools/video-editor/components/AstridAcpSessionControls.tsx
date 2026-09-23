@@ -133,9 +133,9 @@ export function AstridAcpSessionControls({ enabled }: { enabled: boolean }) {
   return (
     <Card className="w-full max-w-xl border-border/70 bg-card/80" data-testid="astrid-acp-session-controls">
       <CardHeader className="pb-3">
-        <CardTitle className="text-sm">Astrid ACP session</CardTitle>
+        <CardTitle className="text-sm">ACP bridge debug</CardTitle>
         <CardDescription>
-          Host-owned OMP session controls. Reconnect lists sessions for explicit selection; IDs are never persisted.
+          Manual host-owned OMP session controls. Normal chat connects and manages sessions automatically; IDs are never persisted here.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">

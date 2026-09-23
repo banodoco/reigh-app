@@ -333,6 +333,42 @@ beforeEach(() => {
 });
 
 describe('TimelineRenderer registered sequences', () => {
+  it('keeps a canonical visual image absent at the half-open end after transition expansion', async () => {
+    const { VisualClipSequence } = await vi.importActual<typeof import('@/tools/video-editor/compositions/VisualClip.tsx')>(
+      '@/tools/video-editor/compositions/VisualClip.tsx',
+    );
+    sequenceProps.length = 0;
+    const clip = {
+      id: 'canonical-image',
+      clipType: 'hold' as const,
+      track: 'V1',
+      at: 10,
+      hold: 2,
+      transition: { type: 'fade', duration: 0.5 },
+      app: { canonicalTiming: { occurrenceStartMs: 10_000, occurrenceDurationMs: 2_000 } },
+    } as ResolvedTimelineConfig['clips'][number];
+
+    render(
+      <>
+        <VisualClipSequence
+          clip={clip}
+          track={{ id: 'V1', kind: 'visual', label: 'V1' }}
+          fps={30}
+          predecessor={{ id: 'previous', clipType: 'hold', track: 'V1', at: 8, hold: 2 }} as never
+        />
+        <div data-testid="transparent-gap" />
+      </>,
+    );
+
+    // Actual VisualClipSequence emits [285,360); the former transition/overlap
+    // expansion emitted [285,361), drawing frame 360 into the transparent gap.
+    expect(sequenceProps.find((props) => props.from === 285)).toMatchObject({
+      from: 285,
+      durationInFrames: 75,
+    });
+    expect(screen.getByTestId('transparent-gap')).toBeInTheDocument();
+  });
+
   beforeEach(() => {
     sequenceProps.length = 0;
     visualClipMock.mockClear();
@@ -423,6 +459,44 @@ describe('TimelineRenderer registered sequences', () => {
     expect(screen.getByTestId('astrid-effect-renderer')).toHaveAttribute('data-clip-id', 'closing-v6-scrolling-guide');
     expect(screen.getByTestId('astrid-effect-renderer')).toHaveAttribute('data-side', 'left');
     expect(sequenceProps[0]).toMatchObject({ from: 30, durationInFrames: 90 });
+  });
+
+  it('passes the host-resolved asset URL to legacy Astrid effects', () => {
+    const EndSpanningLayerMock: FC<{
+      clip: { id: string };
+      assetEntry?: { file?: string };
+    }> = ({ clip, assetEntry }) => (
+      <div
+        data-testid="astrid-effect-asset-renderer"
+        data-clip-id={clip.id}
+        data-asset-file={assetEntry?.file ?? ''}
+      />
+    );
+    astridElementComponentMock.mockImplementation((elementId: string, kind: string) => (
+      elementId === 'end-spanning-layer' && kind === 'effect' ? EndSpanningLayerMock : undefined
+    ));
+
+    render(<TimelineRenderer config={{
+      ...buildConfig(),
+      clips: [{
+        id: 'fx-process-v3',
+        clipType: 'end-spanning-layer',
+        track: 'V1',
+        at: 1,
+        hold: 3,
+        asset: 'minkhole_original_source',
+        assetEntry: {
+          file: 'stale-persisted-locator',
+          src: '/media/resolved-source.mp4',
+          type: 'video/mp4',
+        },
+      }],
+    }} />);
+
+    expect(screen.getByTestId('astrid-effect-asset-renderer')).toHaveAttribute(
+      'data-asset-file',
+      '/media/resolved-source.mp4',
+    );
   });
 
   it('uses shared duration helpers for speed-adjusted registered sequence clips', () => {

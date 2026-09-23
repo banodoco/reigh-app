@@ -742,7 +742,7 @@ describe('useClipDrag', () => {
     const dataRef = { current: makeData() };
 
     try {
-      renderClipDrag({
+      const { result } = renderClipDrag({
         timelineWrapperRef,
         dataRef,
 
@@ -797,6 +797,7 @@ describe('useClipDrag', () => {
 
       expect(setGestureOwner).toHaveBeenCalledWith('clip');
       expect(interactionStateRef.current.drag).toBe(true);
+      expect(result.current.isDragging).toBe(true);
 
       act(() => {
         fireEvent.pointerUp(window, {
@@ -808,6 +809,7 @@ describe('useClipDrag', () => {
       });
 
       expect(interactionStateRef.current.drag).toBe(false);
+      expect(result.current.isDragging).toBe(false);
 
     } finally {
       cleanup();

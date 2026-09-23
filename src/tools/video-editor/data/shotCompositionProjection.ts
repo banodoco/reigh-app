@@ -9,6 +9,11 @@ import type {
   CanonicalShotOccurrence,
   PreparedShotComposition,
 } from './shotCompositionAdapter.ts';
+import {
+  isActiveTimelineClip,
+  timelineContentExtentMs,
+  timelineOccurrenceEffectiveDurationMs,
+} from './shotCompositionTiming.ts';
 
 type JsonObject = Record<string, unknown>;
 
@@ -211,8 +216,9 @@ function assetRegistryFor(
     const assets = Array.isArray(occurrence.revision.assets) ? occurrence.revision.assets : [];
     for (const rawAsset of assets) {
       const asset = record(rawAsset);
-      const assetId = text(asset?.asset_id);
-      const objectId = text(asset?.object_id);
+      if (!asset) continue;
+      const assetId = text(asset.asset_id);
+      const objectId = text(asset.object_id);
       if (!assetId || !objectId) continue;
       mergeAsset(assetId, asset, objectId, true);
     }
@@ -276,18 +282,21 @@ function projectClip(
   const rawFrom = optionalFiniteNumber(rawClip.from);
   const rawTo = optionalFiniteNumber(rawClip.to);
   const hasTrim = rawFrom !== undefined && rawTo !== undefined && rawTo > rawFrom;
-  const durationMs = rawClip.duration_ms !== undefined
-    ? Math.max(1, finiteNumber(rawClip.duration_ms, occurrence.durationMs))
-    : rawClip.duration !== undefined
-      ? Math.max(1, finiteNumber(rawClip.duration, occurrence.durationMs / 1000) * 1000)
-      : rawClip.hold !== undefined
-        ? Math.max(1, finiteNumber(rawClip.hold, occurrence.durationMs / 1000) * 1000)
-        : hasTrim
-          ? Math.max(1, (rawTo - rawFrom) * 1000)
-          : Math.max(1, occurrence.durationMs);
   const sourceOffsetMs = Math.max(0, occurrence.sourceOffsetMs ?? 0);
   const sourceOffsetSeconds = sourceOffsetMs / 1000;
   const speed = positiveNumber(rawClip.speed, positiveNumber(occurrence.speed, 1));
+  // Persisted duration/hold/trim values are source-media units. Keep that
+  // convention in the projected clip; timeline-domain consumers apply speed
+  // once when deriving the occurrence extent and render duration.
+  const durationMs = rawClip.duration_ms !== undefined
+    ? Math.max(1, finiteNumber(rawClip.duration_ms, occurrence.durationMs * speed))
+    : rawClip.duration !== undefined
+      ? Math.max(1, finiteNumber(rawClip.duration, occurrence.durationMs / 1000 * speed) * 1000)
+      : rawClip.hold !== undefined
+        ? Math.max(1, finiteNumber(rawClip.hold, occurrence.durationMs / 1000 * speed) * 1000)
+        : hasTrim
+          ? Math.max(1, (rawTo - rawFrom) * 1000)
+          : Math.max(1, occurrence.durationMs * speed);
   const gain = finiteNumber(rawClip.gain ?? rawClip.volume, occurrence.gain ?? 1);
   const muted = rawClip.muted === true || rawClip.mute === true || occurrence.muted === true;
   const track = text(rawClip.track) ?? occurrence.trackId ?? 'video';
@@ -305,6 +314,11 @@ function projectClip(
   const app = record(rawClip.app) ?? {};
   const projected: TimelineClip = {
     id,
+    ...(typeof rawClip.enabled === 'boolean' ? { enabled: rawClip.enabled } : {}),
+    ...(typeof rawClip.active === 'boolean' ? { active: rawClip.active } : {}),
+    ...(typeof rawClip.disabled === 'boolean' ? { disabled: rawClip.disabled } : {}),
+    ...(typeof rawClip.hidden === 'boolean' ? { hidden: rawClip.hidden } : {}),
+    ...(typeof rawClip.deleted === 'boolean' ? { deleted: rawClip.deleted } : {}),
     at: Math.max(0, occurrence.atMs + atMs) / 1000,
     track,
     clipType,
@@ -330,10 +344,14 @@ function projectClip(
         gain,
         muted,
         durationMs,
+        occurrenceStartMs: occurrence.atMs,
+        occurrenceDurationMs: occurrence.durationMs,
       },
     },
   };
-  if (clampToOccurrenceDuration) {
+  // Inactive clips remain editable/re-enableable at their authored geometry;
+  // their state excludes them from occurrence extent and render output.
+  if (clampToOccurrenceDuration && isActiveTimelineClip(rawClip)) {
     const remainingSeconds = occurrence.durationMs / 1000 - projected.at + occurrence.atMs / 1000;
     if (remainingSeconds <= 0) return null;
     if (hasTrim && projected.from !== undefined && projected.to !== undefined) {
@@ -342,7 +360,7 @@ function projectClip(
         projected.to = maxTrimmedTo;
       }
     } else if (projected.hold !== undefined) {
-      projected.hold = Math.min(projected.hold, remainingSeconds);
+      projected.hold = Math.min(projected.hold, remainingSeconds * speed);
     }
   }
   clipIdentities.set(id, identity);
@@ -368,6 +386,13 @@ export function projectCanonicalComposition(
     const identity = identityForOccurrence(occurrence);
     occurrenceIdentities.set(occurrence.occurrenceId, identity);
     const timeline = childTimeline(occurrence);
+    const contentDurationMs = timelineContentExtentMs(timeline);
+    const effectiveDurationMs = timelineOccurrenceEffectiveDurationMs(
+      occurrence,
+      composition.occurrences,
+      contentDurationMs,
+    );
+    const effectiveOccurrence = { ...occurrence, durationMs: effectiveDurationMs };
     const rawClips = Array.isArray(timeline.clips) ? timeline.clips : [];
     if (rawClips.length === 0) {
       throw new CanonicalCompositionProjectionError(
@@ -381,7 +406,7 @@ export function projectCanonicalComposition(
       if (clip) {
         const projected = projectClip(
           clip,
-          occurrence,
+          effectiveOccurrence,
           index,
           clipIdentities,
           options.clampToOccurrenceDuration !== false,

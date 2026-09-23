@@ -371,6 +371,7 @@ describe('VideoEditorPage', () => {
       projectId: 'project-r',
       onRuntimeError: expect.any(Function),
     }));
+    expect(screen.queryByTestId('astrid-acp-session-controls')).toBeNull();
 
     act(() => {
       state.runtimeOnError?.(new RuntimeAuthenticationError('/api/runtime'));
@@ -381,6 +382,13 @@ describe('VideoEditorPage', () => {
     );
     await userEvent.setup().click(screen.getByRole('button', { name: 'Retry Runtime connection' }));
     expect(state.runtimeCtor.mock.instances[0].reconnect).toHaveBeenCalledTimes(1);
+  });
+
+  it('only exposes the manual ACP controls behind the explicit debug flag', async () => {
+    renderPage('/tools/video-editor?runtime=1&runtimeProject=project-r&runtimeTimeline=timeline-r&acpDebug=1');
+
+    await screen.findByTestId('video-editor-provider');
+    expect(screen.getByTestId('astrid-acp-session-controls')).toBeInTheDocument();
   });
 
   it('does not loop timeline creation when Astrid returns an empty list', async () => {
@@ -519,7 +527,7 @@ describe('VideoEditorPage', () => {
     state.discovery.timelines = [];
     renderPage('/tools/video-editor?localProject=ados-talks');
 
-    await screen.findByText('Unable to reach the local bridge');
+    await screen.findByText('Unable to connect to the local Astrid workspace');
     // The selectors stay mounted (and openable) so the launch hint is reachable.
     expect(screen.getByRole('combobox', { name: 'Select project' })).toBeInTheDocument();
   });
@@ -608,7 +616,9 @@ describe('VideoEditorPage', () => {
     expect(screen.getByRole('combobox', { name: 'Select project' })).toHaveTextContent('ados-talks');
     // Timeline label = bridge timeline name once the name GET resolves,
     // falling back to the timeline id while it loads.
-    expect(screen.getByRole('combobox', { name: 'Select timeline' })).toHaveTextContent('11111111-1111-1111-1111-111111111111');
+    await waitFor(() => {
+      expect(screen.getByRole('combobox', { name: 'Select timeline' })).toHaveTextContent('Intro Cut');
+    });
   });
 
   it('opens Local mode straight from the URL params and never writes a storage flag', async () => {
@@ -663,7 +673,7 @@ describe('VideoEditorPage', () => {
 
     renderPage('/tools/video-editor?localProject=ados-talks');
 
-    await screen.findByText('Unable to reach the local bridge');
+    await screen.findByText('Unable to connect to the local Astrid workspace');
 
     const user = userEvent.setup();
     const projectTrigger = screen.getByRole('combobox', { name: 'Select project' });

@@ -36,7 +36,7 @@ type NewTrackPlacement = 'top' | 'bottom';
 
 interface SnapCandidate {
   time: number;
-  edgeType: 'timeline-start' | 'sibling-start' | 'sibling-end';
+  edgeType: 'timeline-start' | 'sibling-start' | 'sibling-end' | 'hard-duration-end';
 }
 
 interface RequestedTarget {
@@ -63,7 +63,7 @@ export interface ClipDragPlan {
   readonly newTrackPlacement: NewTrackPlacement | null;
   readonly snapThresholdS: number;
   readonly snapped: boolean;
-  readonly snapEdgeType: 'none' | 'timeline-start' | 'sibling-start' | 'sibling-end';
+  readonly snapEdgeType: 'none' | 'timeline-start' | 'sibling-start' | 'sibling-end' | 'hard-duration-end';
   readonly pixelSnapThreshold: number;
   readonly pixelsPerSecond: number;
   readonly valid: boolean;
@@ -100,6 +100,8 @@ function collectSiblingEdges(
   rows: ReadonlyArray<TimelineRow>,
   trackId: string,
   excludeIds: ReadonlySet<string>,
+  clipDuration: number,
+  hardDurationSeconds?: number,
 ): SnapCandidate[] {
   const row = rows.find((candidate) => candidate.id === trackId);
   const siblings: TimelineAction[] = row
@@ -110,6 +112,20 @@ function collectSiblingEdges(
   for (const sibling of siblings) {
     candidates.push({ time: sibling.start, edgeType: 'sibling-start' });
     candidates.push({ time: sibling.end, edgeType: 'sibling-end' });
+  }
+
+  // A hard shot boundary is an edge for the dragged clip's *end*, so its
+  // candidate start is the blocked end minus the clip duration. Keeping it in
+  // the same candidate list means preview and commit use the same snap result.
+  if (
+    typeof hardDurationSeconds === 'number'
+    && Number.isFinite(hardDurationSeconds)
+    && Number.isFinite(clipDuration)
+  ) {
+    candidates.push({
+      time: hardDurationSeconds - clipDuration,
+      edgeType: 'hard-duration-end',
+    });
   }
 
   return candidates;
@@ -338,9 +354,28 @@ export function planClipDrag(input: ClipDragPlanInput): ClipDragPlan {
   let resolvedStart = Math.max(0, pointerTime);
   let snapped = false;
   let snapEdgeType: ClipDragPlan['snapEdgeType'] = 'none';
+  const hardDurationSeconds = input.editability?.hardDurationSeconds;
+  const hardBoundaryStart = typeof hardDurationSeconds === 'number'
+    && Number.isFinite(hardDurationSeconds)
+    ? hardDurationSeconds - clipDuration
+    : null;
+
+  const snapToHardBoundaryIfClose = () => {
+    if (
+      hardBoundaryStart === null
+      || hardBoundaryStart < 0
+      || Math.abs(hardBoundaryStart - pointerTime) >= snapThresholdS
+    ) {
+      return false;
+    }
+    resolvedStart = hardBoundaryStart;
+    snapped = true;
+    snapEdgeType = 'hard-duration-end';
+    return true;
+  };
 
   if (requestedNewTrackPlacement !== null || rows.length === 0) {
-    if (resolvedStart > 0 && resolvedStart <= snapThresholdS) {
+    if (!snapToHardBoundaryIfClose() && resolvedStart > 0 && resolvedStart <= snapThresholdS) {
       resolvedStart = 0;
       snapped = true;
       snapEdgeType = 'timeline-start';
@@ -405,7 +440,7 @@ export function planClipDrag(input: ClipDragPlanInput): ClipDragPlan {
       });
     }
 
-    if (resolvedStart > 0 && resolvedStart <= snapThresholdS) {
+    if (!snapToHardBoundaryIfClose() && resolvedStart > 0 && resolvedStart <= snapThresholdS) {
       resolvedStart = 0;
       snapped = true;
       snapEdgeType = 'timeline-start';
@@ -433,7 +468,13 @@ export function planClipDrag(input: ClipDragPlanInput): ClipDragPlan {
     });
   }
 
-  const snapCandidates = collectSiblingEdges(rows, resolvedTarget.trackId, allExcludeIds);
+  const snapCandidates = collectSiblingEdges(
+    rows,
+    resolvedTarget.trackId,
+    allExcludeIds,
+    clipDuration,
+    hardDurationSeconds,
+  );
   let bestCandidate: SnapCandidate | null = null;
   let bestDistance = snapThresholdS;
 

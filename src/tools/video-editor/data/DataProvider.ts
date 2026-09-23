@@ -341,6 +341,10 @@ export interface DataProvider extends AssetResolver {
   /** Optional provider-owned generation lookup for editor asset actions. */
   loadGenerationForLightbox?(generationId: string): Promise<GenerationRow | null>;
   persistenceEnabled?: boolean;
+  /** Durable-recovery metadata captured synchronously at the first local edit. */
+  getTimelineDraftRecoveryMetadata?(): import('./timelineDraftIndexedDb.ts').TimelineDraftRecoveryMetadata;
+  /** Explicit reload path that bypasses provider-local unsaved recovery state. */
+  loadCanonicalTimeline?(timelineId: string): Promise<LoadedTimeline>;
 
   /**
    * Declared capability flags (plan C1-1 T2.4). Callers branch on these
@@ -356,6 +360,8 @@ export interface DataProvider extends AssetResolver {
    */
   supportsDirectAssetUpload?: boolean;
   loadTimeline(timelineId: string): Promise<LoadedTimeline>;
+  /** Associate development timing phases with one shot-popup save attempt. */
+  setShotTimelineTraceId?(traceId: string | null): void;
   /** Read a nested timeline document for preview-only composition. */
   loadReferencedTimeline?(timelineId: string): Promise<LoadedReferencedTimeline>;
   /** Persist the project-level primary/default timeline selection. */

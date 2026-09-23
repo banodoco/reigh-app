@@ -20,9 +20,17 @@ import { buildDataFromCurrentRegistry } from '../lib/timeline-save-utils';
 import { createDefaultTimelineConfig } from '../lib/defaults';
 import type { AssetResolver } from '../data/AssetResolver';
 import { TimelineSchemaIncompatibleError, TimelineVersionConflictError, type DataProvider } from '../data/DataProvider';
-import { loadTimelineDraft, saveTimelineDraft } from '@/tools/video-editor/data/timelineDraftIndexedDb.ts';
+import { StaleWriteError } from '../data/shotComposition';
+import { BRIDGE_REQUEST_TIMEOUT_MS } from '../data/bridgeContract';
+import { loadTimelineDraft, saveTimelineDraft, type TimelineDraftRecoveryMetadata } from '@/tools/video-editor/data/timelineDraftIndexedDb.ts';
 import type { AssetRegistry } from '../types';
 import type { TimelineBundleEnvelope } from '../data/typed/timelineBundle';
+
+// Keep these inputs aligned with useTimelinePersistence's private save timing
+// contract; the bridge request window itself comes from the shared contract.
+const SAVE_DEBOUNCE_MS = 500;
+const SAVE_ERROR_RETRY_BASE_MS = 500;
+const WATCHDOG_GRACE_MS = SAVE_DEBOUNCE_MS + BRIDGE_REQUEST_TIMEOUT_MS + 2 * SAVE_ERROR_RETRY_BASE_MS;
 
 function makeRegistry(label: string): AssetRegistry {
   return {
@@ -106,8 +114,10 @@ interface SetupOptions {
   persistenceEnabled?: boolean;
   saveTimelineImpl?: DataProvider['saveTimeline'];
   loadTimelineImpl?: DataProvider['loadTimeline'];
+  loadCanonicalTimelineImpl?: NonNullable<DataProvider['loadCanonicalTimeline']>;
   loadAssetRegistryImpl?: DataProvider['loadAssetRegistry'];
   loadReferencedTimelineImpl?: NonNullable<DataProvider['loadReferencedTimeline']>;
+  recoveryMetadata?: TimelineDraftRecoveryMetadata;
 }
 
 function setup(options?: SetupOptions): TestHarness {
@@ -126,12 +136,18 @@ function setup(options?: SetupOptions): TestHarness {
   const provider: DataProvider = {
     persistenceEnabled: options?.persistenceEnabled,
     loadTimeline,
+    ...(options?.loadCanonicalTimelineImpl
+      ? { loadCanonicalTimeline: options.loadCanonicalTimelineImpl }
+      : {}),
     saveTimeline,
     loadAssetRegistry,
     ...(loadReferencedTimeline
       ? { loadReferencedTimeline }
       : {}),
     resolveAssetUrl: vi.fn((file: string) => file),
+    ...(options?.recoveryMetadata
+      ? { getTimelineDraftRecoveryMetadata: () => options.recoveryMetadata! }
+      : {}),
   };
   const assetResolver: AssetResolver = {
     resolveAssetUrl: vi.fn((file: string) => Promise.resolve(file)),
@@ -254,6 +270,29 @@ describe('useTimelinePersistence — interaction gating', () => {
     });
 
     expect(harness.saveTimeline).not.toHaveBeenCalled();
+  });
+
+  it('captures the canonical CAS base before an interaction-deferred save', async () => {
+    const baseGraph = { head: 'canonical-head-before-gesture' };
+    const harness = setup({
+      recoveryMetadata: {
+        recoveryKey: 'timeline-1:occurrence-1',
+        baseHeadRevisionId: 'canonical-head-before-gesture',
+        baseCanonicalGraph: baseGraph,
+        draftIdentity: 'edit-during-gesture',
+      },
+    });
+    harness.interactionStateRef.current.drag = true;
+    harness.scheduleSave(makeTimelineData('interaction-deferred'));
+    await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+
+    expect(harness.saveTimeline).not.toHaveBeenCalled();
+    const recovered = await loadTimelineDraft('timeline-1:occurrence-1');
+    expect(recovered).toMatchObject({
+      baseHeadRevisionId: 'canonical-head-before-gesture',
+      baseCanonicalGraph: baseGraph,
+      draftIdentity: 'edit-during-gesture',
+    });
   });
 
   it('flushes the newest deferred payload after the gesture ends', async () => {
@@ -1050,6 +1089,32 @@ describe('useTimelinePersistence — interaction gating', () => {
     expect(harness.loadTimeline).not.toHaveBeenCalled();
     expect(harness.loadAssetRegistry).not.toHaveBeenCalled();
   });
+  it('maps a typed canonical stale write to terminal conflict without losing the draft', async () => {
+    const nextData = makeTimelineData('canonical-stale');
+    const harness = setup({
+      persistenceEnabled: true,
+      saveTimelineImpl: async () => {
+        throw new StaleWriteError('canonical head advanced');
+      },
+    });
+
+    harness.scheduleSave(nextData);
+    await act(async () => {
+      vi.advanceTimersByTime(600);
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(harness.saveTimeline).toHaveBeenCalledTimes(1);
+    expect(harness.result.current.isConflictExhausted).toBe(true);
+    expect(harness.result.current.saveStatus).toBe('error');
+    expect(harness.dataRef.current?.stableSignature).toBe(nextData.stableSignature);
+    expect(await loadTimelineDraft('timeline-1')).toMatchObject({
+      draft: { config: nextData.config },
+    });
+  });
+
 
   it('retains the recovery draft after a 409 and transport failure, and clears it only after success', async () => {
     const conflict = setup({
@@ -1183,6 +1248,121 @@ describe('useTimelinePersistence — interaction gating', () => {
       await harness.reloadFromServer();
     });
     expect(await loadTimelineDraft('timeline-1')).toBeNull();
+  });
+
+  it('Retry then Discard before debounce cancels the recovered publication and reopens canonical', async () => {
+    const canonical = makeTimelineData('canonical-after-discard');
+    const harness = setup({
+      loadTimelineImpl: async () => ({ config: canonical.config, configVersion: 8 }),
+    });
+    harness.scheduleSave(makeTimelineData('recovered-retry-pending'));
+    await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+    expect(await loadTimelineDraft('timeline-1')).not.toBeNull();
+
+    await act(async () => { await harness.reloadFromServer(); });
+    await act(async () => {
+      vi.advanceTimersByTime(1000);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(harness.saveTimeline).not.toHaveBeenCalled();
+    expect(await loadTimelineDraft('timeline-1')).toBeNull();
+    expect(harness.commitData).toHaveBeenCalledWith(expect.objectContaining({
+      config: expect.objectContaining({ clips: canonical.config.clips }),
+    }), expect.objectContaining({ save: false, skipHistory: true }));
+    await expect(harness.provider.loadTimeline('timeline-1')).resolves.toMatchObject({
+      config: { clips: canonical.config.clips },
+      configVersion: 8,
+    });
+    harness.unmount();
+  });
+
+  it('waits for an in-flight acknowledgement before Discard reads canonical and never drains queued B', async () => {
+    let acknowledgeSaveA: ((version: number) => void) | null = null;
+    const events: string[] = [];
+    const canonical = makeTimelineData('canonical-after-ack');
+    const harness = setup({
+      saveTimelineImpl: () => {
+        events.push('save-start');
+        return new Promise<number>((resolve) => { acknowledgeSaveA = resolve; });
+      },
+      loadTimelineImpl: async () => {
+        events.push('canonical-read');
+        return { config: canonical.config, configVersion: 9 };
+      },
+    });
+    harness.scheduleSave(makeTimelineData('retry-in-flight-A'));
+    await act(async () => {
+      vi.advanceTimersByTime(600);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(harness.saveTimeline).toHaveBeenCalledTimes(1);
+
+    harness.editSeqRef.current = 2;
+    harness.scheduleSave(makeTimelineData('discarded-queued-B'));
+    await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+    const reload = harness.reloadFromServer();
+    await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+    expect(events).toEqual(['save-start']);
+    expect(harness.saveTimeline).toHaveBeenCalledTimes(1);
+
+    await act(async () => { acknowledgeSaveA?.(2); });
+    await act(async () => { await reload; });
+    expect(events).toEqual(['save-start', 'canonical-read']);
+    expect(harness.saveTimeline).toHaveBeenCalledTimes(1);
+    expect(await loadTimelineDraft('timeline-1')).toBeNull();
+    await act(async () => {
+      vi.advanceTimersByTime(1000);
+      await Promise.resolve();
+    });
+    expect(harness.saveTimeline).toHaveBeenCalledTimes(1);
+    expect(harness.commitData).toHaveBeenCalledWith(expect.objectContaining({
+      config: expect.objectContaining({ clips: canonical.config.clips }),
+    }), expect.objectContaining({ save: false, skipHistory: true }));
+    harness.unmount();
+  });
+
+  it('keeps recovery and reports reload failure instead of claiming Discard succeeded', async () => {
+    const harness = setup({
+      loadTimelineImpl: async () => { throw new Error('canonical read failed'); },
+    });
+    harness.scheduleSave(makeTimelineData('recoverable-after-reload-failure'));
+    await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+
+    await act(async () => {
+      await expect(harness.reloadFromServer()).rejects.toThrow('canonical read failed');
+    });
+
+    expect(harness.result.current.saveStatus).toBe('error');
+    expect(await loadTimelineDraft('timeline-1')).not.toBeNull();
+    expect(harness.commitData).not.toHaveBeenCalled();
+    harness.unmount();
+  });
+
+  it('explicit canonical reload bypasses and clears a stable occurrence recovery slot', async () => {
+    const recoveryKey = 'parent:shot:occurrence';
+    const canonical = makeTimelineData('canonical-reload');
+    const loadCanonicalTimeline = vi.fn(async () => ({ config: canonical.config, configVersion: 4 }));
+    const harness = setup({
+      initialData: makeTimelineData('visible-recovery'),
+      recoveryMetadata: { recoveryKey },
+      loadCanonicalTimelineImpl: loadCanonicalTimeline,
+    });
+    await saveTimelineDraft('session-new', {
+      config: makeTimelineData('unsaved-recovery').config,
+      registry: { assets: {} },
+    }, 1, { recoveryKey, draftIdentity: 'recovered-unsaved' });
+
+    await act(async () => { await harness.reloadFromServer(); });
+
+    expect(loadCanonicalTimeline).toHaveBeenCalledWith('timeline-1');
+    expect(await loadTimelineDraft(recoveryKey)).toBeNull();
+    expect(harness.commitData).toHaveBeenCalledWith(expect.objectContaining({
+      config: expect.objectContaining({ clips: canonical.config.clips }),
+    }), expect.objectContaining({ save: false, skipHistory: true }));
+    harness.unmount();
   });
 
   it('best-effort draft writes tolerate private-mode IndexedDB rejection', async () => {
@@ -1365,10 +1545,9 @@ describe('useTimelinePersistence — write-ack watchdog', () => {
     await advance(600); // debounce fires, save hangs
     expect(harness.saveTimeline).toHaveBeenCalledTimes(1);
 
-    // Grace is debounce + bridge request window + two retry bases = 11.5s.
-    await advance(10_000); // 10.6s since the arm — still inside grace
+    await advance(WATCHDOG_GRACE_MS - 600 - 1); // Just before the deadline, including the elapsed debounce.
     expect(harness.result?.current.watchdogTripped).toBe(false);
-    await advance(1_500); // 12.1s — past grace, trips
+    await advance(2); // Past the computed deadline, trips.
     expect(harness.result?.current.watchdogTripped).toBe(true);
   });
 
@@ -1379,14 +1558,14 @@ describe('useTimelinePersistence — write-ack watchdog', () => {
     });
 
     harness.scheduleSave(makeTimelineData('hang'));
-    await advance(12_000);
+    await advance(WATCHDOG_GRACE_MS + 1);
     expect(harness.result?.current.watchdogTripped).toBe(true);
 
     act(() => { harness.eventBus.emit('saveSuccess'); });
     expect(harness.result?.current.watchdogTripped).toBe(false);
   });
 
-  it('does NOT trip when a slow-but-valid save ACKs at 6-9s', async () => {
+  it('does NOT trip when a slow-but-valid save ACKs just inside the bridge request window', async () => {
     let settle: ((v: number) => void) | null = null;
     const harness = setup({
       persistenceEnabled: true,
@@ -1395,21 +1574,21 @@ describe('useTimelinePersistence — write-ack watchdog', () => {
 
     harness.scheduleSave(makeTimelineData('slow-ack'));
     await advance(600); // debounce fires, save in flight
-    await advance(6_400); // 7s after the watchdog armed
+    await advance(BRIDGE_REQUEST_TIMEOUT_MS - 700); // Total elapsed is 100ms inside the request deadline.
     expect(harness.result?.current.watchdogTripped).toBe(false);
 
-    // The receipt lands well inside the 11.5s grace and clears the watchdog.
+    // The receipt lands inside the shared request window and clears the watchdog.
     act(() => { settle?.(2); });
     await advance(0);
     expect(harness.result?.current.saveStatus).toBe('saved');
     expect(harness.result?.current.watchdogTripped).toBe(false);
 
     // No latent trip fires after the ack.
-    await advance(12_000);
+    await advance(WATCHDOG_GRACE_MS + 1);
     expect(harness.result?.current.watchdogTripped).toBe(false);
   });
 
-  it('does NOT trip when a save ACKs within the retry window (10.5-11.4s)', async () => {
+  it('does NOT trip when a save ACKs after the request window but within the retry allowance', async () => {
     let settle: ((v: number) => void) | null = null;
     const harness = setup({
       persistenceEnabled: true,
@@ -1418,9 +1597,9 @@ describe('useTimelinePersistence — write-ack watchdog', () => {
 
     harness.scheduleSave(makeTimelineData('late-ack'));
     await advance(600);
-    // 10.6s since the watchdog armed: past the 10s request window but still
-    // inside the computed grace (debounce + request window + 2 retry bases).
-    await advance(10_000);
+    // Total elapsed is one retry base after the bridge deadline, still inside
+    // the computed grace (debounce + request window + two retry bases).
+    await advance(BRIDGE_REQUEST_TIMEOUT_MS + SAVE_ERROR_RETRY_BASE_MS - 600);
     expect(harness.result?.current.watchdogTripped).toBe(false);
 
     act(() => { settle?.(2); });
@@ -1428,7 +1607,7 @@ describe('useTimelinePersistence — write-ack watchdog', () => {
     expect(harness.result?.current.watchdogTripped).toBe(false);
     expect(harness.result?.current.saveStatus).toBe('saved');
 
-    await advance(12_000);
+    await advance(WATCHDOG_GRACE_MS + 1);
     expect(harness.result?.current.watchdogTripped).toBe(false);
   });
 
@@ -1456,7 +1635,7 @@ describe('useTimelinePersistence — write-ack watchdog', () => {
     expect(harness.result?.current.watchdogTripped).toBe(false);
 
     // The retried save ACKed well inside the grace window — no latent trip.
-    await advance(12_000);
+    await advance(WATCHDOG_GRACE_MS + 1);
     expect(harness.result?.current.watchdogTripped).toBe(false);
   });
 
@@ -1466,9 +1645,9 @@ describe('useTimelinePersistence — write-ack watchdog', () => {
 
     harness.scheduleSave(makeTimelineData('mid-drag'));
 
-    // A long drag: well past the old 5s grace, nothing can trip because the
-    // watchdog is only armed once the deferral ends (and the flush re-arms).
-    await advance(8_000);
+    // A full grace period elapses, but no watchdog can trip because it is only
+    // armed once the deferral ends (and the flush re-arms).
+    await advance(WATCHDOG_GRACE_MS + 1);
     expect(harness.result?.current.watchdogTripped).toBe(false);
 
     await act(async () => {
@@ -1482,11 +1661,11 @@ describe('useTimelinePersistence — write-ack watchdog', () => {
     expect(harness.result?.current.saveStatus).toBe('saved');
   });
 
-  it('disarms the watchdog when an interaction defers an ALREADY-PENDING save (no false trip during a >11.5s drag)', async () => {
+  it('disarms the watchdog when an interaction defers an ALREADY-PENDING save (no false trip during a full-grace drag)', async () => {
     const harness = setup({ persistenceEnabled: true });
 
-    // Save scheduled while idle: the 500ms debounce is armed AND the
-    // write-ack watchdog is armed with it (grace = 11.5s from now).
+    // Save scheduled while idle: the debounce and computed write-ack grace
+    // are armed together.
     harness.scheduleSave(makeTimelineData('pre-drag'));
     expect(harness.saveTimeline).not.toHaveBeenCalled();
 
@@ -1496,9 +1675,9 @@ describe('useTimelinePersistence — write-ack watchdog', () => {
     harness.interactionStateRef.current.drag = true;
     harness.scheduleSave(makeTimelineData('mid-drag'));
 
-    // >11.5s of continuous interaction with NO POST: the pre-fix race would
-    // trip the watchdog here (it was armed with the pre-drag debounce).
-    await advance(13_000);
+    // The full grace elapses with NO POST: the pre-fix race would trip the
+    // watchdog here (it was armed with the pre-drag debounce).
+    await advance(WATCHDOG_GRACE_MS + 1);
     expect(harness.saveTimeline).not.toHaveBeenCalled();
     expect(harness.result?.current.watchdogTripped).toBe(false);
 
@@ -1516,7 +1695,7 @@ describe('useTimelinePersistence — write-ack watchdog', () => {
     expect(harness.result?.current.saveStatus).toBe('saved');
 
     // No latent trip from the pre-drag arm can fire later either.
-    await advance(12_000);
+    await advance(WATCHDOG_GRACE_MS + 1);
     expect(harness.result?.current.watchdogTripped).toBe(false);
   });
 
@@ -1571,10 +1750,10 @@ describe('useTimelinePersistence — write-ack watchdog', () => {
     expect(harness.result?.current.watchdogTripped).toBe(false);
 
     // Nothing else cleared the watchdog: it trips once B goes unacknowledged
-    // past the grace (11.5s from when save A was scheduled).
-    await advance(10_500); // 11.1s since the arm — still inside grace
+    // past the grace from when save A was scheduled.
+    await advance(WATCHDOG_GRACE_MS - 600 - 1); // Just before the deadline.
     expect(harness.result?.current.watchdogTripped).toBe(false);
-    await advance(1_000); // 12.1s — past grace, trips
+    await advance(2); // Past the deadline, trips.
     expect(harness.result?.current.watchdogTripped).toBe(true);
     expect(harness.result?.current.watchdogReason).toBe('timeout');
 
@@ -1596,9 +1775,9 @@ describe('useTimelinePersistence — write-ack watchdog', () => {
     await advance(600); // doSave -> conflict -> exhausted (async retry-version reload)
     expect(harness.result?.current.saveStatus).toBe('error');
 
-    await advance(10_000); // 10.6s since the arm — still inside grace
+    await advance(WATCHDOG_GRACE_MS - 600 - 1); // Just before the deadline.
     expect(harness.result?.current.watchdogTripped).toBe(false);
-    await advance(1_500); // 12.1s — past grace, trips
+    await advance(2); // Past the deadline, trips.
     expect(harness.result?.current.watchdogTripped).toBe(true);
     expect(harness.result?.current.watchdogReason).toBe('timeout');
   });
@@ -1621,7 +1800,7 @@ describe('useTimelinePersistence — write-ack watchdog', () => {
     harness.scheduleSave(makeTimelineData('hang'));
     await advance(600);
     expect(harness.saveTimeline).toHaveBeenCalledTimes(1);
-    await advance(12_000);
+    await advance(WATCHDOG_GRACE_MS + 1);
     expect(harness.result?.current.watchdogTripped).toBe(true);
 
     // Retry while the original save is still in flight: the notice clears and
