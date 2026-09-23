@@ -112,4 +112,22 @@ describe('Runtime media import adapter', () => {
     expect(postRequests[0]?.headers['Idempotency-Key']).toBe(lookupRequests[0]?.path.split('/').at(-1));
     expect(fixture.importPostCount).toBe(1);
   });
+
+  it('accepts the exact 64 MiB boundary and rejects larger files before operation persistence', async () => {
+    localStorage.clear();
+    const fixture = createTransport();
+    const provider = new RuntimeDataProvider({ projectId: PROJECT_ID, baseUrl: 'http://runtime.test', transport: fixture.transport });
+
+    const exactBoundary = new File(['bytes'], 'clip.mp4', { type: 'video/mp4' });
+    Object.defineProperty(exactBoundary, 'size', { value: 64 * 1024 * 1024 });
+    await provider.prepareMediaImport(exactBoundary);
+
+    const oversized = new File(['bytes'], 'oversized.mp4', { type: 'video/mp4' });
+    Object.defineProperty(oversized, 'size', { value: 64 * 1024 * 1024 + 1 });
+    await expect(provider.prepareMediaImport(oversized)).rejects.toThrow(
+      'oversized.mp4 exceeds the Workspace Runtime media limit of 64 MiB',
+    );
+    expect(fixture.importPostCount).toBe(1);
+    expect(fixture.requests.some((request) => request.path.includes('oversized.mp4'))).toBe(false);
+  });
 });

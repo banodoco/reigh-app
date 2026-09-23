@@ -29,11 +29,14 @@ import type { DragCoordinator } from '@/tools/video-editor/hooks/useDragCoordina
 import type {
   TimelineApplyEdit,
   TimelineInvalidateAssetRegistry,
-  TimelinePatchRegistry,
   TimelineUploadAsset,
 } from '@/tools/video-editor/hooks/timeline-state-types.ts';
 import type { TrackKind } from '@/tools/video-editor/types/index.ts';
 import type { TimelineAction } from '@/tools/video-editor/types/timeline-canvas.ts';
+import {
+  assertRuntimeMediaImportSize,
+  RUNTIME_MEDIA_IMPORT_MAX_BYTES,
+} from '@/tools/video-editor/data/AssetResolver.ts';
 
 export type TimelineDropPosition = NonNullable<ReturnType<DragCoordinator['update']>>;
 
@@ -277,9 +280,7 @@ export async function handleFileDrop({
   insertAtTop,
   selectedTrackId,
   applyEdit,
-  patchRegistry: _patchRegistry,
   prepareAssetUpload,
-  uploadAsset,
   invalidateAssetRegistry,
   resolveAssetUrl,
   registerGenerationAsset,
@@ -298,9 +299,7 @@ export async function handleFileDrop({
   insertAtTop: boolean;
   selectedTrackId: string | null;
   applyEdit: TimelineApplyEdit;
-  patchRegistry: TimelinePatchRegistry;
   prepareAssetUpload?: TimelineUploadAsset;
-  uploadAsset: TimelineUploadAsset;
   invalidateAssetRegistry: TimelineInvalidateAssetRegistry;
   resolveAssetUrl: (file: string) => Promise<string>;
   registerGenerationAsset: UseAssetManagementResult['registerGenerationAsset'];
@@ -328,14 +327,37 @@ export async function handleFileDrop({
     let compatibleTrackId = forceNewTrack
       ? null
       : getCompatibleTrackId(dataRef.current.tracks, targetTrackId, kind, selectedTrackId);
+    const isImageVideo = isImageFile(file) || isVideoFile(file);
+
+    // A direct host without Runtime media-import capability must not fall
+    // through to browser storage, local materialization, or a legacy
+    // generation writer. Keep this before track/skeleton/registry mutation.
+    if (isImageVideo && directAssetUploadAllFiles && !mediaImportForImageVideo) {
+      onAssetDropError?.(new Error('This editor backend does not support Runtime image/video imports'));
+      continue;
+    }
+
+    // Runtime rejects objects above this boundary. Check before creating a
+    // temporary uploading clip so an oversized local file is side-effect free.
+    if (isImageVideo && mediaImportForImageVideo && file.size > RUNTIME_MEDIA_IMPORT_MAX_BYTES) {
+      try {
+        assertRuntimeMediaImportSize(file);
+      } catch (error) {
+        onAssetDropError?.(error);
+      }
+      continue;
+    }
 
     // Runtime image/video drops go through the canonical media-import
     // settlement so the gallery generation and the timeline placement share
     // one catalog identity. Other file kinds can still use the provider's
     // generic prepared-object path.
-    if (directAssetUploadAllFiles && !(mediaImportForImageVideo && (isImageFile(file) || isVideoFile(file)))) {
+    if (directAssetUploadAllFiles && !isImageVideo) {
       try {
-        const result = await (prepareAssetUpload ?? uploadAsset)(file);
+        if (!prepareAssetUpload) {
+          throw new Error('This editor backend does not support prepared asset placement');
+        }
+        const result = await prepareAssetUpload(file);
         const sourceReference = getAssetResolutionToken(result.entry);
         if (!sourceReference) throw new Error('Uploaded asset has no file locator or media identity');
         await resolveAssetUrl(sourceReference);
@@ -348,7 +370,7 @@ export async function handleFileDrop({
           entry: result.entry,
           source: 'registered',
         };
-        dropAsset(
+        const placed = dropAsset(
           result.assetId,
           compatibleTrackId ?? targetTrackId,
           dropPosition.time + timeOffset,
@@ -356,6 +378,9 @@ export async function handleFileDrop({
           forceNewTrack ? insertAtTop : false,
           preparedAsset,
         );
+        if (!placed) {
+          throw new Error('The timeline drop target changed before the prepared asset was placed');
+        }
         void invalidateAssetRegistry();
 
         if (!forceNewTrack || !dataRef.current) {
@@ -375,6 +400,14 @@ export async function handleFileDrop({
         console.error('[drop] Upload failed:', error);
         onAssetDropError?.(error);
       }
+      continue;
+    }
+
+    // Generic files have no generation-upload fallback. Fail before creating
+    // a track or a skeleton when the provider cannot prepare a placement-owned
+    // asset, so unsupported preparation stays side-effect free.
+    if (!isImageFile(file) && !isVideoFile(file) && !prepareAssetUpload) {
+      onAssetDropError?.(new Error('This editor backend does not support prepared asset placement'));
       continue;
     }
 
@@ -416,6 +449,18 @@ export async function handleFileDrop({
       metaUpdates: { [skeletonId]: skeletonMeta },
     }, { save: false });
 
+    const removeSkeleton = () => {
+      const current = dataRef.current;
+      if (!current) {
+        return;
+      }
+      applyEdit({
+        type: 'rows',
+        rows: removeAction(current.rows, skeletonId),
+        metaDeletes: [skeletonId],
+      }, { save: false });
+    };
+
     pendingOpsRef.current += 1;
     void (async () => {
       try {
@@ -427,8 +472,12 @@ export async function handleFileDrop({
           }
 
           const preparedAsset = prepareGenerationForDrop(generationData, dataRef, registerGenerationAsset, prepareGenerationAsset);
-          if (preparedAsset) {
-            dropAsset(preparedAsset.assetKey, compatibleTrackId ?? undefined, clipTime, false, false, preparedAsset, skeletonId);
+          if (!preparedAsset) {
+            removeSkeleton();
+            return;
+          }
+          if (!dropAsset(preparedAsset.assetKey, compatibleTrackId ?? undefined, clipTime, false, false, preparedAsset, skeletonId)) {
+            removeSkeleton();
           }
           return;
         }
@@ -441,16 +490,22 @@ export async function handleFileDrop({
           }
 
           const preparedAsset = prepareGenerationForDrop(generationData, dataRef, registerGenerationAsset, prepareGenerationAsset);
-          if (preparedAsset) {
-            dropAsset(preparedAsset.assetKey, compatibleTrackId ?? undefined, clipTime, false, false, preparedAsset, skeletonId);
+          if (!preparedAsset) {
+            removeSkeleton();
+            return;
+          }
+          if (!dropAsset(preparedAsset.assetKey, compatibleTrackId ?? undefined, clipTime, false, false, preparedAsset, skeletonId)) {
+            removeSkeleton();
           }
           return;
         }
 
-        // Prefer preparation for placement: the compound editor command owns
-        // registry + clip persistence. Fall back only for older providers that
-        // do not expose preparation.
-        const result = await (prepareAssetUpload ?? uploadAsset)(file);
+        // Preparation is required for placement: the compound editor command
+        // owns registry + clip persistence.
+        if (!prepareAssetUpload) {
+          throw new Error('This editor backend does not support prepared asset placement');
+        }
+        const result = await prepareAssetUpload(file);
         const sourceReference = getAssetResolutionToken(result.entry);
         if (!sourceReference) throw new Error('Uploaded asset has no file locator or media identity');
         await resolveAssetUrl(sourceReference);
@@ -463,7 +518,10 @@ export async function handleFileDrop({
           entry: result.entry,
           source: 'registered',
         };
-        dropAsset(result.assetId, compatibleTrackId ?? undefined, clipTime, false, false, preparedAsset, skeletonId);
+        const placed = dropAsset(result.assetId, compatibleTrackId ?? undefined, clipTime, false, false, preparedAsset, skeletonId);
+        if (!placed) {
+          removeSkeleton();
+        }
         void invalidateAssetRegistry();
       } catch (error) {
         console.error('[drop] Upload failed:', error);
@@ -473,11 +531,7 @@ export async function handleFileDrop({
           return;
         }
 
-        applyEdit({
-          type: 'rows',
-          rows: removeAction(current.rows, skeletonId),
-          metaDeletes: [skeletonId],
-        }, { save: false });
+        removeSkeleton();
       } finally {
         pendingOpsRef.current -= 1;
       }

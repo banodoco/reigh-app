@@ -650,7 +650,7 @@ describe('useExternalDrop', () => {
     expect(applyEdit).toHaveBeenCalled();
   });
 
-  it('uses the local bridge direct asset flow without mutating the timeline before bytes and registry succeed', async () => {
+  it('uses the local bridge direct asset flow for non-generation audio without mutating the timeline before bytes and registry succeed', async () => {
     mockRuntime.provider = { persistenceEnabled: true, supportsDirectAssetUpload: true } as unknown as AstridBridgeDataProvider;
 
     const dataRef = {
@@ -727,7 +727,7 @@ describe('useExternalDrop', () => {
     }));
 
     const event = createFileDropEvent([
-      new File(['video'], 'clip.mp4', { type: 'video/mp4' }),
+      new File(['audio'], 'clip.mp3', { type: 'audio/mpeg' }),
     ]);
 
     const dropPromise = act(async () => {
@@ -742,8 +742,8 @@ describe('useExternalDrop', () => {
     upload.resolve({
       assetId: 'asset-local',
       entry: {
-        file: 'local-drops/clip.mp4',
-        type: 'video/mp4',
+        file: 'local-drops/clip.mp3',
+        type: 'audio/mpeg',
         duration: 8,
       },
     });
@@ -760,10 +760,10 @@ describe('useExternalDrop', () => {
       false,
       expect.objectContaining({
         assetKey: 'asset-local',
-        mediaType: 'video',
+        mediaType: 'audio',
         entry: {
-          file: 'local-drops/clip.mp4',
-          type: 'video/mp4',
+          file: 'local-drops/clip.mp3',
+          type: 'audio/mpeg',
           duration: 8,
         },
       }),
@@ -846,7 +846,7 @@ describe('useExternalDrop', () => {
     expect(handleAssetDrop).not.toHaveBeenCalled();
     expect(dataRef.current).toBe(initialData);
     expect(mockToastError).toHaveBeenCalledWith('Failed to save asset', {
-      description: 'Local asset drop requires a browser with File System Access support',
+      description: 'This editor backend does not support Runtime image/video imports',
     });
   });
 

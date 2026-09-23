@@ -832,16 +832,27 @@ describe('useTimelinePersistence — interaction gating', () => {
     expect(await loadTimelineDraft('timeline-1')).toBeNull();
   });
 
-  it('serializes registration-first and clip-first edits as ordered compound CAS payloads', async () => {
-    const registrationFirst = makeTimelineData('registration-first', makeRegistry('registration-first'));
-    const clipFirst = makeTimelineData('clip-first', makeRegistry('clip-first'));
+  it.each([
+    [
+      'registration-first then clip-first',
+      makeTimelineData('registration-first', makeRegistry('registration-first')),
+      makeTimelineData('clip-first', makeRegistry('clip-first')),
+    ],
+    [
+      'clip-first then registration-first',
+      makeTimelineData('clip-first-reverse', makeRegistry('clip-first-reverse')),
+      makeTimelineData('registration-first-reverse', makeRegistry('registration-first-reverse')),
+    ],
+  ])('serializes %s edits as ordered compound CAS payloads', async (_order, firstData, secondData) => {
     let settleFirst!: (version: number) => void;
     let settleSecond!: (version: number) => void;
     let call = 0;
+    const expectedVersions: number[] = [];
     const harness = setup({
-      initialData: registrationFirst,
-      saveTimelineImpl: async () => {
+      initialData: firstData,
+      saveTimelineImpl: async (_timelineId, _config, expectedVersion) => {
         call += 1;
+        expectedVersions.push(expectedVersion);
         return new Promise<number>((resolve) => {
           if (call === 1) settleFirst = resolve;
           else settleSecond = resolve;
@@ -849,14 +860,14 @@ describe('useTimelinePersistence — interaction gating', () => {
       },
     });
 
-    harness.scheduleSave(registrationFirst);
+    harness.scheduleSave(firstData);
     await act(async () => {
       vi.advanceTimersByTime(600);
       await Promise.resolve();
     });
 
     harness.editSeqRef.current = 2;
-    harness.scheduleSave(clipFirst);
+    harness.scheduleSave(secondData);
     expect(harness.saveTimeline).toHaveBeenCalledTimes(1);
 
     act(() => { settleFirst(2); });
@@ -867,10 +878,11 @@ describe('useTimelinePersistence — interaction gating', () => {
     });
 
     expect(harness.saveTimeline).toHaveBeenCalledTimes(2);
-    expect(harness.saveTimeline.mock.calls[0]?.[1]).toEqual(registrationFirst.config);
-    expect(harness.saveTimeline.mock.calls[0]?.[3]).toEqual(registrationFirst.registry);
-    expect(harness.saveTimeline.mock.calls[1]?.[1]).toEqual(clipFirst.config);
-    expect(harness.saveTimeline.mock.calls[1]?.[3]).toEqual(clipFirst.registry);
+    expect(expectedVersions).toEqual([1, 2]);
+    expect(harness.saveTimeline.mock.calls[0]?.[1]).toEqual(firstData.config);
+    expect(harness.saveTimeline.mock.calls[0]?.[3]).toEqual(firstData.registry);
+    expect(harness.saveTimeline.mock.calls[1]?.[1]).toEqual(secondData.config);
+    expect(harness.saveTimeline.mock.calls[1]?.[3]).toEqual(secondData.registry);
 
     act(() => { settleSecond(3); });
     await act(async () => {

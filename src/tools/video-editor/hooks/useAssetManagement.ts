@@ -14,7 +14,10 @@ import {
   previewPreparedMediaCommand,
   type PlacePreparedMediaCommand,
 } from '@/tools/video-editor/commands/media.ts';
-import type { PreparedMediaImport } from '@/tools/video-editor/data/AssetResolver.ts';
+import {
+  assertRuntimeMediaImportSize,
+  type PreparedMediaImport,
+} from '@/tools/video-editor/data/AssetResolver.ts';
 import type { TimelineProvisionedAsset } from '@/tools/video-editor/commands/provisioning.ts';
 import {
   type TimelineData,
@@ -30,7 +33,6 @@ import type {
   TimelineApplyEdit,
   TimelineInvalidateAssetRegistry,
   TimelinePatchRegistry,
-  TimelineUploadAsset,
 } from '@/tools/video-editor/hooks/timeline-state-types.ts';
 import type { TimelineStoreApi } from '@/tools/video-editor/hooks/timelineStore.ts';
 
@@ -64,7 +66,6 @@ export interface UseAssetManagementArgs {
   setSelectedTrackId: Dispatch<SetStateAction<string | null>>;
   applyEdit: TimelineApplyEdit;
   patchRegistry: TimelinePatchRegistry;
-  uploadAsset: TimelineUploadAsset;
   invalidateAssetRegistry: TimelineInvalidateAssetRegistry;
   resolveAssetUrl: (file: string) => Promise<string>;
 }
@@ -368,10 +369,14 @@ export function useAssetManagement({
 
     const runtimeMediaImport = runtime.provider.prepareMediaImport;
     if (runtimeMediaImport) {
+      assertRuntimeMediaImportSize(file);
       const mediaImport = await runtimeMediaImport.call(runtime.provider, file, {
         filename: file.name,
         mediaType: file.type || 'image/png',
       });
+      if (mediaImport.provider !== 'runtime') {
+        throw new Error('The media import provider returned a non-Runtime descriptor');
+      }
       if (selectedProjectId && mediaImport.project !== selectedProjectId) {
         throw new Error('Runtime media import belongs to a different project');
       }
@@ -388,6 +393,10 @@ export function useAssetManagement({
         },
         mediaImport,
       };
+    }
+
+    if (runtime.provider.supportsDirectAssetUpload === true) {
+      throw new Error('This editor backend does not support Runtime image/video imports');
     }
 
     let imageUrl = '';
@@ -447,11 +456,15 @@ export function useAssetManagement({
 
     const runtimeMediaImport = runtime.provider.prepareMediaImport;
     if (runtimeMediaImport) {
+      assertRuntimeMediaImportSize(file);
       const mediaImport = await runtimeMediaImport.call(runtime.provider, file, {
         filename: file.name,
         mediaType: file.type || 'video/mp4',
         ...(durationSeconds !== undefined ? { durationSeconds } : {}),
       });
+      if (mediaImport.provider !== 'runtime') {
+        throw new Error('The media import provider returned a non-Runtime descriptor');
+      }
       if (selectedProjectId && mediaImport.project !== selectedProjectId) {
         throw new Error('Runtime media import belongs to a different project');
       }
@@ -469,6 +482,10 @@ export function useAssetManagement({
         },
         mediaImport,
       };
+    }
+
+    if (runtime.provider.supportsDirectAssetUpload === true) {
+      throw new Error('This editor backend does not support Runtime image/video imports');
     }
 
     const videoUrl = await uploadImageToStorage(file);

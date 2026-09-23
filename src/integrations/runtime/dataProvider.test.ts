@@ -276,7 +276,7 @@ describe('RuntimeDataProvider', () => {
     expect(uploaded).toMatchObject({
       assetId: MANAGED_OBJECT_ID,
       entry: {
-        file: 'managed-creative.mp4',
+        file: `http://runtime.test/v1/objects/${MANAGED_OBJECT_ID}`,
         type: 'video/mp4',
         media_id: MANAGED_OBJECT_ID,
         content_sha256: MANAGED_OBJECT_DIGEST,
@@ -323,7 +323,7 @@ describe('RuntimeDataProvider', () => {
     expect(persistedRegistry.assets[MANAGED_OBJECT_ID]).toMatchObject({
       media_id: MANAGED_OBJECT_ID,
       content_sha256: MANAGED_OBJECT_DIGEST,
-      file: 'managed-creative.mp4',
+      file: `http://runtime.test/v1/objects/${MANAGED_OBJECT_ID}`,
       metadata: {
         provenance: {
           sourceProvider: 'workspace-runtime',
@@ -334,6 +334,20 @@ describe('RuntimeDataProvider', () => {
     });
     expect(fixture.requests.filter((request) => request.path.includes('/objects')).map((request) => request.method))
       .toEqual(['POST']);
+  });
+
+  it('returns a playable locator for a freshly prepared object before registry readback', async () => {
+    const fixture = runtimeFixture();
+    const provider = new RuntimeDataProvider({ projectId: PROJECT_ID, baseUrl: 'http://runtime.test', token: 'fixture-token', transport: fixture.transport });
+
+    const prepared = await provider.prepareAsset(
+      new File(['managed creative'], 'managed-creative.mp4', { type: 'video/mp4' }),
+      { timelineId: TIMELINE_ID, userId: 'owner-r3' },
+    );
+
+    expect(prepared.entry.file).toBe(`http://runtime.test/v1/objects/${MANAGED_OBJECT_ID}`);
+    await expect(provider.resolveAssetUrl(prepared.entry.file!))
+      .resolves.toBe(`http://runtime.test/v1/objects/${MANAGED_OBJECT_ID}`);
   });
 
   it('reconnects and validates managed media Range/ETag against registry identity', async () => {

@@ -219,7 +219,7 @@ describe('Astrid element operation adapter', () => {
 
     expect(result.config?.clips[0]).toMatchObject({
       elementRef: { id: 'fade-up', kind: 'animation', revision: 'rev-animation' },
-      entrance: { type: 'fade-up' },
+      entrance: { type: 'fade-up', duration: 0.4 },
     });
   });
 

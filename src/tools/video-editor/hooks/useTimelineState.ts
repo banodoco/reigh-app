@@ -555,6 +555,9 @@ export function useTimelineState(): UseTimelineStateResult {
     runtime.userId,
     queryClient,
     save.pendingOpsRef,
+    undefined,
+    save.patchRegistry,
+    resolveAssetUrl,
   );
   const {
     data,
@@ -632,7 +635,6 @@ export function useTimelineState(): UseTimelineStateResult {
   } = preferences;
   const {
     registerAsset,
-    uploadAsset,
     prepareAssetUpload,
     uploadFiles,
     invalidateAssetRegistry,
@@ -725,7 +727,6 @@ export function useTimelineState(): UseTimelineStateResult {
     setSelectedTrackId,
     applyEdit,
     patchRegistry,
-    uploadAsset,
     invalidateAssetRegistry,
     resolveAssetUrl,
   });
@@ -755,9 +756,7 @@ export function useTimelineState(): UseTimelineStateResult {
     scaleWidth,
     selectedTrackId,
     applyEdit,
-    patchRegistry,
     prepareAssetUpload,
-    uploadAsset,
     invalidateAssetRegistry,
     resolveAssetUrl,
     coordinator: dragCoordinator.coordinator,

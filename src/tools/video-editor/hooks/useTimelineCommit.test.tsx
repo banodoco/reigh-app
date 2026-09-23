@@ -486,3 +486,50 @@ describe('useTimelineCommit — delete-shot / auto-restore regression', () => {
     expect(result.current.selectedTrackId).toBe('V2');
   });
 });
+
+describe('useTimelineCommit — registry patches preserve in-flight placements', () => {
+  beforeEach(() => {
+    __resetSelectionStoreForTests();
+  });
+
+  it('does not discard an uploading placeholder when the registry is patched', () => {
+    const eventBus = new TimelineEventBus();
+    const lastSavedSignatureRef = { current: '' };
+    const { result } = renderHook(() => useTimelineCommit({ eventBus, lastSavedSignatureRef }));
+
+    act(() => {
+      result.current.commitData(makeSelectionForwardingData(), { save: false });
+      const current = result.current.dataRef.current!;
+      result.current.applyEdit({
+        type: 'rows',
+        rows: current.rows.map((row) => row.id === 'V1'
+          ? {
+              ...row,
+              actions: [...row.actions, {
+                id: 'uploading-test',
+                start: 0,
+                end: 5,
+                effectId: 'effect-uploading-test',
+              }],
+            }
+          : row),
+        metaUpdates: {
+          'uploading-test': {
+            asset: 'uploading:clip.mp4',
+            track: 'V1',
+            clipType: 'hold',
+            hold: 5,
+          },
+        },
+      }, { save: false });
+    });
+
+    act(() => {
+      result.current.patchRegistry('asset-new', { file: 'clip.mp4', type: 'video/mp4' });
+    });
+
+    const current = result.current.dataRef.current!;
+    expect(current.rows[0]?.actions.map((action) => action.id)).toContain('uploading-test');
+    expect(current.meta['uploading-test']).toMatchObject({ asset: 'uploading:clip.mp4' });
+  });
+});

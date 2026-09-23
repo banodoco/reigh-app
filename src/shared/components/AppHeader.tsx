@@ -33,7 +33,7 @@ function AppHeaderProjectControls() {
     currentLocal: true,
     selectedProjectSlug: localProjectSlug,
   });
-  const selectedProject = discovery.projectsQuery.data?.projects.find(
+  const selectedProject = discovery.projectsQuery.data?.projects?.find(
     (project) => project.slug === localProjectSlug,
   ) ?? null;
 

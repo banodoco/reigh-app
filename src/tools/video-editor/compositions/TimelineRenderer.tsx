@@ -29,7 +29,6 @@ import {
   ThemeProvider,
   useTheme,
   type RuntimeTheme,
-  type Theme,
 } from '@banodoco/timeline-composition/theme-api';
 import {
   describeClipCapabilityWith,
@@ -278,7 +277,7 @@ const sortClipsByAt = (clips: ResolvedTimelineClip[]): ResolvedTimelineClip[] =>
 type ThemeEffectSequenceProps = {
   clip: ResolvedTimelineClip;
   fps: number;
-  theme: Theme;
+  theme: RuntimeTheme;
   dynamicEntries: readonly DynamicSequenceComponentEntry[];
 };
 
@@ -1329,7 +1328,7 @@ interface VisualTrackProps {
   clips: ResolvedTimelineClip[];
   renderConfig: ResolvedTimelineConfig;
   fps: number;
-  theme: Theme;
+  theme: RuntimeTheme;
   resolution: string;
   /** All timeline clips (needed for automation override resolution). */
   allClips: readonly ResolvedTimelineClip[];
@@ -1674,6 +1673,12 @@ export const TimelineRenderer: FC<{ config: ResolvedTimelineConfig }> = memo(({ 
   const shaderSnapshot = useShaderEffectRegistrySnapshot();
   const fps = renderConfig.output.fps;
   const theme = useMemo(() => resolveTimelineRenderTheme(renderConfig), [renderConfig]);
+  const runtimeTheme = useMemo<RuntimeTheme>(() => ({
+    ...theme,
+    color: theme.visual.color,
+    type: theme.visual.type,
+    motion: theme.visual.motion,
+  }), [theme]);
   const visualTracks = useMemo(() => [...getVisualTracks(renderConfig)].reverse(), [renderConfig]);
   const audioTracks = useMemo(() => getAudioTracks(renderConfig), [renderConfig]);
   const totalDurationInFrames = useMemo(() => getTimelineDurationInFrames(renderConfig, fps), [renderConfig, fps]);
@@ -1747,7 +1752,7 @@ export const TimelineRenderer: FC<{ config: ResolvedTimelineConfig }> = memo(({ 
               clips={trackClips}
               renderConfig={renderConfig}
               fps={fps}
-              theme={theme}
+              theme={runtimeTheme}
               resolution={resolution}
               allClips={renderConfig.clips}
               liveBindingRecordsByClip={liveBindingRecordsByClip}
@@ -1781,7 +1786,7 @@ export const TimelineRenderer: FC<{ config: ResolvedTimelineConfig }> = memo(({ 
     liveBindingRecordsByClip,
     liveDataRegistry,
     renderConfig,
-    theme,
+    runtimeTheme,
     visualTracks,
   ]);
 

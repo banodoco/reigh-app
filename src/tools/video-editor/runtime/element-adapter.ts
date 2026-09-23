@@ -195,6 +195,9 @@ function applyTimelineOperation(
                   // library uses entrance as the ergonomic default.
                   entrance: {
                     type: operation.element.id,
+                    // Match TimelineRenderer's established fallback when the
+                    // operation does not provide an explicit entrance span.
+                    duration: 0.4,
                     ...(operation.params ? { params: operation.params } : {}),
                   },
                 }
@@ -235,8 +238,7 @@ function applyTimelineOperation(
         const { elementRef: _elementRef, ...withoutElement } = clip;
         const removedId = clip.elementRef?.id;
         const entrance = withoutElement.entrance;
-        const nextEntrance = removedId && isRecord(entrance)
-          && (entrance.type === removedId || entrance.id === removedId)
+        const nextEntrance = removedId && entrance?.type === removedId
           ? undefined
           : entrance;
         return {
