@@ -909,6 +909,16 @@
         "DefineExtensionOptions",
         "defineExtension"
       ]
+    },
+    {
+      "id": "astrid-plan-a-c1",
+      "class": "composition_contract",
+      "path": "config/contracts/astrid-plan-a-c1.json",
+      "requiredTags": [
+        "\"kind\": \"astrid-contract-composition\"",
+        "\"revision\": \"C1\""
+      ],
+      "expectedExports": []
     }
   ]
 }

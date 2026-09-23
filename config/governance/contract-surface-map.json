@@ -37,5 +37,11 @@
     "src/sdk/video/families/conformanceGate.test.ts",
     "src/sdk/core/families/maturity.ts",
     "src/sdk/core/families/conformance.ts"
+  ],
+  "check:astrid-contract-freeze": [
+    "config/contracts/astrid-plan-a-c1.json",
+    "scripts/quality/check-astrid-contract-freeze.mjs",
+    "scripts/quality/lib/astrid-contract-schema.mjs",
+    "docs/governance/contracts/astrid-plan-a.md"
   ]
 }

@@ -1,0 +1,110 @@
+# Astrid Plan A contract freeze
+
+Purpose: give Setup/Lifecycle (SL) and Execution/Worker (EW) one reviewable CF
+input, without implementing either lane. The source of truth is
+[`C1`](../../../config/contracts/astrid-plan-a-c1.json), a versioned JSON
+composition governed by `scripts/quality/check-astrid-contract-freeze.mjs`.
+This is a semantic contract awaiting consumer acknowledgement, not an installed
+release, an auth service, a Runtime schema replacement, or a passed CF-M1 gate.
+
+## Consume and verify
+
+Run `npm run check:astrid-contract-freeze` or append `-- --json` for the report.
+Run `npm run test:astrid-contract-freeze` for the validator's negative cases.
+The normal `npm run check:contracts` gate includes this check.
+
+For an optional read-only comparison with the inspected external declarations:
+
+```sh
+npm run check:astrid-contract-freeze -- \
+  --astrid-root /path/to/Astrid \
+  --runtime-root /path/to/banodoco-workspace-runtime --json
+```
+
+The checker reads declaration files only. It does not inspect credential files,
+contact services, run parsers, install dependencies, start processes, or mutate
+workspace data. Without explicit external roots it reports those sources as
+unverified. Passing checks validates the contract and available source bytes;
+it does not qualify installed behavior or prove source publication.
+
+`digest` is `sha256:` plus the SHA-256 of UTF-8 JSON with recursively sorted
+object keys, array order preserved, no whitespace or trailing newline, and only
+the top-level `digest` omitted. No other field is excluded. Source evidence
+hashes instead cover each source file's exact bytes. Observed Git HEADs describe
+where inspection occurred; dirty working-tree file hashes take precedence and
+neither establishes release custody. The immutable C1 digest is the consumer
+acknowledgement key. It is not a signature or independent approval.
+
+SL and EW should validate C1, record its revision/digest in their own receipts,
+and implement only their owned seams. Do not import this JSON into app boot or
+use it to dispatch commands. Proposed command names and safety requirements
+describe future adapters over existing authorities. Use the existing
+`workspace.v1` OpenAPI/schema/generated clients for Runtime payloads; C1's
+normalized facts and diagnostic vocabulary do not replace those wire types.
+`validateDiagnostic` checks projection shape, contract binding, collection bounds
+and declared action effects. It does not sanitize content, authorize actions or
+execute argument strings. SL/EW must prove redaction and validate exact command
+arguments at their existing execution boundary before offering an action.
+
+## Frozen decisions
+
+| Boundary | C1 decision |
+|---|---|
+| Workspace | One Create/Attach workspace becomes selected/default; retain UUID and registered absolute root on repeat/resume. Fresh packaged Create uses Astrid's existing `~/.astrid-data` support-root default. Attach does not copy. Resolve and pass the same root explicitly to the neutral launcher; never silently adopt its different default or cwd. |
+| Local auth | Local app + local workspace uses the existing bridge session without Discord or contributor login. Missing Runtime yields degraded local state, not a hosted login gate. |
+| Hosted auth | Hosted contexts require verified Discord sessions plus independent workspace/pairing/action grants. Contributor identity and explicit knowledge-write consent remain Hivemind-owned. Mode changes isolate grants/caches and preserve the sole local default. |
+| Setup | Preview/check are nonstarting; offline forbids acquisition, not authorized local writes. Successful apply visibly starts Runtime. Failure preserves configured workspace and offers proposed `astrid-runtime up`, never a task retry or another Create. |
+| Naming | `astrid auth status` keeps contributor meaning. The transition release atomically assigns top-level `astrid status` to workspace/readiness. Other auth aliases survive the transition and next minor release, subject to documented removal conditions. |
+| Execution | Runtime owns admission, idempotency, attempts, fencing, events and settlement. New attempts, Worker relaunch and GPU replacement remain distinct actions. Local stop/lost contact cannot prove remote stop or billing settlement. |
+| Observation | Installed/enabled/connected/ready/authorized, task state, progress, freshness and remote uncertainty remain independent. Bounded redacted diagnosis preserves unavailable facts and declares exact next-action effects. |
+
+Source inspection found real migration gaps: `setup` is not reserved before
+prompt/dynamic-pack fallback; wrapper and gateway help differ; top-level status
+still means contributor auth. `AstridClient.open_from_launcher` can start Runtime
+even with `start_pack_host=False`, so current Astrid doctor/task inspection is
+not evidence of nonstarting observation. Neutral `banodoco-local connect` may
+provision connection state. These are downstream implementation obligations.
+
+## Composition and unresolved inputs
+
+C1 selects existing `vibecomfy.run`, VibeComfy/ComfyUI `pip_embedded`, the existing
+RunPod target kind, local macOS and Linux/CUDA worker platform direction, and the
+existing `astrid-beta-current-mac` capability profile. Exact account/pod, worker
+architecture/image, workflow/model assets and compatible dependency closure
+remain unresolved. No personal RunPod example becomes a default. EW must prove
+the selected engine profile is enforced; availability alone does not prove it.
+
+The machine/source Hivemind declaration supersedes the stale older planning pin.
+All nineteen shipped non-local packs remain available, with experimental labels
+retained for `comfy_wrap`, `stream_content` and `wan2gp`. C1 explicitly selects
+the existing core, Hivemind, VibeComfy and stable timeline skill views for initial
+setup. This reconciles a gap between discovery and legacy skill-default logic;
+it does not claim today's setup already makes that selection. Compatibility and
+prerequisites remain separate, and repeat setup preserves explicit disables.
+
+Every missing input has an ID, kind, owner, deadline and reason in `unresolved`.
+Those references cannot be replaced by fabricated hashes or empty “resolved”
+records. They cover SL/EW delivery and acknowledgement, worker controls, source
+publication/custody and dependency closure, actual workspace inventory and
+physical preservation, the hosted-only secure exchange, and the future Rn.
+Hosted wire/storage/consent/expiry/deployment decisions must be frozen before
+affected Plan B integration; they do not block ordinary local use.
+
+No actual workspace inventory, backup, restore, worker setup, generation or
+hosted exchange was performed for C1. Its scenario mapping records future proof
+obligations, all unexecuted. Runtime contract/client reconciliation in the
+separate imported-media-catalog lane requires a fresh ownership/merge review.
+
+## Revision and acceptance rules
+
+After review/issuance, never rewrite C1 to make changed sources pass. Add a
+successor Cn and matching versioned validator contract, obtain both consumers'
+acknowledgements and let the parent invalidate affected evidence. Keep C1 as an
+audit input. Validate only relevant source snapshots, not unrelated dirty files.
+
+Rn must reference the exact Cn digest and real immutable source, artifact,
+environment/dependency/model/profile and acquisition identities. Unresolved
+inputs needed by that tuple prohibit installed acceptance. CF-M1 requires the
+pending inventories and both consumer acknowledgements; CF-CLOSE additionally
+requires final physical disposition and Rn. Parent alone accepts A-10/A-M1.
+This foundation neither seals Rn nor claims any of those gates.
