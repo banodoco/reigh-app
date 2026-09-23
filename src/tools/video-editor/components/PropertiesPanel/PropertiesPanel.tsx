@@ -41,6 +41,7 @@ import {
   type ManagerErrorInfo,
 } from '@/tools/video-editor/components/ExtensionManager';
 import { ProcessDashboard } from '@/tools/video-editor/components/ProcessDashboard/ProcessDashboard';
+import { TimelineOutlinePanel } from '@/tools/video-editor/components/PropertiesPanel/TimelineOutlinePanel.tsx';
 
 function InspectorRegistrySections({
   placement,
@@ -172,7 +173,7 @@ export interface PropertiesPanelProps {
 
 function PropertiesPanelComponent({ assetPanel }: PropertiesPanelProps) {
   useRenderDiagnostic('PropertiesPanel');
-  const [activePanelTab, setActivePanelTab] = useState<'assets' | 'inspector' | 'extensions' | 'processes'>('inspector');
+  const [activePanelTab, setActivePanelTab] = useState<'assets' | 'outline' | 'inspector' | 'extensions' | 'processes'>('inspector');
 
   const handleManagerError = (_info: ManagerErrorInfo) => {
     // Error already logged by the boundary; could aggregate to diagnostics sink in future.
@@ -395,11 +396,12 @@ function PropertiesPanelComponent({ assetPanel }: PropertiesPanelProps) {
     <div className="flex h-full min-h-0 flex-col gap-3" style={VIDEO_EDITOR_THEME_VARS}>
       <Tabs
         value={activePanelTab}
-        onValueChange={(value) => setActivePanelTab(value as 'assets' | 'inspector' | 'extensions' | 'processes')}
+        onValueChange={(value) => setActivePanelTab(value as 'assets' | 'outline' | 'inspector' | 'extensions' | 'processes')}
         className="flex min-h-0 flex-1 flex-col"
       >
-        <TabsList className={`grid w-full bg-muted/60 ${assetPanel ? 'grid-cols-4' : 'grid-cols-3'}`}>
+        <TabsList className={`grid w-full bg-muted/60 ${assetPanel ? 'grid-cols-5' : 'grid-cols-4'}`}>
           {assetPanel && <TabsTrigger value="assets">Assets</TabsTrigger>}
+          <TabsTrigger value="outline">Outline</TabsTrigger>
           <TabsTrigger value="inspector">Inspector</TabsTrigger>
           <TabsTrigger value="extensions">Extensions</TabsTrigger>
           <TabsTrigger value="processes">Processes</TabsTrigger>
@@ -409,6 +411,9 @@ function PropertiesPanelComponent({ assetPanel }: PropertiesPanelProps) {
             {assetPanel}
           </TabsContent>
         )}
+        <TabsContent value="outline" className="mt-3 flex min-h-0 flex-1 overflow-hidden">
+          <TimelineOutlinePanel />
+        </TabsContent>
         <TabsContent value="inspector" className="mt-3 flex min-h-0 flex-1 flex-col gap-3">
           {showInspectorActions && (
         <div className="rounded-xl border border-[color:var(--video-editor-accent-border)] bg-[var(--video-editor-accent-bg)] p-3">
