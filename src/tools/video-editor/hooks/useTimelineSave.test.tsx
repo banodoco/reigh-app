@@ -14,8 +14,12 @@ import { createDefaultTimelineConfig } from '../lib/defaults';
 import { TimelineVersionConflictError, type DataProvider } from '../data/DataProvider';
 import { loadTimelineDraft, saveTimelineDraft } from '../data/timelineDraftIndexedDb';
 import type { VideoEditorRuntimeContextValue } from '../contexts/VideoEditorRuntimeContext';
+import type { TimelineEditability } from '../lib/timeline-editability';
 
 vi.stubGlobal('indexedDB', createFakeIndexedDB());
+vi.mock('@/tools/video-editor/compositions/TimelineRenderer.tsx', () => ({
+  invalidateReferencedTimelineCache: vi.fn(),
+}));
 
 function makeTimelineData(label: string): TimelineData {
   const base = createDefaultTimelineConfig();
@@ -63,7 +67,10 @@ interface SetupResult {
   saveTimeline: ReturnType<typeof vi.fn>;
 }
 
-function setup(saveTimelineImpl: DataProvider['saveTimeline']): SetupResult {
+function setup(
+  saveTimelineImpl: DataProvider['saveTimeline'],
+  timelineEditability?: TimelineEditability,
+): SetupResult {
   const saveTimeline = vi.fn(saveTimelineImpl);
   const provider: DataProvider = {
     persistenceEnabled: true,
@@ -83,6 +90,7 @@ function setup(saveTimelineImpl: DataProvider['saveTimeline']): SetupResult {
     provider,
     timelineId: 'timeline-1',
     assetResolver: { resolveAssetUrl: vi.fn(async (file: string) => file) },
+    timelineEditability,
   } as unknown as VideoEditorRuntimeContextValue;
   const wrapper = ({ children }: { children: React.ReactNode }) => (
     <QueryClientProvider client={queryClient}>
@@ -138,6 +146,30 @@ describe('useTimelineSave — recovered draft durability', () => {
     harness.hook.unmount();
   });
 
+  it('does not offer a draft created by an edit after the one-time recovery check began', async () => {
+    const harness = setup(async () => 2);
+    const baseline = makeTimelineData('baseline-before-edit');
+    act(() => {
+      harness.hook.result.current.commitData(baseline, { save: false });
+    });
+    await flush();
+    expect(harness.hook.result.current.recoveryDraft).toBeNull();
+
+    const edited = makeTimelineData('current-session-edit');
+    act(() => {
+      harness.hook.result.current.commitData(edited);
+    });
+    await flush();
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(await loadTimelineDraft('timeline-1')).not.toBeNull();
+    expect(harness.hook.result.current.recoveryDraft).toBeNull();
+    harness.hook.unmount();
+  });
+
   it('uses the draft baseVersion for CAS and clears only after a successful ACK', async () => {
     const harness = setup(async () => 8);
     const recovered = makeTimelineData('recovered');
@@ -160,6 +192,31 @@ describe('useTimelineSave — recovered draft durability', () => {
     expect(harness.saveTimeline.mock.calls[0]?.[1].output.file).toBe('output-recovered.mp4');
     expect(harness.saveTimeline.mock.calls[0]?.[2]).toBe(7);
     expect(await loadTimelineDraft('timeline-1')).toBeNull();
+    harness.hook.unmount();
+  });
+
+  it('does not retry a recovered draft while whole-timeline editing is denied', async () => {
+    const harness = setup(async () => 8, {
+      checkTimeline: () => ({ allowed: false, reason: 'timeline_read_only' }),
+    });
+    const recovered = makeTimelineData('blocked-recovery');
+    await saveTimelineDraft('timeline-1', { config: recovered.config, registry: recovered.registry }, 7);
+    act(() => {
+      harness.hook.result.current.commitData(makeTimelineData('server'), { save: false });
+    });
+    await flush();
+
+    await act(async () => {
+      await harness.hook.result.current.retryRecoveredDraft();
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(600);
+      await flush();
+    });
+
+    expect(harness.saveTimeline).not.toHaveBeenCalled();
+    expect(harness.hook.result.current.data?.config.output.file).toBe('output-server.mp4');
+    expect(await loadTimelineDraft('timeline-1')).not.toBeNull();
     harness.hook.unmount();
   });
 

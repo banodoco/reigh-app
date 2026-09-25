@@ -1,0 +1,5 @@
+{
+  "base": "../healthy.json",
+  "mutation": { "path": "timing.elapsedMs", "value": 5001 },
+  "expectedError": "exceeds total deadline"
+}

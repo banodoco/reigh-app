@@ -24,6 +24,7 @@ import {
 } from '@/tools/video-editor/lib/timeline-save-utils.ts';
 import { preserveUploadingClips, type TimelineData } from '@/tools/video-editor/lib/timeline-data.ts';
 import type { TimelineConfig } from '@/tools/video-editor/types/index.ts';
+import type { TimelineEditability } from '@/tools/video-editor/lib/timeline-editability.ts';
 import type {
   Checkpoint,
   CheckpointTriggerType,
@@ -53,6 +54,7 @@ export interface UseTimelineHistoryArgs {
    * semantics is to wait out the window.
    */
   pendingOpsRef: MutableRefObject<number>;
+  editability?: TimelineEditability;
 }
 
 export interface UseTimelineHistoryResult {
@@ -194,6 +196,7 @@ export function useTimelineHistory({
   commitData,
   interactionStateRef,
   pendingOpsRef,
+  editability,
 }: UseTimelineHistoryArgs): UseTimelineHistoryResult {
   const { provider, timelineId } = useVideoEditorRuntime();
   const undoStackRef = useRef<UndoEntry[]>([]);
@@ -402,6 +405,7 @@ export function useTimelineHistory({
   }, [syncHistoryState]);
 
   const undo = useCallback(() => {
+    if (editability?.checkTimeline && !editability.checkTimeline().allowed) return;
     if (pendingOpsRef.current > 0) {
       // Dev-only diagnostic (stripped in prod); the toolbar communicates the
       // pause to the user via disabled state + title.
@@ -431,9 +435,10 @@ export function useTimelineHistory({
       },
     ].slice(-UNDO_STACK_LIMIT);
     syncHistoryState();
-  }, [dataRef, interactionStateRef, pendingOpsRef, restoreHistoryEntry, syncHistoryState]);
+  }, [dataRef, editability, interactionStateRef, pendingOpsRef, restoreHistoryEntry, syncHistoryState]);
 
   const redo = useCallback(() => {
+    if (editability?.checkTimeline && !editability.checkTimeline().allowed) return;
     if (pendingOpsRef.current > 0) {
       console.log('[TimelineHistory] redo ignored: paused while media uploads finish', {
         pendingOps: pendingOpsRef.current,
@@ -461,9 +466,10 @@ export function useTimelineHistory({
       },
     ].slice(-UNDO_STACK_LIMIT);
     syncHistoryState();
-  }, [dataRef, interactionStateRef, pendingOpsRef, restoreHistoryEntry, syncHistoryState]);
+  }, [dataRef, editability, interactionStateRef, pendingOpsRef, restoreHistoryEntry, syncHistoryState]);
 
   const jumpToCheckpoint = useCallback((checkpointId: string) => {
+    if (editability?.checkTimeline && !editability.checkTimeline().allowed) return;
     const current = dataRef.current;
     const checkpoint = checkpoints.find((entry) => entry.id === checkpointId);
     if (!current || !checkpoint) {
@@ -481,7 +487,7 @@ export function useTimelineHistory({
       timestamp: new Date().toISOString(),
     }, 'undo');
     editsSinceLastCheckpointRef.current = 0;
-  }, [checkpoints, dataRef, restoreHistoryEntry, syncHistoryState]);
+  }, [checkpoints, dataRef, editability, restoreHistoryEntry, syncHistoryState]);
 
   const createManualCheckpoint = useCallback(async (label?: string) => {
     const current = dataRef.current;

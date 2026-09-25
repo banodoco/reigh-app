@@ -39,6 +39,11 @@ import type {
   PreparedShotComposition,
   ShotCompositionAdapter,
 } from '@/tools/video-editor/data/shotCompositionAdapter.ts';
+import type {
+  CanonicalShotTimelineDraft,
+  CanonicalShotTimelinePublication,
+  CanonicalShotTimelineScope,
+} from '@/tools/video-editor/runtime/ports.ts';
 import {
   enqueueCanonicalShotPublish,
   updateCanonicalShotName,
@@ -71,7 +76,13 @@ interface ShotEditorViewProps {
   /** Optional embedded-mode close action; avoids navigating the parent route. */
   onClose?: () => void;
   /** Receives the durable graph after a canonical shot edit is published. */
-  onCanonicalCompositionPublished?: (composition: PreparedShotComposition) => void;
+  onCanonicalCompositionPublished?: (
+    composition: PreparedShotComposition,
+    publication?: CanonicalShotTimelinePublication,
+  ) => void;
+  onCanonicalDraftSessionChange?: (scope: CanonicalShotTimelineScope, active: boolean) => void;
+  onCanonicalDraftProjectionChange?: (draft: CanonicalShotTimelineDraft) => void;
+  onCanonicalDraftProjectionClear?: (scope: CanonicalShotTimelineScope, generation: number) => void;
   /** Reports unsaved shot-local edits so parent-head refreshes do not overwrite them. */
   onCanonicalDraftStateChange?: (dirty: boolean) => void;
 }
@@ -93,6 +104,9 @@ export function ShotEditorView({
   canonicalComposition,
   onClose,
   onCanonicalCompositionPublished,
+  onCanonicalDraftSessionChange,
+  onCanonicalDraftProjectionChange,
+  onCanonicalDraftProjectionClear,
   onCanonicalDraftStateChange,
 }: ShotEditorViewProps) {
   const navigate = useNavigate();
@@ -333,6 +347,9 @@ export function ShotEditorView({
             occurrenceId={canonicalOccurrence.occurrenceId}
             shotCompositionAdapter={canonicalShotComposition}
             onCanonicalCompositionPublished={onCanonicalCompositionPublished}
+            onCanonicalDraftSessionChange={onCanonicalDraftSessionChange}
+            onCanonicalDraftProjectionChange={onCanonicalDraftProjectionChange}
+            onCanonicalDraftProjectionClear={onCanonicalDraftProjectionClear}
             onCanonicalDraftStateChange={onCanonicalDraftStateChange}
           />
         ) : null}

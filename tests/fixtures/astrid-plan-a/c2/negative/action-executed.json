@@ -1,0 +1,5 @@
+{
+  "base": "../healthy.json",
+  "mutation": { "path": "actionsExecuted", "value": ["runtime-up"] },
+  "expectedError": "must not start, repair, upload, spend, or execute actions"
+}

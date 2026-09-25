@@ -55,6 +55,7 @@ import { SequenceComponentRegistryProvider } from '@/tools/video-editor/sequence
 import { TimelineStoreProvider } from '@/tools/video-editor/hooks/timelineStore.ts';
 import { useTimelineState } from '@/tools/video-editor/hooks/useTimelineState.ts';
 import type { UseTimelineStateResult } from '@/tools/video-editor/hooks/useTimelineState.types.ts';
+import type { TimelineData } from '@/tools/video-editor/lib/timeline-data.ts';
 import { useVideoEditorRuntime } from '@/tools/video-editor/contexts/VideoEditorRuntimeContext.tsx';
 import {
   normalizeExtensionRuntime,
@@ -520,6 +521,8 @@ export interface UseEditorRuntimeSyncOptions {
     snapshotsRef: MutableRefObject<Record<string, ExtensionSettingsSnapshot> | null>;
     notificationRegistryRef: MutableRefObject<ExtensionSettingsNotificationRegistry | null>;
   };
+  /** Synchronously seed a host-owned timeline projection before provider I/O. */
+  initialTimelineData?: TimelineData;
 }
 
 export interface EditorRuntimeSync {
@@ -542,6 +545,7 @@ export function useEditorRuntimeSync({
   proposalPersistenceProvider,
   eagerProposalRetry = false,
   settings,
+  initialTimelineData,
 }: UseEditorRuntimeSyncOptions): EditorRuntimeSync {
   const {
     extensionRuntime,
@@ -568,7 +572,7 @@ export function useEditorRuntimeSync({
     sequenceComponentCatalog,
   );
 
-  const { store, editor, chrome } = useTimelineState();
+  const { store, editor, chrome } = useTimelineState(initialTimelineData);
   const diagnosticCollection = useVideoEditorRuntime().diagnosticCollection;
   const activeExtensionIds = useMemo(
     () => new Set(extensionRuntime.extensions.map((ext) => ext.manifest.id as string)),

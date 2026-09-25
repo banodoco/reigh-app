@@ -162,6 +162,36 @@ describe('LocalTimelineShotBrowser', () => {
     expect(screen.getByTestId('location')).toHaveTextContent('/tools/video-editor?localProject=project-001&localTimeline=document-primary');
   });
 
+  it('opens immediately from the parent composition while the document refresh is still pending', () => {
+    const unresolved = new Promise<never>(() => {});
+    mocks.loadTimeline.mockReturnValue(unresolved);
+    mocks.loadAssetRegistry.mockReturnValue(unresolved);
+    const shotCompositionAdapter = createShotCompositionAdapter({
+      load: vi.fn(() => unresolved),
+      publish: vi.fn(),
+    });
+    const initialComposition = shotCompositionAdapter.prepare(fixture);
+
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <MemoryRouter initialEntries={['/tools/video-editor?localProject=project-001&localTimeline=document-primary']}>
+          <LocalTimelineShotBrowser
+            projectSlug="project-001"
+            projectId="project-001"
+            timelineRef="document-primary"
+            shotCompositionAdapter={shotCompositionAdapter}
+            shotRef="project/project-001/document/document-primary/shot/shot-alpha/revision/rev-a/occurrence/occ-1"
+            initialComposition={initialComposition}
+          />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    expect(screen.getByRole('heading', { name: 'shot-alpha' })).toBeInTheDocument();
+    expect(screen.getByTestId('canonical-adapter')).toHaveTextContent('shared');
+    expect(screen.queryByText('Loading timeline shots…')).toBeNull();
+  });
+
   it.each([
     ['malformed', '/tools/travel-between-images?localProject=project-001&localTimeline=document-primary#%E0%A4%A'],
     ['unknown', '/tools/travel-between-images?localProject=project-001&localTimeline=document-primary#not-a-shot'],

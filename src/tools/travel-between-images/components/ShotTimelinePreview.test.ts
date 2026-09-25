@@ -31,6 +31,7 @@ import {
 
 vi.stubGlobal('indexedDB', createFakeIndexedDB());
 const popupChrome = vi.hoisted(() => ({
+  saveStatus: 'saved' as const,
   isConflictExhausted: false,
   recoveryDraft: null as { updatedAt: string; baseVersion: number } | null,
   reloadFromServer: vi.fn(),
@@ -746,15 +747,20 @@ describe('shot timeline popup persistence', () => {
       releaseDigest();
       await expect(saveA).resolves.toBe(2);
       const recovered = await loadTimelineDraft(recoveryKey);
-      expect(recovered?.draft.config).toEqual(draftB);
+      expect((recovered?.draft.config as TimelineConfig).clips).toEqual(draftB.clips);
+      expect((recovered?.draft.config as TimelineConfig).app).toMatchObject({
+        canonicalComposition: { headRevisionId: 'head-after-A' },
+      });
       expect(recovered?.draftIdentity).toBe('edit-B');
       expect(recovered?.draft.canonicalPublication).toMatchObject({
         idempotencyKey: expect.stringMatching(/^reigh\.shot-popup\./),
       });
 
       const reopened = createShotTimelineDataProvider(config, base, 'occ-1');
-      await expect(reopened.loadTimeline('new-session')).resolves.toMatchObject({
-        config: draftB,
+      const recoveredAgain = await reopened.loadTimeline('new-session');
+      expect((recoveredAgain.config as TimelineConfig).clips).toEqual(draftB.clips);
+      expect((recoveredAgain.config as TimelineConfig).app).toMatchObject({
+        canonicalComposition: { headRevisionId: 'head-after-A' },
       });
     } finally {
       releaseDigest();
@@ -767,12 +773,18 @@ describe('shot timeline popup persistence', () => {
     resetFakeIndexedDB();
     const base = createShotCompositionAdapter({ load: vi.fn(), publish: vi.fn() }).prepare(fixture);
     const config = projectCanonicalComposition({ ...base, occurrences: [base.occurrences[0]!] }).config;
-    const ackA = { ...base, headRevisionId: 'head-after-A' };
+    const graphAfterA = JSON.parse(JSON.stringify(fixture)) as typeof fixture;
+    graphAfterA.primary_timeline.head.revision_id = 'head-after-A';
+    const graphAfterB = JSON.parse(JSON.stringify(fixture)) as typeof fixture;
+    graphAfterB.primary_timeline.head.revision_id = 'head-after-B';
+    const compositionAdapter = createShotCompositionAdapter({ load: vi.fn(), publish: vi.fn() });
+    const ackA = compositionAdapter.prepare(graphAfterA);
+    const ackB = compositionAdapter.prepare(graphAfterB);
     let releaseA!: () => void;
     const heldA = new Promise<void>((resolve) => { releaseA = resolve; });
     const publish = vi.fn()
       .mockImplementationOnce(async () => { await heldA; return ackA; })
-      .mockRejectedValueOnce(Object.assign(new Error('newer B is stale against the advanced head'), { status: 409 }));
+      .mockResolvedValueOnce(ackB);
     const adapter = {
       ...createShotCompositionAdapter({ load: vi.fn(), publish: vi.fn() }),
       publish,
@@ -792,11 +804,86 @@ describe('shot timeline popup persistence', () => {
     await expect(saveA).resolves.toBe(2);
 
     const recovered = await loadTimelineDraft(recoveryKey);
-    expect(recovered?.draft.config).toEqual(draftB);
+    const persistedConfig = recovered?.draft.config as TimelineConfig;
+    expect(persistedConfig.clips).toEqual(draftB.clips);
+    expect(persistedConfig.app).toMatchObject({
+      canonicalComposition: { headRevisionId: ackA.headRevisionId },
+    });
+    expect(recovered?.baseHeadRevisionId).toBe(ackA.headRevisionId);
+    expect(recovered?.baseCanonicalGraph).toEqual(ackA.contract);
     const reopened = createShotTimelineDataProvider(config, ackA, 'occ-1', adapter);
-    expect((await reopened.loadTimeline('session-C')).config.clips).toEqual(draftB.clips);
-    await expect(reopened.saveTimeline('session-C', draftB, 1)).rejects.toMatchObject({ status: 409 });
-    expect(recovered?.baseHeadRevisionId).toBe(base.headRevisionId);
+    const reopenedConfig = (await reopened.loadTimeline('session-C')).config as TimelineConfig;
+    expect(reopenedConfig.clips).toEqual(draftB.clips);
+    await expect(reopened.saveTimeline('session-C', reopenedConfig, 1)).resolves.toBe(2);
+    expect(publish.mock.calls[1]?.[0]).toMatchObject({ expectedHeadRevisionId: ackA.headRevisionId });
+    expect(await loadTimelineDraft(recoveryKey)).toBeNull();
+  });
+
+  it('reconciles a stale config marker from H0 to its acknowledged H1 recovery base before Retry', async () => {
+    resetFakeIndexedDB();
+    const recoveryKey = shotTimelineRecoveryId('document-primary', 'occ-1');
+    const base = createShotCompositionAdapter({ load: vi.fn(), publish: vi.fn() }).prepare(fixture);
+    const config = projectCanonicalComposition({ ...base, occurrences: [base.occurrences[0]!] }).config;
+    const graphAfterA = JSON.parse(JSON.stringify(fixture)) as typeof fixture;
+    graphAfterA.primary_timeline.head.revision_id = 'head-after-A-before-query-echo';
+    const graphAfterB = JSON.parse(JSON.stringify(fixture)) as typeof fixture;
+    graphAfterB.primary_timeline.head.revision_id = 'head-after-B';
+    const compositionAdapter = createShotCompositionAdapter({ load: vi.fn(), publish: vi.fn() });
+    const ackA = compositionAdapter.prepare(graphAfterA);
+    const ackB = compositionAdapter.prepare(graphAfterB);
+    const publish = vi.fn()
+      .mockResolvedValueOnce(ackA)
+      .mockResolvedValueOnce(ackB);
+    const adapter = {
+      ...createShotCompositionAdapter({ load: vi.fn(), publish: vi.fn() }),
+      publish,
+    } as unknown as ShotCompositionAdapter;
+    const providerA = createShotTimelineDataProvider(config, base, 'occ-1', adapter);
+    const draftA = { ...config, clips: config.clips.map((clip) => ({ ...clip, hold: 2.5 })) };
+    await expect(providerA.saveTimeline('session-A', draftA, 1)).resolves.toBe(2);
+    expect(publish.mock.calls[0]?.[0]).toMatchObject({ expectedHeadRevisionId: base.headRevisionId });
+
+    const draftB = {
+      ...config,
+      clips: config.clips.map((clip, index) => index === 0 ? { ...clip, at: 0.725 } : clip),
+    };
+    await saveTimelineDraft('session-B', { config: draftB, registry: config.registry }, 1, {
+      ...providerA.getTimelineDraftRecoveryMetadata?.(),
+      recoveryKey,
+      draftIdentity: 'edit-B-after-A-ack',
+    });
+    const persistedB = await loadTimelineDraft(recoveryKey);
+    expect(persistedB?.baseHeadRevisionId).toBe(ackA.headRevisionId);
+    expect((persistedB?.draft.config as TimelineConfig).app).toMatchObject({
+      canonicalComposition: { headRevisionId: base.headRevisionId },
+    });
+
+    // Reopen on current canonical H1 with a durable B config that still carries
+    // the old H0 marker. Validated H1 provenance reconciles only that marker.
+    const reopened = createShotTimelineDataProvider(config, ackA, 'occ-1', adapter);
+    const loaded = await reopened.loadTimeline('session-C');
+    const reconciled = loaded.config as TimelineConfig;
+    expect(reconciled.clips).toEqual(draftB.clips);
+    expect(reconciled.app).toMatchObject({
+      canonicalComposition: { headRevisionId: ackA.headRevisionId },
+    });
+    const normalizedPersistedB = await loadTimelineDraft(recoveryKey);
+    expect((normalizedPersistedB?.draft.config as TimelineConfig).clips).toEqual(draftB.clips);
+    expect((normalizedPersistedB?.draft.config as TimelineConfig).app).toMatchObject({
+      canonicalComposition: { headRevisionId: ackA.headRevisionId },
+    });
+    expect(normalizedPersistedB?.draftIdentity).toBe(persistedB?.draftIdentity);
+
+    await expect(reopened.saveTimeline('session-C', reconciled, 1)).resolves.toBe(2);
+    expect(publish.mock.calls[1]?.[0]).toMatchObject({ expectedHeadRevisionId: ackA.headRevisionId });
+    const publishedGraph = publish.mock.calls[1]?.[0].graph as typeof fixture;
+    const publishedOccurrence = publishedGraph.occurrences.find((occurrence) => occurrence.occurrence_id === 'occ-1')!;
+    const publishedClip = publishedGraph.shot_revisions
+      .find((revision) => revision.shot_id === publishedOccurrence.shot_id
+        && revision.revision_id === publishedOccurrence.revision_id)!
+      .internal_timeline_revision.timeline.clips[0]!;
+    expect(publishedClip.at).toBe(0.725);
+    expect(await loadTimelineDraft(recoveryKey)).toBeNull();
   });
 
   it('retains the original canonical CAS base for a pre-debounce recovered edit', async () => {

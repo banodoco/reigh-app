@@ -38,9 +38,9 @@ function emitTelemetryChange() {
   }
 }
 
-function upsertMountTelemetry(instanceId: number, telemetry: MountTelemetry) {
+function upsertMountTelemetry(instanceId: number, telemetry: MountTelemetry, notify = true) {
   mountTelemetry.set(instanceId, telemetry);
-  emitTelemetryChange();
+  if (notify) emitTelemetryChange();
 }
 
 function removeMountTelemetry(instanceId: number) {
@@ -132,7 +132,7 @@ export function useRenderBudget(name: string, budget: number): void {
       budget,
       count: countRef.current,
       name,
-    });
+    }, false);
 
     if (idleTimerRef.current !== null) {
       window.clearTimeout(idleTimerRef.current);

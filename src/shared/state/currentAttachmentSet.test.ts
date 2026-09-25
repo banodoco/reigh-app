@@ -83,6 +83,15 @@ describe('current attachment set', () => {
     expect(selectedTimelineIds()).toEqual([]);
   });
 
+  it('does not replace attachment state when timeline clip metadata is unchanged', () => {
+    setTimelineClipData([timelineClip('clip-stable')]);
+    const firstMap = __getSelectionStateForTests().clipDataById;
+
+    setTimelineClipData([timelineClip('clip-stable')]);
+
+    expect(__getSelectionStateForTests().clipDataById).toBe(firstMap);
+  });
+
   it('composerRemoveAttachment preserves sibling variants with the same generation and different URL', () => {
     userSelectGalleryItem(galleryItem('gallery-a', {
       url: 'https://example.test/variant-a.png',

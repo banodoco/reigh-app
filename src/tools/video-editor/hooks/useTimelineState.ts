@@ -480,7 +480,7 @@ function useTimelinePlaybackContextValue({
   ]);
 }
 
-export function useTimelineState(): UseTimelineStateResult {
+export function useTimelineState(initialTimelineData?: TimelineData): UseTimelineStateResult {
   const runtime = useVideoEditorRuntime();
   const { finalVideoMap } = useFinalVideoAvailable();
   const queryClient = useQueryClient();
@@ -505,7 +505,7 @@ export function useTimelineState(): UseTimelineStateResult {
 
     return await runtime.provider.resolveAssetUrl(file);
   }, [runtime.assetResolver, runtime.provider]);
-  const queries = useTimelineQueries(runtime.provider, runtime.timelineId, resolveAssetUrl);
+  const queries = useTimelineQueries(runtime.provider, runtime.timelineId, resolveAssetUrl, initialTimelineData);
   // A rejected load query is otherwise consumed by nobody: `isLoading` goes
   // false, no render throws, and the shell mounts an empty editor. Surfaced on
   // the chrome slice so the shell can put an error card where the timeline goes.
@@ -534,12 +534,13 @@ export function useTimelineState(): UseTimelineStateResult {
   const [precisionEnabled, setPrecisionEnabled] = useState(initialInteractionPolicyRef.current.precisionEnabled);
   const [contextTarget, setContextTarget] = useState(initialInteractionPolicyRef.current.contextTarget);
   const [inspectorTarget, setInspectorTarget] = useState(initialInteractionPolicyRef.current.inspectorTarget);
-  const save = useTimelineSave(queries, runtime.provider, interactionStateRef, store);
+  const save = useTimelineSave(queries, runtime.provider, interactionStateRef, store, initialTimelineData);
   const history = useTimelineHistory({
     dataRef: save.dataRef,
     commitData: save.commitData,
     interactionStateRef,
     pendingOpsRef: save.pendingOpsRef,
+    editability: runtime.timelineEditability,
   });
   const derived = useDerivedTimeline(save.data, save.selectedClipId, save.selectedTrackId);
   const render = useRenderState(
@@ -832,7 +833,20 @@ export function useTimelineState(): UseTimelineStateResult {
 
     const apply = (input: TimelineEditorCommandInput | unknown, options?: Parameters<TimelineEditorCommands['apply']>[1]): TimelineEditorCommandResult => {
       const current = getCurrentData();
+      const timelinePermission = runtime.timelineEditability?.checkTimeline?.();
       const result = editorCommandRunner.apply(current, input, options);
+      if (timelinePermission && !timelinePermission.allowed) {
+        return {
+          ...result,
+          status: 'rejected',
+          nextData: current,
+          errors: [...result.errors, {
+            code: 'validation_failed',
+            message: 'Timeline edits are temporarily unavailable while canonical shot state is updating.',
+            path: '$',
+          }],
+        };
+      }
       if (result.status !== 'rejected' && result.nextData.stableSignature !== current.stableSignature) {
         save.commitData(result.nextData, {
           save: options?.save,
@@ -857,7 +871,7 @@ export function useTimelineState(): UseTimelineStateResult {
       dryRun,
       apply,
     };
-  }, [data, dataRef, save]);
+  }, [data, dataRef, runtime.timelineEditability, save]);
 
   const editor = useTimelineEditorContextValue({
     data,

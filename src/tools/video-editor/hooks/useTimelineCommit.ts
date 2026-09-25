@@ -37,6 +37,7 @@ import {
 } from '@/tools/video-editor/commands/media.ts';
 import type { TimelineRow } from '@/tools/video-editor/types/timeline-canvas.ts';
 import type { AssetRegistryEntry } from '@/tools/video-editor/types/index.ts';
+import type { TimelineEditability } from '@/tools/video-editor/lib/timeline-editability.ts';
 
 export type CommandHistoryCommitMetadata = {
   transaction: TimelineCommandTransaction;
@@ -159,6 +160,8 @@ export type ApplyEditOptions = {
 interface UseTimelineCommitOptions {
   eventBus: TimelineEventBus;
   lastSavedSignatureRef: MutableRefObject<string>;
+  editability?: TimelineEditability;
+  initialData?: TimelineData;
 }
 
 export interface UseTimelineCommitResult {
@@ -186,13 +189,16 @@ export interface UseTimelineCommitResult {
 export function useTimelineCommit({
   eventBus,
   lastSavedSignatureRef,
+  editability,
+  initialData,
 }: UseTimelineCommitOptions): UseTimelineCommitResult {
   const editSeqRef = useRef(0);
   const pendingOpsRef = useRef(0);
-  const dataRef = useRef<TimelineData | null>(null);
+  const dataRef = useRef<TimelineData | null>(initialData ?? null);
   const selectedClipIdRef = useRef<string | null>(null);
   const selectedTrackIdRef = useRef<string | null>(null);
-  const [data, setData] = useState<TimelineData | null>(null);
+  const [data, setData] = useState<TimelineData | null>(() => initialData ?? null);
+  const initialSelectionSeededRef = useRef(false);
   const {
     selectedClipId,
     selectedTrackId,
@@ -209,6 +215,15 @@ export function useTimelineCommit({
     selectedClipIdRef.current = selectedClipId;
     selectedTrackIdRef.current = selectedTrackId;
   }, [data, selectedClipId, selectedTrackId]);
+
+  useLayoutEffect(() => {
+    if (!initialData || initialSelectionSeededRef.current) return;
+    initialSelectionSeededRef.current = true;
+    eventBus.emit('pruneSelection', new Set(Object.keys(initialData.meta)));
+    const firstTrackId = initialData.tracks[0]?.id ?? null;
+    selectedTrackIdRef.current = firstTrackId;
+    editorSetSelectedTrackId(firstTrackId);
+  }, [eventBus, initialData]);
 
   const withPinnedShotGroups = useCallback((
     config: TimelineData['config'],
@@ -321,6 +336,12 @@ export function useTimelineCommit({
     mutation: TimelineEditMutation,
     options?: ApplyEditOptions,
   ) => {
+    // Re-check runtime permission at the shared commit boundary. Gesture/UI
+    // checks can go stale while a canonical shot head is being adopted.
+    if (editability?.checkTimeline && !editability.checkTimeline().allowed) {
+      return;
+    }
+
     const current = dataRef.current;
     if (!current) {
       // The timeline isn't loaded yet. This used to be a silent no-op — the
@@ -450,9 +471,10 @@ export function useTimelineCommit({
         commandHistory: options?.commandHistory,
       },
     );
-  }, [commitData, materializeData, withPinnedShotGroups, eventBus]);
+  }, [commitData, materializeData, withPinnedShotGroups, eventBus, editability]);
 
   const patchRegistry = useCallback((assetId: string, entry: AssetRegistryEntry, src?: string) => {
+    if (editability?.checkTimeline && !editability.checkTimeline().allowed) return;
     const current = dataRef.current;
     if (!current) {
       eventBus.emit('lostEdit');
@@ -513,9 +535,10 @@ export function useTimelineCommit({
       selectedTrackId: selectedTrackIdRef.current,
       semantic: true,
     });
-  }, [commitData, eventBus]);
+  }, [commitData, editability, eventBus]);
 
   const unpatchRegistry = useCallback((assetId: string) => {
+    if (editability?.checkTimeline && !editability.checkTimeline().allowed) return;
     const current = dataRef.current;
     if (!current) {
       eventBus.emit('lostEdit');
@@ -568,7 +591,7 @@ export function useTimelineCommit({
       selectedTrackId: selectedTrackIdRef.current,
       semantic: true,
     });
-  }, [commitData, eventBus]);
+  }, [commitData, editability, eventBus]);
 
   return {
     data,

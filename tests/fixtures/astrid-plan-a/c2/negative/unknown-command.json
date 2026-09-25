@@ -1,0 +1,5 @@
+{
+  "base": "../unknown-independent-facts.json",
+  "mutation": { "path": "nextActions.0.commandId", "value": "runtime-probe" },
+  "expectedError": "unknown C1 command"
+}

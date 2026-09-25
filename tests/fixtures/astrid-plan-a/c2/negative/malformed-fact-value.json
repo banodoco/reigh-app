@@ -1,0 +1,5 @@
+{
+  "base": "../healthy.json",
+  "mutation": { "path": "facts.workspace.value", "value": { "state": "selected" } },
+  "expectedError": "facts.workspace.value: expected string, boolean, finite number, or null"
+}

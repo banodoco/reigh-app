@@ -64,6 +64,7 @@ export function computeContractDigest(contract) {
 
 const schemaErrors = (result) => result.error.issues.map((issue) => `${issue.path.join('.') || 'contract'}: ${issue.message}`);
 const sameSet = (a, b) => a.length === b.length && new Set(a).size === a.length && a.every((item) => b.includes(item));
+const sameSequence = (a, b) => a.length === b.length && a.every((item, index) => item === b[index]);
 
 function verifyEvidence(contract, repoRoots) {
   const result = { errors: [], verified: [], unverified: [] };
@@ -90,6 +91,7 @@ export function validateContract(contract, { repoRoots = {} } = {}) {
   const errors = [];
   const require = (condition, message) => { if (!condition) errors.push(message); };
   const set = (actual, expected, label) => require(sameSet(actual, expected), `${label}: expected exact distinct values ${expected.join(', ')}`);
+  const sequence = (actual, expected, label) => require(sameSequence(actual, expected), `${label}: expected exact ordered values ${expected.join(', ')}`);
   require(contract.digest === computeContractDigest(contract), 'digest: canonical SHA-256 mismatch');
   for (const key of Object.keys(repoRoots)) require(['reigh-app', 'Astrid', 'workspace-runtime'].includes(key), `repoRoots: unknown repository ${key}`);
   for (const [name, entries] of Object.entries({ commands: contract.commands, migrations: contract.migrations,
@@ -160,6 +162,8 @@ export function validateContract(contract, { repoRoots = {} } = {}) {
   set([...commands.keys()], Object.keys(COMMAND_EFFECTS), 'commands');
   for (const [commandId, expected] of Object.entries(COMMAND_EFFECTS)) set(commands.get(commandId)?.effects ?? [], expected, `commands.${commandId}.effects`);
   set(contract.migrations.map((entry) => entry.id), ['auth-aliases', 'status-namespace', 'setup-route', 'runtime-wrapper', 'help-census', 'doctor-observation'], 'migrations');
+  sequence(contract.setup.applyStages, ['inspect', 'Create-or-Attach', 'select-default', 'compose',
+    'Setup applied', 'Starting Astrid Runtime', 'Runtime ready'], 'setup.applyStages');
   require(contract.setup.retryCommandId === 'runtime-up' && commands.has('runtime-up'), 'setup.retryCommandId: must name runtime-up');
   set(contract.states.readinessDimensions, ['workspace', 'runtime', 'compute-worker', 'selected-capability', 'optional-contribution-auth', 'hosted-session-and-grants'], 'states.readinessDimensions');
   set(contract.execution.wireFields.taskStates, ['queued', 'ready', 'running', 'succeeded', 'failed', 'cancel_requested', 'cancelled', 'retrying'], 'execution.wireFields.taskStates');

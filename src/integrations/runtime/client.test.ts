@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { Transport } from './generated.ts';
-import { ReighRuntimeClient } from './client.ts';
+import { ReighRuntimeClient, RuntimeCompatibilityError } from './client.ts';
+import {
+  RUNTIME_SCHEMA_DIGEST,
+  RUNTIME_TARGETED_EXECUTION_CAPABILITY,
+} from './contract-metadata.ts';
 
 const PROJECT_ID = 'project/r2';
 const CAPABILITY_ID = 'astrid.image_generation';
@@ -78,7 +82,13 @@ function receipt(commandKind: string, key: string, projectId = PROJECT_ID) {
   };
 }
 
-function createTransport(options: { revokeFirstMediaRead?: boolean } = {}) {
+function createTransport(options: {
+  revokeFirstMediaRead?: boolean;
+  schemaDigest?: string;
+  capabilities?: string[];
+} = {}) {
+  const schemaDigest = options.schemaDigest ?? RUNTIME_SCHEMA_DIGEST;
+  const capabilities = options.capabilities ?? [RUNTIME_TARGETED_EXECUTION_CAPABILITY];
   const requests: Array<{ method: string; path: string; headers: Record<string, string>; body?: unknown }> = [];
   let mediaReads = 0;
   const task = {
@@ -107,10 +117,10 @@ function createTransport(options: { revokeFirstMediaRead?: boolean } = {}) {
     requests.push({ method, path, headers, ...(parsedBody ? { body: parsedBody } : {}) });
 
     if (path === '/v1/health') {
-      return { status: 200, headers: {}, body: json({ status: 'ok', protocol: 'workspace.v1', schema_digest: 'sha256:test', runtime_epoch: 7 }) };
+      return { status: 200, headers: {}, body: json({ status: 'ok', protocol: 'workspace.v1', schema_digest: schemaDigest, runtime_epoch: 7 }) };
     }
     if (path === '/v1/handshake') {
-      return { status: 200, headers: {}, body: json({ protocol: 'workspace.v1', schema_digest: 'sha256:test', session_id: 'session-r2-r3', actor_id: 'owner', realm_id: 'realm-r2', scopes: ['handshake', 'projects:read', 'tasks:read', 'tasks:write'] }) };
+      return { status: 200, headers: {}, body: json({ protocol: 'workspace.v1', schema_digest: schemaDigest, session_id: 'session-r2-r3', actor_id: 'owner', realm_id: 'realm-r2', scopes: ['handshake', 'projects:read', 'tasks:read', 'tasks:write'], capabilities }) };
     }
     if (path === '/v1/realm') {
       return { status: 200, headers: {}, body: json({ realm_id: 'realm-r2', display_name: 'R2/R3 fixture', version: 1, created_at: '2026-09-11T00:00:00Z' }) };
@@ -240,6 +250,24 @@ function createTransport(options: { revokeFirstMediaRead?: boolean } = {}) {
 }
 
 describe('ReighRuntimeClient canonical Runtime reads and browser task seam', () => {
+  it('fails closed on a Runtime schema digest mismatch', async () => {
+    const fixture = createTransport({ schemaDigest: `sha256:${'0'.repeat(64)}` });
+    const client = new ReighRuntimeClient({ baseUrl: 'http://runtime.test', transport: fixture.transport });
+
+    await expect(client.ensureSession()).rejects.toBeInstanceOf(RuntimeCompatibilityError);
+    await expect(client.ensureSession()).rejects.toMatchObject({ code: 'runtime_incompatible' });
+  });
+
+  it('fails closed when the targeted execution capability is absent', async () => {
+    const fixture = createTransport({ capabilities: [] });
+    const client = new ReighRuntimeClient({ baseUrl: 'http://runtime.test', transport: fixture.transport });
+
+    await expect(client.ensureSession()).rejects.toMatchObject({
+      name: 'RuntimeCompatibilityError',
+      reason: expect.stringContaining('execution_binding.targeted.v1'),
+    });
+  });
+
   it('preserves generated generation/variant cursors and managed identities', async () => {
     const fixture = createTransport();
     const client = new ReighRuntimeClient({ baseUrl: 'http://runtime.test', token: 'fixture-token', transport: fixture.transport });

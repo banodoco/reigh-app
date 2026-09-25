@@ -43,12 +43,18 @@ export function RenderTelemetryOverlay(): React.ReactElement | null {
   );
 
   React.useEffect(() => {
+    if (!isOpen) return;
+    const refresh = () => setEntries(getRenderBudgetTelemetrySnapshot());
     const unsubscribe = subscribeRenderBudgetTelemetry(() => {
-      setEntries(getRenderBudgetTelemetrySnapshot());
+      refresh();
     });
-
-    return unsubscribe;
-  }, []);
+    refresh();
+    const interval = window.setInterval(refresh, 500);
+    return () => {
+      unsubscribe();
+      window.clearInterval(interval);
+    };
+  }, [isOpen]);
 
   React.useEffect(() => {
     writeStoredPreference(isOpen);

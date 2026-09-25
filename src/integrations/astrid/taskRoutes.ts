@@ -12,6 +12,7 @@ import {
   bridgeTaskAdmissionRequestSchema,
   bridgeTaskAdmissionResponseSchema,
   runtimeMutationSchema,
+  runtimeEventPageSchema,
   runtimeTaskPageSchema,
   runtimeTaskResourceSchema,
   type BridgeCancelRequest,
@@ -103,6 +104,7 @@ export class AstridLocalTaskRoutes {
         scratch_bytes: parsed.storage_estimate.scratch_bytes,
         output_bytes: parsed.storage_estimate.output_bytes,
       },
+      ...(parsed.execution_request ? { execution_request: parsed.execution_request } : {}),
       generation_intent: parsed.generation_intent,
       settlement_effect: parsed.settlement_effect,
     };
@@ -150,6 +152,22 @@ export class AstridLocalTaskRoutes {
       'task detail',
     ));
     return runtimeTaskToDetail(resource, this.projectSlug);
+  }
+
+  /** Bounded Runtime-owned task event page; cursor remains opaque to the app. */
+  async events(taskId: string, options: { cursor?: string; limit?: number } = {}) {
+    const limit = options.limit ?? 50;
+    if (!Number.isInteger(limit) || limit < 1 || limit > 100) {
+      throw new Error('Astrid task event limit must be an integer from 1 to 100');
+    }
+    const params = new URLSearchParams({ aggregate_id: taskId, limit: String(limit) });
+    if (options.cursor !== undefined) params.set('cursor', options.cursor);
+    return this.request(() => this.transport.requestJson(
+      `/v1/events?${params.toString()}`,
+      {},
+      runtimeEventPageSchema,
+      'task events',
+    ));
   }
 
   /**

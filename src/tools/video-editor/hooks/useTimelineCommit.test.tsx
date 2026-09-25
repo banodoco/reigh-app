@@ -133,6 +133,36 @@ describe('useTimelineCommit — delete-shot / auto-restore regression', () => {
     __resetSelectionStoreForTests();
   });
 
+  it('refuses an edit before changing data or scheduling persistence when the timeline guard denies it', () => {
+    const eventBus = new TimelineEventBus();
+    const scheduleSave = vi.fn();
+    const editability = { checkTimeline: vi.fn(() => ({ allowed: false as const, reason: 'timeline_read_only' as const })) };
+    eventBus.on('scheduleSave', scheduleSave);
+    const { result } = renderHook(() => useTimelineCommit({
+      eventBus,
+      lastSavedSignatureRef: { current: '' },
+      editability,
+    }));
+    act(() => result.current.commitData(makeVideoModeGroupData(), { save: false }));
+    const initial = result.current.dataRef.current;
+    const beforeEditSeq = result.current.editSeqRef.current;
+
+    act(() => result.current.applyEdit({
+      type: 'rows',
+      rows: initial!.rows.map((row) => ({ ...row, actions: [] })),
+      metaDeletes: ['clip-video'],
+    }));
+    act(() => {
+      result.current.patchRegistry('new-asset', { file: 'https://example.com/new.png', type: 'image/png' });
+      result.current.unpatchRegistry('video-asset');
+    });
+
+    expect(editability.checkTimeline).toHaveBeenCalledTimes(3);
+    expect(result.current.dataRef.current).toBe(initial);
+    expect(result.current.editSeqRef.current).toBe(beforeEditSeq);
+    expect(scheduleSave).not.toHaveBeenCalled();
+  });
+
   it('deleting a video-mode group\'s video clip does NOT auto-insert image snapshots', () => {
     const eventBus = new TimelineEventBus();
     const lastSavedSignatureRef = { current: '' };

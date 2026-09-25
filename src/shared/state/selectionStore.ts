@@ -1094,13 +1094,28 @@ export function systemSetLastAffectedShotId(shotIdOrUpdater: SetStateAction<stri
 }
 
 export function setTimelineClipData(entries: Iterable<SelectedMediaClip>): void {
-  selectionStore.setState({
-    clipDataById: new Map(Array.from(entries, (clip) => [clip.clipId, clip])),
+  const next = new Map(Array.from(entries, (clip) => [clip.clipId, clip]));
+  selectionStore.setState((state) => {
+    const previous = state.clipDataById;
+    if (previous.size !== next.size) return { clipDataById: next };
+    for (const [clipId, clip] of next) {
+      const current = previous.get(clipId);
+      if (!current) return { clipDataById: next };
+      const currentKeys = Object.keys(current);
+      const nextKeys = Object.keys(clip);
+      if (currentKeys.length !== nextKeys.length
+        || nextKeys.some((key) => current[key as keyof typeof current] !== clip[key as keyof typeof clip])) {
+        return { clipDataById: next };
+      }
+    }
+    return state;
   });
 }
 
 export function clearTimelineClipData(): void {
-  selectionStore.setState({ clipDataById: initialClipDataById() });
+  selectionStore.setState((state) => state.clipDataById.size === 0
+    ? state
+    : { clipDataById: initialClipDataById() });
 }
 
 export function __getSelectionStateForTests(): SelectionStoreState {

@@ -1,0 +1,5 @@
+{
+  "base": "../healthy.json",
+  "mutation": { "path": "facts.workspace.unexpected", "value": true },
+  "expectedError": "facts.workspace.unexpected: unknown field"
+}

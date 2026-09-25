@@ -17,11 +17,18 @@ import type {
   PreparedShotComposition,
   ShotCompositionAdapter,
 } from '@/tools/video-editor/data/shotCompositionAdapter.ts';
+import type {
+  CanonicalShotTimelineDraft,
+  CanonicalShotTimelinePublication,
+  CanonicalShotTimelineScope,
+} from '@/tools/video-editor/runtime/ports.ts';
 import { hardDurationMs } from '@/tools/video-editor/data/shotCompositionEditor.ts';
 import type { ResolvedTimelineConfig } from '@/tools/video-editor/types/index.ts';
 import {
   createShotTimelineDataProvider,
+  createShotTimelineInitialData,
   createShotTimelineEditorSessionToken,
+  projectShotTimelineDraftComposition,
   shotTimelineDurationSeconds,
   shotTimelineSessionId,
   type ShotTimelineEditorHeadState,
@@ -31,7 +38,13 @@ type ShotTimelinePreviewProps = {
   composition: PreparedShotComposition;
   occurrenceId: string;
   shotCompositionAdapter?: ShotCompositionAdapter;
-  onCanonicalCompositionPublished?: (composition: PreparedShotComposition) => void;
+  onCanonicalCompositionPublished?: (
+    composition: PreparedShotComposition,
+    publication?: CanonicalShotTimelinePublication,
+  ) => void;
+  onCanonicalDraftSessionChange?: (scope: CanonicalShotTimelineScope, active: boolean) => void;
+  onCanonicalDraftProjectionChange?: (draft: CanonicalShotTimelineDraft) => void;
+  onCanonicalDraftProjectionClear?: (scope: CanonicalShotTimelineScope, generation: number) => void;
   /** Keep an external head refresh from replacing an unsaved nested draft. */
   onCanonicalDraftStateChange?: (dirty: boolean) => void;
 };
@@ -114,7 +127,7 @@ function projectShotTimeline(composition: PreparedShotComposition, occurrenceId:
   }
 }
 
-function getConfigHeadRevisionId(config: ResolvedTimelineConfig | null | undefined): string | null {
+function getConfigHeadRevisionId(config: { app?: unknown } | null | undefined): string | null {
   const app = config?.app && typeof config.app === 'object' && !Array.isArray(config.app)
     ? config.app as Record<string, unknown>
     : null;
@@ -129,15 +142,24 @@ function ShotTimelineEditorSurface({
   config,
   hardDurationSeconds,
   editorHeadState,
+  onActiveConfigChange,
 }: {
   config: ResolvedTimelineConfig;
   hardDurationSeconds?: number;
   editorHeadState: { current: ShotTimelineEditorHeadState };
+  onActiveConfigChange?: (config: ResolvedTimelineConfig) => void;
 }) {
+  const chrome = useTimelineChromeContext();
   const { previewRef, playerContainerRef, currentTime, onPreviewTimeUpdate } = useTimelinePlaybackContext();
   const editorData = useTimelineEditorData();
   const activeConfig = editorData.resolvedConfig ?? config;
-  const displayedHeadRevisionId = getConfigHeadRevisionId(activeConfig);
+  // Resolved config is the visual/rendering model and may omit timeline-level
+  // metadata. Prefer the persisted config actually consumed by this mounted
+  // query; only fall back to that same editor query's resolved config when a
+  // provider/test double omits the persisted wrapper. Never use the parent
+  // projection as adoption authority while the old query remains mounted.
+  const displayedHeadRevisionId = getConfigHeadRevisionId(editorData.data?.config)
+    ?? getConfigHeadRevisionId(editorData.resolvedConfig);
   const [, setHeadAdoptionRenderTick] = useState(0);
   const canonicalHeadRevisionId = editorHeadState.current.canonicalHeadRevisionId;
   const isAdoptingCanonicalHead = Boolean(
@@ -145,6 +167,8 @@ function ShotTimelineEditorSurface({
       && editorHeadState.current.displayedHeadRevisionId !== canonicalHeadRevisionId,
   );
   const previousConfigRef = useRef(activeConfig);
+  const previousActiveConfigRef = useRef(activeConfig);
+  const lastReportedDraftConfigRef = useRef(activeConfig);
   const pendingTraceRef = useRef<string | null>(null);
   const draftCommitAtRef = useRef<{ at: number; traceId: string | null } | null>(null);
   useEffect(() => {
@@ -180,6 +204,14 @@ function ShotTimelineEditorSurface({
     });
     return () => cancelAnimationFrame(frame);
   }, [activeConfig]);
+  useLayoutEffect(() => {
+    const configChanged = previousActiveConfigRef.current !== activeConfig;
+    previousActiveConfigRef.current = activeConfig;
+    if (chrome.saveStatus === 'saved') return;
+    if (!configChanged && lastReportedDraftConfigRef.current === activeConfig) return;
+    lastReportedDraftConfigRef.current = activeConfig;
+    onActiveConfigChange?.(activeConfig);
+  }, [activeConfig, chrome.saveStatus, onActiveConfigChange]);
   useLayoutEffect(() => {
     if (editorHeadState.current.displayedHeadRevisionId !== displayedHeadRevisionId) {
       editorHeadState.current.displayedHeadRevisionId = displayedHeadRevisionId;
@@ -302,20 +334,35 @@ export function ShotTimelinePreview({
   shotCompositionAdapter,
   onCanonicalCompositionPublished,
   onCanonicalDraftStateChange,
+  onCanonicalDraftSessionChange,
+  onCanonicalDraftProjectionChange,
+  onCanonicalDraftProjectionClear,
 }: ShotTimelinePreviewProps) {
   const [editorSessionToken] = useState(createShotTimelineEditorSessionToken);
   const [currentComposition, setCurrentComposition] = useState(composition);
-  const ownPublishedHeadRef = useRef<string | null>(null);
+  const suppliedCompositionIsUsable = composition.projectId.length > 0
+    && composition.parentDocumentId.length > 0
+    && composition.occurrences.some((candidate) => candidate.occurrenceId === occurrenceId);
   const [freshHeadStatus, setFreshHeadStatus] = useState<'loading' | 'ready' | 'error'>(
-    shotCompositionAdapter ? 'loading' : 'ready',
+    suppliedCompositionIsUsable ? 'ready' : shotCompositionAdapter ? 'loading' : 'error',
   );
   const [mountedHeadRevisionId, setMountedHeadRevisionId] = useState(composition.headRevisionId);
   const [draftDirty, setDraftDirty] = useState(false);
+  const draftDirtyRef = useRef(false);
+  const draftGenerationRef = useRef(0);
+  const initialFreshnessCheckRef = useRef(suppliedCompositionIsUsable);
+  const draftScope = useMemo<CanonicalShotTimelineScope>(() => ({
+    projectId: composition.projectId,
+    parentDocumentId: composition.parentDocumentId,
+    occurrenceId,
+    editorSessionId: editorSessionToken,
+  }), [composition.parentDocumentId, composition.projectId, editorSessionToken, occurrenceId]);
   const editorHeadStateRef = useRef<ShotTimelineEditorHeadState>({
     canonicalHeadRevisionId: composition.headRevisionId,
     displayedHeadRevisionId: composition.headRevisionId,
   });
   useEffect(() => {
+    if (suppliedCompositionIsUsable) return;
     let cancelled = false;
     if (!shotCompositionAdapter) {
       setCurrentComposition(composition);
@@ -343,12 +390,18 @@ export function ShotTimelinePreview({
   // Parent head changes during that mounted session are adopted below without
   // restarting the editor or its undo history.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [shotCompositionAdapter, composition.projectId, composition.parentDocumentId, occurrenceId]);
+  }, [shotCompositionAdapter, composition.projectId, composition.parentDocumentId, occurrenceId, suppliedCompositionIsUsable]);
+  useLayoutEffect(() => {
+    onCanonicalDraftSessionChange?.(draftScope, true);
+    return () => onCanonicalDraftSessionChange?.(draftScope, false);
+  }, [draftScope, onCanonicalDraftSessionChange]);
   useEffect(() => {
+    const needsInitialCheck = initialFreshnessCheckRef.current;
     if (!shotCompositionAdapter || freshHeadStatus !== 'ready' || draftDirty
-      || composition.headRevisionId === currentComposition.headRevisionId) {
+      || (!needsInitialCheck && composition.headRevisionId === currentComposition.headRevisionId)) {
       return;
     }
+    initialFreshnessCheckRef.current = false;
     let cancelled = false;
     // A changed parent prop is only a signal to check the canonical head. It
     // is not itself authority: it may be an older render arriving after a
@@ -358,17 +411,26 @@ export function ShotTimelinePreview({
       parentDocumentId: composition.parentDocumentId,
     }).then((latest) => {
       if (cancelled || !latest || latest.projectId !== composition.projectId
-        || latest.parentDocumentId !== composition.parentDocumentId) return;
+        || latest.parentDocumentId !== composition.parentDocumentId || draftDirtyRef.current) return;
       setCurrentComposition(latest);
     }).catch(() => {});
     return () => { cancelled = true; };
   }, [shotCompositionAdapter, composition.projectId, composition.parentDocumentId,
     composition.headRevisionId, currentComposition.headRevisionId, draftDirty, freshHeadStatus]);
   const projection = useMemo(() => projectShotTimeline(currentComposition, occurrenceId), [currentComposition, occurrenceId]);
-  const handleCanonicalCompositionPublished = useCallback((published: PreparedShotComposition) => {
-    ownPublishedHeadRef.current = published.headRevisionId;
-    onCanonicalCompositionPublished?.(published);
-  }, [onCanonicalCompositionPublished]);
+  const handleCanonicalCompositionPublished = useCallback((
+    published: PreparedShotComposition,
+    generation: number,
+    expectedHeadRevisionId: string | null,
+  ) => {
+    setCurrentComposition(published);
+    setFreshHeadStatus('ready');
+    onCanonicalCompositionPublished?.(published, {
+      scope: draftScope,
+      generation,
+      expectedHeadRevisionId,
+    });
+  }, [draftScope, onCanonicalCompositionPublished]);
   const projectionConfig = projection.config;
   const hasProjectionConfig = projectionConfig !== null;
   const hardDurationMs = hardDurationMsForOccurrence(currentComposition, occurrenceId);
@@ -385,6 +447,9 @@ export function ShotTimelinePreview({
     };
     return {
       hardDurationSeconds,
+      checkTimeline: () => headIsCurrent()
+        ? base.check({ clipId: '', sourceTrackId: null, targetTrackId: null })
+        : { allowed: false, reason: 'timeline_read_only' },
       check: (input) => headIsCurrent()
         ? base.check(input)
         : { allowed: false, reason: 'timeline_read_only' },
@@ -413,12 +478,36 @@ export function ShotTimelinePreview({
     [hasProjectionConfig, currentComposition.parentDocumentId,
       currentComposition.projectId, occurrenceId, shotCompositionAdapter],
   );
+  const initialTimelineData = useMemo(
+    () => projectionConfig ? createShotTimelineInitialData(projectionConfig) : undefined,
+    [projectionConfig],
+  );
+  const handleActiveConfigChange = useCallback((nextConfig: ResolvedTimelineConfig) => {
+    if (!dataProvider) return;
+    draftDirtyRef.current = true;
+    const generation = draftGenerationRef.current + 1;
+    draftGenerationRef.current = generation;
+    dataProvider.setDraftGeneration(generation);
+    onCanonicalDraftProjectionChange?.({
+      scope: draftScope,
+      generation,
+      composition: projectShotTimelineDraftComposition(
+        currentComposition,
+        occurrenceId,
+        nextConfig,
+      ),
+    });
+  }, [currentComposition, dataProvider, draftScope, occurrenceId, onCanonicalDraftProjectionChange]);
   const handleSaveStatusChange = useCallback((status: SaveStatus) => {
     const dirty = status !== 'saved';
+    draftDirtyRef.current = dirty;
     dataProvider?.setDraftState(dirty);
     setDraftDirty(dirty);
     onCanonicalDraftStateChange?.(dirty);
-  }, [dataProvider, onCanonicalDraftStateChange]);
+    if (!dirty && draftGenerationRef.current > 0) {
+      onCanonicalDraftProjectionClear?.(draftScope, draftGenerationRef.current);
+    }
+  }, [dataProvider, draftScope, onCanonicalDraftProjectionClear, onCanonicalDraftStateChange]);
   useEffect(() => {
     if (!dataProvider || !projection.config || currentComposition.headRevisionId === mountedHeadRevisionId) {
       return;
@@ -491,11 +580,13 @@ export function ShotTimelinePreview({
         timelineEditability={timelineEditability}
         extensionHostEnabled={false}
         onSaveStatusChange={handleSaveStatusChange}
+        initialTimelineData={initialTimelineData}
       >
         <ShotTimelineEditorSurface
           config={projection.config}
           hardDurationSeconds={hardDurationSeconds}
           editorHeadState={editorHeadStateRef}
+          onActiveConfigChange={handleActiveConfigChange}
         />
       </VideoEditorProvider>
     </section>

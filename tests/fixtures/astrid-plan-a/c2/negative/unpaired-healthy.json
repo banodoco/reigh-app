@@ -1,0 +1,5 @@
+{
+  "base": "../healthy.json",
+  "mutation": { "path": "problemCode", "value": "runtime_unavailable" },
+  "expectedError": "must be paired"
+}

@@ -1,0 +1,5 @@
+{
+  "base": "../healthy.json",
+  "mutation": { "path": "unexpected", "value": true },
+  "expectedError": "diagnostic.unexpected: unknown field"
+}

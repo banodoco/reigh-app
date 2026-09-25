@@ -67,7 +67,7 @@
     "check:error-runtime-alias-usage": "node scripts/quality/check-error-runtime-alias-usage.mjs",
     "check:fat-contexts": "node scripts/quality/check-fat-contexts.mjs",
     "check:shots-shim-usage": "node scripts/quality/check-shots-shim-usage.mjs --max 0",
-    "check:contracts": "node scripts/quality/check-contract-governance.mjs && npm run check:astrid-contract-freeze",
+    "check:contracts": "node scripts/quality/check-contract-governance.mjs && npm run check:astrid-contract-freeze && npm run check:astrid-contract-c2",
     "check:contract-surface-map": "node scripts/quality/check-contract-surface-map.mjs",
     "check:contract-recheck": "node scripts/quality/check-extension-contract-recheck.mjs --audit",
     "check:contract-recheck:release": "node scripts/quality/check-extension-contract-recheck.mjs --release",
@@ -122,7 +122,9 @@
     "test:acceptance:local-project:unit": "node --test scripts/acceptance/verify-local-project-gallery.test.mjs",
     "test:e2e:timeline:realbridge": "PLAYWRIGHT_TIMELINE_DEVICES=1 REAL_BRIDGE=1 PLAYWRIGHT_HARDENING=1 ASTRID_BRIDGE_PORT=${ASTRID_BRIDGE_PORT:-} PLAYWRIGHT_PORT=${PLAYWRIGHT_PORT:-} playwright test --config playwright.config.ts --project=timeline-devices --workers=1 tests/e2e/timeline/real-bridge.spec.ts tests/e2e/timeline/real-bridge-hardening.spec.ts && PLAYWRIGHT_TIMELINE_DEVICES=1 REAL_BRIDGE=1 PLAYWRIGHT_RATE_LIMIT=1 ASTRID_BRIDGE_PORT=${ASTRID_BRIDGE_PORT:-} PLAYWRIGHT_PORT=${PLAYWRIGHT_PORT:-} playwright test --config playwright.config.ts --project=timeline-devices --workers=1 tests/e2e/timeline/real-bridge-rate-limit.spec.ts",
     "check:astrid-contract-freeze": "node scripts/quality/check-astrid-contract-freeze.mjs",
-    "test:astrid-contract-freeze": "node --test scripts/quality/check-astrid-contract-freeze.test.mjs"
+    "test:astrid-contract-freeze": "node --test scripts/quality/check-astrid-contract-freeze.test.mjs",
+    "check:astrid-contract-c2": "node scripts/quality/check-astrid-contract-c2.mjs",
+    "test:astrid-contract-c2": "node --test scripts/quality/check-astrid-contract-c2.test.mjs"
   },
   "dependencies": {
     "@banodoco/timeline-composition": "file:vendor/timeline-composition",

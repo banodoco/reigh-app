@@ -16,6 +16,7 @@ import { usePollSync, type UsePollSyncQueries } from '@/tools/video-editor/hooks
 import type { TimelineStoreApi } from '@/tools/video-editor/hooks/timelineStore.ts';
 import { useVideoEditorRuntime } from '@/tools/video-editor/contexts/VideoEditorRuntimeContext.tsx';
 import type { DataProvider } from '@/tools/video-editor/data/DataProvider.ts';
+import type { TimelineData } from '@/tools/video-editor/lib/timeline-data.ts';
 export { shouldAcceptPolledData } from '@/tools/video-editor/lib/timeline-save-utils.ts';
 export type { SaveStatus } from '@/tools/video-editor/hooks/useTimelinePersistence.ts';
 
@@ -28,8 +29,9 @@ export function useTimelineSave(
   provider: DataProvider,
   interactionStateRef: InteractionStateRef,
   store: TimelineStoreApi,
+  initialData?: TimelineData,
 ) {
-  const { timelineId, assetResolver } = useVideoEditorRuntime();
+  const { timelineId, assetResolver, timelineEditability } = useVideoEditorRuntime();
   const resolveAssetUrl = useCallback((file: string) => {
     if (assetResolver) {
       return Promise.resolve(assetResolver.resolveAssetUrl(file));
@@ -37,16 +39,24 @@ export function useTimelineSave(
 
     return provider.resolveAssetUrl(file);
   }, [assetResolver, provider]);
-  const lastSavedSignatureRef = useRef('');
+  const lastSavedSignatureRef = useRef(initialData?.stableSignature ?? '');
   const savedSeqRef = useRef(0);
   // Start at 0 so a fresh bridge timeline (config_version 0) is not rejected
   // as "stale" by the poll gate (polled < current). The bridge CAS is strict
   // equality, so the first save POSTs expected_version 0 and succeeds.
-  const configVersionRef = useRef(0);
+  const configVersionRef = useRef(initialData?.configVersion ?? 0);
   const eventBusRef = useRef(new TimelineEventBus());
+  // Recovery Retry performs async read/build work before entering persistence.
+  // Canonical reloads must invalidate that work at their shared boundary.
+  const recoveryActionGenerationRef = useRef(0);
+  const invalidateRecoveryAction = useCallback(() => {
+    recoveryActionGenerationRef.current += 1;
+  }, []);
   const commit = useTimelineCommit({
     eventBus: eventBusRef.current,
     lastSavedSignatureRef,
+    editability: timelineEditability,
+    initialData,
   });
   const persistence = useTimelinePersistence({
     store,
@@ -63,6 +73,7 @@ export function useTimelineSave(
     configVersionRef,
     lastSavedSignatureRef,
     interactionStateRef,
+    onCanonicalReloadStart: invalidateRecoveryAction,
   });
 
   useEffect(() => {
@@ -96,22 +107,41 @@ export function useTimelineSave(
     baseVersion: number;
   } | null>(null);
   const [recoveredAsDirty, setRecoveredAsDirty] = useState(false);
-  const recoveryOfferedRef = useRef(false);
+  const recoveryCheckedScopeRef = useRef<string | null>(null);
   const recoveryKey = provider.getTimelineDraftRecoveryMetadata?.().recoveryKey ?? timelineId;
+  const recoveryScope = `${timelineId}\u0000${recoveryKey}`;
+  const fallbackCanonicalReloadInProgressRef = useRef(false);
+  const canonicalReloadInProgressRef = persistence.canonicalReloadInProgressRef
+    ?? fallbackCanonicalReloadInProgressRef;
 
+  const hasTimelineData = commit.data !== null;
   useEffect(() => {
-    if (recoveryOfferedRef.current || !commit.data) {
+    if (!hasTimelineData || recoveryCheckedScopeRef.current === recoveryScope) {
       return;
     }
-    const loadedData = commit.data;
+    recoveryCheckedScopeRef.current = recoveryScope;
+    const loadedData = commit.dataRef.current;
+    if (!loadedData) return;
+    const checkStartedAt = Date.now();
+    const editSeqAtCheck = commit.editSeqRef.current;
+    const actionGenerationAtCheck = recoveryActionGenerationRef.current;
     let cancelled = false;
     // Best-effort: IndexedDB unavailable (private mode) or a corrupt store
     // simply means no recovery offer; never an unhandled rejection.
     void loadTimelineDraft(recoveryKey)
       .then((record) => {
-        if (cancelled || !record) {
+        if (cancelled || !record
+          || recoveryCheckedScopeRef.current !== recoveryScope
+          || recoveryActionGenerationRef.current !== actionGenerationAtCheck) {
           return;
         }
+        // Do not call a draft written after this editor session began a
+        // recovery check "recovered". A normal edit can create that durable
+        // draft before this IndexedDB read finishes.
+        const updatedAt = Date.parse(record.updatedAt);
+        if (commit.editSeqRef.current !== editSeqAtCheck
+          && Number.isFinite(updatedAt)
+          && updatedAt >= checkStartedAt) return;
         const draft = record.draft as { config?: TimelineConfig; registry?: AssetRegistry };
         // A save ACK clears the slot asynchronously. Another tab can load the
         // record in that window (or a late draft write can race the clear), so
@@ -131,11 +161,9 @@ export function useTimelineSave(
           // the visible editor. It is still an unacknowledged draft and must
           // remain retryable even though its signature matches the loaded data.
           setRecoveredAsDirty(true);
-          recoveryOfferedRef.current = true;
           setRecoveryDraft({ updatedAt: record.updatedAt, baseVersion: record.baseVersion });
           return;
         }
-        recoveryOfferedRef.current = true;
         setRecoveredAsDirty(recoveryKey !== timelineId);
         setRecoveryDraft({ updatedAt: record.updatedAt, baseVersion: record.baseVersion });
       })
@@ -145,24 +173,31 @@ export function useTimelineSave(
     return () => {
       cancelled = true;
     };
-  }, [commit.data, recoveryKey, timelineId]);
+  }, [commit.dataRef, commit.editSeqRef, hasTimelineData, recoveryKey, recoveryScope, timelineId]);
   useEffect(() => {
     return eventBusRef.current.on('saveSuccess', () => {
+      invalidateRecoveryAction();
       // Retry stays visible until the durable acknowledgement, not merely
       // until the save request is queued.
       setRecoveryDraft(null);
       setRecoveredAsDirty(false);
     });
-  }, []);
+  }, [invalidateRecoveryAction]);
 
   const retryRecoveredDraft = useCallback(async () => {
+    // A Retry started during Reload would get a newer generation than the
+    // reload's invalidation and could commit after canonical adoption.
+    if (canonicalReloadInProgressRef.current) return;
+    const actionGeneration = ++recoveryActionGenerationRef.current;
+    const isCurrentAction = () => recoveryActionGenerationRef.current === actionGeneration;
     let record: Awaited<ReturnType<typeof loadTimelineDraft>>;
     try {
       record = await loadTimelineDraft(recoveryKey);
     } catch {
-      setRecoveryDraft(null);
+      if (isCurrentAction()) setRecoveryDraft(null);
       return;
     }
+    if (!isCurrentAction()) return;
     if (!record) {
       setRecoveryDraft(null);
       setRecoveredAsDirty(false);
@@ -180,6 +215,12 @@ export function useTimelineSave(
       resolveAssetUrl ?? ((file) => provider.resolveAssetUrl(file)),
       record.baseVersion,
     );
+    // Reload/Discard can finish while this async recovery build is running.
+    // Never let that stale candidate reach commitData afterward.
+    if (!isCurrentAction()) return;
+    // Recovery Retry is a user-triggered whole-timeline replacement; recheck
+    // after the async build so a canonical-head transition cannot publish H0.
+    if (timelineEditability?.checkTimeline && !timelineEditability.checkTimeline().allowed) return;
     // Retry against the version captured with the draft. Using a newer
     // polled version here would turn a stale recovery into an unconditional
     // overwrite instead of an honest CAS conflict.
@@ -188,16 +229,17 @@ export function useTimelineSave(
     // or transport failure must leave the recovered work retryable.
     setRecoveredAsDirty(true);
     commit.commitData(recovered, { save: true });
-  }, [commit, configVersionRef, provider, recoveryKey, resolveAssetUrl]);
+  }, [canonicalReloadInProgressRef, commit, configVersionRef, provider, recoveryKey, resolveAssetUrl, timelineEditability]);
 
+  const reloadCanonicalFromServer = persistence.reloadFromServer;
   const reloadFromServer = useCallback(async (options?: { clearDraft?: boolean; preserveDraft?: boolean }) => {
-    await persistence.reloadFromServer(options);
+    await reloadCanonicalFromServer(options);
     const shouldClearRecovery = options?.clearDraft ?? !options?.preserveDraft;
     if (shouldClearRecovery) {
       setRecoveryDraft(null);
       setRecoveredAsDirty(false);
     }
-  }, [persistence.reloadFromServer]);
+  }, [reloadCanonicalFromServer]);
   const discardRecoveredDraft = useCallback(async () => {
     try {
       // Reload first. The persistence path clears the slot only after it has

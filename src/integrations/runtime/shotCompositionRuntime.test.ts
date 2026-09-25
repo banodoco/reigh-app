@@ -2,6 +2,10 @@ import { describe, expect, it, vi } from 'vitest';
 import { createFakeIndexedDB, resetFakeIndexedDB } from 'fake-indexeddb';
 import fixture from '@/tools/video-editor/data/shotComposition.fixture.json';
 import { RuntimeDataProvider } from './dataProvider.ts';
+import {
+  RUNTIME_SCHEMA_DIGEST,
+  RUNTIME_TARGETED_EXECUTION_CAPABILITY,
+} from './contract-metadata.ts';
 import { StaleWriteError } from '@/tools/video-editor/data/shotComposition.ts';
 import { createShotCompositionAdapter } from '@/tools/video-editor/data/shotCompositionAdapter.ts';
 import { projectCanonicalComposition } from '@/tools/video-editor/data/shotCompositionProjection.ts';
@@ -113,8 +117,8 @@ function fixtureTransport(options: {
   const transport = async (method: string, path: string, headers: Record<string, string>, body?: Uint8Array) => {
     const parsedBody = body ? JSON.parse(new TextDecoder().decode(body)) as Record<string, unknown> : undefined;
     requests.push({ method, path, headers, ...(parsedBody ? { body: parsedBody } : {}) });
-    if (path === '/v1/health') return { status: 200, headers: {}, body: json({ status: 'ok', protocol: 'workspace.v1', schema_digest: 'sha256:test', runtime_epoch: 1 }) };
-    if (path === '/v1/handshake') return { status: 200, headers: {}, body: json({ protocol: 'workspace.v1', schema_digest: 'sha256:test', session_id: 'session', actor_id: 'owner', realm_id: 'realm', scopes: ['projects:read', 'projects:write'] }) };
+    if (path === '/v1/health') return { status: 200, headers: {}, body: json({ status: 'ok', protocol: 'workspace.v1', schema_digest: RUNTIME_SCHEMA_DIGEST, runtime_epoch: 1 }) };
+    if (path === '/v1/handshake') return { status: 200, headers: {}, body: json({ protocol: 'workspace.v1', schema_digest: RUNTIME_SCHEMA_DIGEST, session_id: 'session', actor_id: 'owner', realm_id: 'realm', scopes: ['projects:read', 'projects:write'], capabilities: [RUNTIME_TARGETED_EXECUTION_CAPABILITY] }) };
     if (path === '/v1/realm') return { status: 200, headers: {}, body: json({ realm_id: 'realm', display_name: 'fixture', version: 1, created_at: '2026-09-19T00:00:00Z' }) };
     if (method === 'GET' && path === `/v1/projects/${PROJECT_ID}/timelines/${TIMELINE_ID}`) return { status: 200, headers: {}, body: json({ timeline_id: TIMELINE_ID, project_id: PROJECT_ID, version: 1, head_revision_id: currentHeadRevisionId, archived: false, shots: [], references: [] }) };
     const compositionRevisionId = path.match(/\/composition-revisions\/([^/]+)$/)?.[1];

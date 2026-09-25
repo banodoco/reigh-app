@@ -1,0 +1,293 @@
+{
+  "schemaVersion": 2,
+  "kind": "astrid-contract-diagnostic-projection",
+  "revision": "C2",
+  "issuedOn": "2026-09-24",
+  "status": "frozen-local-contract",
+  "digest": "sha256:ca251dfbcadc6fbc68a5404495f2f0fd42128c821ce47a3560d2952399278d37",
+  "predecessor": {
+    "path": "config/contracts/astrid-plan-a-c1.json",
+    "revision": "C1",
+    "canonicalDigest": "sha256:658c18bbdeb4f950806dc05ef265c0ffab422cbfd5ce17293fec6145e2f72515",
+    "rawFileSha256": "b5036e16eab503afd15a4ec5b11cb178a01c6e895016b0545493e93314404783",
+    "immutable": true
+  },
+  "authority": {
+    "contractOwner": "CF",
+    "runtimeWire": "workspace.v1",
+    "runtimeWireOwner": "banodoco-workspace-runtime",
+    "publicProjectionOwner": "Astrid",
+    "appConsumerOwner": "reigh-app",
+    "workerPlacementOwner": "reigh-worker",
+    "rules": [
+      "C2 is a projection contract and never a Runtime wire schema, task store, binding store, queue, or supervisor.",
+      "Runtime remains sole workspace, admission, attempt, fence, event, cancellation, retry, and settlement authority.",
+      "Astrid projects observed Runtime and local lifecycle facts; it must not infer missing facts or mint Runtime truth.",
+      "Generated clients derive only from the reconciled Runtime contract and generator; C2 does not generate a competing client."
+    ]
+  },
+  "diagnostic": {
+    "schemaPath": "config/contracts/astrid-plan-a-diagnostic-c2.schema.json",
+    "schemaSha256": "4ab2701ae518be8e068f8143b7d389f1115313aac60daff0057911aeebbc84ef",
+    "totalObservationDeadlineMs": 5000,
+    "deadlineScope": "total-including-all-helpers",
+    "collectionEffects": [
+      "observe"
+    ],
+    "limits": {
+      "maxEvents": 200,
+      "maxLogBytes": 65536,
+      "maxBundleBytes": 1048576
+    },
+    "healthySemantics": {
+      "problemCode": null,
+      "failureBoundary": null,
+      "rule": "A checked scope with no observed problem has both values null. Null/non-null or non-null/null is invalid."
+    },
+    "failureSemantics": {
+      "paired": true,
+      "rule": "An observed problem has both a normalized problemCode and the boundary at which it was observed."
+    },
+    "unknownSemantics": {
+      "rule": "Every independent fact that was not observed is recorded as observed=false, value=null, observedAt=null, with a non-empty unavailableReason. Healthy observed facts do not make independent facts ready.",
+      "independentFacts": [
+        "workspace",
+        "runtime",
+        "computeWorker",
+        "selectedCapability",
+        "authorization",
+        "taskState",
+        "contact",
+        "progress",
+        "terminalResult",
+        "providerExecution",
+        "providerBilling",
+        "optionalContributionAuth",
+        "hostedSessionAndGrants"
+      ]
+    },
+    "problemCodes": [
+      "workspace_missing",
+      "workspace_ambiguous",
+      "workspace_identity_mismatch",
+      "workspace_configured_runtime_not_ready",
+      "runtime_unavailable",
+      "runtime_identity_mismatch",
+      "permission_limited",
+      "active_work_requires_authorization",
+      "capability_unavailable",
+      "authorization_required",
+      "provider_state_unknown",
+      "observation_stale",
+      "observation_timeout",
+      "hosted_session_required",
+      "contributor_link_unavailable"
+    ],
+    "failureBoundaries": [
+      "workspace-selection",
+      "runtime-process-identity",
+      "runtime-contact",
+      "runtime-permission",
+      "runtime-schema",
+      "compute-readiness",
+      "execution-authorization",
+      "task-admission",
+      "attempt-execution",
+      "provider-observation",
+      "diagnostic-observation"
+    ],
+    "modes": {
+      "local": {
+        "redacted": false,
+        "pathPolicy": "Useful absolute paths may be present only in local inspection."
+      },
+      "shared": {
+        "redacted": true,
+        "pathPolicy": "Private absolute paths, credentials, tokens, prompts, environment values, signed URL material, and media content are absent or replaced by inert redaction markers."
+      }
+    },
+    "actionRules": {
+      "actionsExecutedMustBeEmpty": true,
+      "collectionMayStart": false,
+      "collectionMayRepair": false,
+      "collectionMayUpload": false,
+      "collectionMaySpend": false,
+      "effectfulSuggestionsRequireAuthorization": true,
+      "redactedPlaceholderExecutable": false,
+      "commandEffectsSource": "config/contracts/astrid-plan-a-c1.json#commands",
+      "exactCommandEffectsRequired": true,
+      "allowedEffects": [
+        "observe",
+        "configure-install",
+        "start-stop-local-service",
+        "interrupt-work",
+        "may-spend-money",
+        "write-relocate-change-data",
+        "share-diagnostics"
+      ]
+    }
+  },
+  "sourceApplicability": [
+    {
+      "repository": "reigh-app",
+      "head": "c9cc077c96390bd482c5ec954057237dd3f79cdc",
+      "path": "config/contracts/astrid-plan-a-c1.json",
+      "sha256": "b5036e16eab503afd15a4ec5b11cb178a01c6e895016b0545493e93314404783",
+      "role": "immutable-predecessor",
+      "status": "applicable"
+    },
+    {
+      "repository": "reigh-app",
+      "head": "c9cc077c96390bd482c5ec954057237dd3f79cdc",
+      "path": "scripts/quality/check-astrid-contract-freeze.mjs",
+      "sha256": "16409a746ffc84c4b1a06571dba1af4da04d31524cbb289a14f1313046f17f1e",
+      "role": "C1-validator-and-C2-gap-source",
+      "status": "applicable-with-C2-successor"
+    },
+    {
+      "repository": "Astrid",
+      "head": "6227cdd05cb8d971fe7a05385676e6ebeed432b9",
+      "path": "astrid/core/gateway/dispatch.py",
+      "sha256": "329caff2fe2b5ceeb1c08031a79874eafc6743ddc28e291e247ced5a271a04ac",
+      "role": "public-doctor-consumer",
+      "status": "downstream-I-07-I-08-conformance-required"
+    },
+    {
+      "repository": "Astrid",
+      "head": "6227cdd05cb8d971fe7a05385676e6ebeed432b9",
+      "path": "astrid/sdk/workspace_client.py",
+      "sha256": "05b37afe89191bf3b723be45d1b55dc9449bed2bbdfa1a05d90e32ea6a48373c",
+      "role": "Runtime-client-consumer",
+      "status": "applicable-runtime-authority-preserved"
+    },
+    {
+      "repository": "banodoco-workspace-runtime",
+      "head": "60e3efdbb9591c25c113402136bfb31b7dfcc4c4",
+      "path": "contract/schemas/doctor.json",
+      "sha256": "d0caac9e7bf6a81d68abb52e757b321f7a45d4f2afff43bd4880089ea8dcc243",
+      "role": "Runtime-doctor-wire",
+      "status": "input-only-not-replaced-by-C2"
+    },
+    {
+      "repository": "banodoco-workspace-runtime",
+      "head": "60e3efdbb9591c25c113402136bfb31b7dfcc4c4",
+      "path": "runtime_protocol/service.py",
+      "sha256": "c35416a7457cc7826ffe35632d08442eb91068c2c5a6201be35d88ed2343f85e",
+      "role": "Runtime-execution-authority",
+      "status": "held-primary-overlay-pending-I-04-I-05"
+    },
+    {
+      "repository": "reigh-worker",
+      "head": "c2c6eca79f474033bfaedc6a8fa80f70940b057f",
+      "path": "source/runtime/entrypoints/worker.py",
+      "sha256": "1de77313553fb338e4044eae265ec26a067912c52a92c7f6ce56b764f586cf59",
+      "role": "worker-placement-producer-boundary",
+      "status": "no-C2-projection-change-I-06-proof-required"
+    }
+  ],
+  "generatedClientCompatibility": {
+    "runtimeSchemaDigest": "sha256:904574dd9f347e335d3658d05bd2f788995cbcdd385a7b627dd9227d7479e4f8",
+    "authorityStatus": "held-primary-overlay-pending-I-04-I-05",
+    "clients": [
+      {
+        "repository": "banodoco-workspace-runtime",
+        "language": "python",
+        "generatedPath": "packages/python/banodoco_workspace_client/generated.py",
+        "generatedSha256": "02703613029ab7940bd9fba238f19b8425ff92b098c115bb0fdc082cd5022469",
+        "metadataPath": "packages/python/banodoco_workspace_client/contract_metadata.py",
+        "metadataSha256": "5ef4fc368cea2037c1942ec8c1097b159dd0aecefafb566d4fc123fd3ade5a5d",
+        "status": "canonical-candidate-input"
+      },
+      {
+        "repository": "banodoco-workspace-runtime",
+        "language": "typescript",
+        "generatedPath": "packages/typescript/src/generated.ts",
+        "generatedSha256": "3b9a6e003b7297204176431b69447aad18a383e2ddfae08a18e9b548d91ce742",
+        "metadataPath": "packages/typescript/src/contract-metadata.ts",
+        "metadataSha256": "68772f3a867c1d5357ef451206a5830650968bf2f28356e43882c65ccdc5fb2e",
+        "status": "canonical-candidate-input"
+      },
+      {
+        "repository": "Astrid",
+        "language": "python-vendored",
+        "generatedPath": "banodoco_workspace_client/generated.py",
+        "generatedSha256": "02703613029ab7940bd9fba238f19b8425ff92b098c115bb0fdc082cd5022469",
+        "metadataPath": "banodoco_workspace_client/contract_metadata.py",
+        "metadataSha256": "c10367d5d44999857bfbebd6d9078433f2d3b2f5a2e6859952f36a0c633018f6",
+        "status": "generated-byte-parity-metadata-adds-provenance-only"
+      }
+    ],
+    "nonClientConsumers": [
+      {
+        "repository": "reigh-app",
+        "status": "typed-task-route-adapter-is-lane-input-not-generated-authority"
+      },
+      {
+        "repository": "reigh-worker",
+        "status": "wire-producer-consumer-not-generated-client-owner"
+      }
+    ]
+  },
+  "acknowledgements": [
+    {
+      "id": "SL-C2-input-ack",
+      "consumer": "SL",
+      "status": "pending-exact-consumer-ack",
+      "evidencePath": "evidence/I-03-contract-freeze/acks/sl-input-ack.json",
+      "limitations": "Draft applicability record only; coordinator must obtain exact consumer ACK after oracle ruling and final C2 digest."
+    },
+    {
+      "id": "EW-C2-input-ack",
+      "consumer": "EW",
+      "status": "pending-exact-consumer-ack",
+      "evidencePath": "evidence/I-03-contract-freeze/acks/ew-input-ack.json",
+      "limitations": "Draft applicability record only; coordinator must obtain exact consumer ACK after oracle ruling and final C2 digest."
+    }
+  ],
+  "fixtures": {
+    "positive": [
+      "tests/fixtures/astrid-plan-a/c2/healthy.json",
+      "tests/fixtures/astrid-plan-a/c2/runtime-unavailable.json",
+      "tests/fixtures/astrid-plan-a/c2/unknown-independent-facts.json"
+    ],
+    "negative": [
+      "tests/fixtures/astrid-plan-a/c2/negative/unpaired-healthy.json",
+      "tests/fixtures/astrid-plan-a/c2/negative/deadline-exceeded.json",
+      "tests/fixtures/astrid-plan-a/c2/negative/unobserved-with-value.json",
+      "tests/fixtures/astrid-plan-a/c2/negative/shared-secret.json",
+      "tests/fixtures/astrid-plan-a/c2/negative/action-executed.json",
+      "tests/fixtures/astrid-plan-a/c2/negative/redacted-placeholder-executable.json",
+      "tests/fixtures/astrid-plan-a/c2/negative/unknown-top-level-field.json",
+      "tests/fixtures/astrid-plan-a/c2/negative/unknown-nested-field.json",
+      "tests/fixtures/astrid-plan-a/c2/negative/malformed-fact-value.json",
+      "tests/fixtures/astrid-plan-a/c2/negative/unknown-command.json",
+      "tests/fixtures/astrid-plan-a/c2/negative/command-effect-mismatch.json"
+    ]
+  },
+  "gates": {
+    "C03Contract": "validator-and-fixture-gate-only",
+    "C03Diagnostic": "not-claimed-until-I-07-I-08-actual-public-output-evidence",
+    "installedAcceptance": false,
+    "hostedAcceptance": false,
+    "liveProviderAcceptance": false
+  },
+  "unresolvedAuthority": [
+    {
+      "id": "runtime-primary-overlay",
+      "decisionMemo": "evidence/I-03-contract-freeze/astra-decision-memo.md",
+      "status": "waiting-for-Astra",
+      "blockedWork": [
+        "I-04-runtime-lifecycle-migration-final-authority",
+        "I-05-runtime-execution-generated-client-final-authority"
+      ]
+    },
+    {
+      "id": "held-top-level-h3-workflow-group",
+      "decisionMemo": "evidence/I-03-contract-freeze/astra-decision-memo.md",
+      "status": "waiting-for-Astra-or-I-10-owner-intent",
+      "blockedWork": [
+        "staging-or-publication-of-held-workflow-bytes"
+      ]
+    }
+  ]
+}

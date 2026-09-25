@@ -48,6 +48,7 @@ import type {
   CanonicalShotOccurrence,
   PreparedShotComposition,
 } from '@/tools/video-editor/data/shotCompositionAdapter.ts';
+import type { CanonicalShotTimelinePublication } from '@/tools/video-editor/runtime/ports.ts';
 import { managedOutputMatchesOccurrence } from '@/tools/video-editor/data/shotCompositionProjection.ts';
 
 interface ReighTimelineEditorProps {
@@ -101,16 +102,21 @@ function ReighTimelineEditorComponent({ onOpenSequenceCreator, onOpenElementCrea
       setPublishedCanonicalComposition(null);
     }
   }, [publishedCanonicalComposition, runtimeCanonicalHeadRevisionId]);
-  const handleCanonicalCompositionPublished = useCallback((composition: PreparedShotComposition) => {
+  const handleCanonicalCompositionPublished = useCallback((
+    composition: PreparedShotComposition,
+    publication?: CanonicalShotTimelinePublication,
+  ) => {
     const hostHead = runtime.shots?.canonicalComposition?.headRevisionId ?? null;
-    const expectedHead = composition.publicationReceipt?.expectedHead !== undefined
-      ? composition.publicationReceipt.expectedHead
+    const expectedHead = publication?.expectedHeadRevisionId !== undefined
+      ? publication.expectedHeadRevisionId
+      : composition.publicationReceipt?.expectedHead !== undefined
+        ? composition.publicationReceipt.expectedHead
       : hostHead;
     setPublishedCanonicalComposition({
       composition,
       staleHeadRevisionIds: [...new Set([hostHead, expectedHead])],
     });
-    runtime.shots?.refetchShots();
+    runtime.shots?.adoptCanonicalComposition?.(composition, publication);
   }, [runtime.shots]);
   const configVersion = useTimelineConfigVersion();
   const reloadFromServer = useTimelineChromeSelector((chrome) => chrome.reloadFromServer);
@@ -563,6 +569,15 @@ function ReighTimelineEditorComponent({ onOpenSequenceCreator, onOpenElementCrea
 
   return (
     <>
+      {runtime.shots?.canonicalDraft ? (
+        <div
+          role="status"
+          data-unsaved-shot-timeline-draft="true"
+          className="border-b border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-center text-xs text-amber-900 dark:text-amber-100"
+        >
+          Main timeline preview includes unsaved shot changes.
+        </div>
+      ) : null}
       <TimelineEditorCore
         onOpenSequenceCreator={onOpenSequenceCreator}
         onOpenElementCreationPrompt={onOpenElementCreationPrompt}
@@ -638,6 +653,14 @@ function ReighTimelineEditorComponent({ onOpenSequenceCreator, onOpenElementCrea
                 initialComposition={publishedCanonicalComposition?.composition ?? runtime.shots.canonicalComposition ?? undefined}
                 onClose={() => setCanonicalShotEditor(null)}
                 onCanonicalCompositionPublished={handleCanonicalCompositionPublished}
+                onCanonicalDraftSessionChange={(scope, active) => {
+                  if (active) runtime.shots?.beginCanonicalDraftSession?.(scope);
+                  else runtime.shots?.endCanonicalDraftSession?.(scope);
+                }}
+                onCanonicalDraftProjectionChange={(draft) => runtime.shots?.setCanonicalDraftProjection?.(draft)}
+                onCanonicalDraftProjectionClear={(scope, generation) => (
+                  runtime.shots?.clearCanonicalDraftProjection?.(scope, generation)
+                )}
               />
             </div>
           )}

@@ -1,0 +1,5 @@
+{
+  "base": "../unknown-independent-facts.json",
+  "mutation": { "path": "facts.providerBilling.value", "value": "stopped" },
+  "expectedError": "unobserved fact must preserve null"
+}

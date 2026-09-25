@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 2,
+  "contractRevision": "C2",
+  "contractDigest": "sha256:ca251dfbcadc6fbc68a5404495f2f0fd42128c821ce47a3560d2952399278d37",
+  "mode": "local",
+  "collectedAt": "2026-09-24T12:00:00Z",
+  "timing": { "deadlineScope": "total-including-all-helpers", "deadlineMs": 5000, "elapsedMs": 120, "timedOut": false },
+  "problemCode": null,
+  "failureBoundary": null,
+  "facts": {
+    "workspace": { "observed": true, "value": "selected", "observedAt": "2026-09-24T12:00:00Z", "unavailableReason": null },
+    "runtime": { "observed": true, "value": "ready", "observedAt": "2026-09-24T12:00:00Z", "unavailableReason": null },
+    "computeWorker": { "observed": false, "value": null, "observedAt": null, "unavailableReason": "outside checked scope" },
+    "selectedCapability": { "observed": false, "value": null, "observedAt": null, "unavailableReason": "outside checked scope" },
+    "authorization": { "observed": false, "value": null, "observedAt": null, "unavailableReason": "outside checked scope" },
+    "taskState": { "observed": false, "value": null, "observedAt": null, "unavailableReason": "no task selected" },
+    "contact": { "observed": true, "value": "fresh", "observedAt": "2026-09-24T12:00:00Z", "unavailableReason": null },
+    "progress": { "observed": false, "value": null, "observedAt": null, "unavailableReason": "no current attempt" },
+    "terminalResult": { "observed": false, "value": null, "observedAt": null, "unavailableReason": "no task selected" },
+    "providerExecution": { "observed": false, "value": null, "observedAt": null, "unavailableReason": "provider not queried" },
+    "providerBilling": { "observed": false, "value": null, "observedAt": null, "unavailableReason": "provider not queried" },
+    "optionalContributionAuth": { "observed": false, "value": null, "observedAt": null, "unavailableReason": "outside checked scope" },
+    "hostedSessionAndGrants": { "observed": false, "value": null, "observedAt": null, "unavailableReason": "local mode" }
+  },
+  "limits": { "maxEvents": 200, "maxLogBytes": 65536, "maxBundleBytes": 1048576 },
+  "captured": { "events": 0, "logBytes": 0, "bundleBytes": 0 },
+  "truncated": false,
+  "nextActions": [],
+  "actionsExecuted": [],
+  "redacted": false
+}

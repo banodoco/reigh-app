@@ -1,0 +1,5 @@
+{
+  "base": "../runtime-unavailable.json",
+  "mutation": { "path": "nextActions.0.executable", "value": true },
+  "expectedError": "redacted placeholder must be inert"
+}

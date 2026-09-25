@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://reigh.app/contracts/astrid-plan-a-diagnostic-c2.schema.json",
+  "title": "Astrid Plan A C2 diagnostic projection",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "contractRevision",
+    "contractDigest",
+    "mode",
+    "collectedAt",
+    "timing",
+    "problemCode",
+    "failureBoundary",
+    "facts",
+    "limits",
+    "captured",
+    "truncated",
+    "nextActions",
+    "actionsExecuted",
+    "redacted"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 2 },
+    "contractRevision": { "const": "C2" },
+    "contractDigest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "mode": { "enum": ["local", "shared"] },
+    "collectedAt": { "type": "string", "format": "date-time" },
+    "timing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["deadlineScope", "deadlineMs", "elapsedMs", "timedOut"],
+      "properties": {
+        "deadlineScope": { "const": "total-including-all-helpers" },
+        "deadlineMs": { "type": "integer", "minimum": 1, "maximum": 5000 },
+        "elapsedMs": { "type": "integer", "minimum": 0 },
+        "timedOut": { "type": "boolean" }
+      }
+    },
+    "problemCode": { "type": ["string", "null"] },
+    "failureBoundary": { "type": ["string", "null"] },
+    "facts": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/fact" }
+    },
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["maxEvents", "maxLogBytes", "maxBundleBytes"],
+      "properties": {
+        "maxEvents": { "type": "integer", "minimum": 0, "maximum": 200 },
+        "maxLogBytes": { "type": "integer", "minimum": 0, "maximum": 65536 },
+        "maxBundleBytes": { "type": "integer", "minimum": 0, "maximum": 1048576 }
+      }
+    },
+    "captured": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["events", "logBytes", "bundleBytes"],
+      "properties": {
+        "events": { "type": "integer", "minimum": 0 },
+        "logBytes": { "type": "integer", "minimum": 0 },
+        "bundleBytes": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "truncated": { "type": "boolean" },
+    "nextActions": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/action" }
+    },
+    "actionsExecuted": {
+      "type": "array",
+      "maxItems": 0
+    },
+    "redacted": { "type": "boolean" }
+  },
+  "oneOf": [
+    {
+      "title": "healthy checked scope",
+      "properties": {
+        "problemCode": { "type": "null" },
+        "failureBoundary": { "type": "null" }
+      }
+    },
+    {
+      "title": "observed failure",
+      "properties": {
+        "problemCode": { "type": "string", "minLength": 1 },
+        "failureBoundary": { "type": "string", "minLength": 1 }
+      }
+    }
+  ],
+  "$defs": {
+    "fact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["observed", "value", "observedAt", "unavailableReason"],
+      "properties": {
+        "observed": { "type": "boolean" },
+        "value": { "type": ["string", "boolean", "number", "null"] },
+        "observedAt": { "type": ["string", "null"], "format": "date-time" },
+        "unavailableReason": { "type": ["string", "null"] }
+      }
+    },
+    "action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["commandId", "arguments", "effects", "authorizationRequired", "executable"],
+      "properties": {
+        "commandId": { "type": "string", "minLength": 1 },
+        "arguments": { "type": "array", "items": { "type": "string" } },
+        "effects": { "type": "array", "items": { "type": "string" }, "minItems": 1, "uniqueItems": true },
+        "authorizationRequired": { "type": "boolean" },
+        "executable": { "type": "boolean" }
+      }
+    }
+  }
+}

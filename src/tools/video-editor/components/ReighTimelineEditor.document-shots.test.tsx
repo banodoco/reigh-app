@@ -90,6 +90,9 @@ vi.mock('@/tools/video-editor/hooks/timelineStore.ts', () => ({
     reloadFromServer: mocks.reloadFromServer,
   }),
 }));
+vi.mock('@/tools/video-editor/hooks/useTimelineCommandsService.ts', () => ({
+  useTimelineCommandsService: () => ({ addClip: vi.fn(() => ({ ok: false })) }),
+}));
 vi.mock('@/tools/video-editor/hooks/usePinnedShotGroups.ts', () => ({
   usePinnedShotGroups: () => ({ pinGroup: vi.fn(), unpinGroup: vi.fn() }),
   usePinnedShotGroupViews: () => [],

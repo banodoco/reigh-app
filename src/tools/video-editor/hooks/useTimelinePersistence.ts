@@ -89,6 +89,7 @@ interface UseTimelinePersistenceOptions {
   configVersionRef: MutableRefObject<number>;
   lastSavedSignatureRef: MutableRefObject<string>;
   interactionStateRef: InteractionStateRef;
+  onCanonicalReloadStart?: () => void;
 }
 
 interface ScheduledSave {
@@ -143,6 +144,8 @@ export interface UseTimelinePersistenceResult {
   watchdogReason: 'timeout' | 'lost-edit' | null;
   /** Re-attempt the save (timeout) or dismiss the notice (lost-edit). */
   retryWatchdog: () => void;
+  /** Synchronous guard for recovery actions that must not race canonical reload. */
+  canonicalReloadInProgressRef: MutableRefObject<boolean>;
   /**
    * The bundle carried by the most recent server reload (`reloadFromServer`).
    * [V2-B4 handoff] the assembly authority supersedes this ref as the
@@ -169,6 +172,7 @@ export function useTimelinePersistence({
   configVersionRef,
   lastSavedSignatureRef,
   interactionStateRef,
+  onCanonicalReloadStart,
 }: UseTimelinePersistenceOptions): UseTimelinePersistenceResult {
   const persistenceEnabled = isDataProviderPersistenceEnabled(provider);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -922,6 +926,10 @@ export function useTimelinePersistence({
   }, [getInteractionStateRef, scheduleSave]);
 
   const reloadFromServer = useCallback((options?: { clearDraft?: boolean; preserveDraft?: boolean }) => {
+    // Recovery Retry may still be in its asynchronous read/build phase, outside
+    // the save queue. Invalidate it for every canonical reload entry point,
+    // including the internal Save-as-copy path below.
+    onCanonicalReloadStart?.();
     if (reloadPromiseRef.current) return reloadPromiseRef.current;
 
     reloadInProgressRef.current = true;
@@ -1051,6 +1059,7 @@ export function useTimelinePersistence({
     savedSeqRef,
     selectedClipIdRef,
     selectedTrackIdRef,
+    onCanonicalReloadStart,
     store,
     timelineId,
     waitForRecoveryDraftWrites,
@@ -1142,6 +1151,7 @@ export function useTimelinePersistence({
     watchdogTripped,
     watchdogReason,
     retryWatchdog,
+    canonicalReloadInProgressRef: reloadInProgressRef,
     /** Bundle from the last server reload; consumed downstream ([V2-B4]). */
     loadedBundleRef,
   };

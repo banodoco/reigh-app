@@ -29,14 +29,21 @@ export function useVideoEditorPreviewSurface({
   const resolvedConfig = useTimelineDataSelector((timeline) => timeline.resolvedConfig);
   const runtime = useOptionalVideoEditorRuntime();
   const hasShotClips = Boolean(resolvedConfig?.clips.some((clip) => clip.clipType === 'shot'));
+  // Interactive preview should reflect an in-progress child-shot edit before
+  // its canonical publication is acknowledged. Export/save still consume the
+  // acknowledged composition through their own paths.
+  const previewComposition = runtime?.userId === null
+    ? runtime.shots?.canonicalDraft?.composition ?? runtime.shots?.canonicalComposition
+    : null;
   const compositionResolution = useMemo(() => resolveCanonicalComposition({
     userId: runtime?.userId,
     hasShotClips,
     hasShotComposition: Boolean(runtime?.shots?.shotComposition),
-    composition: runtime?.userId === null ? runtime.shots?.canonicalComposition : null,
+    composition: previewComposition,
     compositionError: runtime?.userId === null ? runtime.shots?.canonicalCompositionError : null,
     baseConfig: resolvedConfig,
-  }), [hasShotClips, resolvedConfig, runtime]);
+  }), [hasShotClips, previewComposition, resolvedConfig, runtime?.shots?.canonicalCompositionError,
+    runtime?.shots?.shotComposition, runtime?.userId]);
   const previewConfig = compositionResolution.config;
   const previewSource = compositionResolution.source;
   const {

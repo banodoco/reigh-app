@@ -1,0 +1,5 @@
+{
+  "base": "../unknown-independent-facts.json",
+  "mutation": { "path": "nextActions.0.effects", "value": ["observe", "write-relocate-change-data"] },
+  "expectedError": "must exactly match C1 command effects"
+}

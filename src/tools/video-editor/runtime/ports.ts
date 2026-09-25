@@ -9,6 +9,25 @@ import type {
 } from '@/tools/video-editor/data/shotCompositionAdapter.ts';
 import type { ReighAgentElementContext } from '@/tools/video-editor/runtime/element-contract.ts';
 import type { AstridElementOperationAdapter } from '@/tools/video-editor/runtime/element-adapter.ts';
+export type CanonicalShotTimelineScope = Readonly<{
+  projectId: string;
+  parentDocumentId: string;
+  occurrenceId: string;
+  editorSessionId: string;
+}>;
+
+export type CanonicalShotTimelineDraft = Readonly<{
+  scope: CanonicalShotTimelineScope;
+  generation: number;
+  composition: PreparedShotComposition;
+}>;
+
+export type CanonicalShotTimelinePublication = Readonly<{
+  scope: CanonicalShotTimelineScope;
+  generation: number;
+  expectedHeadRevisionId: string | null;
+}>;
+
 
 /**
  * Checklist-backed runtime inventory for the host surfaces Sprint 2 is
@@ -53,6 +72,18 @@ export interface VideoEditorShotsHost {
   canonicalOccurrences?: readonly CanonicalShotOccurrence[];
   canonicalComposition?: PreparedShotComposition | null;
   canonicalCompositionError?: Error | null;
+  canonicalDraft?: CanonicalShotTimelineDraft | null;
+  beginCanonicalDraftSession?: (scope: CanonicalShotTimelineScope) => void;
+  endCanonicalDraftSession?: (scope: CanonicalShotTimelineScope) => void;
+  setCanonicalDraftProjection?: (draft: CanonicalShotTimelineDraft) => void;
+  clearCanonicalDraftProjection?: (
+    scope: CanonicalShotTimelineScope,
+    generation: number,
+  ) => void;
+  adoptCanonicalComposition?: (
+    composition: PreparedShotComposition,
+    publication?: CanonicalShotTimelinePublication,
+  ) => void;
 }
 
 export interface VideoEditorMediaLightboxHost {

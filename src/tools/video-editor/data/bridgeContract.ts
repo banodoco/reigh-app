@@ -383,6 +383,20 @@ export const bridgeTaskAdmissionRequestSchema = z.strictObject({
   ),
   spec: bridgeTaskAdmissionSpecSchema,
   storage_estimate: bridgeTaskStorageEstimateSchema,
+  /** Runtime-owned selector; the binding is resolved after admission. */
+  execution_request: z.looseObject({
+    schema_version: z.literal(1).optional(),
+    target: z.looseObject({
+      kind: z.enum(['default', 'profile', 'machine', 'runpod']),
+    }),
+    workflow: jsonObject.optional(),
+    inputs: z.array(jsonObject).optional(),
+    execution: jsonObject.optional(),
+    retry_policy: jsonObject.optional(),
+    lifecycle: jsonObject.optional(),
+    limits: jsonObject.optional(),
+    checks: jsonObject.optional(),
+  }).optional(),
   /** Producer-validated GEN intent; Reigh carries it without rebuilding it. */
   generation_intent: jsonObject.optional(),
   settlement_effect: bridgeTaskSettlementEffectSchema,
@@ -438,6 +452,24 @@ export const runtimeTaskResourceSchema = z.looseObject({
   updated_at: z.string().min(1),
   attempt_id: z.string().min(1).nullable(),
   runtime_epoch: z.number().int().positive(),
+  /** Runtime resolves this selector into the canonical binding authority. */
+  execution_request: z.looseObject({
+    schema_version: z.literal(1).optional(),
+    target: z.looseObject({ kind: z.enum(['default', 'profile', 'machine', 'runpod']) }),
+  }).optional(),
+  /** Issued by Runtime; consumers may verify/read it but never mint it. */
+  execution_binding: z.looseObject({
+    binding_id: z.string().min(1),
+    task_id: z.string().min(1),
+    run_id: z.string().min(1),
+    session_id: z.string().min(1),
+    runtime_epoch: z.number().int().positive(),
+    capability_id: z.string().min(1),
+    target_kind: z.string().min(1),
+    resolved_target: z.looseObject({ kind: z.enum(['default', 'profile', 'machine', 'runpod']) }),
+    actual_target: z.looseObject({ kind: z.enum(['default', 'profile', 'machine', 'runpod']) }).optional(),
+    verification: z.looseObject({ verified: z.literal(true) }).optional(),
+  }).optional(),
   /** Latest bounded phase progress reported by the Runtime attempt heartbeat. */
   progress: jsonObject.optional(),
   generation_intent: jsonObject.optional(),
@@ -445,6 +477,19 @@ export const runtimeTaskResourceSchema = z.looseObject({
 });
 
 export const runtimeTaskPageSchema = runtimePageSchema(runtimeTaskResourceSchema);
+
+export const runtimeEventSchema = z.strictObject({
+  event_id: z.string().min(1),
+  sequence: z.number().int().positive(),
+  cursor: z.string().min(1),
+  event_type: z.string().min(1),
+  aggregate_type: z.string().min(1),
+  aggregate_id: z.string().min(1),
+  payload: jsonObject,
+  occurred_at: z.string().datetime({ offset: true }),
+});
+
+export const runtimeEventPageSchema = runtimePageSchema(runtimeEventSchema);
 
 export const runtimeGenerationResourceSchema = z.looseObject({
   generation_id: z.string().min(1),
@@ -633,6 +678,8 @@ export type RuntimeManagedObject = z.infer<typeof runtimeManagedObjectSchema>;
 export type RuntimeCapability = z.infer<typeof runtimeCapabilitySchema>;
 export type RuntimeMutationReceipt = z.infer<typeof runtimeMutationReceiptSchema>;
 export type RuntimeTaskResource = z.infer<typeof runtimeTaskResourceSchema>;
+export type RuntimeEvent = z.infer<typeof runtimeEventSchema>;
+export type RuntimeEventPage = z.infer<typeof runtimeEventPageSchema>;
 export type RuntimeGenerationResource = z.infer<typeof runtimeGenerationResourceSchema>;
 export type RuntimeVariantResource = z.infer<typeof runtimeVariantResourceSchema>;
 export type BridgeErrorEnvelope = z.infer<typeof bridgeErrorEnvelopeSchema>;

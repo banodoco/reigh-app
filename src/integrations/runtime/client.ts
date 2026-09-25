@@ -18,6 +18,10 @@ import {
   type Task,
   type Transport,
 } from './generated.ts';
+import {
+  RUNTIME_SCHEMA_DIGEST,
+  RUNTIME_TARGETED_EXECUTION_CAPABILITY,
+} from './contract-metadata.ts';
 
 // Browser requests stay same-origin so the connector/proxy can inject the
 // owner credential without exposing it to the page. The endpoint env var is a
@@ -63,7 +67,18 @@ export class RuntimeAuthenticationError extends Error {
   }
 }
 
-export type RuntimeConnectorError = RuntimeAuthenticationError | RuntimeUnavailableError;
+export class RuntimeCompatibilityError extends Error {
+  readonly code = 'runtime_incompatible' as const;
+  readonly recoveryAction = 'Start the Runtime built from the accepted contract and retry.';
+
+  constructor(public readonly reason: string, baseUrl: string) {
+    const recoveryAction = 'Start the Runtime built from the accepted contract and retry.';
+    super(`Workspace Runtime at ${baseUrl} is incompatible with the accepted consumer contract: ${reason}. ${recoveryAction}`);
+    this.name = 'RuntimeCompatibilityError';
+  }
+}
+
+export type RuntimeConnectorError = RuntimeAuthenticationError | RuntimeUnavailableError | RuntimeCompatibilityError;
 
 export function isRuntimeConflict(error: unknown): error is ApiError {
   return error instanceof ApiError && error.status === 409;
@@ -105,9 +120,22 @@ export class ReighRuntimeClient {
         RUNTIME_CLIENT_VERSION,
         RUNTIME_CLIENT_SCOPES,
       );
+      if (health.schema_digest !== RUNTIME_SCHEMA_DIGEST || handshake.schema_digest !== RUNTIME_SCHEMA_DIGEST) {
+        throw new RuntimeCompatibilityError(
+          `schema digest mismatch (health=${health.schema_digest}, handshake=${handshake.schema_digest}, expected=${RUNTIME_SCHEMA_DIGEST})`,
+          this.baseUrl,
+        );
+      }
+      if (!handshake.capabilities.includes(RUNTIME_TARGETED_EXECUTION_CAPABILITY)) {
+        throw new RuntimeCompatibilityError(
+          `missing capability ${RUNTIME_TARGETED_EXECUTION_CAPABILITY}`,
+          this.baseUrl,
+        );
+      }
       const realm = await this.client.getRealm();
       return { health, handshake, realm };
     } catch (error) {
+      if (error instanceof RuntimeCompatibilityError) throw error;
       if (error instanceof ApiError && error.status === 401) {
         throw new RuntimeAuthenticationError(this.baseUrl);
       }

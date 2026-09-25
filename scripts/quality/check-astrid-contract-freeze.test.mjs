@@ -66,6 +66,36 @@ test('observation cannot gain side effects or omit independent readiness', () =>
   corrupt((c) => { c.migrations = c.migrations.filter((entry) => entry.id !== 'doctor-observation'); }, /migrations: expected exact/);
 });
 
+test('single-workspace setup cannot infer selection, cwd, or a second identity', () => {
+  corrupt((c) => { c.workspace.count = 2; }, /workspace.count/);
+  corrupt((c) => { c.workspace.selection = 'automatic'; }, /workspace.selection/);
+  corrupt((c) => { c.workspace.identity = 'project-or-user'; }, /workspace.identity/);
+  corrupt((c) => { c.workspace.cwdFallback = true; }, /workspace.cwdFallback/);
+  corrupt((c) => { c.workspace.implicitSecondWorkspace = true; }, /workspace.implicitSecondWorkspace/);
+  corrupt((c) => { c.workspace.expertOverride = 'switch-default'; }, /workspace.expertOverride/);
+  corrupt((c) => { c.setup.applyStages = c.setup.applyStages.filter((stage) => stage !== 'Create-or-Attach'); }, /setup.applyStages/);
+  corrupt((c) => { [c.setup.applyStages[0], c.setup.applyStages[1]] = [c.setup.applyStages[1], c.setup.applyStages[0]]; }, /setup.applyStages: expected exact ordered values/);
+  corrupt((c) => { c.setup.resumePolicy = 'create-again'; }, /setup.resumePolicy/);
+});
+
+test('runtime ownership and observation reject port-only adoption and hidden startup', () => {
+  corrupt((c) => { c.execution.processOwnership = 'matching-port-is-owner'; }, /execution.processOwnership/);
+  corrupt((c) => { c.observation.startsProcesses = true; }, /observation.startsProcesses/);
+  corrupt((c) => { c.observation.provisioning = true; }, /observation.provisioning/);
+  corrupt((c) => { c.setup.checkStartsProcesses = true; }, /setup.checkStartsProcesses/);
+  corrupt((c) => { c.commands.find((entry) => entry.id === 'runtime-status').effects = ['start-stop-local-service']; }, /commands.runtime-status.effects/);
+  corrupt((c) => { c.commands.find((entry) => entry.id === 'runtime-connect').effects = ['observe']; }, /commands.runtime-connect.effects/);
+});
+
+test('startup preservation and bounded recovery remain explicit distinct effects', () => {
+  corrupt((c) => { c.setup.startupFailure = 'rollback-workspace'; }, /setup.startupFailure/);
+  corrupt((c) => { c.setup.retryCommandId = 'task-retry'; }, /setup.retryCommandId/);
+  corrupt((c) => { c.commands.find((entry) => entry.id === 'backup').effects = ['observe']; }, /commands.backup.effects/);
+  corrupt((c) => { c.commands.find((entry) => entry.id === 'restore').effects = ['observe']; }, /commands.restore.effects/);
+  corrupt((c) => { c.commands.find((entry) => entry.id === 'recovery').effects = ['observe']; }, /commands.recovery.effects/);
+  corrupt((c) => { c.unresolved.find((entry) => entry.id === 'preservation-preflight').requiredBefore = 'CF-CLOSE'; }, /preservation-preflight/);
+});
+
 test('dangling or wrongly typed future outputs cannot masquerade as delivered inputs', () => {
   corrupt((c) => { c.setup.inputRef = 'absent'; }, /unknown unresolved reference absent/);
   corrupt((c) => { c.setup.inputRef = 'hosted-auth-protocol'; }, /expected setup-delivery/);

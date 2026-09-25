@@ -21,6 +21,8 @@ export interface TimelineEditability {
    * deliberately runtime-only; it is not part of the persisted timeline.
    */
   readonly hardDurationSeconds?: number;
+  /** Optional whole-document guard evaluated at the shared edit/history boundary. */
+  checkTimeline?(): TimelineEditabilityResult;
   check(input: {
     clipId: string;
     sourceTrackId: string | null;

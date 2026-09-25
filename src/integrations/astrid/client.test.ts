@@ -1,5 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+vi.mock('@/integrations/astrid/capabilityCensus.ts', () => ({
+  observeAstridCapabilityFailure: vi.fn(),
+}));
+
 import { AstridLocalClient } from '@/integrations/astrid/client.ts';
 import {
   BridgeContractError,

@@ -22,6 +22,7 @@ import type { GenerationRow } from '@/domains/generation/types/index.ts';
 import { VideoEditorLightboxOverlay } from '@/tools/video-editor/components/VideoEditorLightboxOverlay.tsx';
 import { useReighShotsHost } from '@/tools/video-editor/adapters/reigh/useReighShotsHost.ts';
 import type { DataProvider } from '@/tools/video-editor/data/DataProvider.ts';
+import type { TimelineData } from '@/tools/video-editor/lib/timeline-data.ts';
 import {
   VideoEditorRuntimeProvider,
   useVideoEditorRuntime,
@@ -239,6 +240,7 @@ export function buildVideoEditorLightboxMedia(
  *  timeline attachment metadata synchronized in the selection store. */
 function AgentChatBridgeRegistration() {
   const { timelineId, timelineName, project, agentChat } = useVideoEditorRuntime();
+  const { registerTimeline, unregisterTimeline } = agentChat;
   const allClips = useTimelineClipsForAttachments();
   const { data, resolvedConfig, selectedClipIds } = useTimelineEditorData();
   const effectCatalog = useEffectResources();
@@ -261,7 +263,7 @@ function AgentChatBridgeRegistration() {
       duration,
     };
   }, [configVersion, resolvedConfig]);
-  const resolvedClips = resolvedConfig?.clips ?? [];
+  const resolvedClips = resolvedConfig?.clips ?? EMPTY_RESOLVED_CLIPS;
   const elementContext = useMemo(() => buildReighAgentElementContext({
     effects: effectCatalog.effects,
     astridEffects: ASTRID_EFFECT_CATALOG,
@@ -298,11 +300,12 @@ function AgentChatBridgeRegistration() {
 
   useEffect(() => {
     setTimelineClipData(allClips);
-    return () => clearTimelineClipData();
   }, [allClips]);
 
+  useEffect(() => () => clearTimelineClipData(), []);
+
   useEffect(() => {
-    agentChat.registerTimeline({
+    registerTimeline({
       timelineId,
       projectId: project.projectId,
       projectSlug: project.projectSlug,
@@ -311,11 +314,13 @@ function AgentChatBridgeRegistration() {
       elementContext,
       elementOperationAdapter,
     });
-    return agentChat.unregisterTimeline;
-  }, [agentChat, elementContext, project.projectId, project.projectSlug, timelineId, timelineName, timelineSummary]);
+    return unregisterTimeline;
+  }, [elementContext, project.projectId, project.projectSlug, registerTimeline, timelineId, timelineName, timelineSummary, unregisterTimeline]);
 
   return null;
 }
+
+const EMPTY_RESOLVED_CLIPS: never[] = [];
 
 function InnerProvider({
   children,
@@ -324,6 +329,7 @@ function InnerProvider({
   onSaveStatusChange,
   operationalEmitter,
   assembly,
+  initialTimelineData,
 }: {
   children: React.ReactNode;
   effectCatalog?: VideoEditorEffectCatalog | null;
@@ -331,6 +337,7 @@ function InnerProvider({
   onSaveStatusChange?: (status: SaveStatus) => void;
   operationalEmitter?: HostOwnedExtensionOperationalEmitter;
   assembly: EditorRuntimeAssembly;
+  initialTimelineData?: TimelineData;
 }) {
   useRenderDiagnostic('VideoEditorProvider');
   const runtime = useVideoEditorRuntime();
@@ -360,6 +367,7 @@ function InnerProvider({
     sequenceComponentCatalog,
     proposalPersistenceProvider: proposalPersistenceRef.current,
     eagerProposalRetry: true,
+    initialTimelineData,
   });
   const { store, editor, chrome } = sync;
 
@@ -730,6 +738,8 @@ export interface VideoEditorProviderProps {
    *  to false; hosts opt in by supplying `true`. */
   timelineOverlaysEnabled?: boolean;
   timelineEditability?: TimelineEditability;
+  /** Optional synchronous data seed for hosts with an already-resolved projection. */
+  initialTimelineData?: TimelineData;
   /** True only when the deployment-owned parent rollout switch is effective. */
   extensionHostEnabled?: boolean;
   /** Deployment-owned revision attached to privacy-safe operational events. */
@@ -754,6 +764,7 @@ export function VideoEditorProvider({
   processManager: hostProcessManager,
   timelineOverlaysEnabled = false,
   timelineEditability,
+  initialTimelineData,
   extensionHostEnabled = false,
   extensionReleaseRevision = 'unset',
   extensionOperationalEventSink = dispatchExtensionOperationalEvent,
@@ -983,6 +994,7 @@ export function VideoEditorProvider({
         onSaveStatusChange={onSaveStatusChange}
         operationalEmitter={extensionHostEnabled ? operationalEmitter : undefined}
         assembly={assembly}
+        initialTimelineData={initialTimelineData}
       >
         {children}
       </InnerProvider>

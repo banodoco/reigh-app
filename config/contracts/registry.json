@@ -919,6 +919,26 @@
         "\"revision\": \"C1\""
       ],
       "expectedExports": []
+    },
+    {
+      "id": "astrid-plan-a-c2",
+      "class": "composition_contract",
+      "path": "config/contracts/astrid-plan-a-c2.json",
+      "requiredTags": [
+        "\"kind\": \"astrid-contract-diagnostic-projection\"",
+        "\"revision\": \"C2\""
+      ],
+      "expectedExports": []
+    },
+    {
+      "id": "astrid-plan-a-diagnostic-c2-schema",
+      "class": "composition_contract",
+      "path": "config/contracts/astrid-plan-a-diagnostic-c2.schema.json",
+      "requiredTags": [
+        "\"title\": \"Astrid Plan A C2 diagnostic projection\"",
+        "\"contractRevision\""
+      ],
+      "expectedExports": []
     }
   ]
 }

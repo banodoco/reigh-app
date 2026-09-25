@@ -23,6 +23,11 @@ import {
   type ShotCompositionAdapter,
   type ShotCompositionPort,
 } from '@/tools/video-editor/data/shotCompositionAdapter.ts';
+import type {
+  CanonicalShotTimelineDraft,
+  CanonicalShotTimelinePublication,
+  CanonicalShotTimelineScope,
+} from '@/tools/video-editor/runtime/ports.ts';
 
 type LocalTimelineShotBrowserProps = {
   projectSlug: string;
@@ -37,7 +42,13 @@ type LocalTimelineShotBrowserProps = {
   initialComposition?: PreparedShotComposition;
   onClose?: () => void;
   /** Receives the latest graph after an embedded shot edit is published. */
-  onCanonicalCompositionPublished?: (composition: PreparedShotComposition) => void;
+  onCanonicalCompositionPublished?: (
+    composition: PreparedShotComposition,
+    publication?: CanonicalShotTimelinePublication,
+  ) => void;
+  onCanonicalDraftSessionChange?: (scope: CanonicalShotTimelineScope, active: boolean) => void;
+  onCanonicalDraftProjectionChange?: (draft: CanonicalShotTimelineDraft) => void;
+  onCanonicalDraftProjectionClear?: (scope: CanonicalShotTimelineScope, generation: number) => void;
 };
 
 type LocalTimelineDocument = {
@@ -137,16 +148,28 @@ function useLocalTimelineDocument(
     },
   });
 
-  return { queryKey, ...query };
+  return { queryKey, compositionAdapter, ...query };
 }
 
-export function LocalTimelineShotBrowser({ projectSlug, projectId, timelineRef, shotCompositionPort, shotCompositionAdapter, shotRef, initialComposition, onClose, onCanonicalCompositionPublished }: LocalTimelineShotBrowserProps) {
+function isCompositionForDocument(
+  composition: PreparedShotComposition | null | undefined,
+  projectId: string,
+  parentDocumentId: string,
+): composition is PreparedShotComposition {
+  return composition?.projectId === projectId
+    && composition.parentDocumentId === parentDocumentId
+    && composition.occurrences.length > 0;
+}
+
+export function LocalTimelineShotBrowser({ projectSlug, projectId, timelineRef, shotCompositionPort, shotCompositionAdapter, shotRef, initialComposition, onClose, onCanonicalCompositionPublished, onCanonicalDraftSessionChange, onCanonicalDraftProjectionChange, onCanonicalDraftProjectionClear }: LocalTimelineShotBrowserProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const identityProjectId = projectId ?? projectSlug;
   const documentQuery = useLocalTimelineDocument(projectSlug, projectId, timelineRef, shotCompositionPort, shotCompositionAdapter);
-  const [compositionOverride, setCompositionOverride] = useState<PreparedShotComposition | null>(initialComposition ?? null);
+  const [compositionOverride, setCompositionOverride] = useState<PreparedShotComposition | null>(() => (
+    isCompositionForDocument(initialComposition, identityProjectId, timelineRef) ? initialComposition : null
+  ));
   const [canonicalDraftDirty, setCanonicalDraftDirty] = useState(false);
   const loadedComposition = documentQuery.data?.composition;
   useEffect(() => {
@@ -161,15 +184,18 @@ export function LocalTimelineShotBrowser({ projectSlug, projectId, timelineRef, 
     });
   }, [loadedComposition]);
   useEffect(() => {
-    if (initialComposition) {
+    if (isCompositionForDocument(initialComposition, identityProjectId, timelineRef)) {
       // The parent host polls for external head changes. Preserve the pinned
       // mounted graph while a nested editor has unsaved work; its CAS publish
       // will explicitly advance this override after acknowledgement.
       if (canonicalDraftDirty) return;
       setCompositionOverride(initialComposition);
+    } else {
+      setCompositionOverride(null);
     }
-  }, [canonicalDraftDirty, initialComposition]);
+  }, [canonicalDraftDirty, identityProjectId, initialComposition, timelineRef]);
   const composition = compositionOverride ?? loadedComposition;
+  const hasPreparedComposition = isCompositionForDocument(composition, identityProjectId, timelineRef);
   const shots = useMemo(
     () => selectCanonicalShotOccurrences(composition, documentQuery.data?.registry, identityProjectId),
     [composition, documentQuery.data?.registry, identityProjectId],
@@ -206,12 +232,15 @@ export function LocalTimelineShotBrowser({ projectSlug, projectId, timelineRef, 
     () => selectedShot ? shotModels.find((shot) => shot.id === selectedShot.id) : undefined,
     [selectedShot, shotModels],
   );
-  const handleCanonicalCompositionPublished = useCallback((nextComposition: PreparedShotComposition) => {
+  const handleCanonicalCompositionPublished = useCallback((
+    nextComposition: PreparedShotComposition,
+    publication?: CanonicalShotTimelinePublication,
+  ) => {
     setCompositionOverride(nextComposition);
     queryClient.setQueryData<LocalTimelineDocument>(documentQuery.queryKey, (current) => current
       ? { ...current, composition: nextComposition }
       : current);
-    onCanonicalCompositionPublished?.(nextComposition);
+    onCanonicalCompositionPublished?.(nextComposition, publication);
   }, [documentQuery.queryKey, onCanonicalCompositionPublished, queryClient]);
 
   useEffect(() => {
@@ -232,10 +261,10 @@ export function LocalTimelineShotBrowser({ projectSlug, projectId, timelineRef, 
     });
   };
 
-  if (documentQuery.isLoading) {
+  if (!hasPreparedComposition && documentQuery.isLoading) {
     return <div className="p-6 text-center text-sm text-muted-foreground" role="status">Loading timeline shots…</div>;
   }
-  if (documentQuery.error) {
+  if (!hasPreparedComposition && documentQuery.error) {
     return (
       <div className="mx-auto flex max-w-xl items-center gap-2 p-6 text-sm text-destructive" role="alert">
         <AlertCircle className="h-4 w-4 shrink-0" />
@@ -266,7 +295,7 @@ export function LocalTimelineShotBrowser({ projectSlug, projectId, timelineRef, 
         <ShotEditorView
           shotToEdit={selectedShotModel}
           canonicalOccurrence={selectedShotModel}
-          canonicalShotComposition={documentQuery.data?.compositionAdapter}
+          canonicalShotComposition={documentQuery.compositionAdapter ?? documentQuery.data?.compositionAdapter ?? shotCompositionAdapter}
           canonicalComposition={composition}
           selectedProjectId={projectSlug}
           isNewlyCreatedShot={false}
@@ -276,6 +305,9 @@ export function LocalTimelineShotBrowser({ projectSlug, projectId, timelineRef, 
           shotSortMode="ordered"
           onClose={onClose}
           onCanonicalCompositionPublished={handleCanonicalCompositionPublished}
+          onCanonicalDraftSessionChange={onCanonicalDraftSessionChange}
+          onCanonicalDraftProjectionChange={onCanonicalDraftProjectionChange}
+          onCanonicalDraftProjectionClear={onCanonicalDraftProjectionClear}
           onCanonicalDraftStateChange={setCanonicalDraftDirty}
         />
       ) : (

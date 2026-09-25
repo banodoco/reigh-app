@@ -1,8 +1,10 @@
 import type { DataProvider } from '@/tools/video-editor/data/DataProvider.ts';
 import type { LoadedTimeline } from '@/tools/video-editor/data/DataProvider.ts';
 import {
+  advanceTimelineDraftBaseAfterAcknowledgement,
   clearTimelineDraftIfMatches,
   loadTimelineDraft,
+  reconcileTimelineDraftHeadMarker,
   saveTimelineDraftIfOwner,
   type TimelineDraftRecoveryMetadata,
 } from '@/tools/video-editor/data/timelineDraftIndexedDb.ts';
@@ -16,6 +18,7 @@ import { projectCanonicalComposition } from '@/tools/video-editor/data/shotCompo
 import { recordShotTimelinePhase } from '@/tools/video-editor/lib/shot-timeline-timing.ts';
 import {
   enqueueCanonicalShotPublish,
+  hardDurationMs,
   updateCanonicalShotTimeline,
 } from '@/tools/video-editor/data/shotCompositionEditor.ts';
 import type {
@@ -25,6 +28,8 @@ import type {
 } from '@/tools/video-editor/types/index.ts';
 import { timelineContentExtentMs } from '@/tools/video-editor/data/shotCompositionTiming.ts';
 import { bridgeMediaUrl } from '@/shared/lib/media/bridgeMediaUrl.ts';
+import { assembleTimelineData, type TimelineData } from '@/tools/video-editor/lib/timeline-data.ts';
+import { buildAssetReferenceMap } from '@/tools/video-editor/lib/asset-registry.ts';
 
 export function shotTimelineSessionId(
   parentDocumentId: string,
@@ -62,6 +67,25 @@ function headRevisionIdFromConfig(config: Pick<TimelineConfig, 'app'>): string |
   return typeof canonical?.headRevisionId === 'string' ? canonical.headRevisionId : null;
 }
 
+function reconcileConfigHeadRevision(config: TimelineConfig, headRevisionId: string): TimelineConfig {
+  const app = config.app && typeof config.app === 'object' && !Array.isArray(config.app)
+    ? config.app as Record<string, unknown>
+    : null;
+  const canonical = app?.canonicalComposition
+    && typeof app.canonicalComposition === 'object'
+    && !Array.isArray(app.canonicalComposition)
+    ? app.canonicalComposition as Record<string, unknown>
+    : null;
+  if (!app || !canonical || canonical.headRevisionId === headRevisionId) return config;
+  return {
+    ...config,
+    app: {
+      ...app,
+      canonicalComposition: { ...canonical, headRevisionId },
+    },
+  };
+}
+
 export function shotTimelineDurationSeconds(
   config: Pick<ResolvedTimelineConfig, 'clips'>,
   hardDurationSeconds?: number,
@@ -82,6 +106,28 @@ function createShotTimelineConfig(config: ResolvedTimelineConfig): TimelineConfi
     ...(config.generation_defaults ? { generation_defaults: config.generation_defaults } : {}),
     ...(config.app ? { app: config.app } : {}),
   };
+}
+
+/** Build first-render editor data from the already-resolved parent projection. */
+export function createShotTimelineInitialData(
+  config: ResolvedTimelineConfig,
+  configVersion = 1,
+): TimelineData {
+  const registry = {
+    assets: Object.fromEntries(Object.entries(config.registry).map(([assetId, entry]) => ([assetId, {
+      ...entry,
+      file: entry.file ?? entry.media_id ?? entry.url,
+    }]))),
+  };
+  const timelineConfig = createShotTimelineConfig(config);
+  return assembleTimelineData({
+    config: timelineConfig,
+    configVersion,
+    registry,
+    resolvedConfig: config,
+    output: config.output,
+    assetMap: buildAssetReferenceMap(registry),
+  });
 }
 
 function createCanonicalTimeline(config: TimelineConfig, occurrenceId: string): Record<string, unknown> {
@@ -118,6 +164,28 @@ function stableStringify(value: unknown): string {
   return JSON.stringify(value);
 }
 
+function normalizeHeadForSignature(
+  timeline: Record<string, unknown>,
+  headRevisionId: string,
+): Record<string, unknown> {
+  const app = timeline.app && typeof timeline.app === 'object' && !Array.isArray(timeline.app)
+    ? timeline.app as Record<string, unknown>
+    : null;
+  const canonical = app?.canonicalComposition
+    && typeof app.canonicalComposition === 'object'
+    && !Array.isArray(app.canonicalComposition)
+    ? app.canonicalComposition as Record<string, unknown>
+    : null;
+  if (!app || !canonical) return timeline;
+  return {
+    ...timeline,
+    app: {
+      ...app,
+      canonicalComposition: { ...canonical, headRevisionId },
+    },
+  };
+}
+
 async function digest(value: unknown): Promise<string> {
   const bytes = new TextEncoder().encode(stableStringify(value));
   const result = await globalThis.crypto.subtle.digest('SHA-256', bytes);
@@ -133,10 +201,47 @@ type PendingCanonicalPublication = {
 
 type ShotTimelineDataProvider = DataProvider & {
   timelineQueryIdentity: string;
-  setPublishCallback: (callback?: (composition: PreparedShotComposition) => void) => void;
+  setPublishCallback: (callback?: (
+    composition: PreparedShotComposition,
+    generation: number,
+    expectedHeadRevisionId: string | null,
+  ) => void) => void;
   setDraftState: (dirty: boolean) => void;
+  setDraftGeneration: (generation: number) => void;
   adoptCleanBaseline: (config: ResolvedTimelineConfig, composition: PreparedShotComposition) => boolean;
 };
+
+/** Ephemeral shot-local geometry projection; it never changes the CAS graph. */
+export function projectShotTimelineDraftComposition(
+  composition: PreparedShotComposition,
+  occurrenceId: string,
+  config: ResolvedTimelineConfig,
+): PreparedShotComposition {
+  const occurrence = composition.occurrences.find((candidate) => candidate.occurrenceId === occurrenceId);
+  if (!occurrence) return composition;
+  const timeline = createCanonicalTimeline(createShotTimelineConfig(config), occurrenceId);
+  const extentMs = timelineContentExtentMs(timeline);
+  const hardLimitMs = hardDurationMs(composition.contract, occurrenceId, occurrence.atMs);
+  const revision = occurrence.revision;
+  const internal = revision.internal_timeline_revision
+    && typeof revision.internal_timeline_revision === 'object'
+    && !Array.isArray(revision.internal_timeline_revision)
+    ? revision.internal_timeline_revision as JsonObject
+    : {};
+  return {
+    ...composition,
+    occurrences: composition.occurrences.map((candidate) => candidate.occurrenceId === occurrenceId
+      ? {
+        ...candidate,
+        durationMs: hardLimitMs === undefined ? extentMs : Math.min(extentMs, hardLimitMs),
+        revision: {
+          ...revision,
+          internal_timeline_revision: { ...internal, timeline },
+        },
+      }
+      : candidate),
+  };
+}
 
 /** DataProvider bridge for the shot-local popup's canonical CAS publication. */
 export function createShotTimelineDataProvider(
@@ -144,8 +249,13 @@ export function createShotTimelineDataProvider(
   composition: PreparedShotComposition,
   occurrenceId: string,
   shotCompositionAdapter?: ShotCompositionAdapter,
-  onCanonicalCompositionPublished?: (composition: PreparedShotComposition) => void,
+  onCanonicalCompositionPublished?: (
+    composition: PreparedShotComposition,
+    generation: number,
+    expectedHeadRevisionId: string | null,
+  ) => void,
   editorHeadState?: { current: ShotTimelineEditorHeadState },
+  initialDraftGeneration = 0,
 ): ShotTimelineDataProvider {
   let registry: { assets: Record<string, ResolvedAssetRegistryEntry> } = {
     assets: Object.fromEntries(Object.entries(config.registry).map(([assetId, entry]) => ([assetId, {
@@ -202,6 +312,7 @@ export function createShotTimelineDataProvider(
   let pendingPublication: PendingCanonicalPublication | null = null;
   let activeTimingTraceId: string | null = null;
   let publishCallback = onCanonicalCompositionPublished;
+  let draftGeneration = initialDraftGeneration;
   let draftDirty = false;
   let pendingPublishes = 0;
 
@@ -223,16 +334,40 @@ export function createShotTimelineDataProvider(
     loadTimeline: async (_timelineId) => {
       timelineConfig = canonicalTimelineConfig;
       const recovery = await loadTimelineDraft(recoveryKey).catch(() => null);
+      let recoveryBaseHeadRevisionId: string | null = null;
       if (recovery?.baseCanonicalGraph && shotCompositionAdapter) {
         try {
-          adoptCanonicalBase(shotCompositionAdapter.prepare(recovery.baseCanonicalGraph));
+          const recoveredBase = shotCompositionAdapter.prepare(recovery.baseCanonicalGraph);
+          if (recoveredBase.headRevisionId === recovery.baseHeadRevisionId) {
+            const recoveryBaseIsCurrent = recoveredBase.headRevisionId === canonicalBase.headRevisionId;
+            // A recovery base is CAS provenance, not proof that it is still the
+            // current canonical head. Only adopt its displayed marker when it
+            // matches the provider's latest known base; never rewrite a stale
+            // draft's original CAS revision here.
+            adoptCanonicalBase(recoveredBase, recoveryBaseIsCurrent);
+            if (recoveryBaseIsCurrent) {
+              recoveryBaseHeadRevisionId = recoveredBase.headRevisionId;
+            }
+          }
         } catch {
           // A malformed recovery base is not authority; keep the fresh graph.
         }
       }
+      if (recoveryBaseHeadRevisionId && recovery?.draftIdentity) {
+        // Keep the durable draft's marker aligned with the validated base.
+        // Retry reads the one-slot record again, so an in-memory-only repair
+        // here would let it rehydrate the stale marker and hit the edit gate.
+        await reconcileTimelineDraftHeadMarker(
+          recoveryKey,
+          recovery.draftIdentity,
+          recoveryBaseHeadRevisionId,
+        ).catch(() => false);
+      }
       const recoveredConfig = recovery?.draft.config;
       if (recoveredConfig && typeof recoveredConfig === 'object' && !Array.isArray(recoveredConfig)) {
-        timelineConfig = recoveredConfig as TimelineConfig;
+        timelineConfig = recoveryBaseHeadRevisionId
+          ? reconcileConfigHeadRevision(recoveredConfig as TimelineConfig, recoveryBaseHeadRevisionId)
+          : recoveredConfig as TimelineConfig;
       }
       const savedPublication = recovery?.draft.canonicalPublication;
       if (savedPublication && typeof savedPublication === 'object' && !Array.isArray(savedPublication)) {
@@ -297,6 +432,7 @@ export function createShotTimelineDataProvider(
     },
     loadAssetRegistry: async () => registry,
     saveTimeline: async (timelineId, nextConfig, expectedVersion) => {
+      const publicationGeneration = draftGeneration;
       assertEditorHeadIsCurrent();
       if (!shotCompositionAdapter?.publish) {
         throw new Error('The canonical shot-composition provider is read-only');
@@ -304,6 +440,7 @@ export function createShotTimelineDataProvider(
       pendingPublishes += 1;
       const requestedAt = import.meta.env.DEV ? performance.now() : 0;
       const timingTraceId = activeTimingTraceId;
+      let publicationExpectedHeadRevisionId: string | null = null;
       if (timingTraceId) recordShotTimelinePhase(timingTraceId, 'request-start', { expectedVersion });
       try {
         const timeline = createCanonicalTimeline(nextConfig, occurrenceId);
@@ -323,7 +460,7 @@ export function createShotTimelineDataProvider(
             // and prepares its graph, so owner comparison and write below are
             // still transactional.
             const recoveryAtStart = await loadTimelineDraft(recoveryKey).catch(() => null);
-            const configSignature = await digest(timeline);
+            const configSignature = await digest(normalizeHeadForSignature(timeline, canonicalBase.headRevisionId));
             let candidate = pendingPublication?.configSignature === configSignature
               ? pendingPublication
               : null;
@@ -349,15 +486,16 @@ export function createShotTimelineDataProvider(
               };
               pendingPublication = candidate;
             }
+            publicationExpectedHeadRevisionId = candidate.expectedHeadRevisionId;
             const recoveryDraftConfig = recoveryAtStart?.draft.config;
             const recoveryMatchesThisSave = Boolean(
               recoveryAtStart?.draftIdentity
               && recoveryDraftConfig
               && typeof recoveryDraftConfig === 'object'
               && !Array.isArray(recoveryDraftConfig)
-              && await digest(createCanonicalTimeline(
-                recoveryDraftConfig as TimelineConfig,
-                occurrenceId,
+              && await digest(normalizeHeadForSignature(
+                createCanonicalTimeline(recoveryDraftConfig as TimelineConfig, occurrenceId),
+                canonicalBase.headRevisionId,
               )) === configSignature,
             );
             const expectedRecoveryOwner = recoveryAtStart === null
@@ -413,7 +551,19 @@ export function createShotTimelineDataProvider(
             canonicalTimelineConfig = nextConfig;
             timelineConfig = canonicalTimelineConfig;
             pendingPublication = null;
-            await clearTimelineDraftIfMatches(recoveryKey, candidate.idempotencyKey).catch(() => false);
+            const clearedAcknowledgedDraft = await clearTimelineDraftIfMatches(
+              recoveryKey,
+              candidate.idempotencyKey,
+            ).catch(() => false);
+            if (!clearedAcknowledgedDraft) {
+              await advanceTimelineDraftBaseAfterAcknowledgement(
+                recoveryKey,
+                candidate.expectedHeadRevisionId,
+                acknowledged.headRevisionId,
+                acknowledged.contract as unknown as Record<string, unknown>,
+                candidate.idempotencyKey,
+              ).catch(() => false);
+            }
             if (import.meta.env.DEV) {
               console.debug('[ShotTimelineLatency]', {
                 phase: 'canonical-publish-ack',
@@ -433,7 +583,7 @@ export function createShotTimelineDataProvider(
         });
         // A publication can finish after React has rendered a newer callback.
         // Keep the callback current without rebuilding the editor's provider.
-        publishCallback?.(published);
+        publishCallback?.(published, publicationGeneration, publicationExpectedHeadRevisionId);
         configVersion += 1;
         return configVersion;
       } finally {
@@ -442,6 +592,7 @@ export function createShotTimelineDataProvider(
     },
     setPublishCallback: (callback) => { publishCallback = callback; },
     setDraftState: (dirty) => { draftDirty = dirty; },
+    setDraftGeneration: (generation) => { draftGeneration = Math.max(draftGeneration, generation); },
     adoptCleanBaseline: (nextConfig, nextComposition) => {
       if (draftDirty || pendingPublishes > 0) {
         return false;

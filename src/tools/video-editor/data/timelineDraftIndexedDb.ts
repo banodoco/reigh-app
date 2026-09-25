@@ -232,6 +232,133 @@ export async function clearTimelineDraftIfMatches(
   return cleared;
 }
 
+/**
+ * Advance a newer recovery draft to a head acknowledged by its own pending
+ * publication. The owner/config are preserved; only a draft still based on
+ * the acknowledged request's expected head is eligible for this rebase.
+ */
+export async function advanceTimelineDraftBaseAfterAcknowledgement(
+  recoveryKey: string,
+  expectedHeadRevisionId: string,
+  acknowledgedHeadRevisionId: string,
+  acknowledgedGraph: Record<string, unknown>,
+  acknowledgementIdentity: string,
+): Promise<boolean> {
+  if (typeof indexedDB === 'undefined') return false;
+  const database = await openDatabase();
+  const advanced = await new Promise<boolean>((resolve, reject) => {
+    const transaction = database.transaction(DRAFT_STORE_NAME, 'readwrite');
+    const store = transaction.objectStore(DRAFT_STORE_NAME);
+    const request = store.get(buildKey(recoveryKey));
+    let updated = false;
+    request.addEventListener('success', () => {
+      const current = request.result as TimelineDraftRecord | undefined;
+      if (!current
+        || current.baseHeadRevisionId !== expectedHeadRevisionId
+        || current.acknowledgementIdentity === acknowledgementIdentity) return;
+
+      const draftConfig = current.draft.config;
+      if (draftConfig && typeof draftConfig === 'object' && !Array.isArray(draftConfig)) {
+        const config = draftConfig as Record<string, unknown>;
+        const app = config.app && typeof config.app === 'object' && !Array.isArray(config.app)
+          ? config.app as Record<string, unknown>
+          : null;
+        const canonical = app?.canonicalComposition
+          && typeof app.canonicalComposition === 'object'
+          && !Array.isArray(app.canonicalComposition)
+          ? app.canonicalComposition as Record<string, unknown>
+          : null;
+        if (canonical?.headRevisionId === expectedHeadRevisionId) {
+          store.put({
+            ...current,
+            draft: {
+              ...current.draft,
+              config: {
+                ...config,
+                app: {
+                  ...app,
+                  canonicalComposition: {
+                    ...canonical,
+                    headRevisionId: acknowledgedHeadRevisionId,
+                  },
+                },
+              },
+            },
+            baseHeadRevisionId: acknowledgedHeadRevisionId,
+            baseCanonicalGraph: acknowledgedGraph,
+          });
+          updated = true;
+        }
+      }
+    });
+    request.addEventListener('error', () => reject(request.error));
+    transaction.addEventListener('complete', () => resolve(updated));
+    transaction.addEventListener('error', () => reject(transaction.error));
+  });
+  database.close();
+  return advanced;
+}
+
+/**
+ * Reconcile only the canonical-head marker of a recovery draft whose durable
+ * graph has already been validated by its provider as the recorded CAS base.
+ * Compare the recovery owner and base in the same transaction so a newer edit
+ * or a genuinely stale draft cannot be rewritten by an older popup load.
+ */
+export async function reconcileTimelineDraftHeadMarker(
+  recoveryKey: string,
+  draftIdentity: string,
+  baseHeadRevisionId: string,
+): Promise<boolean> {
+  if (typeof indexedDB === 'undefined') return false;
+  const database = await openDatabase();
+  const reconciled = await new Promise<boolean>((resolve, reject) => {
+    const transaction = database.transaction(DRAFT_STORE_NAME, 'readwrite');
+    const store = transaction.objectStore(DRAFT_STORE_NAME);
+    const request = store.get(buildKey(recoveryKey));
+    let updated = false;
+    request.addEventListener('success', () => {
+      const current = request.result as TimelineDraftRecord | undefined;
+      if (!current
+        || current.draftIdentity !== draftIdentity
+        || current.baseHeadRevisionId !== baseHeadRevisionId) return;
+
+      const draftConfig = current.draft.config;
+      if (!draftConfig || typeof draftConfig !== 'object' || Array.isArray(draftConfig)) return;
+      const config = draftConfig as Record<string, unknown>;
+      const app = config.app && typeof config.app === 'object' && !Array.isArray(config.app)
+        ? config.app as Record<string, unknown>
+        : null;
+      const canonical = app?.canonicalComposition
+        && typeof app.canonicalComposition === 'object'
+        && !Array.isArray(app.canonicalComposition)
+        ? app.canonicalComposition as Record<string, unknown>
+        : null;
+      if (!app || !canonical || canonical.headRevisionId === baseHeadRevisionId) return;
+
+      store.put({
+        ...current,
+        draft: {
+          ...current.draft,
+          config: {
+            ...config,
+            app: {
+              ...app,
+              canonicalComposition: { ...canonical, headRevisionId: baseHeadRevisionId },
+            },
+          },
+        },
+      });
+      updated = true;
+    });
+    request.addEventListener('error', () => reject(request.error));
+    transaction.addEventListener('complete', () => resolve(updated));
+    transaction.addEventListener('error', () => reject(transaction.error));
+  });
+  database.close();
+  return reconciled;
+}
+
 /** Clear only the recovery snapshot observed by an explicit reload/discard. */
 export async function clearTimelineDraftIfSnapshotMatches(
   recoveryKey: string,

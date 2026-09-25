@@ -10,6 +10,7 @@ import {
   clearTimelineDraft,
   clearTimelineDraftIfMatches,
   loadTimelineDraft,
+  reconcileTimelineDraftHeadMarker,
   saveTimelineDraft,
   saveTimelineDraftIfOwner,
 } from '@/tools/video-editor/data/timelineDraftIndexedDb.ts';
@@ -88,6 +89,49 @@ describe('timelineDraftIndexedDb — one-slot recovery draft (plan-v5 B9)', () =
     expect(await clearTimelineDraftIfMatches('occurrence-1', 'publish-A')).toBe(false);
     expect((await loadTimelineDraft('occurrence-1'))?.draft).toEqual({ config: { name: 'B' } });
   });
+
+  it('reconciles only the matching recovery owner head marker and preserves draft content/base', async () => {
+    const key = 'shot-recovery';
+    const clips = [{ id: 'clip-B', at: 0.7 }];
+    await saveTimelineDraft('popup-session', {
+      config: {
+        clips,
+        app: { canonicalComposition: { headRevisionId: 'head-H0', preserved: true } },
+      },
+      registry: { assets: {} },
+    }, 4, {
+      recoveryKey: key,
+      draftIdentity: 'edit-B',
+      ownerId: 'owner-B',
+      baseHeadRevisionId: 'head-H1',
+      baseCanonicalGraph: { revision: 'H1' },
+      acknowledgementIdentity: 'publish-A',
+    });
+    const before = await loadTimelineDraft(key);
+
+    expect(await reconcileTimelineDraftHeadMarker(key, 'stale-owner', 'head-H1')).toBe(false);
+    expect(await reconcileTimelineDraftHeadMarker(key, 'edit-B', 'head-H0')).toBe(false);
+    expect(await reconcileTimelineDraftHeadMarker(key, 'edit-B', 'head-H1')).toBe(true);
+
+    const after = await loadTimelineDraft(key);
+    expect(after).toMatchObject({
+      draftIdentity: 'edit-B',
+      ownerId: 'owner-B',
+      baseVersion: 4,
+      baseHeadRevisionId: 'head-H1',
+      baseCanonicalGraph: { revision: 'H1' },
+      acknowledgementIdentity: 'publish-A',
+      updatedAt: before?.updatedAt,
+      draft: {
+        config: {
+          clips,
+          app: { canonicalComposition: { headRevisionId: 'head-H1', preserved: true } },
+        },
+        registry: { assets: {} },
+      },
+    });
+  });
+
   it('preserves a newer B queued ahead of A publication and protects it from A acknowledgement', async () => {
       const key = 'occurrence-concurrent';
       await saveTimelineDraft('session-a', { config: { name: 'A' } }, 1, {

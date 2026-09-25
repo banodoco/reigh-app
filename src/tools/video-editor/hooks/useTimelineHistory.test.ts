@@ -14,6 +14,7 @@ import { createInteractionState } from '../lib/interaction-state';
 import { configToRows, type TimelineData } from '../lib/timeline-data';
 import { useTimelineHistory } from './useTimelineHistory';
 import type { Checkpoint } from '../types/history';
+import type { TimelineEditability } from '../lib/timeline-editability';
 
 type CommitCall = {
   nextData: TimelineData;
@@ -170,6 +171,7 @@ function setup(options: {
   initialStep?: number;
   initialData?: TimelineData;
   providerOverrides?: Partial<DataProvider>;
+  editability?: TimelineEditability;
 } = {}) {
   const provider = makeProvider(options.providerOverrides);
   const dataRef = { current: options.initialData ?? makeTimelineData(options.initialStep ?? 0) };
@@ -195,7 +197,7 @@ function setup(options: {
   );
 
   const hook = renderHook(
-    () => useTimelineHistory({ dataRef, commitData, interactionStateRef, pendingOpsRef }),
+    () => useTimelineHistory({ dataRef, commitData, interactionStateRef, pendingOpsRef, editability: options.editability }),
     { wrapper },
   );
 
@@ -547,6 +549,45 @@ describe('useTimelineHistory', () => {
     expect(result.current.canUndo).toBe(false);
     expect(result.current.canRedo).toBe(false);
     expect(commitCalls.at(-1)?.options).toMatchObject({ save: true, skipHistory: true });
+  });
+
+  it('blocks undo, redo, and checkpoint jumps while whole-timeline editability is denied', async () => {
+    let allowed = true;
+    const checkpoint: Checkpoint = {
+      id: 'checkpoint-7',
+      timelineId: 'timeline-1',
+      config: makeConfig(7),
+      createdAt: new Date('2026-03-26T12:00:00.000Z').toISOString(),
+      triggerType: 'manual',
+      label: 'Checkpoint 7',
+      editsSinceLastCheckpoint: 0,
+    };
+    const testCase = setup({
+      editability: { checkTimeline: () => ({ allowed }) },
+      providerOverrides: { loadCheckpoints: vi.fn(async () => [checkpoint]) },
+    });
+    await waitFor(() => expect(testCase.result.current.checkpoints).toHaveLength(1));
+    testCase.applyEdit(1);
+
+    allowed = false;
+    act(() => testCase.result.current.undo());
+    expect(testCase.dataRef.current.config.output.file).toBe('output-1.mp4');
+    expect(testCase.result.current.canUndo).toBe(true);
+
+    allowed = true;
+    act(() => testCase.result.current.undo());
+    expect(testCase.result.current.canRedo).toBe(true);
+    const dataAfterUndo = testCase.dataRef.current;
+    const commitsAfterUndo = testCase.commitCalls.length;
+
+    allowed = false;
+    act(() => {
+      testCase.result.current.redo();
+      testCase.result.current.jumpToCheckpoint('checkpoint-7');
+    });
+    expect(testCase.dataRef.current).toBe(dataAfterUndo);
+    expect(testCase.commitCalls).toHaveLength(commitsAfterUndo);
+    expect(testCase.result.current.canRedo).toBe(true);
   });
 
   it('does not accumulate history when state changes bypass onBeforeCommit', () => {

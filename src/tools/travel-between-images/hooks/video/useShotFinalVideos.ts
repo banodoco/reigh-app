@@ -24,9 +24,6 @@ export interface ShotFinalVideo {
 export function useShotFinalVideos(projectId: string | null) {
   const isUuidProjectId = isUuid(projectId);
   const isDeferredCloudMode = isDeferredCloudDataAuthority();
-  if (projectId && !isUuidProjectId) {
-    console.warn('[useShotFinalVideos] skipping Supabase query for non-UUID projectId:', projectId);
-  }
 
   const { data: rawData, isLoading } = useQuery({
     queryKey: finalVideoQueryKeys.byProject(projectId!),

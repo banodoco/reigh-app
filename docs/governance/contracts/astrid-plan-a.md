@@ -13,6 +13,19 @@ Run `npm run check:astrid-contract-freeze` or append `-- --json` for the report.
 Run `npm run test:astrid-contract-freeze` for the validator's negative cases.
 The normal `npm run check:contracts` gate includes this check.
 
+C2 is the immutable-successor diagnostic projection at
+`config/contracts/astrid-plan-a-c2.json`. It repairs the C1 diagnostic shape so
+a healthy checked scope has paired `problemCode: null` and
+`failureBoundary: null`, while an observed failure has both values and an
+unobserved independent fact remains explicitly unknown. Run
+`npm run check:astrid-contract-c2` and `npm run test:astrid-contract-c2` for its
+deterministic source, schema, fixture, bound, redaction and action-effect gates.
+C2 rejects undeclared projection fields and malformed primitive fact/action
+values, and resolves every suggested action ID against the exact ordered effect
+list in C1's `commands` table; unknown commands and effect mismatches fail closed.
+C2 does not replace `workspace.v1`, bless installed behavior, or rewrite C1;
+Runtime remains the sole request/binding/attempt/settlement authority.
+
 For an optional read-only comparison with the inspected external declarations:
 
 ```sh
