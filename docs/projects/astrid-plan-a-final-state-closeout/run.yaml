@@ -1,0 +1,49 @@
+# Portable handover run configuration. The previous run's historical counters
+# and evidence remain referenced in source-state.md; this file governs this
+# final-state closeout scope.
+run_id: astrid-plan-a-final-state-closeout-20260925
+mode: delivery
+source_custody: repository_worktree
+source_ref: main
+host_repository: reigh-app
+host_base_branch: main
+handover_branch: handover/astrid-plan-a-final-state-closeout
+handover_remote: https://github.com/banodoco/reigh-app.git
+repositories:
+  - id: reigh-app
+    role: app-consumer
+    remote: https://github.com/banodoco/reigh-app.git
+    source_ref: main
+    sha: 5a5bb8fe19baa68c7d85c24e5a8e7101ec93338d
+  - id: Astrid
+    role: product-orchestrator
+    remote: https://github.com/peteromallet/Astrid.git
+    source_ref: main
+    sha: 06dee36fbfa9d134a57b50536c045231e541b11e
+  - id: banodoco-workspace-runtime
+    role: runtime-authority
+    remote: https://github.com/banodoco/banodoco-workspace-runtime.git
+    source_ref: main
+    sha: 04fee311ceb9ade57b05c739e880e7d25818ed56
+  - id: reigh-worker
+    role: external-worker
+    remote: https://github.com/banodoco/reigh-worker.git
+    source_ref: main
+    sha: 9eeed609a9387dd329d6e12d1bb410bc37a5c7d2
+roles:
+  coordinator: {model: gpt-5.6-luna, reasoning: medium}
+  worker_normal: {model: gpt-5.6-luna, reasoning: xhigh}
+  worker_xhard: {model: gpt-5.6-sol, reasoning: xhigh}
+  reviewer_normal: {model: gpt-5.6-luna, reasoning: xhigh}
+  reviewer_xhard: {model: gpt-5.6-sol, reasoning: xhigh}
+  oracle: {model: gpt-6-astra, reasoning: xhigh}
+  final_reviewer: {model: gpt-6-astra, reasoning: xhigh}
+oracle:
+  max_calls: 3
+review_stages:
+  - id: final-cross-system
+    after: T3
+    reviewer_role: final_reviewer
+    lens: completion_and_strategy
+    scope_tasks: [X1, X2, X3, X4, X5, N1, T0, T1, T2, T3, N2, N3]
+    max_rounds: 5
