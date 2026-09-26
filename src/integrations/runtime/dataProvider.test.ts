@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { ReighRuntimeClient, RuntimeAuthenticationError } from './client.ts';
+import { ReighRuntimeClient, RUNTIME_CLIENT_SCOPES, RuntimeAuthenticationError } from './client.ts';
 import { RuntimeDataProvider, toRuntimePublication } from './dataProvider.ts';
 import {
+  RUNTIME_COMPONENT_MANIFEST_SHA256,
   RUNTIME_SCHEMA_DIGEST,
   RUNTIME_TARGETED_EXECUTION_CAPABILITY,
 } from './contract-metadata.ts';
@@ -38,7 +39,7 @@ function runtimeFixture(options: { mediaEtag?: string } = {}) {
       return { status: 200, headers: {}, body: json({ status: 'ok', protocol: 'workspace.v1', schema_digest: RUNTIME_SCHEMA_DIGEST, runtime_epoch: 1 }) };
     }
     if (path === '/v1/handshake') {
-      return { status: 200, headers: {}, body: json({ protocol: 'workspace.v1', schema_digest: RUNTIME_SCHEMA_DIGEST, session_id: 'session-r1', actor_id: 'owner', realm_id: 'realm-r1', scopes: ['handshake', 'projects:read', 'projects:write'], capabilities: [RUNTIME_TARGETED_EXECUTION_CAPABILITY] }) };
+      return { status: 200, headers: {}, body: json({ protocol: 'workspace.v1', schema_digest: RUNTIME_SCHEMA_DIGEST, component_manifest_sha256: RUNTIME_COMPONENT_MANIFEST_SHA256, session_id: 'session-r1', actor_id: 'owner', realm_id: 'realm-r1', scopes: RUNTIME_CLIENT_SCOPES, capabilities: [RUNTIME_TARGETED_EXECUTION_CAPABILITY] }) };
     }
     if (path === '/v1/realm') {
       return { status: 200, headers: {}, body: json({ realm_id: 'realm-r1', display_name: 'R1 fixture', version: 1, created_at: '2026-09-11T00:00:00Z' }) };
@@ -173,7 +174,7 @@ describe('RuntimeDataProvider', () => {
         return { status: 200, headers: {}, body: json({ status: 'ok', protocol: 'workspace.v1', schema_digest: RUNTIME_SCHEMA_DIGEST, runtime_epoch: 1 }) };
       }
       if (path === '/v1/handshake') {
-        return { status: 200, headers: {}, body: json({ protocol: 'workspace.v1', schema_digest: RUNTIME_SCHEMA_DIGEST, session_id: 'session-lightbox', actor_id: 'owner', realm_id: 'realm-r1', scopes: ['handshake', 'generations:read'], capabilities: [RUNTIME_TARGETED_EXECUTION_CAPABILITY] }) };
+        return { status: 200, headers: {}, body: json({ protocol: 'workspace.v1', schema_digest: RUNTIME_SCHEMA_DIGEST, component_manifest_sha256: RUNTIME_COMPONENT_MANIFEST_SHA256, session_id: 'session-lightbox', actor_id: 'owner', realm_id: 'realm-r1', scopes: RUNTIME_CLIENT_SCOPES, capabilities: [RUNTIME_TARGETED_EXECUTION_CAPABILITY] }) };
       }
       if (path === '/v1/realm') {
         return { status: 200, headers: {}, body: json({ realm_id: 'realm-r1', display_name: 'R1 fixture', version: 1, created_at: '2026-09-11T00:00:00Z' }) };

@@ -10,7 +10,7 @@ import {
   type GenerationVariant,
   type ManagedOutput,
   type ManagedOutputExportReceipt,
-  type MediaImport,
+  type MediaImportOperation,
   type MutationResult,
   type Page,
   type Project,
@@ -19,6 +19,8 @@ import {
   type Transport,
 } from './generated.ts';
 import {
+  RUNTIME_COMPONENT_MANIFEST_SHA256,
+  RUNTIME_PROTOCOL,
   RUNTIME_SCHEMA_DIGEST,
   RUNTIME_TARGETED_EXECUTION_CAPABILITY,
 } from './contract-metadata.ts';
@@ -115,24 +117,65 @@ export class ReighRuntimeClient {
   private async openSession() {
     try {
       const health = await this.client.health();
+      if (health.status !== 'ok') {
+        throw new RuntimeCompatibilityError(`health status is ${health.status}`, this.baseUrl);
+      }
+      if (health.protocol !== RUNTIME_PROTOCOL) {
+        throw new RuntimeCompatibilityError(
+          `health protocol mismatch (actual=${health.protocol}, expected=${RUNTIME_PROTOCOL})`,
+          this.baseUrl,
+        );
+      }
+      if (health.schema_digest !== RUNTIME_SCHEMA_DIGEST) {
+        throw new RuntimeCompatibilityError(
+          `health schema digest mismatch (actual=${health.schema_digest}, expected=${RUNTIME_SCHEMA_DIGEST})`,
+          this.baseUrl,
+        );
+      }
       const handshake = await this.client.handshake(
         'reigh-browser',
         RUNTIME_CLIENT_VERSION,
         RUNTIME_CLIENT_SCOPES,
       );
-      if (health.schema_digest !== RUNTIME_SCHEMA_DIGEST || handshake.schema_digest !== RUNTIME_SCHEMA_DIGEST) {
+      if (handshake.protocol !== RUNTIME_PROTOCOL) {
         throw new RuntimeCompatibilityError(
-          `schema digest mismatch (health=${health.schema_digest}, handshake=${handshake.schema_digest}, expected=${RUNTIME_SCHEMA_DIGEST})`,
+          `handshake protocol mismatch (actual=${handshake.protocol}, expected=${RUNTIME_PROTOCOL})`,
           this.baseUrl,
         );
       }
-      if (!handshake.capabilities.includes(RUNTIME_TARGETED_EXECUTION_CAPABILITY)) {
+      if (handshake.schema_digest !== RUNTIME_SCHEMA_DIGEST) {
+        throw new RuntimeCompatibilityError(
+          `handshake schema digest mismatch (actual=${handshake.schema_digest}, expected=${RUNTIME_SCHEMA_DIGEST})`,
+          this.baseUrl,
+        );
+      }
+      if (handshake.component_manifest_sha256 !== RUNTIME_COMPONENT_MANIFEST_SHA256) {
+        throw new RuntimeCompatibilityError(
+          `component manifest digest mismatch (actual=${handshake.component_manifest_sha256}, expected=${RUNTIME_COMPONENT_MANIFEST_SHA256})`,
+          this.baseUrl,
+        );
+      }
+      const negotiatedScopes = Array.isArray(handshake.scopes) ? handshake.scopes : [];
+      const missingScopes = RUNTIME_CLIENT_SCOPES.filter((scope) => !negotiatedScopes.includes(scope));
+      if (missingScopes.length > 0) {
+        throw new RuntimeCompatibilityError(
+          `missing negotiated scopes ${missingScopes.join(', ')}`,
+          this.baseUrl,
+        );
+      }
+      if (!Array.isArray(handshake.capabilities) || !handshake.capabilities.includes(RUNTIME_TARGETED_EXECUTION_CAPABILITY)) {
         throw new RuntimeCompatibilityError(
           `missing capability ${RUNTIME_TARGETED_EXECUTION_CAPABILITY}`,
           this.baseUrl,
         );
       }
       const realm = await this.client.getRealm();
+      if (realm.realm_id !== handshake.realm_id) {
+        throw new RuntimeCompatibilityError(
+          `realm identity mismatch (handshake=${handshake.realm_id}, fetched=${realm.realm_id})`,
+          this.baseUrl,
+        );
+      }
       return { health, handshake, realm };
     } catch (error) {
       if (error instanceof RuntimeCompatibilityError) throw error;
@@ -232,10 +275,6 @@ export class ReighRuntimeClient {
     return this.withSession(() => this.client.getProjectTimelineRevision(projectId, timelineId, revision));
   }
 
-  async getTimeline(timelineId: string): Promise<Record<string, unknown>> {
-    return this.withSession(() => this.client.getTimeline(timelineId));
-  }
-
   async updateTimelineDocument(
     projectId: string,
     timelineId: string,
@@ -272,21 +311,17 @@ export class ReighRuntimeClient {
     width?: number,
     height?: number,
     durationSeconds?: number,
-  ): Promise<MediaImport> {
+  ): Promise<MediaImportOperation> {
     return this.withSession(() => this.client.importProjectMedia(
       projectId,
       data,
       mediaType,
       idempotencyKey,
-      filename,
-      expectedDigest,
-      width,
-      height,
-      durationSeconds,
+      { filename, expectedDigest, width, height, durationSeconds },
     ));
   }
 
-  async getProjectMediaImport(projectId: string, importOperationId: string): Promise<MediaImport> {
+  async getProjectMediaImport(projectId: string, importOperationId: string): Promise<MediaImportOperation> {
     return this.withSession(() => this.client.getProjectMediaImport(projectId, importOperationId));
   }
 

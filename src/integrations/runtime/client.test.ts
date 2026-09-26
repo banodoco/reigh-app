@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import type { Transport } from './generated.ts';
-import { ReighRuntimeClient, RuntimeCompatibilityError } from './client.ts';
+import { WorkspaceClient, type Transport } from './generated.ts';
+import { ReighRuntimeClient, RUNTIME_CLIENT_SCOPES, RuntimeCompatibilityError } from './client.ts';
 import {
+  RUNTIME_COMPONENT_MANIFEST_SHA256,
   RUNTIME_SCHEMA_DIGEST,
   RUNTIME_TARGETED_EXECUTION_CAPABILITY,
 } from './contract-metadata.ts';
@@ -85,10 +86,22 @@ function receipt(commandKind: string, key: string, projectId = PROJECT_ID) {
 function createTransport(options: {
   revokeFirstMediaRead?: boolean;
   schemaDigest?: string;
+  componentManifestSha256?: string | null;
+  healthStatus?: 'ok' | 'degraded';
+  healthProtocol?: string;
+  handshakeProtocol?: string;
+  scopes?: string[];
   capabilities?: string[];
+  handshakeRealmId?: string;
+  fetchedRealmId?: string;
+  unauthorizedHandshake?: boolean;
 } = {}) {
   const schemaDigest = options.schemaDigest ?? RUNTIME_SCHEMA_DIGEST;
+  const componentManifestSha256 = options.componentManifestSha256 === undefined
+    ? RUNTIME_COMPONENT_MANIFEST_SHA256
+    : options.componentManifestSha256;
   const capabilities = options.capabilities ?? [RUNTIME_TARGETED_EXECUTION_CAPABILITY];
+  const scopes = options.scopes ?? ['handshake', 'projects:read', 'projects:write', 'objects:read', 'objects:write', 'tasks:read', 'tasks:write'];
   const requests: Array<{ method: string; path: string; headers: Record<string, string>; body?: unknown }> = [];
   let mediaReads = 0;
   const task = {
@@ -117,13 +130,16 @@ function createTransport(options: {
     requests.push({ method, path, headers, ...(parsedBody ? { body: parsedBody } : {}) });
 
     if (path === '/v1/health') {
-      return { status: 200, headers: {}, body: json({ status: 'ok', protocol: 'workspace.v1', schema_digest: schemaDigest, runtime_epoch: 7 }) };
+      return { status: 200, headers: {}, body: json({ status: options.healthStatus ?? 'ok', protocol: options.healthProtocol ?? 'workspace.v1', schema_digest: schemaDigest, runtime_epoch: 7 }) };
     }
     if (path === '/v1/handshake') {
-      return { status: 200, headers: {}, body: json({ protocol: 'workspace.v1', schema_digest: schemaDigest, session_id: 'session-r2-r3', actor_id: 'owner', realm_id: 'realm-r2', scopes: ['handshake', 'projects:read', 'tasks:read', 'tasks:write'], capabilities }) };
+      if (options.unauthorizedHandshake) {
+        return { status: 401, headers: {}, body: json({ code: 'unauthorized', message: 'credential rejected' }) };
+      }
+      return { status: 200, headers: {}, body: json({ protocol: options.handshakeProtocol ?? 'workspace.v1', schema_digest: schemaDigest, ...(componentManifestSha256 === null ? {} : { component_manifest_sha256: componentManifestSha256 }), session_id: 'session-r2-r3', actor_id: 'owner', realm_id: options.handshakeRealmId ?? 'realm-r2', scopes, capabilities }) };
     }
     if (path === '/v1/realm') {
-      return { status: 200, headers: {}, body: json({ realm_id: 'realm-r2', display_name: 'R2/R3 fixture', version: 1, created_at: '2026-09-11T00:00:00Z' }) };
+      return { status: 200, headers: {}, body: json({ realm_id: options.fetchedRealmId ?? 'realm-r2', display_name: 'R2/R3 fixture', version: 1, created_at: '2026-09-11T00:00:00Z' }) };
     }
     if (path === '/v1/capabilities?limit=50') {
       return {
@@ -258,6 +274,24 @@ describe('ReighRuntimeClient canonical Runtime reads and browser task seam', () 
     await expect(client.ensureSession()).rejects.toMatchObject({ code: 'runtime_incompatible' });
   });
 
+  it.each([
+    ['degraded health', { healthStatus: 'degraded' as const }, 'health status'],
+    ['wrong health protocol', { healthProtocol: 'workspace.v2' }, 'health protocol mismatch'],
+    ['wrong handshake protocol', { handshakeProtocol: 'workspace.v2' }, 'handshake protocol mismatch'],
+    ['absent component digest', { componentManifestSha256: null }, 'component manifest digest mismatch'],
+    ['wrong component digest', { componentManifestSha256: `sha256:${'0'.repeat(64)}` }, 'component manifest digest mismatch'],
+    ['missing required scope', { scopes: RUNTIME_CLIENT_SCOPES.filter((scope) => scope !== 'tasks:write') }, 'missing negotiated scopes tasks:write'],
+    ['wrong realm', { fetchedRealmId: 'realm-other' }, 'realm identity mismatch'],
+  ])('fails closed on %s', async (_label, options, expectedReason) => {
+    const fixture = createTransport(options);
+    const client = new ReighRuntimeClient({ baseUrl: 'http://runtime.test', transport: fixture.transport });
+
+    await expect(client.ensureSession()).rejects.toMatchObject({
+      name: 'RuntimeCompatibilityError',
+      reason: expect.stringContaining(expectedReason),
+    });
+  });
+
   it('fails closed when the targeted execution capability is absent', async () => {
     const fixture = createTransport({ capabilities: [] });
     const client = new ReighRuntimeClient({ baseUrl: 'http://runtime.test', transport: fixture.transport });
@@ -266,6 +300,25 @@ describe('ReighRuntimeClient canonical Runtime reads and browser task seam', () 
       name: 'RuntimeCompatibilityError',
       reason: expect.stringContaining('execution_binding.targeted.v1'),
     });
+  });
+
+  it('reports an initially rejected credential as authentication failure', async () => {
+    const fixture = createTransport({ unauthorizedHandshake: true });
+    const client = new ReighRuntimeClient({ baseUrl: 'http://runtime.test', token: 'rejected-token', transport: fixture.transport });
+
+    await expect(client.ensureSession()).rejects.toMatchObject({
+      name: 'RuntimeAuthenticationError',
+      code: 'runtime_authentication',
+      status: 401,
+    });
+  });
+
+  it('does not expose the forbidden legacy timeline operation', () => {
+    const generated = new WorkspaceClient('http://runtime.test', undefined, createTransport().transport);
+    const adapter = new ReighRuntimeClient({ baseUrl: 'http://runtime.test', transport: createTransport().transport });
+
+    expect('getTimeline' in generated).toBe(false);
+    expect('getTimeline' in adapter).toBe(false);
   });
 
   it('preserves generated generation/variant cursors and managed identities', async () => {

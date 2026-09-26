@@ -7,6 +7,12 @@ composition governed by `scripts/quality/check-astrid-contract-freeze.mjs`.
 This is a semantic contract awaiting consumer acknowledgement, not an installed
 release, an auth service, a Runtime schema replacement, or a passed CF-M1 gate.
 
+The command examples in this frozen contract are proposal-era consumer wording;
+they are not installed qualification evidence. The current installed operator
+path is `astrid-local` with `ASTRID_LOCAL_DATA_ROOT`. `banodoco-local` and
+`astrid-runtime` remain deprecated compatibility aliases and emit warnings;
+`ASTRID_LOCAL_SOURCE_MANIFEST` is the explicit editable-development surface.
+
 ## Consume and verify
 
 Run `npm run check:astrid-contract-freeze` or append `-- --json` for the report.
@@ -66,7 +72,7 @@ arguments at their existing execution boundary before offering an action.
 | Workspace | One Create/Attach workspace becomes selected/default; retain UUID and registered absolute root on repeat/resume. Fresh packaged Create uses Astrid's existing `~/.astrid-data` support-root default. Attach does not copy. Resolve and pass the same root explicitly to the neutral launcher; never silently adopt its different default or cwd. |
 | Local auth | Local app + local workspace uses the existing bridge session without Discord or contributor login. Missing Runtime yields degraded local state, not a hosted login gate. |
 | Hosted auth | Hosted contexts require verified Discord sessions plus independent workspace/pairing/action grants. Contributor identity and explicit knowledge-write consent remain Hivemind-owned. Mode changes isolate grants/caches and preserve the sole local default. |
-| Setup | Preview/check are nonstarting; offline forbids acquisition, not authorized local writes. Successful apply visibly starts Runtime. Failure preserves configured workspace and offers proposed `astrid-runtime up`, never a task retry or another Create. |
+| Setup | Preview/check are nonstarting; offline forbids acquisition, not authorized local writes. Successful apply visibly starts Runtime. Failure preserves configured workspace and offers the proposed Runtime start action, never a task retry or another Create. The live installed operator command is `astrid-local up --profile astrid`; older `astrid-runtime` wording is compatibility/proposal history. |
 | Naming | `astrid auth status` keeps contributor meaning. The transition release atomically assigns top-level `astrid status` to workspace/readiness. Other auth aliases survive the transition and next minor release, subject to documented removal conditions. |
 | Execution | Runtime owns admission, idempotency, attempts, fencing, events and settlement. New attempts, Worker relaunch and GPU replacement remain distinct actions. Local stop/lost contact cannot prove remote stop or billing settlement. |
 | Observation | Installed/enabled/connected/ready/authorized, task state, progress, freshness and remote uncertainty remain independent. Bounded redacted diagnosis preserves unavailable facts and declares exact next-action effects. |
@@ -75,7 +81,7 @@ Source inspection found real migration gaps: `setup` is not reserved before
 prompt/dynamic-pack fallback; wrapper and gateway help differ; top-level status
 still means contributor auth. `AstridClient.open_from_launcher` can start Runtime
 even with `start_pack_host=False`, so current Astrid doctor/task inspection is
-not evidence of nonstarting observation. Neutral `banodoco-local connect` may
+not evidence of nonstarting observation. Historical `banodoco-local connect` may
 provision connection state. These are downstream implementation obligations.
 
 ## Composition and unresolved inputs

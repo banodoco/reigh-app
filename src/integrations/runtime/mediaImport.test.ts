@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { RuntimeDataProvider } from './dataProvider.ts';
+import { RUNTIME_CLIENT_SCOPES } from './client.ts';
 import {
+  RUNTIME_COMPONENT_MANIFEST_SHA256,
   RUNTIME_SCHEMA_DIGEST,
   RUNTIME_TARGETED_EXECUTION_CAPABILITY,
 } from './contract-metadata.ts';
@@ -47,7 +49,7 @@ function createTransport(options: { lostAck?: boolean } = {}) {
   const transport = async (method: string, path: string, headers: Record<string, string>, body?: Uint8Array) => {
     requests.push({ method, path, headers, body });
     if (path === '/v1/health') return { status: 200, headers: {}, body: json({ status: 'ok', protocol: 'workspace.v1', schema_digest: RUNTIME_SCHEMA_DIGEST, runtime_epoch: 1 }) };
-    if (path === '/v1/handshake') return { status: 200, headers: {}, body: json({ protocol: 'workspace.v1', schema_digest: RUNTIME_SCHEMA_DIGEST, session_id: 'session-import', actor_id: 'connector-owner', realm_id: 'realm-import', scopes: ['handshake', 'projects:read', 'projects:write'], capabilities: [RUNTIME_TARGETED_EXECUTION_CAPABILITY] }) };
+    if (path === '/v1/handshake') return { status: 200, headers: {}, body: json({ protocol: 'workspace.v1', schema_digest: RUNTIME_SCHEMA_DIGEST, component_manifest_sha256: RUNTIME_COMPONENT_MANIFEST_SHA256, session_id: 'session-import', actor_id: 'connector-owner', realm_id: 'realm-import', scopes: RUNTIME_CLIENT_SCOPES, capabilities: [RUNTIME_TARGETED_EXECUTION_CAPABILITY] }) };
     if (path === '/v1/realm') return { status: 200, headers: {}, body: json({ realm_id: 'realm-import', display_name: 'imports', version: 1, created_at: '2026-09-23T00:00:00Z' }) };
     if (method === 'POST' && path === `/v1/projects/${PROJECT_ID}/media-imports`) {
       importPostCount += 1;

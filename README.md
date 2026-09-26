@@ -10,7 +10,8 @@ React + Vite + TypeScript · TailwindCSS + shadcn-ui · Supabase (Postgres, Auth
 
 ## Quick Start
 
-**Prerequisites:** Node.js 18+, Docker, [Supabase CLI v1+](https://supabase.com/docs/guides/cli)
+**Prerequisites:** Node.js 20.19.4 with npm 10.8.2 for this closeout branch,
+Docker, and [Supabase CLI v1+](https://supabase.com/docs/guides/cli)
 
 ```bash
 git clone https://github.com/peteromallet/reigh
@@ -29,6 +30,12 @@ clips against a committed local bridge stub — no Docker, no Supabase, no sign-
 It prints the editor URL; open it and the timeline is there.
 
 GPU task processing requires **[Reigh-Worker](https://github.com/banodoco/Reigh-Worker)** running separately. Worker and API orchestration is managed by **[Reigh-Worker-Orchestrator](https://github.com/banodoco/Reigh-Worker-Orchestrator)**.
+
+For the local Astrid stack, follow the existing [local runtime execution
+plan](docs/local-runtime/README.md). Runtime owns the workspace realm and
+worker lifecycle; the app consumes the authenticated Runtime boundary and does
+not open SQLite/CAS state. The Plan A CPU qualification uses the fake-engine
+worker path and excludes CUDA, provider, RunPod, and VibeComfy extras.
 
 ## Governance Contracts
 

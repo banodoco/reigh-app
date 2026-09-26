@@ -1,4 +1,4 @@
-import { ApiError, type ByteResponse, type MediaImport } from './generated.ts';
+import { ApiError, type ByteResponse, type MediaImportOperation } from './generated.ts';
 import {
   ReighRuntimeClient,
   RuntimeAuthenticationError,
@@ -425,7 +425,7 @@ export class RuntimeDataProvider implements DataProvider {
     persistMediaImportOperation(this.projectId, importOperationId, { filename, mediaType });
 
     const data = new Uint8Array(await file.arrayBuffer());
-    let imported: MediaImport;
+    let imported: MediaImportOperation;
     try {
       imported = await this.client.importProjectMedia(
         this.projectId,
@@ -655,7 +655,7 @@ async function recoverMediaImportAfterLostAck(
   importOperationId: string,
   options: MediaImportOptions,
   firstError: unknown,
-): Promise<MediaImport> {
+): Promise<MediaImportOperation> {
   try {
     const recovered = await client.getProjectMediaImport(projectId, importOperationId);
     if (recovered.status === 'completed') return recovered;
@@ -681,7 +681,7 @@ async function recoverMediaImportAfterLostAck(
 
 function toPreparedMediaImport(
   client: ReighRuntimeClient,
-  imported: MediaImport,
+  imported: MediaImportOperation,
   fallbackMediaType: string,
   fallbackFilename: string,
   fallbackDuration?: number,

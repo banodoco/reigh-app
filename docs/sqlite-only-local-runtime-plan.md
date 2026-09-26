@@ -1,5 +1,13 @@
 # SQLite-Only Banodoco Workspace Local-v1 Plan
 
+> **Proposal status:** Historical architecture proposal. The command matrix in
+> this document is not implemented and is not a live setup, migration, or
+> qualification procedure. Current closeout operation uses the installed
+> `astrid-local`/Runtime boundary, with `ASTRID_LOCAL_*` names and explicit
+> `status`, `doctor`, `upgrade`, `backup`, and `relocate` commands. Do not copy
+> the speculative `install`, `up --realm`, `update --manifest`, `uninstall`, or
+> `purge` examples as acceptance evidence.
+
 **Status:** Handoff-ready implementation blueprint; execution artifacts are not yet built  
 **Date:** 2026-08-28  
 **Long-term context:** [Creative Workspace Runtime Vision](./creative-workspace-runtime-vision.md)

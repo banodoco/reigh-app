@@ -2,7 +2,8 @@
 
 ## Stage 1 of the Local Workspace Runtime roadmap
 
-**Status:** Handoff-ready single-user beta blueprint; implementation has not started; exhaustive hardening is post-beta
+**Status:** Historical single-user beta blueprint; the final installed closeout is
+qualified separately; exhaustive hardening is post-beta
 **Date:** 2026-08-28
 **Scope revision:** 2026-08-29
 **Overall strategy:** [Local Workspace Runtime — Overall Strategy and Roadmap](./00-overall-strategy.md)
@@ -11,7 +12,7 @@
 
 ## 1. Goal
 
-Ship a coherent single-user beta of Astrid on the new local workspace architecture and publish the neutral contracts Stage 2 REIGH consumes. An Astrid launch from the editable checkout must create or open one workspace realm, start or connect to its independently owned runtime, initialize SQLite and the content-addressed object store, provision Astrid's scoped identity, start one generic Astrid pack-executor host, and become broadly useful without Supabase, Turso, REIGH, Reigh Worker, or cloud infrastructure.
+Ship a coherent single-user beta of Astrid on the new local workspace architecture and publish the neutral contracts Stage 2 REIGH consumes. The historical blueprint describes an Astrid launch from an editable checkout; the final closeout uses an installed pinned Astrid/Runtime pair, with no checkout or `PYTHONPATH` in the live import path. In both profiles one Runtime-owned workspace realm, SQLite/CAS authority, scoped identity, and generic Astrid pack-executor host are required.
 
 This implements the first landmark of the canonical roadmap:
 
@@ -47,7 +48,12 @@ The beta contains these independently bounded components and source surfaces:
 6. neutral `banodoco-local` bootstrap plus Astrid beta source manifest: explicit checkout paths, Git revisions, dirty-tree/source digests, dependency lock digests, discovery, launch, restart, backup, and recovery logic. Astrid invokes this state machine; it does not reimplement it.
 7. one repo-local, separately invoked migration program/runbook for this machine only. It is absent from normal runtime/Astrid graphs and is retained with its source backup and validation report, but it is not a supported general migration product.
 
-### 3.1 Beta delivery model: open editable source
+### 3.1 Historical beta delivery model: open editable source
+
+This section records the earlier editable-source beta. It is not the installed
+Plan A closeout recipe. The closeout uses Python 3.11.16 for Astrid/Runtime,
+Python 3.10.21 for Worker, Node 20.19.4/npm 10.8.2 for app checks, and the
+canonical `astrid-local` launcher.
 
 Stage 1 is not an installer or binary-packaging project. The supported current-machine composition uses explicit source checkouts, editable Python installs, and repository-pinned Node dependencies. The source checkout is allowed to change because it is the creative engine people will work on directly.
 
@@ -130,9 +136,9 @@ The following may not be traded away to make the Astrid milestone faster:
 
 ### 5.1 What “launch Astrid” means
 
-The neutral `banodoco-local` Astrid-profile bootstrap owns the first-run state machine. The Astrid checkout launcher invokes it and presents its progress/errors; Astrid does not duplicate discovery, source activation, realm selection, credentials, locking, or compatibility logic. This same state machine is later reused by REIGH profiles.
+The neutral `astrid-local` Astrid-profile bootstrap owns the first-run state machine. The deprecated `banodoco-local` and `astrid-runtime` names remain compatibility aliases and emit warnings. The Astrid launcher invokes the installed Runtime boundary and presents its progress/errors; Astrid does not duplicate discovery, source activation, realm selection, credentials, locking, or compatibility logic. This same state machine is later reused by REIGH profiles.
 
-The post-cutover public Astrid product surface is the five product families (`projects`, `timelines`, `media`, `tasks`, `runs`), the shots/references nested mounts, read-only `doctor`, and backup operations implemented as neutral-runtime client commands. Packs and skills remain first-class developer/agent source surfaces through SDK discovery, validation, authoring guidance, and lightweight harness sync/status tooling; they are not workspace CRUD families. `--help`, `--version`, and doctor remain side-effect-free. `astrid serve` is removed: no alias, editor open, private port, database composition, or transition release. The Astrid launcher invokes `banodoco-local up --profile astrid` using the configured editable source manifest and the one selected current-Mac realm. Ordinary product commands discover/connect to the selected runtime and, if it is stopped or unconfigured, fail with that exact next action. They never create or migrate authority themselves.
+The post-cutover public Astrid product surface is the five product families (`projects`, `timelines`, `media`, `tasks`, `runs`), the shots/references nested mounts, read-only `doctor`, and backup operations implemented as neutral-runtime client commands. Packs and skills remain first-class developer/agent source surfaces through SDK discovery, validation, authoring guidance, and lightweight harness sync/status tooling; they are not workspace CRUD families. `--help`, `--version`, and doctor remain side-effect-free. `astrid serve` is removed: no alias, editor open, private port, database composition, or transition release. The installed Astrid launcher invokes `astrid-local up --profile astrid` with the configured `ASTRID_LOCAL_DATA_ROOT`; it does not require a source manifest or checkout. `ASTRID_LOCAL_SOURCE_MANIFEST` is reserved for explicit editable development. Ordinary product commands discover/connect to the selected runtime and, if it is stopped or unconfigured, fail with that exact next action. They never create or migrate authority themselves.
 
 ### 5.2 Clean-machine first launch
 
