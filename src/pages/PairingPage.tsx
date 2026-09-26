@@ -55,7 +55,7 @@ export default function PairingPage() {
           <button type="button" disabled={busy} onClick={() => void revoke()}>Revoke pairing</button>
           {runtimeCheck ? <p role="status">Runtime: {runtimeCheck}</p> : null}
         </section>
-      ) : <p>Run <code>npm run dev:local -- --paired</code> with the configured relay origin, then open its invitation link.</p>}
+      ) : <p>Start the local Astrid workspace, set <code>REIGH_PAIRED_RELAY_ORIGIN</code>, then run <code>npm run dev:local -- --paired</code> and open its invitation link. The launcher reads the authenticated Astrid product actor from Runtime discovery.</p>}
     </main>
   );
 }

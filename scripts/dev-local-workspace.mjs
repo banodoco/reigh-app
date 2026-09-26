@@ -3,13 +3,14 @@
  * Start Reigh against the already-managed neutral workspace.v1 runtime.
  *
  * The runtime owns its endpoint and credential; this launcher only reads the
- * published discovery record and passes the owner token to Vite's server-side
+ * published discovery record and passes the authenticated product token to Vite's server-side
  * proxy.  The token is never printed and is intentionally not a VITE_ value.
  */
 import { existsSync, readFileSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { homedir } from 'node:os';
 import { resolve } from 'node:path';
+import { readProductCredential } from './reigh-product-credential.mjs';
 
 const configuredAstridCheckout = process.env.ASTRID_CHECKOUT?.trim();
 const siblingAstridCheckout = resolve(process.cwd(), '..', 'Astrid');
@@ -36,27 +37,6 @@ function fail(message) {
 function readJson(path, label) {
   try {
     return JSON.parse(readFileSync(path, 'utf8'));
-  } catch (error) {
-    return fail(`cannot read ${label} at ${path}: ${error instanceof Error ? error.message : String(error)}`);
-  }
-}
-
-function readCredentialToken(path, label) {
-  let raw;
-  try {
-    raw = readFileSync(path, 'utf8').trim();
-  } catch (error) {
-    return fail(`cannot read ${label} at ${path}: ${error instanceof Error ? error.message : String(error)}`);
-  }
-
-  if (!raw) return fail(`${label} at ${path} is empty`);
-
-  if (!raw.startsWith('{')) return raw;
-
-  try {
-    const credential = JSON.parse(raw);
-    const token = typeof credential.token === 'string' ? credential.token.trim() : '';
-    return token || fail(`${label} at ${path} has no token`);
   } catch (error) {
     return fail(`cannot read ${label} at ${path}: ${error instanceof Error ? error.message : String(error)}`);
   }
@@ -99,11 +79,22 @@ const discovery = readJson(discoveryPath, 'runtime discovery');
 if (!discovery) process.exit(process.exitCode ?? 1);
 const endpoint = requireLoopbackEndpoint(discovery.endpoint);
 if (!endpoint) process.exit(process.exitCode ?? 1);
-const credentialPath = discovery.credential_file;
-if (typeof credentialPath !== 'string' || !credentialPath.trim()) process.exit(fail('discovery has no credential_file') ? 1 : 1);
-const token = readCredentialToken(credentialPath, 'runtime credential');
-if (!token) process.exit(process.exitCode ?? 1);
-if (!(await verifyRuntime(endpoint, token))) process.exit(process.exitCode ?? 1);
+const discoveredCredentialPath = typeof discovery.credential_file === 'string'
+  ? discovery.credential_file.trim()
+  : '';
+const selectedProductCredentialPath = process.env.ASTRID_PRODUCT_TOKEN_FILE?.trim()
+  || discoveredCredentialPath;
+if (!selectedProductCredentialPath) process.exit(fail('discovery has no credential_file and ASTRID_PRODUCT_TOKEN_FILE is unset') ? 1 : 1);
+let productCredential;
+try {
+  productCredential = readProductCredential(
+    selectedProductCredentialPath,
+    process.env.REIGH_PAIRED_PRODUCT_ACTOR?.trim(),
+  );
+} catch (error) {
+  process.exit(fail(error instanceof Error ? error.message : String(error)) ? 1 : 1);
+}
+if (!(await verifyRuntime(endpoint, productCredential.token))) process.exit(process.exitCode ?? 1);
 if (paired && !pairedRelayOrigin) process.exit(fail('--paired requires REIGH_PAIRED_RELAY_ORIGIN') ? 1 : 1);
 
 const env = {
@@ -112,13 +103,15 @@ const env = {
   PORT: port,
   VITE_ASTRID_WORKSPACE_V1: '1',
   VITE_ASTRID_BRIDGE_PORT: endpoint.port,
-  ASTRID_BRIDGE_TOKEN: token,
+  ASTRID_BRIDGE_TOKEN: productCredential.token,
   // The editor's RuntimeDataProvider talks to `/api/runtime`, which is a
   // separate Vite proxy from the historical `/api/astrid` bridge. Keep the
   // Runtime endpoint and credential server-side so the browser never sees the
-  // owner token.
+  // authenticated product token.
   VITE_WORKSPACE_RUNTIME_URL: endpoint.origin,
-  WORKSPACE_RUNTIME_TOKEN_FILE: credentialPath,
+  ASTRID_PRODUCT_TOKEN_FILE: selectedProductCredentialPath,
+  WORKSPACE_RUNTIME_TOKEN_FILE: selectedProductCredentialPath,
+  REIGH_PAIRED_PRODUCT_ACTOR: productCredential.actorId,
   ASTRID_LOCAL_COMPOSE_URL: `http://127.0.0.1:${port}/api/astrid/generation/compose`,
   // The ACP bridge is a sibling user-machine process. Keep its cwd explicit so
   // OMP owns one stable session store and the browser cannot redirect it.

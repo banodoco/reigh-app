@@ -20,6 +20,8 @@ import {
   RUNTIME_SCHEMA_DIGEST,
   RUNTIME_TARGETED_EXECUTION_CAPABILITY,
 } from '../src/integrations/runtime/contract-metadata';
+// @ts-expect-error This run-time helper is shared with the Node .mjs launcher.
+import { PRODUCT_SCOPES, readProductCredential } from './reigh-product-credential.mjs';
 
 const args = new Map<string, string>();
 for (let index = 2; index < process.argv.length; index += 1) {
@@ -29,14 +31,11 @@ for (let index = 2; index < process.argv.length; index += 1) {
 const discoveryPath = resolve(args.get('discovery') || process.env.ASTRID_WORKSPACE_DISCOVERY || `${homedir()}/Library/Application Support/Banodoco/runtime/discovery.json`);
 const relayOrigin = args.get('relay-origin') || process.env.REIGH_PAIRED_RELAY_ORIGIN;
 const expectedRealm = args.get('realm') || process.env.REIGH_PAIRED_REALM_ID;
-const expectedActor = process.env.REIGH_PAIRED_PRODUCT_ACTOR?.trim();
+const expectedActorOverride = process.env.REIGH_PAIRED_PRODUCT_ACTOR?.trim();
 const acpBridgeToken = process.env.ASTRID_ACP_BRIDGE_TOKEN?.trim();
 const statePath = resolve(args.get('state') || process.env.REIGH_PAIRED_CONNECTOR_STATE || `${homedir()}/.config/reigh/paired-connector.json`);
 const resetPairing = args.has('reset-pairing');
 if (!relayOrigin) throw new Error('paired connector requires --relay-origin or REIGH_PAIRED_RELAY_ORIGIN');
-if (!expectedActor) throw new Error('paired connector requires REIGH_PAIRED_PRODUCT_ACTOR');
-
-const PRODUCT_SCOPES = Object.freeze(['handshake', 'projects:read', 'projects:write', 'tasks:read', 'tasks:write', 'objects:read', 'objects:write']);
 
 function fail(message: string): never { throw new Error(`reigh-local-connector: ${message}`); }
 function readJson(path: string, label: string): Record<string, unknown> { try { return JSON.parse(readFileSync(path, 'utf8')) as Record<string, unknown>; } catch (error) { return fail(`cannot read ${label}: ${error instanceof Error ? error.message : String(error)}`); } }
@@ -55,28 +54,10 @@ function routePath(service: string, path: string): string {
 const discovery = readJson(discoveryPath, 'runtime discovery');
 const endpoint = runtimeEndpoint(discovery.endpoint);
 const credentialPath = resolve(process.env.ASTRID_PRODUCT_TOKEN_FILE || (typeof discovery.credential_file === 'string' ? discovery.credential_file : fail('discovery has no credential_file')));
-function readProductToken(): string {
-  let raw: string;
-  try { raw = readFileSync(credentialPath, 'utf8').trim(); } catch (error) { return fail(`cannot read runtime credential: ${error instanceof Error ? error.message : String(error)}`); }
-  if (!raw) return fail('runtime credential is empty');
-  let metadata: Record<string, unknown> | undefined;
-  if (raw.startsWith('{')) {
-    let credential: Record<string, unknown>;
-    try { credential = JSON.parse(raw) as Record<string, unknown>; } catch { return fail('runtime credential JSON is malformed'); }
-    metadata = credential;
-    raw = typeof credential.token === 'string' ? credential.token.trim() : '';
-  }
-  const metadataName = credentialPath.split('/').pop()?.replace(/\.token$/, '') || 'product';
-  const metadataPath = resolve(dirname(credentialPath), `${metadataName}.json`);
-  if (!metadata && existsSync(metadataPath)) metadata = readJson(metadataPath, 'runtime credential metadata');
-  const requiredScopes = PRODUCT_SCOPES;
-  const scopes = Array.isArray(metadata?.scopes) ? metadata.scopes.filter((value): value is string => typeof value === 'string') : [];
-  // Metadata is supplementary. Runtime's authenticated handshake below is the
-  // authority, so explicit token files may omit a sibling metadata file.
-  if (metadata && (typeof metadata.actor !== 'string' || metadata.actor === 'owner' || metadata.actor === 'astrid-pack-host' || scopes.includes('admin'))) return fail('paired connector owner/admin/worker credentials are forbidden');
-  if (metadata && !requiredScopes.every((scope) => scopes.includes(scope))) return fail(`paired connector product actor is missing required scopes: ${requiredScopes.filter((scope) => !scopes.includes(scope)).join(', ')}`);
-  return raw || fail('runtime credential has no token');
-}
+const initialCredential = readProductCredential(credentialPath, expectedActorOverride) as {
+  token: string; actorId: string; source: string;
+};
+const expectedActor = initialCredential.actorId;
 function validateHandshake(value: unknown): { realmId: string } {
   if (!value || typeof value !== 'object') return fail('Runtime handshake response is malformed');
   const handshake = value as { realm_id?: unknown; protocol?: unknown; schema_digest?: unknown; component_manifest_sha256?: unknown; actor_id?: unknown; scopes?: unknown; capabilities?: unknown };
@@ -113,7 +94,7 @@ async function readRuntimeIdentity(runtimeToken: string): Promise<{ realmId: str
   if (realm.realm_id !== handshake.realmId) fail('Runtime handshake and fetched realm identities did not match');
   return handshake;
 }
-let token = readProductToken();
+let token = initialCredential.token;
 const realm = { realm_id: (await readRuntimeIdentity(token)).realmId };
 
 let state: { connectorId: string; connectorSecret: string };
@@ -137,7 +118,10 @@ function connect(): void {
   socket = new WebSocket(wsOrigin, { maxPayload: PAIRED_MAX_FRAME_BYTES });
   socket.on('open', async () => {
     try {
-      token = readProductToken();
+      const refreshed = readProductCredential(credentialPath, expectedActor) as {
+        token: string; actorId: string; source: string;
+      };
+      token = refreshed.token;
       const current = await readRuntimeIdentity(token);
       if (current.realmId !== realm.realm_id) { socket.close(1008, 'local Runtime identity changed'); return; }
     } catch { socket.close(1008, 'local Runtime unavailable'); return; }

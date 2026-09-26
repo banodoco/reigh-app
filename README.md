@@ -37,6 +37,31 @@ worker lifecycle; the app consumes the authenticated Runtime boundary and does
 not open SQLite/CAS state. The Plan A CPU qualification uses the fake-engine
 worker path and excludes CUDA, provider, RunPod, and VibeComfy extras.
 
+### Pair the managed local workspace
+
+Create or start the Astrid workspace first, then point the local connector at
+the relay:
+
+```bash
+astrid setup --create --apply --offline \
+  --workspace-id "$WORKSPACE_ID" \
+  --data-root "$ASTRID_LOCAL_DATA_ROOT" \
+  --realm-root "$ASTRID_REALM_ROOT" --json
+
+export REIGH_PAIRED_RELAY_ORIGIN=https://your-relay.example
+npm run dev:local -- --paired
+```
+
+Runtime discovery points at the owner-only `credentials/astrid.json` product
+credential. The launcher derives its authenticated `actor_id`; do not provide
+an owner, admin, or Worker credential. `REIGH_PAIRED_PRODUCT_ACTOR` is an
+optional consistency check and must exactly match that actor when set.
+`ASTRID_WORKSPACE_DISCOVERY`, `ASTRID_PRODUCT_TOKEN_FILE`,
+`REIGH_PAIRED_REALM_ID`, and `REIGH_PAIRED_CONNECTOR_STATE` are explicit
+deployment overrides. When `ASTRID_PRODUCT_TOKEN_FILE` is set, the launcher,
+Vite proxy, and connector all use that same product credential. Use
+`--reset-pairing` to replace only the local pairing state.
+
 ## Governance Contracts
 
 - Supabase runtime contract: [`docs/governance/contracts/supabase-runtime.md`](docs/governance/contracts/supabase-runtime.md)
