@@ -87,3 +87,72 @@ declare module '@astrid/packs/local/elements/effects/end-spanning-layer/assets/c
   const cardUrl: string;
   export default cardUrl;
 }
+
+declare module '@astrid/packs/local/elements/effects/frame-overlay/assets/frame.png?url' {
+  const assetUrl: string;
+  export default assetUrl;
+}
+
+declare module '@astrid-public/packs/local/elements/effects/end-spanning-layer/assets/card-0.png?url' {
+  const assetUrl: string;
+  export default assetUrl;
+}
+declare module '@astrid-public/packs/local/elements/effects/end-spanning-layer/assets/card-1.png?url' {
+  const assetUrl: string;
+  export default assetUrl;
+}
+declare module '@astrid-public/packs/local/elements/effects/end-spanning-layer/assets/card-2.png?url' {
+  const assetUrl: string;
+  export default assetUrl;
+}
+declare module '@astrid-public/packs/local/elements/effects/end-spanning-layer/assets/card-3.png?url' {
+  const assetUrl: string;
+  export default assetUrl;
+}
+declare module '@astrid-public/packs/local/elements/effects/end-spanning-layer/assets/card-4.png?url' {
+  const assetUrl: string;
+  export default assetUrl;
+}
+declare module '@astrid-public/packs/local/elements/effects/end-spanning-layer/assets/card-5.png?url' {
+  const assetUrl: string;
+  export default assetUrl;
+}
+declare module '@astrid-public/packs/local/elements/effects/frame-overlay/assets/frame.png?url' {
+  const assetUrl: string;
+  export default assetUrl;
+}
+
+declare module '@astrid-public/*' {
+  type AstridRenderingElementDescriptor = {
+    id: string;
+    kind: 'effect' | 'animation' | 'transition';
+    label: string;
+    description: string;
+    shortDescription: string;
+    keywords: string[];
+    defaults: Record<string, unknown>;
+    schema: Record<string, unknown>;
+    parameters: Array<Record<string, unknown>>;
+    source: string;
+    packId: string;
+    componentPath: string;
+    revision: string;
+    runtime: Record<string, unknown>;
+    renderability: {
+      preview: 'supported' | 'blocked' | 'unknown';
+      browserExport: 'supported' | 'blocked' | 'unknown';
+      workerExport: 'supported' | 'blocked' | 'unknown';
+    };
+  };
+
+  export const ASTRID_RENDERING_ELEMENTS: readonly AstridRenderingElementDescriptor[];
+
+  const AstridSequenceComponent: (props: {
+    clip: unknown;
+    params?: Record<string, unknown>;
+    theme?: unknown;
+    fps: number;
+  }) => import('react').ReactElement | null;
+
+  export default AstridSequenceComponent;
+}

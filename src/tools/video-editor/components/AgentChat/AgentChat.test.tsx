@@ -488,6 +488,27 @@ describe('AgentChat', () => {
     });
   });
 
+  it('keeps the original empty prompt visible while failed queued work is paused', async () => {
+    const state = createState();
+    state.activeSessionData.status = 'processing';
+    state.sendMessage.mutateAsync = vi.fn().mockImplementation(async () => {
+      state.sendMessage.localError = 'Send failed';
+      throw new Error('Send failed');
+    });
+    mockFromState(state);
+
+    const view = renderAgentChat();
+    const textbox = await getInput();
+    await queueMessage(textbox, 'failed queued message');
+
+    state.activeSessionData.status = 'waiting_user';
+    rerenderAgentChat(view.rerender);
+
+    await waitFor(() => expect(screen.getByText('Send failed')).toBeInTheDocument());
+    expect(screen.getByText('Ask me to edit your timeline.')).toBeInTheDocument();
+    expect(screen.getByText('failed queued message')).toBeInTheDocument();
+  });
+
   it('reorders and deletes queued messages in the rendered stack', async () => {
     const state = createState();
     state.activeSessionData.status = 'processing';

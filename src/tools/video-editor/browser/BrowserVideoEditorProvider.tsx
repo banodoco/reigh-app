@@ -15,6 +15,7 @@ import { getExtensionSmokeExtension } from '@/sdk/smoke/extensionSmoke';
 import { useExtensionLoaderWiring } from '@/tools/video-editor/runtime/useExtensionLoaderWiring';
 import type { ExtensionStateRepository } from '@/tools/video-editor/runtime/extensionStateRepository';
 import type { BundleContentStore } from '@/tools/video-editor/runtime/useExtensionLoaderWiring';
+import { INSTALLED_ASTRID_ELEMENT_HOST } from '@/tools/video-editor/runtime/astrid-element-components.tsx';
 
 export interface BrowserVideoEditorProviderProps {
   dataProvider: DataProvider;
@@ -196,6 +197,7 @@ export function BrowserVideoEditorProvider({
 
   const runtime = (
     <EditorRuntimeProvider
+      astridElementHost={INSTALLED_ASTRID_ELEMENT_HOST}
       dataProvider={dataProvider}
       timelineId={timelineId}
       timelineName={timelineName}

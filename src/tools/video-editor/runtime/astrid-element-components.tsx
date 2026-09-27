@@ -1,17 +1,16 @@
-import type { ComponentType, ReactNode } from 'react';
-import type { ResolvedTimelineClip } from '@/tools/video-editor/types/index.ts';
-import type { RuntimeTheme } from '@banodoco/timeline-composition/theme-api';
+import type { ComponentType } from 'react';
 import { ASTRID_RENDERING_ELEMENTS } from '@astrid/packs/rendering/elements/catalog.ts';
-import { LOCAL_SEQUENCE_REGISTRY } from '@/tools/video-editor/sequences/registry.ts';
-
-type AstridElementComponentProps = {
-  clip: ResolvedTimelineClip;
-  params: Record<string, unknown>;
-  theme: RuntimeTheme;
-  fps: number;
-  assetEntry?: ResolvedTimelineClip['assetEntry'];
-  children?: ReactNode;
-};
+import {
+  LOCAL_SEQUENCE_REGISTRY,
+  SEQUENCE_COMPONENT_REGISTRY,
+  describeClipCapabilityWith,
+  resolveSequenceClipEntry,
+} from '@/tools/video-editor/sequences/registry.ts';
+import type {
+  AstridDynamicSequenceEntry,
+  AstridElementComponentProps,
+  AstridElementHost,
+} from '@/tools/video-editor/runtime/astrid-element-host.ts';
 
 type AstridElementModule = {
   default?: ComponentType<AstridElementComponentProps>;
@@ -71,3 +70,26 @@ export function resolveAstridElementComponent(
   ));
   return modulePath ? ASTRID_ELEMENT_MODULES[modulePath]?.default : undefined;
 }
+
+/** Explicit installed host: preserves the current full catalog and sequence values. */
+const installedAstridElementHost: AstridElementHost = {
+  descriptors: ASTRID_RENDERING_ELEMENTS,
+  sequenceRegistry: SEQUENCE_COMPONENT_REGISTRY,
+  resolveComponent: resolveAstridElementComponent,
+  resolveSequenceClipEntry(clipType, dynamicEntries) {
+    return resolveSequenceClipEntry(
+      clipType,
+      dynamicEntries as Parameters<typeof resolveSequenceClipEntry>[1],
+    ) as AstridDynamicSequenceEntry | undefined;
+  },
+  describeClipCapability(clip, dynamicEntries) {
+    return describeClipCapabilityWith(
+      clip,
+      dynamicEntries as Parameters<typeof describeClipCapabilityWith>[1],
+    );
+  },
+};
+
+export const INSTALLED_ASTRID_ELEMENT_HOST: AstridElementHost = Object.freeze(
+  installedAstridElementHost,
+);

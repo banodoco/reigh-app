@@ -31,6 +31,8 @@ import { bridgeMediaUrl } from '@/shared/lib/media/bridgeMediaUrl.ts';
 import { assembleTimelineData, type TimelineData } from '@/tools/video-editor/lib/timeline-data.ts';
 import { buildAssetReferenceMap } from '@/tools/video-editor/lib/asset-registry.ts';
 
+type JsonObject = Record<string, unknown>;
+
 export function shotTimelineSessionId(
   parentDocumentId: string,
   occurrenceId: string,

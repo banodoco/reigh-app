@@ -35,6 +35,7 @@ import type {
 import { normalizeExtensionRuntime } from '@/tools/video-editor/runtime/extensionSurface.ts';
 import type { ProcessManager } from '@/tools/video-editor/runtime/processes/ProcessManager.ts';
 import { planRender } from '@/tools/video-editor/runtime/renderPlanner.ts';
+import { INSTALLED_ASTRID_ELEMENT_HOST } from '@/tools/video-editor/runtime/astrid-element-components.tsx';
 
 type ProcessHarnessScenario =
   | 'happy-path'
@@ -612,6 +613,7 @@ function createRuntimeValue(args: {
   };
 
   return {
+    astridElementHost: INSTALLED_ASTRID_ELEMENT_HOST,
     provider: EMPTY_PROVIDER,
     assetResolver: { resolveAssetUrl: async (path: string) => path },
     auth: { userId: 'process-harness-user' },

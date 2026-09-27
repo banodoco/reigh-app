@@ -31,8 +31,10 @@ import type { ProcessStatus } from '@/sdk/video/families/processes';
 import type { ProcessResultAttachRecord } from '@/tools/video-editor/runtime/composition/processResultAttach.ts';
 import type { HostOwnedExtensionOperationalEmitter } from '@/tools/video-editor/runtime/extensionReleaseControls.ts';
 import type { TimelineEditability } from '@/tools/video-editor/lib/timeline-editability.ts';
+import type { AstridElementHost } from '@/tools/video-editor/runtime/astrid-element-host.ts';
 
 export interface VideoEditorRuntimeContextValue {
+  astridElementHost: AstridElementHost;
   provider: DataProvider;
   assetResolver: VideoEditorAssetResolver;
   auth: VideoEditorAuthHost;

@@ -23,6 +23,7 @@ import { VideoEditorLightboxOverlay } from '@/tools/video-editor/components/Vide
 import { useReighShotsHost } from '@/tools/video-editor/adapters/reigh/useReighShotsHost.ts';
 import type { DataProvider } from '@/tools/video-editor/data/DataProvider.ts';
 import type { TimelineData } from '@/tools/video-editor/lib/timeline-data.ts';
+import { INSTALLED_ASTRID_ELEMENT_HOST } from '@/tools/video-editor/runtime/astrid-element-components.tsx';
 import {
   VideoEditorRuntimeProvider,
   useVideoEditorRuntime,
@@ -929,6 +930,7 @@ export function VideoEditorProvider({
   ]);
 
   const runtimeValue = useMemo(() => ({
+    astridElementHost: INSTALLED_ASTRID_ELEMENT_HOST,
     provider: dataProvider,
     assetResolver: {
       resolveAssetUrl: dataProvider.resolveAssetUrl.bind(dataProvider),

@@ -46,8 +46,10 @@ import {
   type ExtensionSettingsNotificationRegistry,
 } from '@/tools/video-editor/runtime/extensionSettingsNotification';
 import type { ProcessManager } from '@/tools/video-editor/runtime/processes/ProcessManager.ts';
+import type { AstridElementHost } from '@/tools/video-editor/runtime/astrid-element-host.ts';
 
 export interface EditorRuntimeProviderProps {
+  astridElementHost: AstridElementHost;
   dataProvider: DataProvider;
   timelineId: string;
   timelineName?: string | null;
@@ -133,6 +135,7 @@ function EditorRuntimeProviderInner({
 }
 
 export function EditorRuntimeProvider({
+  astridElementHost,
   dataProvider,
   timelineId,
   timelineName,
@@ -340,6 +343,7 @@ export function EditorRuntimeProvider({
   }), []);
 
   const contextValue = useMemo<VideoEditorRuntimeContextValue>(() => ({
+    astridElementHost,
     provider: dataProvider,
     assetResolver: runtime?.assetResolver ?? defaultAssetResolver,
     auth: { userId } satisfies VideoEditorAuthHost,
@@ -375,6 +379,7 @@ export function EditorRuntimeProvider({
     timelineOverlaysEnabled,
     timelineViewStore: assembly.timelineViewStoreRef.current ?? undefined,
   }), [
+    astridElementHost,
     dataProvider,
     runtime?.assetResolver,
     runtime?.exporter,
