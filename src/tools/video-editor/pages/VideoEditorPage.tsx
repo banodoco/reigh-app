@@ -117,8 +117,9 @@ async function fetchBridgeJson<Schema extends ZodType>(
 
 /**
  * The local timeline *name* for the header/dropdown label comes from the
- * timeline GET itself (one of the three bridge routes). Selection itself is
- * URL-param driven — see `useAstridBridgeDiscovery` for the list routes.
+ * timeline list when workspace.v1 is active. The latest Runtime deliberately
+ * retires the mutable timeline GET, so the legacy name read remains limited
+ * to the legacy bridge path.
  */
 function useBridgeTimelineName(projectSlug: string | null, timelineRef: string | null, enabled: boolean) {
   return useQuery({
@@ -402,8 +403,17 @@ export default function VideoEditorPage() {
     setRuntimeConnectorError(error);
     setRuntimeRetrying(false);
   }, []);
-  const bridgeTimelineName = useBridgeTimelineName(localProjectSlug, localTimelineId, mode === 'local');
-  const localTimelineName = bridgeTimelineName.data ?? null;
+  const bridgeTimelineName = useBridgeTimelineName(
+    localProjectSlug,
+    localTimelineId,
+    mode === 'local' && !isAstridWorkspaceV1,
+  );
+  const discoveredLocalTimelineName = discovery.timelinesQuery.data?.timelines?.find((timeline) => (
+    timeline.timeline_id === localTimelineId || timeline.timeline_ulid === localTimelineId
+  ))?.name ?? null;
+  const localTimelineName = isAstridWorkspaceV1
+    ? discoveredLocalTimelineName
+    : (bridgeTimelineName.data ?? null);
   const providerSelection = useVideoEditorProviderSelection({
     mode,
     localProjectSlug,
