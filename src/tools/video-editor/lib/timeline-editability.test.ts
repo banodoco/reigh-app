@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createTimelineEditability } from './timeline-editability.ts';
+import { createTimelineEditability, withCanonicalShotDraftLock } from './timeline-editability.ts';
 import { planClipDrag } from './clip-drag-planner.ts';
 
 describe('timeline editability', () => {
@@ -11,6 +11,24 @@ describe('timeline editability', () => {
 
   it('permits an unlocked move', () => {
     expect(createTimelineEditability().check({ clipId: 'c', sourceTrackId: 'V1', targetTrackId: 'V2' })).toEqual({ allowed: true });
+  });
+
+  it('freezes parent edits while a canonical shot draft is active', () => {
+    const locked = withCanonicalShotDraftLock(createTimelineEditability(), true);
+    expect(locked?.checkTimeline?.()).toEqual({ allowed: false, reason: 'canonical_shot_draft_active' });
+    expect(locked?.check({ clipId: 'c', sourceTrackId: 'V1', targetTrackId: 'V2' })).toEqual({
+      allowed: false,
+      reason: 'canonical_shot_draft_active',
+    });
+    expect(withCanonicalShotDraftLock(createTimelineEditability(), false)?.check({
+      clipId: 'c',
+      sourceTrackId: 'V1',
+      targetTrackId: 'V2',
+    })).toEqual({ allowed: true });
+    expect(withCanonicalShotDraftLock(undefined, true)?.checkTimeline?.()).toEqual({
+      allowed: false,
+      reason: 'canonical_shot_draft_active',
+    });
   });
 
   it('makes a locked target a rejected drag plan', () => {

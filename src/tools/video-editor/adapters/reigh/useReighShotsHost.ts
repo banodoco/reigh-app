@@ -157,21 +157,20 @@ export function useReighShotsHost(
         return;
       }
       hasPreparedCompositionRef.current = true;
-      if (!canonicalDraftRef.current || !draftScopeMatchesHost(canonicalDraftRef.current.scope)) {
-        if (preparedCompositionRef.current?.headRevisionId !== composition.headRevisionId) {
-          preparedCompositionRef.current = composition;
-          setPreparedComposition(composition);
-        }
+      // Advance the pinned server snapshot independently of the draft
+      // projection. `canonicalOccurrences` continues to prefer the draft,
+      // while retry now reports the exact current Runtime head underneath it.
+      if (preparedCompositionRef.current?.headRevisionId !== composition.headRevisionId) {
+        preparedCompositionRef.current = composition;
+        setPreparedComposition(composition);
       }
       setCanonicalCompositionError(null);
       setCanonicalLoading(false);
     } catch (loadError: unknown) {
       if (!mountedRef.current || generation !== loadGenerationRef.current) return;
-      // A transient poll failure must not erase the last coherent pinned head.
-      // Initial failures still surface normally to the editor.
-      setCanonicalCompositionError((current) => hasPreparedCompositionRef.current
-        ? current
-        : loadError instanceof Error ? loadError : new Error(String(loadError)));
+      // Keep the last coherent pinned head (and any local draft) visible, but
+      // expose that it is stale so the editor cannot call it current.
+      setCanonicalCompositionError(loadError instanceof Error ? loadError : new Error(String(loadError)));
       setCanonicalLoading(false);
     } finally {
       refreshInFlightRef.current = false;

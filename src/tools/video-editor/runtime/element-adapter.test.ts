@@ -61,6 +61,36 @@ describe('Astrid element operation adapter', () => {
     expect(result.config?.clips[1].transition).toMatchObject({ type: 'cross-fade', duration: 8 / 30 });
   });
 
+  it('uses visible hold duration when testing transition adjacency', async () => {
+    const payload = documentPayload();
+    payload.config.clips[0].hold = 4;
+    (payload.config.clips[0] as Record<string, unknown>).speed = 2;
+    const save = vi.fn(async (_ref, input) => ({
+      ...payload,
+      config: input.config,
+      registry: input.registry,
+      config_version: 8,
+    }));
+    const adapter = new AstridElementOperationAdapter(context(), {
+      get: vi.fn(async () => payload),
+      save,
+    }, 'astrid-intro');
+
+    await expect(adapter.execute({
+      name: 'timeline.apply_transition',
+      project: 'astrid-intro',
+      timeline: 'main',
+      expected_version: 7,
+      from_clip: 'a',
+      to_clip: 'b',
+      transition: {
+        id: 'cross-fade',
+        kind: 'transition',
+        revision: context().catalog.find((entry) => entry.id === 'cross-fade')?.revision,
+      },
+    })).resolves.toBeDefined();
+  });
+
   it('rejects an operation against a stale loaded document before writing', async () => {
     const payload = documentPayload();
     const save = vi.fn();

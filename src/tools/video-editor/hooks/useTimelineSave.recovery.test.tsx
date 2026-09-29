@@ -23,7 +23,7 @@ vi.mock('@/tools/video-editor/hooks/useTimelinePersistence.ts', () => ({
 }));
 vi.mock('@/tools/video-editor/hooks/usePollSync.ts', () => ({ usePollSync: vi.fn() }));
 vi.mock('@/tools/video-editor/contexts/VideoEditorRuntimeContext.tsx', () => ({
-  useVideoEditorRuntime: () => ({ timelineId: 'session-new', assetResolver: undefined }),
+  useVideoEditorRuntime: () => ({ timelineId: 'session-new', assetResolver: undefined, shots: {} }),
 }));
 
 import { useTimelineSave } from './useTimelineSave.ts';
@@ -53,9 +53,9 @@ describe('useTimelineSave stable occurrence recovery', () => {
         config,
         registry,
         stableSignature,
-        dataRef: { current: null },
+        dataRef: { current: { config, registry, stableSignature } },
       },
-      dataRef: { current: null },
+      dataRef: { current: { config, registry, stableSignature } },
       selectedClipId: null,
       selectedTrackId: null,
       setSelectedTrackId: vi.fn(),

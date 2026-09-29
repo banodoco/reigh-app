@@ -87,4 +87,52 @@ describe('useReighShotsHost optimistic shot timeline bridge', () => {
     expect(result.current.canonicalComposition?.headRevisionId).toBe(acknowledged.headRevisionId);
     expect(load).toHaveBeenCalledTimes(1);
   });
+
+  it('marks a failed refresh stale, preserves the draft, and retries to the current head', async () => {
+    const nextHead = graphWithHead('timeline-head-after-retry');
+    const load = vi.fn()
+      .mockResolvedValueOnce(fixture)
+      .mockRejectedValueOnce(new Error('temporary Runtime read failure'))
+      .mockResolvedValueOnce(nextHead);
+    const adapter = createShotCompositionAdapter({ load });
+    const port = { load };
+    const { result } = renderHook(() => useReighShotsHost(
+      projectId,
+      parentDocumentId,
+      port,
+    ));
+    await waitFor(() => expect(result.current.canonicalComposition?.headRevisionId)
+      .toBe(adapter.prepare(fixture).headRevisionId));
+
+    const pinnedHead = result.current.canonicalComposition!;
+    const draftComposition = {
+      ...pinnedHead,
+      occurrences: pinnedHead.occurrences.map((occurrence) => occurrence.occurrenceId === occurrenceId
+        ? { ...occurrence, durationMs: occurrence.durationMs + 900 }
+        : occurrence),
+    };
+    act(() => {
+      result.current.beginCanonicalDraftSession?.(scope());
+      result.current.setCanonicalDraftProjection?.({
+        scope: scope(),
+        generation: 4,
+        composition: draftComposition,
+      } satisfies CanonicalShotTimelineDraft);
+    });
+
+    act(() => result.current.refetchShots());
+    await waitFor(() => expect(result.current.canonicalCompositionError?.message)
+      .toBe('temporary Runtime read failure'));
+    expect(result.current.canonicalComposition?.headRevisionId).toBe(pinnedHead.headRevisionId);
+    expect(result.current.canonicalDraft?.generation).toBe(4);
+    expect(result.current.canonicalOccurrences.find((item) => item.occurrenceId === occurrenceId)?.durationMs)
+      .toBe(pinnedHead.occurrences.find((item) => item.occurrenceId === occurrenceId)!.durationMs + 900);
+
+    act(() => result.current.refetchShots());
+    await waitFor(() => expect(result.current.canonicalComposition?.headRevisionId)
+      .toBe(adapter.prepare(nextHead).headRevisionId));
+    expect(result.current.canonicalCompositionError).toBeNull();
+    expect(result.current.canonicalDraft?.generation).toBe(4);
+    expect(load).toHaveBeenCalledTimes(3);
+  });
 });

@@ -31,7 +31,7 @@ export function useTimelineSave(
   store: TimelineStoreApi,
   initialData?: TimelineData,
 ) {
-  const { timelineId, assetResolver, timelineEditability } = useVideoEditorRuntime();
+  const { timelineId, assetResolver, timelineEditability, shots } = useVideoEditorRuntime();
   const resolveAssetUrl = useCallback((file: string) => {
     if (assetResolver) {
       return Promise.resolve(assetResolver.resolveAssetUrl(file));
@@ -97,6 +97,7 @@ export function useTimelineSave(
     isSavingRef: persistence.isSavingRef,
     isConflictExhaustedRef: persistence.isConflictExhaustedRef,
     interactionStateRef,
+    canonicalShotDraftActive: Boolean(shots.canonicalDraft),
   });
 
   // One-slot recovery draft (plan-v5 B9): after the timeline data loads, offer

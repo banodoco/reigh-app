@@ -63,4 +63,34 @@ describe('shot-composition contract', () => {
     clips[0].clipType = 'shot';
     expect(() => parseShotComposition(legacyClip)).toThrow(/migration-only/);
   });
+
+  it('accepts a silent empty composition and preserves opaque shot extensions', () => {
+    const empty = cloneFixture();
+    empty.shot_revisions = [];
+    empty.occurrences = [];
+    expect(parseShotComposition(empty).shot_revisions).toEqual([]);
+
+    const silent = cloneFixture();
+    const revision = (silent.shot_revisions as Array<Record<string, unknown>>)[0]!;
+    delete revision.audio;
+    revision.name = 'Canonical name';
+    revision.app = { future: { opaque: true, clipType: 'shot' } };
+    revision.assets = [{ asset_id: 'ext', app: { 'com.example.history': { pinnedShotGroups: [] } } }];
+    silent.app = { 'com.example.history': { pinnedShotGroups: [{ nested: { clipType: 'shot' } }] } };
+    const parsed = parseShotComposition(silent);
+    expect(parsed.shot_revisions[0]).toMatchObject({
+      name: 'Canonical name',
+      app: { future: { opaque: true } },
+    });
+    expect(parsed.app).toEqual(silent.app);
+    expect(parsed.shot_revisions[0]?.assets).toEqual(revision.assets);
+    expect(parsed.shot_revisions[0]?.audio).toBeUndefined();
+  });
+
+  it('keeps invalid-present managed-media metadata an error', () => {
+    const invalid = cloneFixture();
+    const revision = (invalid.shot_revisions as Array<Record<string, unknown>>)[0]!;
+    revision.assets = [{ asset_id: 'bad', object_id: 'object-bad', media_type: 9 }];
+    expect(() => parseShotComposition(invalid)).toThrow(/assets\[0\]\.media_type/);
+  });
 });

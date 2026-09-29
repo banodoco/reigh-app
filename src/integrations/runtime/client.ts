@@ -10,7 +10,7 @@ import {
   type GenerationVariant,
   type ManagedOutput,
   type ManagedOutputExportReceipt,
-  type MediaImport,
+  type MediaImportOperation as MediaImport,
   type MutationResult,
   type Page,
   type Project,
@@ -19,7 +19,7 @@ import {
   type Transport,
 } from './generated.ts';
 import {
-  RUNTIME_SCHEMA_DIGEST,
+  RUNTIME_ACCEPTED_SCHEMA_DIGESTS,
   RUNTIME_TARGETED_EXECUTION_CAPABILITY,
 } from './contract-metadata.ts';
 
@@ -120,9 +120,10 @@ export class ReighRuntimeClient {
         RUNTIME_CLIENT_VERSION,
         RUNTIME_CLIENT_SCOPES,
       );
-      if (health.schema_digest !== RUNTIME_SCHEMA_DIGEST || handshake.schema_digest !== RUNTIME_SCHEMA_DIGEST) {
+      if (!RUNTIME_ACCEPTED_SCHEMA_DIGESTS.includes(health.schema_digest as typeof RUNTIME_ACCEPTED_SCHEMA_DIGESTS[number])
+        || !RUNTIME_ACCEPTED_SCHEMA_DIGESTS.includes(handshake.schema_digest as typeof RUNTIME_ACCEPTED_SCHEMA_DIGESTS[number])) {
         throw new RuntimeCompatibilityError(
-          `schema digest mismatch (health=${health.schema_digest}, handshake=${handshake.schema_digest}, expected=${RUNTIME_SCHEMA_DIGEST})`,
+          `schema digest mismatch (health=${health.schema_digest}, handshake=${handshake.schema_digest}, expected one of ${RUNTIME_ACCEPTED_SCHEMA_DIGESTS.join(', ')})`,
           this.baseUrl,
         );
       }
@@ -232,10 +233,6 @@ export class ReighRuntimeClient {
     return this.withSession(() => this.client.getProjectTimelineRevision(projectId, timelineId, revision));
   }
 
-  async getTimeline(timelineId: string): Promise<Record<string, unknown>> {
-    return this.withSession(() => this.client.getTimeline(timelineId));
-  }
-
   async updateTimelineDocument(
     projectId: string,
     timelineId: string,
@@ -278,11 +275,7 @@ export class ReighRuntimeClient {
       data,
       mediaType,
       idempotencyKey,
-      filename,
-      expectedDigest,
-      width,
-      height,
-      durationSeconds,
+      { filename, expectedDigest, width, height, durationSeconds },
     ));
   }
 

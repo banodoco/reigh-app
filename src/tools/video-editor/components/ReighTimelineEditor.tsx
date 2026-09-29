@@ -63,6 +63,23 @@ type PublishedCanonicalCompositionOverride = Readonly<{
   staleHeadRevisionIds: readonly (string | null)[];
 }>;
 
+export type CanonicalLoadState = 'legacy' | 'loading' | 'current' | 'error' | 'stale';
+
+export function getCanonicalLoadState(input: {
+  canonicalRoute: boolean;
+  isLoading: boolean;
+  hasComposition: boolean;
+  error: Error | null | undefined;
+}): CanonicalLoadState {
+  if (!input.canonicalRoute) return 'legacy';
+  if (input.isLoading) return 'loading';
+  if (input.error) return input.hasComposition ? 'stale' : 'error';
+  if (input.hasComposition) return 'current';
+  // A canonical route without either a snapshot or an error is still waiting
+  // for its first successful read. It must not be treated as legacy content.
+  return 'loading';
+}
+
 export function shouldKeepPublishedCanonicalCompositionOverride(
   publishedHeadRevisionId: string,
   staleHeadRevisionIds: readonly (string | null)[],
@@ -86,7 +103,15 @@ function ReighTimelineEditorComponent({ onOpenSequenceCreator, onOpenElementCrea
   const isDocumentShotMode = runtime.userId === null;
   const canonicalOccurrences = runtime.shots?.canonicalOccurrences ?? [];
   const hasCanonicalOccurrences = canonicalOccurrences.length > 0;
-  const isCanonicalEditor = isDocumentShotMode && canonicalOccurrences.length > 0;
+  // Route from the configured authority, not from the data returned by it:
+  // an empty or failed canonical read must not activate UUID/legacy groups.
+  const isCanonicalEditor = isDocumentShotMode && Boolean(runtime.shots?.shotComposition);
+  const canonicalLoadState = getCanonicalLoadState({
+    canonicalRoute: isCanonicalEditor,
+    isLoading: Boolean(runtime.shots?.isLoading),
+    hasComposition: Boolean(runtime.shots?.canonicalComposition),
+    error: runtime.shots?.canonicalCompositionError ?? runtime.shots?.error,
+  });
   const [publishedCanonicalComposition, setPublishedCanonicalComposition] = useState<PublishedCanonicalCompositionOverride | null>(null);
   useEffect(() => {
     setPublishedCanonicalComposition(null);
@@ -569,13 +594,34 @@ function ReighTimelineEditorComponent({ onOpenSequenceCreator, onOpenElementCrea
 
   return (
     <>
+      {isDocumentShotMode && !isCanonicalEditor ? (
+        <div role="status" data-canonical-load-state="legacy" className="border-b px-3 py-1.5 text-center text-xs">
+          Canonical shot composition is unavailable; showing the explicit legacy shot view.
+        </div>
+      ) : null}
+      {isCanonicalEditor && canonicalLoadState !== 'current' ? (
+        <div
+          role={canonicalLoadState === 'error' ? 'alert' : 'status'}
+          data-canonical-load-state={canonicalLoadState}
+          className="border-b border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-center text-xs text-amber-900 dark:text-amber-100"
+        >
+          {canonicalLoadState === 'loading' && 'Loading the canonical shot composition…'}
+          {canonicalLoadState === 'error' && 'Could not load the canonical shot composition. Legacy shot data was not substituted.'}
+          {canonicalLoadState === 'stale' && `Canonical refresh failed; showing the last known head${runtimeCanonicalHeadRevisionId ? ` ${runtimeCanonicalHeadRevisionId}` : ''}.`}
+          {canonicalLoadState !== 'loading' && (
+            <button type="button" className="ml-2 underline" onClick={() => runtime.shots?.refetchShots()}>
+              Retry canonical read
+            </button>
+          )}
+        </div>
+      ) : null}
       {runtime.shots?.canonicalDraft ? (
         <div
           role="status"
           data-unsaved-shot-timeline-draft="true"
           className="border-b border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-center text-xs text-amber-900 dark:text-amber-100"
         >
-          Main timeline preview includes unsaved shot changes.
+          Main timeline preview includes unsaved shot changes. Parent timeline editing is paused until that shot is saved.
         </div>
       ) : null}
       <TimelineEditorCore

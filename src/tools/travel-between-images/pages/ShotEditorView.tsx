@@ -367,6 +367,7 @@ export function ShotEditorView({
               // Core identifiers
               selectedShotId={shotToEdit.id}
               projectId={selectedProjectId}
+              canonicalOnly={Boolean(canonicalComposition && canonicalOccurrence)}
               optimisticShotData={isNewlyCreatedShot ? shotFromState : undefined}
               // Callbacks
               onShotImagesUpdate={handleShotImagesUpdate}

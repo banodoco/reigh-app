@@ -27,6 +27,7 @@ interface TimelinePollGate {
   pendingOps: number;
   isSaving: boolean;
   interactionActive?: boolean;
+  canonicalShotDraftActive?: boolean;
 }
 
 export interface PollRejectionInput extends TimelinePollGate {
@@ -52,12 +53,17 @@ interface UsePollSyncOptions {
   lastSavedSignatureRef: MutableRefObject<string>;
   isSavingRef: MutableRefObject<boolean>;
   interactionStateRef: InteractionStateRef;
+  /** A nested canonical shot draft owns the parent composition while dirty. */
+  canonicalShotDraftActive?: boolean;
   /** When true (a 409 put the editor into diverged), remote data is NOT adopted. */
   isConflictExhaustedRef?: MutableRefObject<boolean>;
 }
 
-export function isTimelinePollIdle({ editSeq, savedSeq, pendingOps, isSaving, interactionActive }: TimelinePollGate): boolean {
+export function isTimelinePollIdle({ editSeq, savedSeq, pendingOps, isSaving, interactionActive, canonicalShotDraftActive }: TimelinePollGate): boolean {
   if (interactionActive) {
+    return false;
+  }
+  if (canonicalShotDraftActive) {
     return false;
   }
   return savedSeq >= editSeq && !isSaving && pendingOps === 0;
@@ -69,14 +75,19 @@ export function getTimelinePollRejectionReason({
   pendingOps,
   isSaving,
   interactionActive,
+  canonicalShotDraftActive,
   polledConfigVersion,
   currentConfigVersion,
   polledStableSignature,
   lastSavedStableSignature,
 }: PollRejectionInput): string | null {
-  if (!isTimelinePollIdle({ editSeq, savedSeq, pendingOps, isSaving, interactionActive })) {
+  if (!isTimelinePollIdle({ editSeq, savedSeq, pendingOps, isSaving, interactionActive, canonicalShotDraftActive })) {
     if (interactionActive) {
       return 'interaction active';
+    }
+
+    if (canonicalShotDraftActive) {
+      return 'canonical shot draft active';
     }
 
     if (savedSeq < editSeq) {
@@ -130,6 +141,7 @@ export function usePollSync({
   isSavingRef,
   interactionStateRef,
   isConflictExhaustedRef,
+  canonicalShotDraftActive = false,
 }: UsePollSyncOptions): void {
   const lastRegistryDataRef = useRef<Awaited<ReturnType<DataProvider['loadAssetRegistry']>> | null>(null);
   const commitDataRef = useRef(commitData);
@@ -195,6 +207,7 @@ export function usePollSync({
       pendingOps: getPendingOpsRef().current,
       isSaving: isSavingRef.current,
       interactionActive: isInteractionActive(getInteractionStateRef()),
+      canonicalShotDraftActive,
       polledConfigVersion: polledData.configVersion,
       currentConfigVersion: configVersionRef.current,
       polledStableSignature: polledData.stableSignature,
@@ -208,6 +221,7 @@ export function usePollSync({
     getInteractionStateRef,
     getPendingOpsRef,
     savedSeqRef,
+    canonicalShotDraftActive,
   ]);
 
   const logPollRejection = useCallback((phase: PollCheckPhase, polledData: TimelineData, reason: string) => {
@@ -219,6 +233,7 @@ export function usePollSync({
       savedSeq: savedSeqRef.current,
       pendingOps: getPendingOpsRef().current,
       isSaving: isSavingRef.current,
+      canonicalShotDraftActive,
     });
   }, [
     configVersionRef,
@@ -227,6 +242,7 @@ export function usePollSync({
     isSavingRef,
     logTimelineSync,
     savedSeqRef,
+    canonicalShotDraftActive,
   ]);
 
   // Wake the poll-acceptance effect once a gesture ends so the most recently
@@ -255,7 +271,8 @@ export function usePollSync({
 
     const preflightRejectionReason = getPollRejectionReason(resolvedPolledData);
     if (preflightRejectionReason) {
-      if (preflightRejectionReason === 'interaction active') {
+      if (preflightRejectionReason === 'interaction active'
+        || preflightRejectionReason === 'canonical shot draft active') {
         // Defer the conflict reload until the gesture ends; keep the newest payload.
         deferredPolledDataRef.current = resolvedPolledData;
       }
@@ -303,6 +320,7 @@ export function usePollSync({
     logTimelineSync,
     getDataRef,
     isConflictExhaustedRef,
+    canonicalShotDraftActive,
     queries.timelineQuery.data,
     store,
   ]);
@@ -320,6 +338,7 @@ export function usePollSync({
         pendingOps: getPendingOpsRef().current,
         isSaving: isSavingRef.current,
         interactionActive: isInteractionActive(getInteractionStateRef()),
+        canonicalShotDraftActive,
       })
       || registry === lastRegistryDataRef.current
     ) {
@@ -348,6 +367,7 @@ export function usePollSync({
           pendingOps: getPendingOpsRef().current,
           isSaving: isSavingRef.current,
           interactionActive: isInteractionActive(getInteractionStateRef()),
+          canonicalShotDraftActive,
         })) {
           return;
         }
@@ -374,6 +394,7 @@ export function usePollSync({
     selectedTrackIdRef,
     getDataRef,
     getInteractionStateRef,
+    canonicalShotDraftActive,
     getPendingOpsRef,
   ]);
 }

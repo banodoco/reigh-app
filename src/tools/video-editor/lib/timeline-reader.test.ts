@@ -197,6 +197,17 @@ describe('createTimelineReader — clip summaries', () => {
     expect(clip2!.duration).toBe(3);
   });
 
+  it('applies speed once to source-domain hold clips', async () => {
+    const config = makeBaseConfig();
+    const clip = config.clips.find((candidate) => candidate.id === 'clip-2');
+    if (!clip) throw new Error('fixture clip is missing');
+    clip.speed = 2;
+    const data = await buildTimelineData(config, emptyRegistry);
+    const reader = createTimelineReader({ data });
+
+    expect(reader.snapshot().clips.find((candidate) => candidate.id === 'clip-2')?.duration).toBe(1.5);
+  });
+
   it('computes correct duration with speed factor', async () => {
     const config = makeBaseConfig();
     const data = await buildTimelineData(config, emptyRegistry);

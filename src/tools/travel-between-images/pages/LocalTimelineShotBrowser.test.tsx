@@ -120,7 +120,7 @@ describe('LocalTimelineShotBrowser', () => {
       expect(screen.getByTestId('production-shot-editor')).toBeInTheDocument();
       expect(screen.getByTestId('canonical-occurrence')).toHaveTextContent('occ-1');
       expect(screen.getByTestId('canonical-adapter')).toHaveTextContent('shared');
-      expect(screen.getByTestId('selected-shot-image-ids')).toHaveTextContent('occ-1:alpha-video');
+      expect(screen.getByTestId('selected-shot-image-ids')).toHaveTextContent('occ-1:representative');
     });
   });
 

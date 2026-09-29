@@ -3,12 +3,12 @@
 // (ResolvedTimelineConfig, ClipMeta, etc.) — only the persisted on-disk shape
 // must match the shared schema.
 export type {
-  TimelineConfigT as SharedTimelineConfig,
-  TimelineClipT as SharedTimelineClip,
-  ThemeOverridesT as SharedThemeOverrides,
-  TimelineOutputT as SharedTimelineOutput,
-  AssetEntryT as SharedAssetEntry,
-  ThemeT as SharedTheme,
+  TimelineConfig as SharedTimelineConfig,
+  TimelineClip as SharedTimelineClip,
+  ThemeOverrides as SharedThemeOverrides,
+  TimelineOutput as SharedTimelineOutput,
+  AssetEntry as SharedAssetEntry,
+  Theme as SharedTheme,
 } from '@banodoco/timeline-schema';
 
 export type TimelineEffect = {

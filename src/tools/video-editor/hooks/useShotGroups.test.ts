@@ -205,7 +205,7 @@ describe('useShotGroups', () => {
       .toMatchObject({ start: 10.2, end: 11.2 });
   });
 
-  it('uses the canonical shot metadata name when provenance has no name', () => {
+  it('prefers the canonical top-level shot name over legacy provenance and metadata', () => {
     const rows: TimelineRow[] = [{ id: 'picture', actions: [buildAction('shot-child', 0, 2)] }];
     const occurrence = {
       projectId: 'project-1',
@@ -219,12 +219,16 @@ describe('useShotGroups', () => {
       stableDeepLink: 'project/project-1/document/timeline-1/shot/shot-1/revision/rev-1/occurrence/occ-1',
       outputIdentity: 'project/project-1/document/timeline-1/occurrence/occ-1/output/final-video',
       trackId: 'picture',
-      revision: { metadata: { name: '02 What this video covers' } },
+      revision: {
+        name: 'Canonical shot name',
+        provenance: { name: 'Legacy provenance name' },
+        metadata: { name: 'Legacy metadata name' },
+      },
     } satisfies CanonicalShotOccurrence;
 
     const { result } = renderHook(() => useShotGroups(rows, [], [occurrence]));
 
-    expect(result.current[0]?.shotName).toBe('02 What this video covers');
+    expect(result.current[0]?.shotName).toBe('Canonical shot name');
   });
 
   it('returns deterministic colors and different colors for distinct sample shot ids', () => {

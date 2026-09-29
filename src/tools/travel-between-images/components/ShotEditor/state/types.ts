@@ -62,6 +62,8 @@ interface ShotEditorRefsProps {
 interface ShotEditorUiProps {
   /** Disable actions that have no Astrid document-native equivalent. */
   readOnly?: boolean;
+  /** Render only the document-native shell when a canonical shot editor owns the timeline. */
+  canonicalOnly?: boolean;
   /** Whether the floating sticky header is visible (hide main header when true) */
   isSticky?: boolean;
   variantName?: string;

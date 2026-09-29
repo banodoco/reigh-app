@@ -232,6 +232,8 @@ export function useShotGroups(
 }
 
 function shotNameForOccurrence(occurrence: CanonicalShotOccurrence): string {
+  const canonicalName = occurrence.revision.name;
+  if (typeof canonicalName === 'string' && canonicalName.trim()) return canonicalName;
   const provenance = occurrence.revision.provenance;
   if (provenance && typeof provenance === 'object' && !Array.isArray(provenance)) {
     const value = provenance as Record<string, unknown>;

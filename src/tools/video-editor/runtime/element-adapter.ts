@@ -1,5 +1,6 @@
 import type { AstridLocalTimelineRoutes } from '@/integrations/astrid/timelineRoutes.ts';
 import type { AssetRegistry, TimelineClip, TimelineConfig } from '@/tools/video-editor/types/index.ts';
+import { getClipTimelineDuration } from '@/tools/video-editor/lib/config-utils.ts';
 import {
   assertValidReighElementOperation,
   type ReighAgentElementContext,
@@ -129,9 +130,7 @@ function uniqueElementClipId(config: TimelineConfig, elementId: string, at: numb
 }
 
 function clipDuration(clip: TimelineClip): number {
-  if (typeof clip.hold === 'number' && Number.isFinite(clip.hold)) return clip.hold;
-  if (typeof clip.to === 'number' && typeof clip.from === 'number') return Math.max(0, clip.to - clip.from);
-  return 0;
+  return getClipTimelineDuration(clip);
 }
 
 function transitionType(id: string): string {

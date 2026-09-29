@@ -21,16 +21,18 @@ import {
   TimelineVersionConflictError,
 } from '@reigh/editor-sdk';
 
-// ── Real vendored timeline-schema boundary ───────────────────────────────────
-// Import the actual vendored package dist (not the Vitest shim) so this test
-// proves the canonical @banodoco/timeline-schema artifact is consumable.
-// Path is relative from src/sdk/__tests__/ to vendor/timeline-schema.
-import {
+// ── Canonical generated timeline-schema boundary ──────────────────────────────
+// The canonical package publishes generated TypeScript interfaces, not a
+// runtime Zod validator. Compile-time fixtures below prove the installed
+// generated types are consumable while runtime behavior remains at owners.
+import type {
   TimelineClip,
   TimelineConfig,
+} from '@banodoco/timeline-schema';
+import {
   resolveTheme,
   deepMergeTheme,
-} from '../../../vendor/timeline-schema/typescript/dist/src/index.js';
+} from '@banodoco/timeline-schema';
 
 describe('SDK public-import boundary (@reigh/editor-sdk)', () => {
   it('exports BUILTIN_CLIP_TYPES as a non-empty array', () => {
@@ -54,20 +56,9 @@ describe('SDK public-import boundary (@reigh/editor-sdk)', () => {
   });
 });
 
-describe('Real vendored timeline-schema boundary', () => {
-  it('resolves TimelineConfig zod schema from vendored dist', () => {
-    // TimelineConfig is a zod schema object with .parse and .safeParse
-    expect(typeof TimelineConfig.parse).toBe('function');
-    expect(typeof TimelineConfig.safeParse).toBe('function');
-  });
-
-  it('parses a minimal valid TimelineConfig', () => {
-    const result = TimelineConfig.safeParse({ clips: [] });
-    expect(result.success).toBe(true);
-  });
-
-  it('accepts host-owned extension fields used by persisted render timelines', () => {
-    const clip = TimelineClip.safeParse({
+describe('Canonical generated timeline-schema boundary', () => {
+  it('types silent, empty, ordinary, audio, and opaque app-extension configs', () => {
+    const clip = {
       id: 'caption-1',
       at: 1,
       track: 'captions',
@@ -80,17 +71,24 @@ describe('Real vendored timeline-schema boundary', () => {
           { time: 1, value: 1, interpolation: 'hold' },
         ],
       },
-    });
-    expect(clip.success).toBe(true);
-    expect(TimelineConfig.safeParse({
-      clips: clip.success ? [clip.data] : [],
+    } satisfies TimelineClip;
+    const silentEmpty: TimelineConfig = { clips: [], tracks: [] };
+    const ordinaryAndAudio: TimelineConfig = {
+      clips: [
+        clip,
+        { id: 'voice-1', at: 0, track: 'voice', asset: 'vo-1', from: 0, to: 2 },
+        { id: 'music-1', at: 0, track: 'music', asset: 'music-1', from: 1, to: 3 },
+      ],
+      tracks: [
+        { id: 'captions', kind: 'visual', label: 'Captions' },
+        { id: 'voice', kind: 'audio', label: 'Voice' },
+        { id: 'music', kind: 'audio', label: 'Music' },
+      ],
       app: { 'com.reigh.scene-phase-markers': { sceneMarkers: [] } },
-    }).success).toBe(true);
-  });
-
-  it('rejects invalid TimelineConfig', () => {
-    const result = TimelineConfig.safeParse({ clips: 'not-an-array' });
-    expect(result.success).toBe(false);
+    };
+    expect(silentEmpty.clips).toHaveLength(0);
+    expect(ordinaryAndAudio.clips).toHaveLength(3);
+    expect(ordinaryAndAudio.app?.['com.reigh.scene-phase-markers']).toEqual({ sceneMarkers: [] });
   });
 
   it('exports resolveTheme as a function', () => {

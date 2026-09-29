@@ -137,6 +137,28 @@ describe('usePollSync helpers', () => {
     })).toBe('interaction active');
   });
 
+  it('defers parent polling while a nested canonical shot draft is active', () => {
+    expect(isTimelinePollIdle({
+      editSeq: 4,
+      savedSeq: 4,
+      pendingOps: 0,
+      isSaving: false,
+      canonicalShotDraftActive: true,
+    })).toBe(false);
+
+    expect(getTimelinePollRejectionReason({
+      editSeq: 4,
+      savedSeq: 4,
+      pendingOps: 0,
+      isSaving: false,
+      canonicalShotDraftActive: true,
+      polledConfigVersion: 8,
+      currentConfigVersion: 7,
+      polledStableSignature: 'remote-sig',
+      lastSavedStableSignature: 'saved-sig',
+    })).toBe('canonical shot draft active');
+  });
+
   it('accepts polls when interaction is no longer active', () => {
     expect(isTimelinePollIdle({
       editSeq: 4,

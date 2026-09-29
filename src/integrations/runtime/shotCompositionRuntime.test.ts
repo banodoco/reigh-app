@@ -334,6 +334,82 @@ describe('Runtime shot-composition port', () => {
     });
   });
 
+  it.each(['asset', 'asset_id'])('preserves multiple child audio bindings without synthesizing legacy aggregate audio (%s)', async (assetField) => {
+    const fixtureRuntime = fixtureTransport({
+      childAssets: {
+        'alpha-audio': {
+          media_id: 'object-alpha-audio',
+          content_sha256: '3333333333333333333333333333333333333333333333333333333333333333',
+          type: 'audio',
+        },
+      },
+    });
+    const voiceover = { id: 'sdk-voiceover', track: 'audio', [assetField]: 'alpha-audio', at: 0.2, from: 0.5, to: 1.5, volume: 0.7 };
+    const secondVoiceover = { id: 'sdk-voiceover-2', track: 'audio', [assetField]: 'alpha-audio', at: 1.5, from: 1, to: 2, volume: 0.35 };
+    const provider = new RuntimeDataProvider({
+      projectId: PROJECT_ID,
+      transport: async (...args) => {
+        const response = await fixtureRuntime.transport(...args);
+        const body = JSON.parse(new TextDecoder().decode(response.body));
+        if (args[1].endsWith('/shots/shot-alpha/revisions/rev-a')) {
+          delete body.payload.audio;
+          delete body.payload.timing;
+          body.payload.generation_inputs = {};
+          body.payload.name = 'Canonical top-level name';
+          body.payload.app = { opaque: { future: true } };
+          body.payload.audio_bindings = [
+            { binding_id: 'vo-1', clip_id: 'sdk-voiceover', asset: 'alpha-audio' },
+            { binding_id: 'vo-2', clip_id: 'sdk-voiceover-2', asset: 'alpha-audio' },
+          ];
+        }
+        if (args[1].endsWith('/revisions/timeline-alpha-a')) {
+          body.payload.tracks = [{ id: 'video', kind: 'visual' }, { id: 'audio', kind: 'audio' }];
+          body.payload.clips.push(voiceover, secondVoiceover);
+        }
+        return { ...response, body: json(body) };
+      },
+    });
+    const raw = await provider.shotComposition.load({ projectId: PROJECT_ID, parentDocumentId: TIMELINE_ID });
+    const composition = createShotCompositionAdapter({ load: async () => raw }).prepare(raw);
+    const alpha = composition.occurrences.find((occurrence) => occurrence.shotId === 'shot-alpha');
+    expect(alpha?.revision.audio).toBeUndefined();
+    expect(alpha?.revision).toMatchObject({
+      name: 'Canonical top-level name',
+      app: { opaque: { future: true } },
+      audio_bindings: [
+        { binding_id: 'vo-1', clip_id: 'sdk-voiceover', asset: 'alpha-audio' },
+        { binding_id: 'vo-2', clip_id: 'sdk-voiceover-2', asset: 'alpha-audio' },
+      ],
+    });
+    const projection = projectCanonicalComposition(composition);
+    const projectedVoiceover = projection.config.clips.find((clip) => clip.id.endsWith(':sdk-voiceover'));
+    expect(projectedVoiceover).toMatchObject({ from: 0.5, to: 1.5, volume: 0.7 });
+    expect(projectedVoiceover?.assetEntry).toMatchObject({ file: 'object-alpha-audio', type: 'audio' });
+    expect(projection.config.clips.find((clip) => clip.id.endsWith(':sdk-voiceover-2')))
+      .toMatchObject({ from: 1, to: 2, volume: 0.35 });
+  });
+
+  it('loads a silent child revision without inventing an audio descriptor', async () => {
+    const fixtureRuntime = fixtureTransport();
+    const provider = new RuntimeDataProvider({
+      projectId: PROJECT_ID,
+      transport: async (...args) => {
+        const response = await fixtureRuntime.transport(...args);
+        const body = JSON.parse(new TextDecoder().decode(response.body));
+        if (args[1].endsWith('/shots/shot-alpha/revisions/rev-a')) delete body.payload.audio;
+        if (args[1].endsWith('/revisions/timeline-alpha-a')) {
+          body.payload.tracks = [{ id: 'video', kind: 'visual' }];
+          body.payload.clips = body.payload.clips.filter((clip: Record<string, unknown>) => clip.track !== 'audio');
+        }
+        return { ...response, body: json(body) };
+      },
+    });
+    const raw = await provider.shotComposition.load({ projectId: PROJECT_ID, parentDocumentId: TIMELINE_ID });
+    const composition = createShotCompositionAdapter({ load: async () => raw }).prepare(raw);
+    expect(composition.occurrences.find((occurrence) => occurrence.shotId === 'shot-alpha')?.revision.audio).toBeUndefined();
+    expect(projectCanonicalComposition(composition).config.clips.some((clip) => clip.track === 'audio')).toBe(false);
+  });
+
   it('publishes the complete Runtime body and reloads the committed graph', async () => {
     const fixtureRuntime = fixtureTransport();
     const provider = new RuntimeDataProvider({ projectId: PROJECT_ID, transport: fixtureRuntime.transport });

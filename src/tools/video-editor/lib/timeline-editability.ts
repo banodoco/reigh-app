@@ -6,7 +6,12 @@
  * serialized as managed metadata. Callers must check this guard again at
  * commit time because a lock may change while a pointer gesture is active.
  */
-export type TimelineEditabilityReason = 'timeline_read_only' | 'clip_locked' | 'track_locked' | 'shot_hard_duration_limit';
+export type TimelineEditabilityReason =
+  | 'timeline_read_only'
+  | 'clip_locked'
+  | 'track_locked'
+  | 'shot_hard_duration_limit'
+  | 'canonical_shot_draft_active';
 
 export interface TimelineEditabilityResult {
   allowed: boolean;
@@ -35,6 +40,30 @@ export interface TimelineEditability {
     start: number;
     duration: number;
   }): TimelineEditabilityResult;
+}
+
+/**
+ * Nested canonical shot publication and parent document saves use different
+ * CAS heads. Freeze parent edits while a nested shot has an unacknowledged
+ * draft so the two writers cannot race each other.
+ */
+export function withCanonicalShotDraftLock(
+  editability: TimelineEditability | undefined,
+  active: boolean,
+): TimelineEditability | undefined {
+  if (!active) return editability;
+
+  const blocked = (): TimelineEditabilityResult => ({
+    allowed: false,
+    reason: 'canonical_shot_draft_active',
+  });
+
+  return {
+    hardDurationSeconds: editability?.hardDurationSeconds,
+    checkTimeline: blocked,
+    check: blocked,
+    checkMove: blocked,
+  };
 }
 
 export interface TimelineEditabilityOptions {

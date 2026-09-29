@@ -1,4 +1,4 @@
-import { ApiError, type ByteResponse, type MediaImport } from './generated.ts';
+import { ApiError, type ByteResponse, type MediaImportOperation as MediaImport } from './generated.ts';
 import {
   ReighRuntimeClient,
   RuntimeAuthenticationError,
@@ -848,18 +848,16 @@ function publicationChangedIdentities(result: RuntimeRecord | null, parentRevisi
   return [...identities];
 }
 
-function canonicalAudio(payload: RuntimeRecord, projectId: string, shotId: string, revisionId: string): RuntimeRecord {
-  const candidate = Array.isArray(payload.audio) ? payload.audio[0] : payload.audio;
-  const audio = candidate && typeof candidate === 'object' && !Array.isArray(candidate)
-    ? candidate as RuntimeRecord
-    : undefined;
+function canonicalAudio(payload: RuntimeRecord): RuntimeRecord | undefined {
+  if (payload.audio === undefined) return undefined;
+  const audio = asRecord(payload.audio);
   if (!audio) {
-    throw new Error(`Workspace Runtime shot revision ${shotId}/${revisionId} has no canonical audio record`);
+    throw new Error('Workspace Runtime shot revision has an invalid legacy audio descriptor');
   }
-  const scope = audio.scope && typeof audio.scope === 'object' && !Array.isArray(audio.scope)
-    ? audio.scope as RuntimeRecord
-    : { project_id: projectId };
-  return { ...audio, scope: { ...scope, project_id: projectId } };
+  // This is a read-only compatibility field. Child timeline clips and
+  // bindings remain playback authority; never synthesize or collapse them
+  // into one aggregate descriptor.
+  return audio;
 }
 
 const SHA256_DIGEST = /^sha256:[0-9a-f]{64}$/i;
@@ -970,6 +968,8 @@ function runtimeGraphToContract(
     const provenance = shotPayload.provenance && typeof shotPayload.provenance === 'object' && !Array.isArray(shotPayload.provenance)
       ? shotPayload.provenance as RuntimeRecord
       : {};
+    const assets = normalizeShotRevisionAssets(projectId, String(shot.shot_id), String(shot.revision_id), shotPayload, timelinePayload);
+    const audio = canonicalAudio(shotPayload);
     return {
       ...shotPayload,
       shot_id: requiredString(shot.shot_id, 'shot revision.shot_id'),
@@ -985,10 +985,10 @@ function runtimeGraphToContract(
         timeline: timelinePayload,
       },
       dependencies: canonicalArray(shotPayload.dependencies),
-      assets: normalizeShotRevisionAssets(projectId, String(shot.shot_id), String(shot.revision_id), shotPayload, timelinePayload),
+      assets,
       generation_inputs: canonicalArray(shotPayload.generation_inputs),
       timing,
-      audio: canonicalAudio(shotPayload, projectId, String(shot.shot_id), String(shot.revision_id)),
+      ...(audio ? { audio } : {}),
       provenance,
     };
   });

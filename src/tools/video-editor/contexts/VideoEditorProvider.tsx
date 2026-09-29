@@ -75,7 +75,10 @@ import type { ProcessManager } from '@/tools/video-editor/runtime/processes/Proc
 import type { SaveStatus } from '@/tools/video-editor/hooks/useTimelinePersistence.ts';
 import type { ResolvedAssetRegistryEntry } from '@/tools/video-editor/types/index.ts';
 import { publishLocalTestExtensionDiagnostics } from '@/app/localTestRuntime.ts';
-import type { TimelineEditability } from '@/tools/video-editor/lib/timeline-editability.ts';
+import {
+  withCanonicalShotDraftLock,
+  type TimelineEditability,
+} from '@/tools/video-editor/lib/timeline-editability.ts';
 import {
   buildExtensionLifecycleOperationalEvents,
   createHostOwnedExtensionOperationalEmitter,
@@ -771,6 +774,10 @@ export function VideoEditorProvider({
   children,
 }: VideoEditorProviderProps) {
   const shotsHost = useReighShotsHost(projectId, timelineId, dataProvider.shotComposition);
+  const effectiveTimelineEditability = useMemo(
+    () => withCanonicalShotDraftLock(timelineEditability, Boolean(shotsHost.canonicalDraft)),
+    [shotsHost.canonicalDraft, timelineEditability],
+  );
   const agentChatRegistry = useAgentChatRegistry();
   const registerAgentChatTimeline = useCallback((value: {
     timelineId: string | null;
@@ -982,8 +989,8 @@ export function VideoEditorProvider({
     recordProcessResultAttach: assembly.recordProcessResultAttach,
     timelineOverlaysEnabled,
     timelineViewStore: assembly.timelineViewStoreRef.current ?? undefined,
-    timelineEditability,
-  }), [agentChatRegistry.unregister, dataProvider, extensionHostEnabled, operationalEmitter, projectId, projectSlug, registerAgentChatTimeline, shotsHost, telemetryHost, timelineId, timelineName, userId, assembly.resolvedExtensionsConfig, assembly.extensionRuntime, assembly.processResultAttachRecords, assembly.processStatuses, assembly.recordProcessResultAttach, assembly.getRecoveryKey, assembly.incrementRecoveryKey, timelineOverlaysEnabled]);
+    timelineEditability: effectiveTimelineEditability,
+  }), [agentChatRegistry.unregister, dataProvider, effectiveTimelineEditability, extensionHostEnabled, operationalEmitter, projectId, projectSlug, registerAgentChatTimeline, shotsHost, telemetryHost, timelineId, timelineName, userId, assembly.resolvedExtensionsConfig, assembly.extensionRuntime, assembly.processResultAttachRecords, assembly.processStatuses, assembly.recordProcessResultAttach, assembly.getRecoveryKey, assembly.incrementRecoveryKey, timelineOverlaysEnabled]);
 
   return (
     <VideoEditorRuntimeProvider value={runtimeValue}>
