@@ -23,7 +23,7 @@ help:
 		'  make bridge-latency-check  Run the GET + warm-save p95 bridge latency gate (self-contained fixture; requires astrid python).' \
 		'  make slot-first-audit     Run M0 slot-first audit-mode tests and gates.' \
 		'  make release-check        Run the full release gate before cutting a deployment.' \
-		'  make prepush              Run the lightweight gate before pushing.' \
+		'  make prepush              Run the local source/build-context gate before pushing (no Docker daemon required).' \
 		'  make install-hooks        Install repo-managed git hooks.' \
 		'  make ci                   Alias for release-check.'
 
@@ -123,6 +123,10 @@ slot-first-test-fixture-legacy:
 
 slot-first-audit: slot-first-unit slot-first-edge slot-first-db slot-first-schema-drift slot-first-test-fixture-legacy slot-first-health slot-first-e2e
 
-prepush: dockerfile-check build-context-check
+# Keep the developer hook fast and usable when Docker Desktop is stopped. The
+# Dockerfile syntax/security gate remains mandatory in CI and release-check;
+# local contributors can run `make dockerfile-check` explicitly when changing
+# container inputs.
+prepush: build-context-check
 
 ci: release-check
