@@ -16,6 +16,7 @@ import {
   type Project,
   type Realm,
   type Task,
+  type TimelineInspectionResult,
   type Transport,
 } from './generated.ts';
 import {
@@ -205,6 +206,19 @@ export class ReighRuntimeClient {
 
   async getProjectTimeline(projectId: string, timelineId: string): Promise<Record<string, unknown>> {
     return this.withSession(() => this.client.getProjectTimeline(projectId, timelineId));
+  }
+
+  /**
+   * Read the Runtime-owned canonical timeline head. Consumers that need the
+   * shot-composition closure must begin here so a mutable legacy timeline
+   * document cannot select the editor's authority by accident.
+   */
+  async inspectTimeline(
+    projectId: string,
+    timelineId: string,
+    options: Record<string, unknown> = {},
+  ): Promise<TimelineInspectionResult> {
+    return this.withSession(() => this.client.inspectTimeline(projectId, timelineId, options)) as Promise<TimelineInspectionResult>;
   }
 
   async publishParentComposition(

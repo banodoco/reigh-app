@@ -120,6 +120,37 @@ function fixtureTransport(options: {
     if (path === '/v1/health') return { status: 200, headers: {}, body: json({ status: 'ok', protocol: 'workspace.v1', schema_digest: RUNTIME_SCHEMA_DIGEST, runtime_epoch: 1 }) };
     if (path === '/v1/handshake') return { status: 200, headers: {}, body: json({ protocol: 'workspace.v1', schema_digest: RUNTIME_SCHEMA_DIGEST, session_id: 'session', actor_id: 'owner', realm_id: 'realm', scopes: ['projects:read', 'projects:write'], capabilities: [RUNTIME_TARGETED_EXECUTION_CAPABILITY] }) };
     if (path === '/v1/realm') return { status: 200, headers: {}, body: json({ realm_id: 'realm', display_name: 'fixture', version: 1, created_at: '2026-09-19T00:00:00Z' }) };
+    if (method === 'POST' && path === `/v1/projects/${PROJECT_ID}/timelines/${TIMELINE_ID}/inspect`) {
+      return {
+        status: 200,
+        headers: {},
+        body: json({
+          schema: 'runtime.timeline.declared_inputs/v1',
+          evidence_kind: 'declared_inputs',
+          render_requested: false,
+          representation: 'canonical_head',
+          authority: 'runtime_parent_composition',
+          project_id: PROJECT_ID,
+          timeline_id: TIMELINE_ID,
+          revision_id: currentHeadRevisionId ?? responses.parent.revision_id,
+          head_revision_id: currentHeadRevisionId,
+          is_current_head: true,
+          parent_content_digest: responses.parent.content_digest,
+          head_content_digest: responses.parent.content_digest,
+          snapshot_digest: 'sha256:fixture-inspection',
+          selectors: {},
+          selection_status: 'selected',
+          target_count: responses.occurrences.length,
+          occurrence_count: responses.occurrences.length,
+          parent_clip_count: 0,
+          parent_clip_target_count: 0,
+          selected_clip_count: 0,
+          selected: [],
+          selected_parent_clips: [],
+          next_cursor: null,
+        }),
+      };
+    }
     if (method === 'GET' && path === `/v1/projects/${PROJECT_ID}/timelines/${TIMELINE_ID}`) return { status: 200, headers: {}, body: json({ timeline_id: TIMELINE_ID, project_id: PROJECT_ID, version: 1, head_revision_id: currentHeadRevisionId, archived: false, shots: [], references: [] }) };
     const compositionRevisionId = path.match(/\/composition-revisions\/([^/]+)$/)?.[1];
     if (compositionRevisionId && committedParents.has(compositionRevisionId)) {
@@ -262,12 +293,34 @@ describe('Runtime shot-composition port', () => {
 
     expect(loaded).toMatchObject({ project: { project_id: PROJECT_ID, document_id: TIMELINE_ID }, primary_timeline: { head: { revision_id: 'timeline-rev-2' } } });
     expect(fixtureRuntime.requests.map(({ method, path }) => `${method} ${path}`).filter((value) => value.includes('/timelines/') || value.includes('/revisions/'))).toEqual(expect.arrayContaining([
-      `GET /v1/projects/${PROJECT_ID}/timelines/${TIMELINE_ID}`,
+      `POST /v1/projects/${PROJECT_ID}/timelines/${TIMELINE_ID}/inspect`,
       `GET /v1/projects/${PROJECT_ID}/timelines/${TIMELINE_ID}/composition-revisions/timeline-rev-2`,
       `GET /v1/projects/${PROJECT_ID}/shots/shot-alpha/revisions/rev-a`,
       `GET /v1/projects/${PROJECT_ID}/timelines/${TIMELINE_ID}/revisions/timeline-alpha-a`,
     ]));
+    expect(fixtureRuntime.requests.some(({ method, path }) => method === 'GET' && path === `/v1/projects/${PROJECT_ID}/timelines/${TIMELINE_ID}`)).toBe(false);
     expect(fixtureRuntime.requests.some(({ path }) => path.includes('/documents/'))).toBe(false);
+  });
+
+  it('fails closed on a non-canonical inspection without consulting the mutable timeline resource', async () => {
+    const fixtureRuntime = fixtureTransport();
+    const provider = new RuntimeDataProvider({
+      projectId: PROJECT_ID,
+      transport: async (...args) => {
+        const response = await fixtureRuntime.transport(...args);
+        if (args[1].endsWith(`/timelines/${TIMELINE_ID}/inspect`)) {
+          const body = JSON.parse(new TextDecoder().decode(response.body)) as Record<string, unknown>;
+          return { ...response, body: json({ ...body, representation: 'canonical_revision', is_current_head: false }) };
+        }
+        return response;
+      },
+    });
+
+    await expect(provider.shotComposition.load({ projectId: PROJECT_ID, parentDocumentId: TIMELINE_ID }))
+      .rejects.toThrow('instead of canonical_head');
+    expect(fixtureRuntime.requests.some(({ method, path }) => (
+      method === 'GET' && path === `/v1/projects/${PROJECT_ID}/timelines/${TIMELINE_ID}`
+    ))).toBe(false);
   });
 
   it('normalizes child timeline assets into the pinned revision at the Runtime boundary', async () => {

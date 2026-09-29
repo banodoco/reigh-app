@@ -22,7 +22,7 @@ import type {
   TimelineConfig,
 } from '@/tools/video-editor/types/index.ts';
 import type { GenerationRow } from '@/domains/generation/types/index.ts';
-import type { Transport } from './generated.ts';
+import type { TimelineInspectionResult, Transport } from './generated.ts';
 import type {
   AssetResolveRequest,
   AssetUploadRequest,
@@ -87,13 +87,27 @@ export class RuntimeDataProvider implements DataProvider {
       try {
         assertGraphRequestIdentity(request.graph, request.projectId, request.parentDocumentId);
         const headReadStartedAt = import.meta.env.DEV ? performance.now() : 0;
-        const timeline = await this.client.getProjectTimeline(request.projectId, request.parentDocumentId);
+        // A null expected head is an explicit first publication, so there is
+        // no existing head to inspect. Every non-null head is still checked
+        // through the canonical inspection contract before publishing.
+        const inspection = request.expectedHeadRevisionId === null
+          ? null
+          : await this.inspectCanonicalTimelineHead(request.projectId, request.parentDocumentId);
         this.logShotTimelineLatency('runtime-head-read', headReadStartedAt, request.timingTraceId);
-        assertRuntimeIdentity(timeline, request.projectId, request.parentDocumentId, 'timeline');
         // Do not reject a retry merely because the mutable head has advanced:
         // Runtime checks durable idempotency replay before its CAS comparison.
         // A new key still receives the Runtime's explicit stale-head 409.
-        nullableString(timeline.head_revision_id, 'timeline.head_revision_id');
+        if (inspection) {
+          const currentHead = nullableString(
+            inspection.head_revision_id,
+            'canonical timeline inspection.head_revision_id',
+          );
+          if (currentHead === null) {
+            throw new ShotCompositionUnavailableError(
+              `Workspace Runtime timeline ${request.parentDocumentId} has no published canonical shot-composition head`,
+            );
+          }
+        }
         const publication = await toRuntimePublication(request.graph, request.projectId, request.parentDocumentId, request.expectedHeadRevisionId);
         const idempotencyKey = request.idempotencyKey ?? await stablePublicationKey(
           request.projectId,
@@ -163,9 +177,8 @@ export class RuntimeDataProvider implements DataProvider {
 
   private async loadRuntimeShotComposition(projectId: string, timelineId: string): Promise<unknown> {
     const startedAt = import.meta.env.DEV ? performance.now() : 0;
-    const timeline = await this.client.getProjectTimeline(projectId, timelineId);
-    assertRuntimeIdentity(timeline, projectId, timelineId, 'timeline');
-    const headRevisionId = nullableString(timeline.head_revision_id, 'timeline.head_revision_id');
+    const inspection = await this.inspectCanonicalTimelineHead(projectId, timelineId);
+    const headRevisionId = nullableString(inspection.head_revision_id, 'canonical timeline inspection.head_revision_id');
     if (headRevisionId === null) {
       throw new ShotCompositionUnavailableError(
         `Workspace Runtime timeline ${timelineId} has no published canonical shot-composition head`,
@@ -174,6 +187,52 @@ export class RuntimeDataProvider implements DataProvider {
     const graph = await this.loadRuntimeShotCompositionAtHead({ projectId, parentDocumentId: timelineId, headRevisionId });
     this.logShotTimelineLatency('runtime-composition-load', startedAt);
     return graph;
+  }
+
+  /**
+   * Resolve the current immutable composition head through Runtime's typed
+   * inspection contract. The legacy timeline resource is deliberately not a
+   * head-discovery fallback: it is a mutable document and may describe a
+   * different shell than the canonical shot composition.
+   */
+  private async inspectCanonicalTimelineHead(
+    projectId: string,
+    timelineId: string,
+  ): Promise<TimelineInspectionResult> {
+    const inspection = await this.client.inspectTimeline(projectId, timelineId);
+    if (inspection.project_id !== projectId) {
+      throw new Error(
+        `Workspace Runtime canonical timeline inspection belongs to project ${String(inspection.project_id)}, not ${projectId}`,
+      );
+    }
+    if (inspection.timeline_id !== timelineId) {
+      throw new Error(
+        `Workspace Runtime canonical timeline inspection belongs to timeline ${String(inspection.timeline_id)}, not ${timelineId}`,
+      );
+    }
+    if (inspection.representation !== 'canonical_head') {
+      throw new Error(
+        `Workspace Runtime canonical timeline inspection returned ${String(inspection.representation)} instead of canonical_head`,
+      );
+    }
+    if (inspection.authority !== 'runtime_parent_composition') {
+      throw new Error(
+        `Workspace Runtime canonical timeline inspection returned authority ${String(inspection.authority)}`,
+      );
+    }
+    if (inspection.is_current_head !== true) {
+      throw new Error('Workspace Runtime canonical timeline inspection is not the current head');
+    }
+    const headRevisionId = nullableString(
+      inspection.head_revision_id,
+      'canonical timeline inspection.head_revision_id',
+    );
+    if (headRevisionId !== null && inspection.revision_id !== headRevisionId) {
+      throw new Error(
+        `Workspace Runtime canonical timeline inspection revision ${inspection.revision_id} does not match head ${headRevisionId}`,
+      );
+    }
+    return inspection;
   }
 
   private logShotTimelineLatency(phase: string, startedAt: number, traceId?: string): void {
