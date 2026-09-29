@@ -10,6 +10,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { homedir } from 'node:os';
 import { resolve } from 'node:path';
+import { readGeneratedSchemaDigest, schemaDigestMismatch } from './runtime-schema-guard.mjs';
 
 const configuredAstridCheckout = process.env.ASTRID_CHECKOUT?.trim();
 const siblingAstridCheckout = resolve(process.cwd(), '..', 'Astrid');
@@ -26,6 +27,7 @@ const checkOnly = process.argv.includes('--check');
 const paired = process.argv.includes('--paired');
 const resetPairing = process.argv.includes('--reset-pairing');
 const pairedRelayOrigin = process.env.REIGH_PAIRED_RELAY_ORIGIN?.trim();
+const generatedMetadataPath = resolve(process.cwd(), 'src/integrations/runtime/generated-contract-metadata.ts');
 
 function fail(message) {
   console.error(`dev:local: ${message}`);
@@ -79,6 +81,13 @@ function requireLoopbackEndpoint(raw) {
 }
 
 async function verifyRuntime(endpoint, token) {
+  let expectedSchemaDigest;
+  try {
+    expectedSchemaDigest = readGeneratedSchemaDigest(generatedMetadataPath);
+  } catch (error) {
+    return fail(error instanceof Error ? error.message : String(error));
+  }
+
   try {
     const response = await fetch(new URL('/v1/health', endpoint), {
       headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
@@ -89,6 +98,8 @@ async function verifyRuntime(endpoint, token) {
     if (health?.status !== 'ok' || health?.protocol !== 'workspace.v1') {
       return fail('runtime health check did not report workspace.v1/ok');
     }
+    const digestError = schemaDigestMismatch(health?.schema_digest, expectedSchemaDigest);
+    if (digestError) return fail(digestError);
     return true;
   } catch (error) {
     return fail(`runtime is unavailable at ${endpoint.origin} (run banodoco-local up --profile astrid): ${error instanceof Error ? error.message : String(error)}`);

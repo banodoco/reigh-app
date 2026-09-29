@@ -258,15 +258,15 @@ describe('ReighRuntimeClient canonical Runtime reads and browser task seam', () 
     await expect(client.ensureSession()).rejects.toMatchObject({ code: 'runtime_incompatible' });
   });
 
-  it('accepts the additive local Astrid Runtime contract', async () => {
+  it('fails closed on a stale additive Runtime contract', async () => {
     const fixture = createTransport({
       schemaDigest: 'sha256:5da488052a7a281a4ce9c9336e19cdf0bf840ed211d244dd101e8326cb9d4f00',
     });
     const client = new ReighRuntimeClient({ baseUrl: 'http://runtime.test', transport: fixture.transport });
 
-    await expect(client.ensureSession()).resolves.toMatchObject({
-      health: { schema_digest: 'sha256:5da488052a7a281a4ce9c9336e19cdf0bf840ed211d244dd101e8326cb9d4f00' },
-      handshake: { schema_digest: 'sha256:5da488052a7a281a4ce9c9336e19cdf0bf840ed211d244dd101e8326cb9d4f00' },
+    await expect(client.ensureSession()).rejects.toMatchObject({
+      name: 'RuntimeCompatibilityError',
+      code: 'runtime_incompatible',
     });
   });
 
