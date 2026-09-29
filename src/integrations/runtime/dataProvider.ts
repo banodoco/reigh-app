@@ -271,26 +271,23 @@ export class RuntimeDataProvider implements DataProvider {
       assertRevisionIdentity(shot, revisionId, 'shot revision');
       if (shot.shot_id !== shotId) throw new Error(`Runtime shot revision identity mismatch: requested ${shotId}, got ${String(shot.shot_id)}`);
       const internalRevisionId = requiredString(shot.internal_timeline_revision_id, `shot revision ${revisionId}.internal_timeline_revision_id`);
-      const candidateScopes = [
-        typeof shot.timeline_id === 'string' && shot.timeline_id.length > 0 ? shot.timeline_id : undefined,
-        timelineId,
-        `shot:${shotId}`,
-      ].filter((scope, index, scopes): scope is string => Boolean(scope) && scopes.indexOf(scope) === index);
-      let internalTimelineScope: string | undefined;
-      let internal: RuntimeRecord | undefined;
-      let lastNotFound: ApiError | undefined;
-      for (const candidateScope of candidateScopes) {
-        try {
-          internal = await this.client.getProjectTimelineRevision(projectId, candidateScope, internalRevisionId);
-          internalTimelineScope = candidateScope;
-          break;
-        } catch (error) {
-          if (!(error instanceof ApiError) || error.status !== 404) throw error;
-          lastNotFound = error;
+      // The shot revision may carry the canonical immutable timeline scope;
+      // otherwise the parent timeline is the only admitted scope. A missing
+      // revision is a hard availability failure. Do not probe synthetic
+      // `shot:<id>` scopes, which can revive the retired child-timeline path.
+      const internalTimelineScope = typeof shot.timeline_id === 'string' && shot.timeline_id.length > 0
+        ? shot.timeline_id
+        : timelineId;
+      let internal: RuntimeRecord;
+      try {
+        internal = await this.client.getProjectTimelineRevision(projectId, internalTimelineScope, internalRevisionId);
+      } catch (error) {
+        if (error instanceof ApiError && error.status === 404) {
+          throw new ShotCompositionUnavailableError(
+            `Workspace Runtime canonical internal timeline revision ${internalRevisionId} is unavailable at scope ${internalTimelineScope}`,
+          );
         }
-      }
-      if (!internal || !internalTimelineScope) {
-        throw lastNotFound ?? new Error(`Workspace Runtime internal timeline revision ${internalRevisionId} was not found`);
+        throw error;
       }
       assertRuntimeIdentity(internal, projectId, internalTimelineScope, 'internal timeline revision');
       assertRevisionIdentity(internal, internalRevisionId, 'internal timeline revision');

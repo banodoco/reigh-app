@@ -96,7 +96,7 @@ function runtimeResponses(options: {
 function fixtureTransport(options: {
   conflict?: boolean;
   initialHeadRevisionId?: string | null;
-  legacyInternalScope?: boolean;
+  internalRevisionUnavailable?: boolean;
   childAssets?: Record<string, Record<string, unknown>>;
   manifestAudioAsset?: boolean;
   commitThenLoseFirstResponse?: boolean;
@@ -162,15 +162,9 @@ function fixtureTransport(options: {
       return { status: 200, headers: {}, body: json(committedShots.get(`${shotId}\u0000${revisionId}`) ?? responses.shots.get(`${shotId}\u0000${revisionId}`)) };
     }
     if (path.startsWith(`/v1/projects/${PROJECT_ID}/timelines/${TIMELINE_ID}/revisions/`)) {
-      if (options.legacyInternalScope) return { status: 404, headers: {}, body: json({ code: 'not_found', message: 'legacy child scope' }) };
+      if (options.internalRevisionUnavailable) return { status: 404, headers: {}, body: json({ code: 'not_found', message: 'canonical internal revision unavailable' }) };
       const revisionId = path.split('/').pop() ?? '';
       return { status: 200, headers: {}, body: json(committedInternals.get(revisionId) ?? responses.internals.get(revisionId)) };
-    }
-    if (path.startsWith(`/v1/projects/${PROJECT_ID}/timelines/${encodeURIComponent('shot:')}`)) {
-      const match = path.match(/\/timelines\/shot%3A([^/]+)\/revisions\/([^/]+)$/);
-      if (!match) throw new Error(`unexpected legacy internal path ${path}`);
-      const revision = responses.internals.get(decodeURIComponent(match[2]));
-      return { status: 200, headers: {}, body: json({ ...revision, timeline_id: `shot:${decodeURIComponent(match[1])}` }) };
     }
     if (method === 'POST' && path === `/v1/projects/${PROJECT_ID}/timelines/${TIMELINE_ID}/composition-revisions`) {
       if (options.commitThenLoseFirstResponse) {
@@ -530,17 +524,18 @@ describe('Runtime shot-composition port', () => {
     expect(publication).toMatchObject({ expected_head: null });
   });
 
-  it('falls back to the legacy shot timeline scope for immutable internal revisions', async () => {
-    const fixtureRuntime = fixtureTransport({ legacyInternalScope: true });
+  it('fails closed when the canonical immutable internal revision is unavailable', async () => {
+    const fixtureRuntime = fixtureTransport({ internalRevisionUnavailable: true });
     const provider = new RuntimeDataProvider({ projectId: PROJECT_ID, transport: fixtureRuntime.transport });
 
-    await provider.shotComposition.load({ projectId: PROJECT_ID, parentDocumentId: TIMELINE_ID });
+    await expect(provider.shotComposition.load({ projectId: PROJECT_ID, parentDocumentId: TIMELINE_ID }))
+      .rejects.toThrow(/canonical internal timeline revision .* unavailable/);
 
     const internalReads = fixtureRuntime.requests
       .map(({ method, path }) => `${method} ${path}`)
       .filter((value) => value.includes('/revisions/'));
     expect(internalReads.some((value) => value.includes(`/timelines/${TIMELINE_ID}/revisions/`))).toBe(true);
-    expect(internalReads.some((value) => value.includes('/timelines/shot%3A'))).toBe(true);
+    expect(internalReads.some((value) => value.includes('/timelines/shot%3A'))).toBe(false);
     expect(fixtureRuntime.requests.some(({ path }) => path.includes('/documents/') || path.startsWith('/v1/timelines/'))).toBe(false);
   });
 
