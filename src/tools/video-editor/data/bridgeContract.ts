@@ -56,6 +56,13 @@ const jsonObject = z.looseObject({});
 /** Runtime-owned sha256 identity for CAS objects and capability definitions. */
 export const runtimeSha256IdSchema = z.string().regex(/^sha256:[0-9a-f]{64}$/);
 
+/** Runtime-owned thumbnail associated with a source object. */
+export const runtimeThumbnailDescriptorSchema = z.looseObject({
+  object_id: runtimeSha256IdSchema,
+  source_object_id: runtimeSha256IdSchema,
+  recipe_version: z.number().int().positive(),
+});
+
 export const runtimeManagedObjectSchema = z.strictObject({
   object_id: runtimeSha256IdSchema,
   digest: runtimeSha256IdSchema,
@@ -509,6 +516,7 @@ export const runtimeVariantResourceSchema = z.looseObject({
   object_id: runtimeSha256IdSchema.nullable(),
   variant_type: z.string().min(1),
   metadata: jsonObject,
+  thumbnail: runtimeThumbnailDescriptorSchema.nullable().optional(),
   created_at: z.string().min(1),
 });
 
@@ -586,6 +594,7 @@ export const bridgeGenerationVariantSchema = z.looseObject({
   media_id: z.string(),
   /** Runtime CAS identity when the bridge exposes lineage custody. */
   object_id: runtimeSha256IdSchema.optional(),
+  thumbnail: runtimeThumbnailDescriptorSchema.nullable().optional(),
   variant_type: z.string().nullable().optional(),
   name: z.string().nullable().optional(),
   params: jsonObject.optional(),

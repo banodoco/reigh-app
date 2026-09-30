@@ -18,6 +18,11 @@ interface RawGenerationRecord {
   type?: string | null;
   params?: Record<string, unknown> | null;
   variantId?: string | null;
+  thumbnail?: {
+    object_id: string;
+    source_object_id: string;
+    recipe_version: number;
+  } | null;
 }
 
 export interface GenerationAssetDiagnostic {
@@ -89,6 +94,7 @@ async function fetchGenerationMedia(
     type: asNullableString(detail.type),
     params: asRecord(detail.params),
     variantId: primary?.id ?? null,
+    thumbnail: primary?.thumbnail ?? null,
   };
 }
 
@@ -225,6 +231,18 @@ export async function resolveGenerationAsset(
   const resolvedUrl = bridgeMediaUrl(projectSlug, rawGeneration.mediaId);
   const mediaType = inferMediaType(rawGeneration, currentEntry);
   const mimeType = inferMimeType(mediaType, currentEntry);
+  const variantThumbnail = rawGeneration.thumbnail?.source_object_id === rawGeneration.mediaId
+    ? bridgeMediaUrl(projectSlug, rawGeneration.thumbnail.object_id)
+    : undefined;
+  const suppliedThumbnail = trimToUndefined(currentEntry?.thumbnailUrl);
+  const suppliedThumbnailIsSource = suppliedThumbnail !== undefined && [
+    resolvedUrl,
+    trimToUndefined(currentEntry?.url),
+    trimToUndefined(currentEntry?.file),
+  ].includes(suppliedThumbnail);
+  const thumbnailUrl = variantThumbnail
+    ?? (mediaType === 'image' ? resolvedUrl : undefined)
+    ?? (!suppliedThumbnailIsSource ? suppliedThumbnail : undefined);
   const params = rawGeneration.params ?? {};
   const duration = firstFiniteNumber(
     currentEntry?.duration,
@@ -248,11 +266,12 @@ export async function resolveGenerationAsset(
     origin: 'refreshable-from-generation',
     generationId: options.generationId,
     ...(rawGeneration.variantId ? { variantId: rawGeneration.variantId } : {}),
-    thumbnailUrl: resolvedUrl,
+    ...(thumbnailUrl ? { thumbnailUrl } : {}),
     ...(typeof duration === 'number' ? { duration } : {}),
     ...(resolution ? { resolution } : {}),
     ...(typeof fps === 'number' ? { fps } : {}),
   };
+  if (!thumbnailUrl) delete entry.thumbnailUrl;
 
   return {
     ok: true,
@@ -260,7 +279,7 @@ export async function resolveGenerationAsset(
       entry,
       generationId: options.generationId,
       url: resolvedUrl,
-      thumbnailUrl: resolvedUrl,
+      ...(thumbnailUrl ? { thumbnailUrl } : {}),
       mediaType,
       mimeType,
     },

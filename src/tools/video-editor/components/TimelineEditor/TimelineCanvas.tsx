@@ -45,7 +45,7 @@ import { TimelineDurationGuide } from '@/tools/video-editor/components/TimelineE
 import { VideoEditorRuntimeContext } from '@/tools/video-editor/contexts/VideoEditorRuntimeContext.tsx';
 import type { TimelineGhostEntry } from '@/tools/video-editor/types/timeline-canvas.ts';
 import { useClipResizeGesture } from '@/tools/video-editor/hooks/useClipResizeGesture.ts';
-import { shotGroupVideoKey, type ShotGroup } from '@/tools/video-editor/hooks/useShotGroups.ts';
+import { shotGroupEndSeconds, shotGroupVideoKey, type ShotGroup } from '@/tools/video-editor/hooks/useShotGroups.ts';
 import type { CanonicalShotOccurrence } from '@/tools/video-editor/data/shotCompositionAdapter.ts';
 import { useTimelineEditorDataSafe, useTimelineMutableAdapters } from '@/tools/video-editor/hooks/timelineStore.ts';
 import { useDataLanes } from '@/tools/video-editor/data-kinds/useDataLanes.ts';
@@ -547,6 +547,13 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
     (rowMax, action) => Math.max(rowMax, resizePreviewSnapshot[action.id]?.end ?? action.end),
     currentMax,
   ), 0), [resizePreviewSnapshot, rows]);
+  const maxShotGroupEnd = useMemo(() => shotGroups.reduce(
+    (currentMax, group) => Math.max(
+      currentMax,
+      resizePreviewSnapshot[`${group.shotId}:${group.rowId}`]?.end ?? shotGroupEndSeconds(group),
+    ),
+    0,
+  ), [resizePreviewSnapshot, shotGroups]);
   const proposedMaxClipEnd = useMemo(() => {
     if (dragPreview) {
       const draggedIds = new Set(dragPreview.clipIds);
@@ -560,7 +567,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
     // same proposed boundary line while that transient snapshot is active.
     return Object.keys(resizePreviewSnapshot).length > 0 ? maxClipEnd : undefined;
   }, [dragPreview, maxClipEnd, resizePreviewSnapshot, rows]);
-  const maxEnd = Math.max(maxClipEnd, maxDataLaneEnd);
+  const maxEnd = Math.max(maxClipEnd, maxDataLaneEnd, maxShotGroupEnd);
   const dataLaneScaleCount = Math.ceil(
     maxDataLaneEnd / Math.max(scale, Number.EPSILON),
   ) + 1;
@@ -722,6 +729,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
         hasManagedOutput: Boolean(finalVideo && typeof finalVideo === 'object' && (finalVideo as { managedOutput?: unknown }).managedOutput),
         hasStaleVideo: staleShotGroupIds?.has(`${group.shotId}:${group.rowId}`) ?? false,
         hasActiveTask: activeTaskClipIds ? group.clipIds.some((id) => activeTaskClipIds.has(id)) : false,
+        ...(group.thumbnailSrc ? { thumbnailSrc: group.thumbnailSrc } : {}),
         left: timeToPixel(start),
         top: group.rowIndex * rowHeight + ACTION_VERTICAL_MARGIN,
         width: Math.max((end - start) * pixelsPerSecond, 1),

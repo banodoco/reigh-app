@@ -4,7 +4,13 @@ import { describe, expect, it } from 'vitest';
 import type { TimelineShotGroupView } from '@/tools/video-editor/lib/timeline-domain';
 import type { TimelineAction, TimelineRow } from '@/tools/video-editor/types/timeline-canvas';
 import type { CanonicalShotOccurrence } from '@/tools/video-editor/data/shotCompositionAdapter';
-import { getShotColor, projectCanonicalShotRows, useShotGroups } from './useShotGroups';
+import {
+  canonicalShotThumbnailUrl,
+  getShotColor,
+  maxShotGroupEndSeconds,
+  projectCanonicalShotRows,
+  useShotGroups,
+} from './useShotGroups';
 
 function buildAction(id: string, start: number, end: number): TimelineAction {
   return { id, start, end, effectId: `effect-${id}` };
@@ -41,6 +47,60 @@ function buildGroup(
 }
 
 describe('useShotGroups', () => {
+  it('resolves the first authored canonical image as the group thumbnail', () => {
+    const occurrence = {
+      projectId: 'project-1',
+      occurrenceId: 'occ-1',
+      parentDocumentId: 'timeline-1',
+      shotId: 'shot-1',
+      revisionId: 'rev-1',
+      ordinal: 0,
+      atMs: 0,
+      durationMs: 2_000,
+      stableDeepLink: 'project/project-1/document/timeline-1/shot/shot-1/revision/rev-1/occurrence/occ-1',
+      outputIdentity: 'project/project-1/timeline-1/occ-1',
+      revision: {
+        assets: [{
+          asset_id: 'hero',
+          object_id: 'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+          media_type: 'image/png',
+        }],
+        internal_timeline_revision: {
+          timeline: { clips: [{ asset_id: 'hero', clip_type: 'image', at_ms: 0, duration_ms: 2_000 }] },
+        },
+      },
+    } satisfies CanonicalShotOccurrence;
+
+    expect(canonicalShotThumbnailUrl(occurrence)).toBe(
+      '/api/astrid/v1/objects/sha256%3Aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    );
+    const { result } = renderHook(() => useShotGroups([{ id: 'V1', actions: [] }], [], [occurrence]));
+    expect(result.current[0]?.thumbnailSrc).toContain('/api/astrid/v1/objects/');
+  });
+
+  it('does not treat a video object as an image without an explicit poster', () => {
+    const occurrence = {
+      projectId: 'project-1', occurrenceId: 'occ-1', parentDocumentId: 'timeline-1',
+      shotId: 'shot-1', revisionId: 'rev-1', ordinal: 0, atMs: 0, durationMs: 2_000,
+      stableDeepLink: 'shot/occ-1', outputIdentity: 'output-1',
+      revision: {
+        assets: [{ asset_id: 'video', object_id: 'video-object', media_type: 'video/mp4' }],
+        internal_timeline_revision: { timeline: { clips: [{ asset_id: 'video', clip_type: 'media', at_ms: 0, duration_ms: 2_000 }] } },
+      },
+    } satisfies CanonicalShotOccurrence;
+
+    expect(canonicalShotThumbnailUrl(occurrence)).toBeUndefined();
+  });
+
+  it('uses canonical shot ends when computing the shared timeline extent', () => {
+    expect(maxShotGroupEndSeconds([
+      {
+        shotId: 'shot-1', shotName: 'Shot 1', rowId: 'V1', rowIndex: 0, start: 0, end: 44,
+        clipIds: [], children: [], color: '#fff', poolGenerationIds: [], variantIdsByGenerationId: {},
+      },
+    ])).toBe(44);
+  });
+
   it('prefers the occurrence track when another full-length row overlaps it', () => {
     const rows: TimelineRow[] = [
       { id: 'frame', actions: [buildAction('frame-overlay', 0, 120)] },

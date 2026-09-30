@@ -218,7 +218,9 @@ export class ReighRuntimeClient {
     timelineId: string,
     options: Record<string, unknown> = {},
   ): Promise<TimelineInspectionResult> {
-    return this.withSession(() => this.client.inspectTimeline(projectId, timelineId, options)) as Promise<TimelineInspectionResult>;
+    return this.withSession(async () => (
+      await this.client.inspectTimeline(projectId, timelineId, options)
+    ) as unknown as TimelineInspectionResult);
   }
 
   async publishParentComposition(
@@ -369,6 +371,34 @@ export class ReighRuntimeClient {
       destinationFilename,
       idempotencyKey(),
       expected,
+    ));
+  }
+
+  /** Read a Runtime-owned thumbnail selected from a source video frame. */
+  async getSourceFrameThumbnail(
+    projectId: string,
+    sourceObjectId: string,
+    sourceTimeSeconds: number,
+    recipeVersion = 1,
+  ): Promise<Record<string, unknown> | null> {
+    return this.withSession(() => this.client.getSourceFrameThumbnail(
+      projectId,
+      sourceObjectId,
+      sourceTimeSeconds,
+      recipeVersion,
+    ));
+  }
+
+  /** Ensure a typed source-frame thumbnail relation exists, idempotently. */
+  async ensureSourceFrameThumbnail(
+    projectId: string,
+    thumbnail: Record<string, unknown>,
+    idempotencyKeyValue: string,
+  ): Promise<MutationResult<Record<string, unknown>>> {
+    return this.withSession(() => this.client.ensureSourceFrameThumbnail(
+      projectId,
+      thumbnail,
+      idempotencyKeyValue,
     ));
   }
 

@@ -1,13 +1,87 @@
 import { useMemo } from 'react';
+import { bridgeMediaUrl } from '@/shared/lib/media/bridgeMediaUrl.ts';
 import type { TimelineShotGroupView } from '@/tools/video-editor/lib/timeline-domain.ts';
 import type { TimelineRow } from '@/tools/video-editor/types/timeline-canvas.ts';
 import type { CanonicalShotOccurrence } from '@/tools/video-editor/data/shotCompositionAdapter.ts';
 import {
+  isActiveTimelineClip,
   timelineOccurrenceContentExtentMs,
   timelineOccurrenceEffectiveDurationMs,
 } from '@/tools/video-editor/data/shotCompositionTiming.ts';
 
 const SHOT_COLORS = ['#a855f7', '#ef4444', '#22c55e', '#3b82f6', '#f59e0b', '#14b8a6', '#ec4899', '#84cc16'];
+
+type JsonObject = Record<string, unknown>;
+
+function record(value: unknown): JsonObject | null {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+    ? value as JsonObject
+    : null;
+}
+
+function text(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim().length > 0 ? value : undefined;
+}
+
+function mediaType(value: unknown): 'image' | 'video' | 'audio' | undefined {
+  const normalized = text(value)?.toLowerCase();
+  if (!normalized) return undefined;
+  if (normalized === 'image' || normalized.startsWith('image/')) return 'image';
+  if (normalized === 'video' || normalized.startsWith('video/')) return 'video';
+  if (normalized === 'audio' || normalized.startsWith('audio/')) return 'audio';
+  return undefined;
+}
+
+function posterObjectId(asset: JsonObject): string | undefined {
+  const thumbnail = record(asset.thumbnail);
+  const poster = record(asset.poster);
+  return text(asset.thumbnail_object_id)
+    ?? text(asset.poster_object_id)
+    ?? text(asset.thumbnail_id)
+    ?? text(thumbnail?.object_id)
+    ?? text(thumbnail?.media_id)
+    ?? text(poster?.object_id)
+    ?? text(poster?.media_id);
+}
+
+/**
+ * Pick the first authored visual asset for a canonical occurrence. The parent
+ * timeline intentionally has no editable child actions for canonical shots,
+ * so its ordinary clip thumbnail path cannot see these assets.
+ */
+export function canonicalShotThumbnailUrl(
+  occurrence: CanonicalShotOccurrence,
+  sourceFrameThumbnailUrls?: ReadonlyMap<string, string>,
+): string | undefined {
+  const sourceFrameUrl = sourceFrameThumbnailUrls?.get(occurrence.occurrenceId);
+  if (sourceFrameUrl) return sourceFrameUrl;
+  const revision = record(occurrence.revision);
+  const internal = record(revision?.internal_timeline_revision);
+  const timeline = record(internal?.timeline);
+  const assets = new Map<string, JsonObject>();
+  for (const rawAsset of Array.isArray(revision?.assets) ? revision.assets : []) {
+    const asset = record(rawAsset);
+    const assetId = text(asset?.asset_id);
+    if (asset && assetId) assets.set(assetId, asset);
+  }
+  for (const rawClip of Array.isArray(timeline?.clips) ? timeline.clips : []) {
+    if (!isActiveTimelineClip(rawClip)) continue;
+    const clip = record(rawClip);
+    if (!clip) continue;
+    const asset = assets.get(text(clip.asset_id) ?? text(clip.asset) ?? '');
+    if (!asset) continue;
+    const kind = mediaType(asset.media_type) ?? mediaType(asset.type) ?? mediaType(clip.clip_type) ?? mediaType(clip.clipType);
+    if (kind === 'image') {
+      const objectId = text(asset.object_id) ?? text(asset.media_id);
+      return objectId ? bridgeMediaUrl(occurrence.projectId, objectId) : undefined;
+    }
+    if (kind === 'video') {
+      const objectId = posterObjectId(asset);
+      return objectId ? bridgeMediaUrl(occurrence.projectId, objectId) : undefined;
+    }
+  }
+  return undefined;
+}
 
 export interface ShotGroup {
   shotId: string;
@@ -24,7 +98,21 @@ export interface ShotGroup {
   variantIdsByGenerationId: Readonly<Record<string, string>>;
   finalVideoAssetKey?: string;
   derivedFrom?: Readonly<{ shotId: string; trackId: string }>;
+  /** Representative visual for canonical groups with no parent clip action. */
+  thumbnailSrc?: string;
   canonicalIdentity?: CanonicalShotOccurrence;
+}
+
+export function shotGroupEndSeconds(group: Pick<ShotGroup, 'start' | 'end' | 'children'>): number {
+  if (typeof group.end === 'number' && Number.isFinite(group.end)) return Math.max(group.start, group.end);
+  return group.children.reduce(
+    (maximum, child) => Math.max(maximum, group.start + child.offset + child.duration),
+    group.start,
+  );
+}
+
+export function maxShotGroupEndSeconds(groups: readonly ShotGroup[]): number {
+  return groups.reduce((maximum, group) => Math.max(maximum, shotGroupEndSeconds(group)), 0);
 }
 
 export function shotGroupVideoKey(group: Pick<ShotGroup, 'shotId' | 'canonicalIdentity'>): string {
@@ -88,6 +176,7 @@ export function useShotGroups(
   rows: TimelineRow[],
   documentGroups: readonly TimelineShotGroupView[],
   canonicalOccurrences: readonly CanonicalShotOccurrence[] = [],
+  sourceFrameThumbnailUrls?: ReadonlyMap<string, string>,
 ): ShotGroup[] {
   return useMemo(() => {
     if (canonicalOccurrences.length > 0) {
@@ -150,6 +239,7 @@ export function useShotGroups(
             offset: action.start - start,
             duration: action.end - action.start,
           })) ?? [];
+        const thumbnailSrc = canonicalShotThumbnailUrl(effectiveOccurrence, sourceFrameThumbnailUrls);
         return {
           shotId: occurrence.shotId,
           shotName: shotNameForOccurrence(occurrence),
@@ -163,6 +253,7 @@ export function useShotGroups(
           mode: 'images' as const,
           poolGenerationIds: [],
           variantIdsByGenerationId: Object.freeze({}),
+          ...(thumbnailSrc ? { thumbnailSrc } : {}),
           canonicalIdentity: effectiveOccurrence,
         } satisfies ShotGroup;
       });
@@ -228,7 +319,7 @@ export function useShotGroups(
       });
     }
     return result;
-  }, [canonicalOccurrences, documentGroups, rows]);
+  }, [canonicalOccurrences, documentGroups, rows, sourceFrameThumbnailUrls]);
 }
 
 function shotNameForOccurrence(occurrence: CanonicalShotOccurrence): string {
