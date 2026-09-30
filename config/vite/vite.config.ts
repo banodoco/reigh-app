@@ -15,7 +15,7 @@ import {
   resolveAstridBridgePort,
   resolveAstridBridgeProxyPolicy,
 } from "./astridBridgeProxy";
-import { createWorkspaceRuntimeProxyOptions, RUNTIME_TOKEN_FILE_ENV } from "./runtimeProxy";
+import { createWorkspaceRuntimeProxyOptions, RUNTIME_TOKEN_ENV } from "./runtimeProxy";
 import { resolveAstridSource } from "./astridSource";
 import {
   createAstridGenerationComposer,
@@ -34,18 +34,16 @@ logger.warn = (msg, options) => {
   originalWarn(msg, options);
 };
 
-function readRuntimeProxyToken(tokenFile: string | null): string | null {
-  if (!tokenFile || !fs.existsSync(tokenFile)) return null;
-  const raw = fs.readFileSync(tokenFile, 'utf8').trim();
-  if (!raw.startsWith('{')) return raw || null;
-  try {
-    const credential = JSON.parse(raw) as { token?: unknown };
-    return typeof credential.token === 'string' && credential.token.trim()
-      ? credential.token.trim()
-      : null;
-  } catch (error) {
-    throw new Error(`WORKSPACE_RUNTIME_TOKEN_FILE is not valid token text or credential JSON: ${error instanceof Error ? error.message : String(error)}`);
+export function createWorkspaceRuntimeProxyFromEnv(
+  env: NodeJS.ProcessEnv,
+): Record<string, string | ProxyOptions> {
+  const target = env.VITE_WORKSPACE_RUNTIME_URL?.trim() || null;
+  if (!target) return {};
+  const token = env[RUNTIME_TOKEN_ENV];
+  if (!token) {
+    throw new Error(`${RUNTIME_TOKEN_ENV} is required when VITE_WORKSPACE_RUNTIME_URL is set`);
   }
+  return { "/api/runtime": createWorkspaceRuntimeProxyOptions(target, token) };
 }
 
 export default defineConfig(() => {
@@ -72,12 +70,7 @@ export default defineConfig(() => {
       astridAcpBridgePort,
     ),
   };
-  const runtimeTarget = process.env.VITE_WORKSPACE_RUNTIME_URL?.trim() || null;
-  const runtimeTokenFile = process.env[RUNTIME_TOKEN_FILE_ENV]?.trim() || null;
-  const runtimeToken = readRuntimeProxyToken(runtimeTokenFile);
-  const runtimeProxy: Record<string, string | ProxyOptions> = runtimeTarget
-    ? { "/api/runtime": createWorkspaceRuntimeProxyOptions(runtimeTarget, runtimeToken) }
-    : {};
+  const runtimeProxy = createWorkspaceRuntimeProxyFromEnv(process.env);
   const disableRemoteFonts = process.env.VITE_DISABLE_REMOTE_FONTS === "1";
   const generatedRegistryPath = path.resolve(
     __dirname,

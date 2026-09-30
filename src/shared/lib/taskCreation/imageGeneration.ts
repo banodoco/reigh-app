@@ -7,7 +7,7 @@ import {
 } from './createTask';
 import {
   bridgeTaskAdmissionRequestSchema,
-} from '@/tools/video-editor/data/bridgeContract.ts';
+} from '@/tools/video-editor/host-bridge';
 import type { TaskCreationRequest } from './types';
 
 export const IMAGE_GENERATION_CAPABILITY_ID = 'generation.generate_image';

@@ -72,7 +72,9 @@ context.
 
 The editor's canonical local data path is the existing authenticated Runtime
 proxy, not the legacy Astrid REST timeline route. Start Reigh with
-`VITE_WORKSPACE_RUNTIME_URL` and `WORKSPACE_RUNTIME_TOKEN_FILE`, then open:
+`npm run dev:local`; the launcher authenticates the configured product
+credential and gives Vite the validated bearer through a server-only process
+environment value. Then open:
 
 `/tools/video-editor?runtime=1&runtimeProject=<Runtime project_id>&runtimeTimeline=<timeline_id>`
 

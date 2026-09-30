@@ -5,7 +5,11 @@
     "src/tools/video-editor/browser-provider.ts",
     "src/tools/video-editor/runtime/renderability.ts",
     "src/tools/video-editor/sequence.ts",
-    "src/tools/video-editor/testing.ts"
+    "src/tools/video-editor/testing.ts",
+    "src/tools/video-editor/host-bridge.ts",
+    "src/tools/video-editor/host-runtime.ts",
+    "src/tools/video-editor/host-elements.ts",
+    "src/tools/video-editor/host-ui.ts"
   ],
   "allowlist": {
     "src/integrations/astrid/bridgeRecovery.ts": [

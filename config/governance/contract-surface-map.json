@@ -43,5 +43,12 @@
     "scripts/quality/check-astrid-contract-freeze.mjs",
     "scripts/quality/lib/astrid-contract-schema.mjs",
     "docs/governance/contracts/astrid-plan-a.md"
+  ],
+  "check:astrid-contract-successor": [
+    "config/contracts/astrid-plan-a-c1-s1.json",
+    "scripts/quality/check-astrid-contract-successor.mjs",
+    "scripts/quality/check-astrid-contract-successor.test.mjs",
+    "config/contracts/registry.json",
+    "docs/governance/contracts/astrid-plan-a.md"
   ]
 }

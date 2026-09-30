@@ -7,6 +7,47 @@ composition governed by `scripts/quality/check-astrid-contract-freeze.mjs`.
 This is a semantic contract awaiting consumer acknowledgement, not an installed
 release, an auth service, a Runtime schema replacement, or a passed CF-M1 gate.
 
+The current-source launcher update is recorded separately in the pending
+successor [`C1-S1`](../../../config/contracts/astrid-plan-a-c1-s1.json). C1-S1
+binds the exact launcher, product-credential helper, paired connector, and
+credential test bytes. Runtime's authenticated handshake is the authority for
+the token-derived product actor and exact negotiated scopes. The helper binds
+the credential file's generation, ownership, restrictive mode, metadata, and
+content fingerprint, then rechecks that binding after authentication and all
+scope probes so file or token rotation fails closed. Runtime does not
+expose its complete stored scope set. For the exact pinned Runtime API, the app
+fails closed unless an authorization-before-validation backup probe proves the
+bearer lacks `admin` and read-only handshake negotiations prove it lacks
+`credentials:provision`, `worker:execute`, and `worker:register`. Those are all
+authorities the pinned API recognizes outside the seven product scopes.
+Unknown inert scope strings are not disclosed and are outside that authority
+claim; any change to the Runtime source census requires a successor refresh.
+The successor binds the exact Runtime repository, remote, HEAD, tree, NUL
+status, tracked binary diff, authority files, and every untracked path plus its
+content digest in
+`config/contracts/astrid-plan-a-runtime-scope-census.json`. It also explicitly
+supersedes the six drifted immutable-C1 Runtime evidence rows. Accepting
+successor validation requires `--runtime-root` or
+`ASTRID_RUNTIME_SOURCE_ROOT`; artifact-only or rootless validation is
+non-accepting. The Runtime-backed credential fixture runs that live census
+check before starting Runtime.
+After authentication, the launcher passes the exact validated bearer bytes to
+Vite through server-only `WORKSPACE_RUNTIME_TOKEN`. The `/api/runtime` proxy
+does not read `ASTRID_PRODUCT_TOKEN_FILE` or the retired
+`WORKSPACE_RUNTIME_TOKEN_FILE`, and it rejects a configured Runtime target when
+the validated token is absent. This closes credential replacement between the
+helper's final source-generation check and Vite configuration evaluation.
+Local actor metadata and `REIGH_PAIRED_PRODUCT_ACTOR` are consistency assertions
+only.
+Both SL and EW acknowledgements remain pending. The active
+`npm run check:astrid-contract-freeze` alias validates C1's immutable rules
+together with C1-S1. The raw frozen C1 audit remains available as
+`npm run check:astrid-contract-freeze:c1` and is expected to report the known
+launcher source drift until consumers accept the successor. Host-facing video
+editor entrypoints and the 58-import architecture migration are governed by
+`config/governance/video-editor-sdk-import-allowlist.json` and are intentionally
+outside C1-S1's credential and launcher scope.
+
 The command examples in this frozen contract are proposal-era consumer wording;
 they are not installed qualification evidence. The current installed operator
 path is `astrid-local` with `ASTRID_LOCAL_DATA_ROOT`. `banodoco-local` and
@@ -15,8 +56,13 @@ path is `astrid-local` with `ASTRID_LOCAL_DATA_ROOT`. `banodoco-local` and
 
 ## Consume and verify
 
-Run `npm run check:astrid-contract-freeze` or append `-- --json` for the report.
-Run `npm run test:astrid-contract-freeze` for the validator's negative cases.
+Set `ASTRID_RUNTIME_SOURCE_ROOT` to the exact Runtime worktree, then run
+`npm run check:astrid-contract-freeze` or append `-- --json` for the active
+composition report. Run `npm run check:astrid-contract-successor` for the
+successor-only validator. Run `npm run check:astrid-contract-freeze:c1` for
+the historical immutable C1 audit. Run `npm run test:astrid-contract-freeze`
+and `npm run test:astrid-contract-successor` for deterministic positive and
+negative cases.
 The normal `npm run check:contracts` gate includes this check.
 
 C2 is the immutable-successor diagnostic projection at
@@ -119,7 +165,9 @@ separate imported-media-catalog lane requires a fresh ownership/merge review.
 After review/issuance, never rewrite C1 to make changed sources pass. Add a
 successor Cn and matching versioned validator contract, obtain both consumers'
 acknowledgements and let the parent invalidate affected evidence. Keep C1 as an
-audit input. Validate only relevant source snapshots, not unrelated dirty files.
+audit input. C1-S1 is pending exact SL/EW acknowledgement and does not establish
+installed acceptance. Validate only relevant source snapshots, not unrelated
+dirty files.
 
 Rn must reference the exact Cn digest and real immutable source, artifact,
 environment/dependency/model/profile and acquisition identities. Unresolved

@@ -11,7 +11,7 @@ import {
   type RuntimeGenerationResource,
   type RuntimeTaskResource,
   type RuntimeVariantResource,
-} from '@/tools/video-editor/data/bridgeContract.ts';
+} from '@/tools/video-editor/host-bridge';
 
 function runtimeSpec(resource: RuntimeTaskResource): BridgeTaskSpec {
   const envelope = asRecord(resource.spec);

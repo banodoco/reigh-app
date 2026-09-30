@@ -7,7 +7,7 @@ import { cn } from '@/shared/components/ui/contracts/cn.ts';
 import { dispatchAppEvent } from '@/shared/lib/typedEvents.ts';
 import { ProjectTimelineSelectors } from '@/shared/components/ProjectTimelineSelectors.tsx';
 import { ProjectHeaderActions } from '@/shared/components/ProjectHeaderActions.tsx';
-import { useAstridBridgeDiscovery } from '@/tools/video-editor/hooks/useAstridBridgeDiscovery.ts';
+import { useAstridBridgeDiscovery } from '@/tools/video-editor/host-bridge';
 import { useQueryClient } from '@tanstack/react-query';
 
 export type AppHeaderNavigationMode = 'home' | 'tools';

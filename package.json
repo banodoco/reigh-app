@@ -121,8 +121,11 @@
     "test:acceptance:local-project:matrix": "REIGH_ACCEPTANCE_MATRIX=1 node scripts/acceptance/verify-local-project-gallery.mjs",
     "test:acceptance:local-project:unit": "node --test scripts/acceptance/verify-local-project-gallery.test.mjs",
     "test:e2e:timeline:realbridge": "PLAYWRIGHT_TIMELINE_DEVICES=1 REAL_BRIDGE=1 PLAYWRIGHT_HARDENING=1 ASTRID_BRIDGE_PORT=${ASTRID_BRIDGE_PORT:-} PLAYWRIGHT_PORT=${PLAYWRIGHT_PORT:-} playwright test --config playwright.config.ts --project=timeline-devices --workers=1 tests/e2e/timeline/real-bridge.spec.ts tests/e2e/timeline/real-bridge-hardening.spec.ts && PLAYWRIGHT_TIMELINE_DEVICES=1 REAL_BRIDGE=1 PLAYWRIGHT_RATE_LIMIT=1 ASTRID_BRIDGE_PORT=${ASTRID_BRIDGE_PORT:-} PLAYWRIGHT_PORT=${PLAYWRIGHT_PORT:-} playwright test --config playwright.config.ts --project=timeline-devices --workers=1 tests/e2e/timeline/real-bridge-rate-limit.spec.ts",
-    "check:astrid-contract-freeze": "node scripts/quality/check-astrid-contract-freeze.mjs",
+    "check:astrid-contract-freeze": "node scripts/quality/check-astrid-contract-successor.mjs",
+    "check:astrid-contract-freeze:c1": "node scripts/quality/check-astrid-contract-freeze.mjs",
     "test:astrid-contract-freeze": "node --test scripts/quality/check-astrid-contract-freeze.test.mjs",
+    "check:astrid-contract-successor": "node scripts/quality/check-astrid-contract-successor.mjs",
+    "test:astrid-contract-successor": "node --test scripts/quality/check-astrid-contract-successor.test.mjs",
     "check:astrid-contract-c2": "node scripts/quality/check-astrid-contract-c2.mjs",
     "test:astrid-contract-c2": "node --test scripts/quality/check-astrid-contract-c2.test.mjs"
   },

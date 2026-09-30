@@ -1,5 +1,5 @@
-import type { DataProvider } from '@/tools/video-editor/data/DataProvider.ts';
-import type { LoadedTimeline } from '@/tools/video-editor/data/DataProvider.ts';
+import type { DataProvider } from '@/tools/video-editor/host-runtime';
+import type { LoadedTimeline } from '@/tools/video-editor/host-runtime';
 import {
   advanceTimelineDraftBaseAfterAcknowledgement,
   clearTimelineDraftIfMatches,
@@ -7,29 +7,28 @@ import {
   reconcileTimelineDraftHeadMarker,
   saveTimelineDraftIfOwner,
   type TimelineDraftRecoveryMetadata,
-} from '@/tools/video-editor/data/timelineDraftIndexedDb.ts';
+} from '@/tools/video-editor/host-runtime';
 import type {
   PreparedShotComposition,
   ShotCompositionAdapter,
-} from '@/tools/video-editor/data/shotCompositionAdapter.ts';
-import type { ShotCompositionContract } from '@/tools/video-editor/data/shotComposition.ts';
-import { StaleWriteError } from '@/tools/video-editor/data/shotComposition.ts';
-import { projectCanonicalComposition } from '@/tools/video-editor/data/shotCompositionProjection.ts';
-import { recordShotTimelinePhase } from '@/tools/video-editor/lib/shot-timeline-timing.ts';
+} from '@/tools/video-editor/host-runtime';
+import type { ShotCompositionContract } from '@/tools/video-editor/host-runtime';
+import { StaleWriteError } from '@/tools/video-editor/host-runtime';
+import { projectCanonicalComposition } from '@/tools/video-editor/host-runtime';
+import { recordShotTimelinePhase } from '@/tools/video-editor/host-runtime';
 import {
   enqueueCanonicalShotPublish,
   hardDurationMs,
   updateCanonicalShotTimeline,
-} from '@/tools/video-editor/data/shotCompositionEditor.ts';
+} from '@/tools/video-editor/host-runtime';
 import type {
   ResolvedAssetRegistryEntry,
   ResolvedTimelineConfig,
   TimelineConfig,
-} from '@/tools/video-editor/types/index.ts';
-import { timelineContentExtentMs } from '@/tools/video-editor/data/shotCompositionTiming.ts';
+} from '@/tools/video-editor/host-runtime';
+import { timelineContentExtentMs } from '@/tools/video-editor/host-runtime';
 import { bridgeMediaUrl } from '@/shared/lib/media/bridgeMediaUrl.ts';
-import { assembleTimelineData, type TimelineData } from '@/tools/video-editor/lib/timeline-data.ts';
-import { buildAssetReferenceMap } from '@/tools/video-editor/lib/asset-registry.ts';
+import { assembleTimelineData, type TimelineData, buildAssetReferenceMap } from '@/tools/video-editor/host-runtime';
 
 export function shotTimelineSessionId(
   parentDocumentId: string,

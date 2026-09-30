@@ -1,29 +1,23 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import type { SaveStatus } from '@/tools/video-editor/hooks/useTimelinePersistence.ts';
+import type { SaveStatus } from '@/tools/video-editor/host-ui';
 import { AlertCircle, Film } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button.tsx';
-import { VideoEditorProvider } from '@/tools/video-editor/contexts/VideoEditorProvider.tsx';
-import { TimelineEditorCore } from '@/tools/video-editor/components/TimelineEditor/TimelineEditorCore.tsx';
-import { RemotionPreview } from '@/tools/video-editor/components/PreviewPanel/RemotionPreview.tsx';
-import { projectCanonicalComposition } from '@/tools/video-editor/data/shotCompositionProjection.ts';
-import { getTimelineDurationInFrames } from '@/tools/video-editor/lib/config-utils.ts';
-import { useTimelinePlaybackContext } from '@/tools/video-editor/hooks/timelineStore.ts';
-import { useTimelineChromeContext } from '@/tools/video-editor/hooks/timelineStore.ts';
-import { useTimelineEditorData } from '@/tools/video-editor/hooks/timelineStore.ts';
-import { createTimelineEditability } from '@/tools/video-editor/lib/timeline-editability.ts';
-import type { TimelineEditability } from '@/tools/video-editor/lib/timeline-editability.ts';
-import { recordShotTimelinePhase, SHOT_TIMELINE_TIMING_EVENT, type ShotTimelineTimingDetail } from '@/tools/video-editor/lib/shot-timeline-timing.ts';
+import { VideoEditorProvider, TimelineEditorCore, RemotionPreview } from '@/tools/video-editor/host-ui';
+import { projectCanonicalComposition, getTimelineDurationInFrames } from '@/tools/video-editor/host-runtime';
+import { useTimelinePlaybackContext, useTimelineChromeContext, useTimelineEditorData } from '@/tools/video-editor/host-ui';
+import { createTimelineEditability, type TimelineEditability } from '@/tools/video-editor/host-ui';
+import { recordShotTimelinePhase, SHOT_TIMELINE_TIMING_EVENT, type ShotTimelineTimingDetail } from '@/tools/video-editor/host-runtime';
 import type {
   PreparedShotComposition,
   ShotCompositionAdapter,
-} from '@/tools/video-editor/data/shotCompositionAdapter.ts';
+} from '@/tools/video-editor/host-runtime';
 import type {
   CanonicalShotTimelineDraft,
   CanonicalShotTimelinePublication,
   CanonicalShotTimelineScope,
-} from '@/tools/video-editor/runtime/ports.ts';
-import { hardDurationMs } from '@/tools/video-editor/data/shotCompositionEditor.ts';
-import type { ResolvedTimelineConfig } from '@/tools/video-editor/types/index.ts';
+} from '@/tools/video-editor/host-runtime';
+import { hardDurationMs } from '@/tools/video-editor/host-runtime';
+import type { ResolvedTimelineConfig } from '@/tools/video-editor/host-runtime';
 import {
   createShotTimelineDataProvider,
   createShotTimelineInitialData,

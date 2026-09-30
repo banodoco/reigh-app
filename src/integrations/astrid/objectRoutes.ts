@@ -1,9 +1,9 @@
-import type { RuntimeManagedObject, RuntimeMutationReceipt } from '@/tools/video-editor/data/bridgeContract.ts';
+import type { RuntimeManagedObject, RuntimeMutationReceipt } from '@/tools/video-editor/host-bridge';
 import {
   runtimeManagedObjectSchema,
   runtimeMutationSchema,
   runtimePageSchema,
-} from '@/tools/video-editor/data/bridgeContract.ts';
+} from '@/tools/video-editor/host-bridge';
 import type { AstridBridgeTransport } from './transport.ts';
 
 const projectObjectMutationSchema = runtimeMutationSchema(runtimeManagedObjectSchema);

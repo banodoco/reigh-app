@@ -1,5 +1,5 @@
 import { AstridLocalClient } from '@/integrations/astrid/client';
-import { runtimeSha256IdSchema } from '@/tools/video-editor/data/bridgeContract';
+import { runtimeSha256IdSchema } from '@/tools/video-editor/host-bridge';
 import { unsupportedCapabilityError } from './legacyBoundary';
 import { createTask, ingestProjectInputFromUrl, resolveTaskCapability } from './createTask';
 import { TaskValidationError, type TaskCreationResult } from './types';

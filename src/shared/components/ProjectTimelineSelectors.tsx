@@ -10,7 +10,7 @@ import {
 } from '@/shared/components/ui/command.tsx';
 import { ChevronsUpDown, HardDrive, Star } from 'lucide-react';
 import { cn } from '@/shared/components/ui/contracts/cn.ts';
-import type { UseAstridBridgeDiscoveryResult } from '@/tools/video-editor/hooks/useAstridBridgeDiscovery.ts';
+import type { UseAstridBridgeDiscoveryResult } from '@/tools/video-editor/host-bridge';
 import {
   ASTRID_DEMO_BRIDGE_COMMAND,
   ASTRID_LOCAL_RUNTIME_START_COMMAND,

@@ -4,7 +4,7 @@ import {
   bridgeTaskAdmissionRequestSchema,
   runtimeSha256IdSchema,
   type RuntimeCapability,
-} from '@/tools/video-editor/data/bridgeContract.ts';
+} from '@/tools/video-editor/host-bridge';
 import { normalizeAndPresentAndRethrow } from '@/shared/lib/errorHandling/runtimeError';
 import { NetworkError } from '@/shared/lib/errorHandling/errors';
 import { generateUUID } from './ids';

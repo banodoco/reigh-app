@@ -15,12 +15,12 @@ import {
   type LoadedReferencedTimeline,
   type UploadedAssetResult,
   type UploadAssetOptions,
-} from '@/tools/video-editor/data/DataProvider.ts';
+} from '@/tools/video-editor/host-runtime';
 import type {
   AssetRegistry,
   AssetRegistryEntry,
   TimelineConfig,
-} from '@/tools/video-editor/types/index.ts';
+} from '@/tools/video-editor/host-runtime';
 import type { GenerationRow } from '@/domains/generation/types/index.ts';
 import type { Transport } from './generated.ts';
 import type {
@@ -28,28 +28,28 @@ import type {
   AssetUploadRequest,
   MediaImportOptions,
   PreparedMediaImport,
-} from '@/tools/video-editor/data/AssetResolver.ts';
-import { assertRuntimeMediaImportSize } from '@/tools/video-editor/data/AssetResolver.ts';
-import type { TimelineBundleEnvelope } from '@/tools/video-editor/data/typed/timelineBundle.ts';
-import { parseTimelineBundle } from '@/tools/video-editor/data/typed/timelineBundle.ts';
-import { withDefaultTimelineOutput } from '@/tools/video-editor/lib/defaults.ts';
+} from '@/tools/video-editor/host-runtime';
+import { assertRuntimeMediaImportSize } from '@/tools/video-editor/host-runtime';
+import type { TimelineBundleEnvelope } from '@/tools/video-editor/host-runtime';
+import { parseTimelineBundle } from '@/tools/video-editor/host-runtime';
+import { withDefaultTimelineOutput } from '@/tools/video-editor/host-runtime';
 import {
   ShotCompositionUnavailableError,
   type ShotCompositionHeadReadRequest,
   type ShotCompositionPort,
-} from '@/tools/video-editor/data/shotCompositionAdapter.ts';
+} from '@/tools/video-editor/host-runtime';
 import {
   stableOccurrenceDeepLink,
   stableOutputIdentity,
   StaleWriteError,
-} from '@/tools/video-editor/data/shotComposition.ts';
+} from '@/tools/video-editor/host-runtime';
 import { generateUUID } from '@/shared/lib/taskCreation/ids.ts';
 import {
   runtimeThumbnailObjectId,
   selectRuntimePrimaryVariant,
 } from './generationProjection.ts';
 import { listAllRuntimeVariants } from './generationAccess.ts';
-import { recordShotTimelinePhase } from '@/tools/video-editor/lib/shot-timeline-timing.ts';
+import { recordShotTimelinePhase } from '@/tools/video-editor/host-runtime';
 
 type RuntimeRecord = Record<string, unknown>;
 

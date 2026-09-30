@@ -2,7 +2,7 @@ import {
   runtimeCapabilitySchema,
   runtimePageSchema,
   type RuntimeCapability,
-} from '@/tools/video-editor/data/bridgeContract.ts';
+} from '@/tools/video-editor/host-bridge';
 import type { AstridBridgeTransport } from './transport.ts';
 
 const capabilityPageSchema = runtimePageSchema(runtimeCapabilitySchema);

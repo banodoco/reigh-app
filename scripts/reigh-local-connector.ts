@@ -21,7 +21,11 @@ import {
   RUNTIME_TARGETED_EXECUTION_CAPABILITY,
 } from '../src/integrations/runtime/contract-metadata';
 // @ts-expect-error This run-time helper is shared with the Node .mjs launcher.
-import { PRODUCT_SCOPES, readProductCredential } from './reigh-product-credential.mjs';
+import {
+  authenticateProductCredential,
+  PRODUCT_SCOPES,
+  readProductCredential,
+} from './reigh-product-credential.mjs';
 
 const args = new Map<string, string>();
 for (let index = 2; index < process.argv.length; index += 1) {
@@ -54,11 +58,10 @@ function routePath(service: string, path: string): string {
 const discovery = readJson(discoveryPath, 'runtime discovery');
 const endpoint = runtimeEndpoint(discovery.endpoint);
 const credentialPath = resolve(process.env.ASTRID_PRODUCT_TOKEN_FILE || (typeof discovery.credential_file === 'string' ? discovery.credential_file : fail('discovery has no credential_file')));
-const initialCredential = readProductCredential(credentialPath, expectedActorOverride) as {
-  token: string; actorId: string; source: string;
+const initialCredential = readProductCredential(credentialPath) as {
+  token: string; assertedActorId: string; source: string;
 };
-const expectedActor = initialCredential.actorId;
-function validateHandshake(value: unknown): { realmId: string } {
+function validateHandshake(value: unknown, expectedActor: string): { realmId: string } {
   if (!value || typeof value !== 'object') return fail('Runtime handshake response is malformed');
   const handshake = value as { realm_id?: unknown; protocol?: unknown; schema_digest?: unknown; component_manifest_sha256?: unknown; actor_id?: unknown; scopes?: unknown; capabilities?: unknown };
   const scopes = Array.isArray(handshake.scopes) ? handshake.scopes.filter((scope): scope is string => typeof scope === 'string') : [];
@@ -76,26 +79,28 @@ function validateHealth(value: unknown): void {
     fail('Runtime health status, protocol, or schema digest did not match the explicitly expected contract');
   }
 }
-async function readRuntimeIdentity(runtimeToken: string): Promise<{ realmId: string }> {
-  const healthResponse = await fetch(new URL('/v1/health', endpoint), { headers: { Authorization: `Bearer ${runtimeToken}` }, signal: AbortSignal.timeout(3000) });
+async function readRuntimeIdentity(credential: typeof initialCredential): Promise<{
+  realmId: string; actorId: string; token: string;
+}> {
+  const authenticated = await authenticateProductCredential(
+    endpoint,
+    credential,
+    expectedActorOverride,
+  ) as typeof credential & { actorId: string; handshake: unknown };
+  const handshake = validateHandshake(authenticated.handshake, authenticated.actorId);
+  const healthResponse = await fetch(new URL('/v1/health', endpoint), { headers: { Authorization: `Bearer ${authenticated.token}` }, signal: AbortSignal.timeout(3000) });
   if (!healthResponse.ok) fail(`Runtime health returned HTTP ${healthResponse.status}`);
   validateHealth(await healthResponse.json());
-  const handshakeResponse = await fetch(new URL('/v1/handshake', endpoint), {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${runtimeToken}`, 'Content-Type': 'application/json', Accept: 'application/json' },
-    body: JSON.stringify({ protocol: RUNTIME_PROTOCOL, client_name: 'reigh-paired-connector', client_version: '1', requested_scopes: PRODUCT_SCOPES }),
-    signal: AbortSignal.timeout(3000),
-  });
-  if (!handshakeResponse.ok) fail(`Runtime handshake returned HTTP ${handshakeResponse.status}`);
-  const handshake = validateHandshake(await handshakeResponse.json());
-  const realmResponse = await fetch(new URL('/v1/realm', endpoint), { headers: { Authorization: `Bearer ${runtimeToken}`, Accept: 'application/json' }, signal: AbortSignal.timeout(3000) });
+  const realmResponse = await fetch(new URL('/v1/realm', endpoint), { headers: { Authorization: `Bearer ${authenticated.token}`, Accept: 'application/json' }, signal: AbortSignal.timeout(3000) });
   if (!realmResponse.ok) fail(`Runtime realm returned HTTP ${realmResponse.status}`);
   const realm = await realmResponse.json() as { realm_id?: unknown };
   if (realm.realm_id !== handshake.realmId) fail('Runtime handshake and fetched realm identities did not match');
-  return handshake;
+  return { ...handshake, actorId: authenticated.actorId, token: authenticated.token };
 }
-let token = initialCredential.token;
-const realm = { realm_id: (await readRuntimeIdentity(token)).realmId };
+const initialIdentity = await readRuntimeIdentity(initialCredential);
+let token = initialIdentity.token;
+const expectedActor = initialIdentity.actorId;
+const realm = { realm_id: initialIdentity.realmId };
 
 let state: { connectorId: string; connectorSecret: string };
 if (existsSync(statePath) && !resetPairing) state = readJson(statePath, 'connector state') as typeof state;
@@ -118,12 +123,12 @@ function connect(): void {
   socket = new WebSocket(wsOrigin, { maxPayload: PAIRED_MAX_FRAME_BYTES });
   socket.on('open', async () => {
     try {
-      const refreshed = readProductCredential(credentialPath, expectedActor) as {
-        token: string; actorId: string; source: string;
+      const refreshed = readProductCredential(credentialPath) as {
+        token: string; assertedActorId: string; source: string;
       };
-      token = refreshed.token;
-      const current = await readRuntimeIdentity(token);
-      if (current.realmId !== realm.realm_id) { socket.close(1008, 'local Runtime identity changed'); return; }
+      const current = await readRuntimeIdentity(refreshed);
+      if (current.realmId !== realm.realm_id || current.actorId !== expectedActor) { socket.close(1008, 'local Runtime identity changed'); return; }
+      token = current.token;
     } catch { socket.close(1008, 'local Runtime unavailable'); return; }
     send({ type: 'connector_hello', connector_id: state.connectorId, connector_secret: state.connectorSecret, realm_id: realm.realm_id });
   });

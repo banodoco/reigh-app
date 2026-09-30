@@ -10,7 +10,10 @@ import { existsSync, readFileSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { homedir } from 'node:os';
 import { resolve } from 'node:path';
-import { readProductCredential } from './reigh-product-credential.mjs';
+import {
+  authenticateProductCredential,
+  readProductCredential,
+} from './reigh-product-credential.mjs';
 
 const configuredAstridCheckout = process.env.ASTRID_CHECKOUT?.trim();
 const siblingAstridCheckout = resolve(process.cwd(), '..', 'Astrid');
@@ -58,10 +61,10 @@ function requireLoopbackEndpoint(raw) {
   return endpoint;
 }
 
-async function verifyRuntime(endpoint, token) {
+async function verifyRuntime(endpoint, credential, callerActor) {
   try {
     const response = await fetch(new URL('/v1/health', endpoint), {
-      headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+      headers: { Accept: 'application/json' },
       signal: AbortSignal.timeout(3000),
     });
     if (!response.ok) return fail(`runtime health check returned HTTP ${response.status}`);
@@ -69,7 +72,7 @@ async function verifyRuntime(endpoint, token) {
     if (health?.status !== 'ok' || health?.protocol !== 'workspace.v1') {
       return fail('runtime health check did not report workspace.v1/ok');
     }
-    return true;
+    return await authenticateProductCredential(endpoint, credential, callerActor);
   } catch (error) {
     return fail(`runtime is unavailable at ${endpoint.origin} (run banodoco-local up --profile astrid): ${error instanceof Error ? error.message : String(error)}`);
   }
@@ -87,14 +90,16 @@ const selectedProductCredentialPath = process.env.ASTRID_PRODUCT_TOKEN_FILE?.tri
 if (!selectedProductCredentialPath) process.exit(fail('discovery has no credential_file and ASTRID_PRODUCT_TOKEN_FILE is unset') ? 1 : 1);
 let productCredential;
 try {
-  productCredential = readProductCredential(
-    selectedProductCredentialPath,
-    process.env.REIGH_PAIRED_PRODUCT_ACTOR?.trim(),
-  );
+  productCredential = readProductCredential(selectedProductCredentialPath);
 } catch (error) {
   process.exit(fail(error instanceof Error ? error.message : String(error)) ? 1 : 1);
 }
-if (!(await verifyRuntime(endpoint, productCredential.token))) process.exit(process.exitCode ?? 1);
+productCredential = await verifyRuntime(
+  endpoint,
+  productCredential,
+  process.env.REIGH_PAIRED_PRODUCT_ACTOR?.trim(),
+);
+if (!productCredential) process.exit(process.exitCode ?? 1);
 if (paired && !pairedRelayOrigin) process.exit(fail('--paired requires REIGH_PAIRED_RELAY_ORIGIN') ? 1 : 1);
 
 const env = {
@@ -110,7 +115,10 @@ const env = {
   // authenticated product token.
   VITE_WORKSPACE_RUNTIME_URL: endpoint.origin,
   ASTRID_PRODUCT_TOKEN_FILE: selectedProductCredentialPath,
-  WORKSPACE_RUNTIME_TOKEN_FILE: selectedProductCredentialPath,
+  // Server-only Vite proxy input. These exact bytes passed Runtime's full
+  // identity, privilege, and source-generation proof above; Vite must not
+  // reread the mutable credential path.
+  WORKSPACE_RUNTIME_TOKEN: productCredential.token,
   REIGH_PAIRED_PRODUCT_ACTOR: productCredential.actorId,
   ASTRID_LOCAL_COMPOSE_URL: `http://127.0.0.1:${port}/api/astrid/generation/compose`,
   // The ACP bridge is a sibling user-machine process. Keep its cwd explicit so

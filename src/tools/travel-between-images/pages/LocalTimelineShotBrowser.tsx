@@ -2,11 +2,11 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertCircle } from 'lucide-react';
-import { AstridBridgeDataProvider } from '@/tools/video-editor/data/AstridBridgeDataProvider.ts';
+import { AstridBridgeDataProvider } from '@/tools/video-editor/host-runtime';
 import { RuntimeDataProvider } from '@/integrations/runtime/dataProvider.ts';
 import { isAstridWorkspaceV1 } from '@/integrations/astrid/workspaceV1.ts';
-import { resolveTimelineConfig } from '@/tools/video-editor/lib/config-utils.ts';
-import type { AssetRegistry } from '@/tools/video-editor/types/index.ts';
+import { resolveTimelineConfig } from '@/tools/video-editor/host-runtime';
+import type { AssetRegistry } from '@/tools/video-editor/host-runtime';
 import { bridgeMediaUrl } from '@/shared/lib/media/bridgeMediaUrl.ts';
 import { ShotsContextProvider } from '@/shared/contexts/ShotsContext.tsx';
 import { shotListLocation, shotLocation } from '@/shared/lib/tooling/toolRoutes.ts';
@@ -22,12 +22,12 @@ import {
   type PreparedShotComposition,
   type ShotCompositionAdapter,
   type ShotCompositionPort,
-} from '@/tools/video-editor/data/shotCompositionAdapter.ts';
+} from '@/tools/video-editor/host-runtime';
 import type {
   CanonicalShotTimelineDraft,
   CanonicalShotTimelinePublication,
   CanonicalShotTimelineScope,
-} from '@/tools/video-editor/runtime/ports.ts';
+} from '@/tools/video-editor/host-runtime';
 
 type LocalTimelineShotBrowserProps = {
   projectSlug: string;

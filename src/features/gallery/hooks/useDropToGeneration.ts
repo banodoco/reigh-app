@@ -20,7 +20,7 @@ import { RuntimeDataProvider } from '@/integrations/runtime/dataProvider';
 import {
   assertRuntimeMediaImportSize,
   RUNTIME_MEDIA_IMPORT_MAX_BYTES,
-} from '@/tools/video-editor/data/AssetResolver';
+} from '@/tools/video-editor/host-runtime';
 import { useResolvedGalleryProject } from '@/app/runtime/useResolvedGalleryProject';
 
 function isImageFile(file: File): boolean {

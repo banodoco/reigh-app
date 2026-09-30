@@ -1,6 +1,6 @@
 import type { GeneratedImageWithMetadata } from '@/shared/components/MediaGallery/types';
 import type { Generation, GenerationVariant } from './generated';
-import type { BridgeGenerationDetailPayload } from '@/tools/video-editor/data/bridgeContract';
+import type { BridgeGenerationDetailPayload } from '@/tools/video-editor/host-bridge';
 import { ReighRuntimeClient } from './client';
 import {
   runtimeThumbnailObjectId,

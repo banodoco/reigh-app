@@ -5,7 +5,7 @@ import { isAstridWorkspaceV1 } from '@/integrations/astrid/workspaceV1';
 import {
   useAstridBridgeDiscovery,
   type UseAstridBridgeDiscoveryResult,
-} from '@/tools/video-editor/hooks/useAstridBridgeDiscovery';
+} from '@/tools/video-editor/host-bridge';
 
 export type GalleryProjectResolutionStatus =
   | 'not-applicable'

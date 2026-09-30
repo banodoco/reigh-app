@@ -33,8 +33,13 @@ function fixtureSources(contract, directory, repository) {
   }
 }
 
-test('C1 artifact passes local source verification without external checkouts', () => {
-  assert.deepEqual(validateContract(original), []);
+const expectedSuccessorSourceDrift = [
+  'sourceEvidence.runtime-proxy: source SHA-256 mismatch',
+  'sourceEvidence.local-launcher: source SHA-256 mismatch',
+];
+
+test('immutable C1 remains an audit input and reports known successor source drift', () => {
+  assert.deepEqual(validateContract(original), expectedSuccessorSourceDrift);
 });
 
 test('digest recursively canonicalizes object keys, preserves arrays and nested digest', () => {
@@ -132,7 +137,7 @@ test('explicit external root verifies observed bytes and rejects source drift', 
   const contract = clone();
   fixtureSources(contract, directory, 'Astrid');
   seal(contract);
-  assert.deepEqual(validateContract(contract, { repoRoots: { Astrid: directory } }), []);
+  assert.deepEqual(validateContract(contract, { repoRoots: { Astrid: directory } }), expectedSuccessorSourceDrift);
   const source = contract.sourceEvidence.find((entry) => entry.repository === 'Astrid');
   writeFileSync(path.join(directory, source.path), 'changed source');
   assert.match(validateContract(contract, { repoRoots: { Astrid: directory } }).join('\n'), /source SHA-256 mismatch/);
@@ -185,11 +190,13 @@ test('diagnostic projection binds contract, bounds, unavailable facts and effect
 test('CLI emits JSON verification limits and rejects bad arguments with nonzero exit', () => {
   const run = (...args) => spawnSync(process.execPath, [checker, '--json', ...args], { encoding: 'utf8', cwd: tmpdir() });
   const success = run();
-  assert.equal(success.status, 0, success.stderr);
+  assert.equal(success.status, 1, success.stderr);
   const report = JSON.parse(success.stdout);
-  assert.equal(report.ok, true);
+  assert.equal(report.ok, false);
+  assert.equal(report.revision, 'C1');
+  assert.deepEqual(report.errors, expectedSuccessorSourceDrift);
   assert.equal(report.installedAcceptance, false);
-  assert.equal(report.sourceVerification.verified.length, original.sourceEvidence.filter((entry) => entry.repository === 'reigh-app').length);
+  assert.equal(report.sourceVerification.verified.length, original.sourceEvidence.filter((entry) => entry.repository === 'reigh-app').length - 2);
   assert.equal(report.sourceVerification.unverified.length, original.sourceEvidence.filter((entry) => entry.repository !== 'reigh-app').length);
   for (const args of [['--unknown'], ['--astrid-root'], ['--runtime-root', '/nonexistent-astrid-cf-fixture']]) {
     const failed = run(...args);

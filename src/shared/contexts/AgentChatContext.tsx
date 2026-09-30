@@ -1,9 +1,9 @@
 import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from 'react';
 import { requireContextValue } from '@/shared/contexts/contextGuard';
 import { useToolSettings } from '@/shared/hooks/settings/useToolSettings';
-import { videoEditorSettings } from '@/tools/video-editor/settings/videoEditorDefaults';
-import type { ReighAgentElementContext } from '@/tools/video-editor/runtime/element-contract.ts';
-import type { AstridElementOperationAdapter } from '@/tools/video-editor/runtime/element-adapter.ts';
+import { videoEditorSettings } from '@/tools/video-editor';
+import type { ReighAgentElementContext } from '@/tools/video-editor/host-elements';
+import type { AstridElementOperationAdapter } from '@/tools/video-editor/host-elements';
 
 export type AgentChatEditorContext = {
   tool: 'video-editor';

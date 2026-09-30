@@ -1,7 +1,9 @@
 import type { ProxyOptions } from 'vite';
 
 const RUNTIME_REQUEST_TIMEOUT_MS = 10_000;
-export const RUNTIME_TOKEN_FILE_ENV = 'WORKSPACE_RUNTIME_TOKEN_FILE';
+// Server-only input. Vite exposes only VITE_-prefixed values to browser code.
+// The launcher sets these bytes only after Runtime authenticates the bearer.
+export const RUNTIME_TOKEN_ENV = 'WORKSPACE_RUNTIME_TOKEN';
 
 export function createWorkspaceRuntimeProxyOptions(
   target: string,

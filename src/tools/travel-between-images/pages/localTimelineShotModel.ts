@@ -1,8 +1,8 @@
-import type { AssetRegistry, AssetRegistryEntry } from '@/tools/video-editor/types/index.ts';
+import type { AssetRegistry, AssetRegistryEntry } from '@/tools/video-editor/host-runtime';
 import { bridgeMediaUrl } from '@/shared/lib/media/bridgeMediaUrl.ts';
 import type { GenerationRow, Shot } from '@/domains/generation/types';
 import { TOOL_IDS } from '@/shared/lib/tooling/toolIds';
-import type { CanonicalShotOccurrence, PreparedShotComposition } from '@/tools/video-editor/data/shotCompositionAdapter.ts';
+import type { CanonicalShotOccurrence, PreparedShotComposition } from '@/tools/video-editor/host-runtime';
 
 export type LocalTimelineShotClip = {
   clipId: string;

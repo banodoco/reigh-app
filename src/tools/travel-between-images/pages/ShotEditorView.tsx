@@ -38,17 +38,17 @@ import type { LocalTimelineShotModel } from './localTimelineShotModel.ts';
 import type {
   PreparedShotComposition,
   ShotCompositionAdapter,
-} from '@/tools/video-editor/data/shotCompositionAdapter.ts';
+} from '@/tools/video-editor/host-runtime';
 import type {
   CanonicalShotTimelineDraft,
   CanonicalShotTimelinePublication,
   CanonicalShotTimelineScope,
-} from '@/tools/video-editor/runtime/ports.ts';
+} from '@/tools/video-editor/host-runtime';
 import {
   enqueueCanonicalShotPublish,
   updateCanonicalShotName,
   updateCanonicalShotSettings,
-} from '@/tools/video-editor/data/shotCompositionEditor.ts';
+} from '@/tools/video-editor/host-runtime';
 import { ShotTimelinePreview } from '../components/ShotTimelinePreview.tsx';
 import { normalizeVideoTravelSettings } from '../settings';
 

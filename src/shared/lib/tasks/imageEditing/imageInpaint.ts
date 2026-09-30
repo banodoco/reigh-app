@@ -5,7 +5,7 @@ import {
   resolveTaskCapability,
 } from '@/shared/lib/taskCreation';
 import { AstridLocalClient } from '@/integrations/astrid/client';
-import { runtimeSha256IdSchema } from '@/tools/video-editor/data/bridgeContract';
+import { runtimeSha256IdSchema } from '@/tools/video-editor/host-bridge';
 import { TaskValidationError, type TaskCreationResult } from '@/shared/lib/taskCreation/types';
 import type { MaskedEditKind, MaskedEditTaskParams } from './buildMaskedEditTaskParams';
 

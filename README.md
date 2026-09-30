@@ -68,6 +68,7 @@ Vite proxy, and connector all use that same product credential. Use
 - Error handling contract: [`docs/governance/contracts/error-handling.md`](docs/governance/contracts/error-handling.md)
 - Compatibility shims and migration gates: [`docs/governance/contracts/compatibility-shims.md`](docs/governance/contracts/compatibility-shims.md)
 - Astrid Plan A C1 composition and handoff: [`docs/governance/contracts/astrid-plan-a.md`](docs/governance/contracts/astrid-plan-a.md)
+- Astrid Plan A C1-S1 current-source successor: [`config/contracts/astrid-plan-a-c1-s1.json`](config/contracts/astrid-plan-a-c1-s1.json)
 
 ### Contract Status Matrix
 
@@ -102,6 +103,7 @@ Run these in CI and before merging facade/contract changes:
 | Gate | Required Surface Coverage | Expected Assertion |
 |---|---|---|
 | `npm run check:astrid-contract-freeze` | `config/contracts/astrid-plan-a-c1.json`, `scripts/quality/check-astrid-contract-freeze.mjs`, `scripts/quality/lib/astrid-contract-schema.mjs`, `docs/governance/contracts/astrid-plan-a.md` | C1 schema, digest, references, frozen semantics and available declaration hashes; no installed acceptance claim |
+| `npm run check:astrid-contract-successor` | `config/contracts/astrid-plan-a-c1-s1.json`, `scripts/dev-local-workspace.mjs`, `scripts/reigh-product-credential.mjs`, `scripts/reigh-local-connector.ts`, `scripts/reigh-product-credential.test.mjs`, `scripts/quality/check-astrid-contract-successor.mjs`, `scripts/quality/check-astrid-contract-successor.test.mjs`, `config/contracts/registry.json`, `docs/governance/contracts/astrid-plan-a.md` | C1-S1 authenticated product identity binding, exact source hashes, pending SL/EW acknowledgements and immutable C1 preservation |
 | `npm run test:contracts` | `src/sdk/index.ts`, `src/tools/video-editor/index.ts`, `src/tools/video-editor/browser.ts`, `src/tools/video-editor/testing.ts`, `src/shared/components/ui/contracts/cn.ts`, `src/shared/lib/errorHandling/runtimeError.ts`, `src/domains/generation/types/index.ts` | Public contract API shape and behavior stays stable |
 | `npm run test:arch` | `scripts/quality/check-video-editor-sdk-imports.mjs`, `scripts/quality/check-sdk-no-barrel-imports.mjs`, `config/governance/video-editor-sdk-import-allowlist.json`, `src/shared/lib/errorHandling/runtimeError.ts`, `src/integrations/supabase/client.ts`, `docs/governance/contracts/compatibility-shims.md` | Contract and shim usage rules are enforced |
 | `npm run quality:check` | `src/sdk/index.ts`, `src/tools/video-editor/index.ts`, `src/tools/video-editor/browser.ts`, `src/tools/video-editor/testing.ts`, `scripts/quality/check-video-editor-sdk-imports.mjs`, `scripts/quality/check-sdk-public-exports.mjs`, `scripts/quality/check-sdk-no-barrel-imports.mjs`, `config/governance/video-editor-sdk-import-allowlist.json`, `config/governance/sdk-public-export-allowlist.json`, `src/integrations/supabase/client.ts`, `src/shared/lib/errorHandling/runtimeError.ts`, `src/shared/components/ui/contracts/cn.ts` | Integrated lint/typecheck/governance checks pass for touched contract surfaces |

@@ -1,0 +1,127 @@
+{
+  "schemaVersion": 1,
+  "kind": "astrid-plan-a-runtime-authority-census",
+  "issuedOn": "2026-09-27",
+  "digest": "sha256:5837fb1092e1a67d1532fb2aec9a59d9c401d930d75922c7fe31fc7634c54a04",
+  "repository": {
+    "identity": "banodoco/banodoco-workspace-runtime",
+    "canonicalRemote": "https://github.com/banodoco/banodoco-workspace-runtime.git",
+    "head": "130f0eb7580fa8ff4bb44ce7bcdc80a39e2964f3",
+    "tree": "54514b48ea3ba15a3301ca99eb95d44090d43611",
+    "statusFormat": "git-status-porcelain-v1-nul",
+    "statusPorcelainSha256": "a3223c33dec06d17d2e92fdccd90868c7e1891938bd1fbeee1eb89c54088e9f1",
+    "diffFormat": "git-diff-binary",
+    "trackedBinaryDiffSha256": "372a968ca623023381c7aea5d99c7fc78b833b2bf92329146b5120913f7c87f7"
+  },
+  "untrackedSources": [
+    {
+      "path": "runtime_protocol/handoff_recovery.py",
+      "sha256": "293ef59cbbf5899daf2b7c57ab97cf0f793b85f083ddd35a760e9da9b9591dea"
+    },
+    {
+      "path": "runtime_protocol/local_worker_handoff.py",
+      "sha256": "f640b51459d2060b3beef9de1b3a932bc4652da428f4fc70770e74b3f6cbab22"
+    },
+    {
+      "path": "runtime_protocol/orderly_handoff.py",
+      "sha256": "9d9f91d4d67850246dbf5466ad3c5a1e769a223a6e254175e7b29f06b60ad8a9"
+    },
+    {
+      "path": "tests/test_credential_generation_snapshot.py",
+      "sha256": "bc7b7c82bd84de9a9d108b45fc5b1e24f062372cb0e545bae9a5af06c9e12d5f"
+    },
+    {
+      "path": "tests/test_local_worker_handoff.py",
+      "sha256": "fe0372ee385fc73c6a237720aa8ca17ab2807b1c6e9b0b598e9ac43061e828a6"
+    },
+    {
+      "path": "tests/test_orderly_handoff_record.py",
+      "sha256": "8f3d12c735f0eb3c7e1b3ddb224888837e7a47b24674f86bde05ba76d5a456e9"
+    }
+  ],
+  "authoritySources": [
+    {
+      "path": "banodoco_local/bootstrap.py",
+      "sha256": "b7ee206ac1fee1ab528b9925b4c6eb398751755f353110e3268f3edd575af9d6",
+      "role": "canonical product actor derivation and credential publication"
+    },
+    {
+      "path": "runtime_protocol/auth.py",
+      "sha256": "62423d4ba9973a7a60c07797110f790afba31de94e9199527410918034bf38eb",
+      "role": "credential loading and admin wildcard authorization"
+    },
+    {
+      "path": "runtime_protocol/daemon.py",
+      "sha256": "87f4c7587386ea593dc23265865023b778685408f5f715bb5cccdcdd8d438710",
+      "role": "worker actor and worker credential scope vocabulary"
+    },
+    {
+      "path": "runtime_protocol/server.py",
+      "sha256": "b66373f07ff9d542f70716274fd599e23b200069cb56e60c8110b5f28a9e1211",
+      "role": "complete HTTP identity route and required-scope census"
+    },
+    {
+      "path": "runtime_protocol/service.py",
+      "sha256": "99b89019a21f854fb73e81cd77d9fea4ee1c80f2151b36429760312f015898a8",
+      "role": "handshake negotiation and admin scope projection"
+    }
+  ],
+  "predecessorSupersessions": [
+    {
+      "predecessorEvidenceId": "runtime-cli",
+      "path": "banodoco_local/cli.py",
+      "predecessorSha256": "105e238ffddd1fa05a9e8bf91088fb8f4aadbe5b1075e96a0eaa5812db3a7305",
+      "successorSha256": "e337a04e1bb33d60c6bb702e8d74c7fb7b8e799edaaa7d731c56aea5f39c3001"
+    },
+    {
+      "predecessorEvidenceId": "runtime-paths",
+      "path": "banodoco_local/paths.py",
+      "predecessorSha256": "c78bba8f5b1f219c2fffa4c1cc3d43fdcc4d6813bfe20f0eb772dbd7a4b9cde5",
+      "successorSha256": "2c30b49a3b24ed7705e9d7bad33e3eeb6fc95457f8ff9500941615759189ae2a"
+    },
+    {
+      "predecessorEvidenceId": "runtime-bootstrap",
+      "path": "banodoco_local/bootstrap.py",
+      "predecessorSha256": "ce262af2595f4117d54bf0632da307d750ae7030a2b56efdb14c78b271a1efff",
+      "successorSha256": "b7ee206ac1fee1ab528b9925b4c6eb398751755f353110e3268f3edd575af9d6"
+    },
+    {
+      "predecessorEvidenceId": "runtime-contract",
+      "path": "contract/openapi/workspace-v1.yaml",
+      "predecessorSha256": "bcb448b25d1516454560476115f7fdbcb21d48b330c46b7292bbe247fce0d896",
+      "successorSha256": "f40526f3b481ac96907bd8838073be98123f8286afe102d50c904b65a0da3604"
+    },
+    {
+      "predecessorEvidenceId": "runtime-task",
+      "path": "contract/schemas/task.json",
+      "predecessorSha256": "e96ad4349e0a8b9f36b3ce8d8c1ca3d3b69456b60b4e5ab3541c31dc31449a44",
+      "successorSha256": "f4ba5d862baa1cc49a2eaef35588d117d63c5a296388eee0ddbe4525e529c6ac"
+    },
+    {
+      "predecessorEvidenceId": "runtime-worker",
+      "path": "contract/schemas/worker.json",
+      "predecessorSha256": "62da42817cf4ca1dbcb5d8e588267ef827c8bd12e5d828c36828e4760fb1e6ec",
+      "successorSha256": "8e875fc1252ecc72dd3234f4702f4e58b8035620d02b9c9393b3e9408559e587"
+    }
+  ],
+  "authorityCensus": {
+    "productScopes": [
+      "handshake",
+      "projects:read",
+      "projects:write",
+      "tasks:read",
+      "tasks:write",
+      "objects:read",
+      "objects:write"
+    ],
+    "nonProductScopes": [
+      "admin",
+      "credentials:provision",
+      "worker:execute",
+      "worker:register"
+    ],
+    "completeStoredScopeDisclosure": false,
+    "claimBoundary": "For this exact pinned Runtime source and its current HTTP authorization-route census, the authenticated bearer has no HTTP API authority beyond the seven product scopes.",
+    "residual": "Unknown or custom stored scopes not referenced by a pinned HTTP identity route are not disclosed or disproved and grant no authority on this exact pinned API."
+  }
+}

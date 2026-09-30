@@ -921,6 +921,16 @@
       "expectedExports": []
     },
     {
+      "id": "astrid-plan-a-c1-s1",
+      "class": "composition_contract",
+      "path": "config/contracts/astrid-plan-a-c1-s1.json",
+      "requiredTags": [
+        "\"kind\": \"astrid-contract-composition-successor\"",
+        "\"revision\": \"C1-S1\""
+      ],
+      "expectedExports": []
+    },
+    {
       "id": "astrid-plan-a-c2",
       "class": "composition_contract",
       "path": "config/contracts/astrid-plan-a-c2.json",
