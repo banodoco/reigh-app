@@ -1,48 +1,23 @@
 {
   "schemaVersion": 1,
   "kind": "astrid-plan-a-runtime-authority-census",
-  "issuedOn": "2026-09-27",
-  "digest": "sha256:5837fb1092e1a67d1532fb2aec9a59d9c401d930d75922c7fe31fc7634c54a04",
+  "issuedOn": "2026-10-02",
+  "digest": "sha256:7c420224a4e5be09dddcdd24e66a909d32d60f0e2585fb6bd57a66afa4532695",
   "repository": {
     "identity": "banodoco/banodoco-workspace-runtime",
     "canonicalRemote": "https://github.com/banodoco/banodoco-workspace-runtime.git",
-    "head": "130f0eb7580fa8ff4bb44ce7bcdc80a39e2964f3",
-    "tree": "54514b48ea3ba15a3301ca99eb95d44090d43611",
+    "head": "c885d582e8d6ab604adf73b0da8c4182dfbf3475",
+    "tree": "67ce8a29538fb97fdedda8f774e94b8c3c534679",
     "statusFormat": "git-status-porcelain-v1-nul",
-    "statusPorcelainSha256": "a3223c33dec06d17d2e92fdccd90868c7e1891938bd1fbeee1eb89c54088e9f1",
+    "statusPorcelainSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "diffFormat": "git-diff-binary",
-    "trackedBinaryDiffSha256": "372a968ca623023381c7aea5d99c7fc78b833b2bf92329146b5120913f7c87f7"
+    "trackedBinaryDiffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
   },
-  "untrackedSources": [
-    {
-      "path": "runtime_protocol/handoff_recovery.py",
-      "sha256": "293ef59cbbf5899daf2b7c57ab97cf0f793b85f083ddd35a760e9da9b9591dea"
-    },
-    {
-      "path": "runtime_protocol/local_worker_handoff.py",
-      "sha256": "f640b51459d2060b3beef9de1b3a932bc4652da428f4fc70770e74b3f6cbab22"
-    },
-    {
-      "path": "runtime_protocol/orderly_handoff.py",
-      "sha256": "9d9f91d4d67850246dbf5466ad3c5a1e769a223a6e254175e7b29f06b60ad8a9"
-    },
-    {
-      "path": "tests/test_credential_generation_snapshot.py",
-      "sha256": "bc7b7c82bd84de9a9d108b45fc5b1e24f062372cb0e545bae9a5af06c9e12d5f"
-    },
-    {
-      "path": "tests/test_local_worker_handoff.py",
-      "sha256": "fe0372ee385fc73c6a237720aa8ca17ab2807b1c6e9b0b598e9ac43061e828a6"
-    },
-    {
-      "path": "tests/test_orderly_handoff_record.py",
-      "sha256": "8f3d12c735f0eb3c7e1b3ddb224888837e7a47b24674f86bde05ba76d5a456e9"
-    }
-  ],
+  "untrackedSources": [],
   "authoritySources": [
     {
       "path": "banodoco_local/bootstrap.py",
-      "sha256": "b7ee206ac1fee1ab528b9925b4c6eb398751755f353110e3268f3edd575af9d6",
+      "sha256": "548e2a435cbf1be87232797721da694f1ce7f1173c371b1db4e716c21606456e",
       "role": "canonical product actor derivation and credential publication"
     },
     {
@@ -52,12 +27,12 @@
     },
     {
       "path": "runtime_protocol/daemon.py",
-      "sha256": "87f4c7587386ea593dc23265865023b778685408f5f715bb5cccdcdd8d438710",
+      "sha256": "0bf40a5465bbd6020b3bcc0740e8a4b419e0e8a7d657deb097f8e808e9e636de",
       "role": "worker actor and worker credential scope vocabulary"
     },
     {
       "path": "runtime_protocol/server.py",
-      "sha256": "b66373f07ff9d542f70716274fd599e23b200069cb56e60c8110b5f28a9e1211",
+      "sha256": "d3940e0f3b53ea743f50b6737828e0dd2627e88624c9d529cc1f01a5291e6cab",
       "role": "complete HTTP identity route and required-scope census"
     },
     {
@@ -71,7 +46,7 @@
       "predecessorEvidenceId": "runtime-cli",
       "path": "banodoco_local/cli.py",
       "predecessorSha256": "105e238ffddd1fa05a9e8bf91088fb8f4aadbe5b1075e96a0eaa5812db3a7305",
-      "successorSha256": "e337a04e1bb33d60c6bb702e8d74c7fb7b8e799edaaa7d731c56aea5f39c3001"
+      "successorSha256": "30b8f750937309d3f8c28c254683b185882646136fc66c58b541fc03356f0749"
     },
     {
       "predecessorEvidenceId": "runtime-paths",
@@ -83,7 +58,7 @@
       "predecessorEvidenceId": "runtime-bootstrap",
       "path": "banodoco_local/bootstrap.py",
       "predecessorSha256": "ce262af2595f4117d54bf0632da307d750ae7030a2b56efdb14c78b271a1efff",
-      "successorSha256": "b7ee206ac1fee1ab528b9925b4c6eb398751755f353110e3268f3edd575af9d6"
+      "successorSha256": "548e2a435cbf1be87232797721da694f1ce7f1173c371b1db4e716c21606456e"
     },
     {
       "predecessorEvidenceId": "runtime-contract",

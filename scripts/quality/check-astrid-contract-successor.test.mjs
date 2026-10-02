@@ -178,10 +178,10 @@ test('live Runtime drift fails the ordinary accepting checker', () => {
 
   const untrackedFixture = exactRuntimeFixture();
   assert.deepEqual(validateSuccessorContract(original, { runtimeRoot: untrackedFixture }), []);
-  appendFileSync(path.join(untrackedFixture, 'runtime_protocol/handoff_recovery.py'), '\n# deliberate untracked drift\n');
+  appendFileSync(path.join(untrackedFixture, 'runtime_protocol/unexpected-census-drift.py'), '# deliberate untracked drift\n');
   assert.match(
     validateSuccessorContract(original, { runtimeRoot: untrackedFixture }).join('\n'),
-    /live untracked source drift/,
+    /live untracked path census drift/,
   );
 });
 

@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "kind": "astrid-contract-composition-successor",
   "revision": "C1-S1",
-  "issuedOn": "2026-09-27",
+  "issuedOn": "2026-10-02",
   "status": "successor-pending-consumer-ack",
-  "digest": "sha256:0d9d23e779cf4d100b5f14f9223b633b9682adc9038fdc23481b638821d92c5b",
+  "digest": "sha256:26379d743b9fa2e7bf31ba9e143967b7baf905b47b82d565a70ef9622f4f7e60",
   "predecessor": {
     "path": "config/contracts/astrid-plan-a-c1.json",
     "revision": "C1",
@@ -13,39 +13,163 @@
     "immutable": true
   },
   "change": {
-    "reason": "Bind the current product-credential launcher semantics while retaining C1 as the immutable historical input. The launcher selects the Runtime-published ASTRID product credential from ASTRID_PRODUCT_TOKEN_FILE, binds its regular-file generation, ownership, restrictive mode, metadata, and content fingerprint, then requires an authenticated Runtime handshake that negotiates exactly the product scopes and reports the canonical token-derived product actor before passing the bearer to Vite or the paired connector. After validation, the launcher passes the exact authenticated bytes through the dedicated server-only WORKSPACE_RUNTIME_TOKEN environment value. Vite's /api/runtime proxy consumes only those bytes, never rereads the mutable credential path, rejects a configured Runtime target without the validated token, and never uses a VITE_-prefixed browser value. The bound environment example documents only this launcher-injected product flow and forbids owner credential files, manual token configuration, and VITE_-prefixed token variables. Runtime 130f0eb7580fa8ff4bb44ce7bcdc80a39e2964f3 exposes negotiated rather than complete stored credential scopes. For that exact pinned API, the app fails closed unless Runtime proves absence of every authority it currently recognizes outside the seven product scopes: an authorization-before-validation POST /v1/backup probe for admin and read-only POST /v1/handshake negotiations for credentials:provision, worker:execute, and worker:register. Each probe accepts only Runtime's exact authenticated missing-authority response, and the bound credential source is rechecked after the sequence; success, a different error, network ambiguity, credential file/token rotation, owner, Worker/pack-host, non-canonical actor, malformed response, or insufficient/duplicate product scopes fail closed. Unknown inert scope strings are not disclosed by Runtime and are outside this pinned-API authority claim; any Runtime source-census change invalidates the proof and requires a successor refresh. REIGH_PAIRED_PRODUCT_ACTOR and credential sidecar metadata are consistency assertions only and never establish authority. The connector repeats the same authenticated proof on startup and refresh. Raw token bytes remain in Runtime/server-side custody; the app does not mint, broaden, log, or treat a local token as an owner credential. Runtime remains the sole authority for admission, idempotency, attempts, fencing, events, and settlement. This successor changes only the app launcher credential handoff, Vite Runtime proxy, environment example, connector check, and their exact tests; it does not rewrite C1 or claim installed acceptance.",
+    "reason": "Bind the current product-credential launcher semantics while retaining C1 as the immutable historical input. The launcher selects the Runtime-published ASTRID product credential from ASTRID_PRODUCT_TOKEN_FILE, binds its regular-file generation, ownership, restrictive mode, metadata, and content fingerprint, then requires an authenticated Runtime handshake that negotiates exactly the product scopes and reports the canonical token-derived product actor before passing the bearer to Vite or the paired connector. After validation, the launcher passes the exact authenticated bytes through the dedicated server-only WORKSPACE_RUNTIME_TOKEN environment value. Vite's /api/runtime proxy consumes only those bytes, never rereads the mutable credential path, rejects a configured Runtime target without the validated token, and never uses a VITE_-prefixed browser value. The bound environment example documents only this launcher-injected product flow and forbids owner credential files, manual token configuration, and VITE_-prefixed token variables. Runtime c885d582e8d6ab604adf73b0da8c4182dfbf3475 exposes negotiated rather than complete stored credential scopes. For that exact pinned API, the app fails closed unless Runtime proves absence of every authority it currently recognizes outside the seven product scopes: an authorization-before-validation POST /v1/backup probe for admin and read-only POST /v1/handshake negotiations for credentials:provision, worker:execute, and worker:register. Each probe accepts only Runtime's exact authenticated missing-authority response, and the bound credential source is rechecked after the sequence; success, a different error, network ambiguity, credential file/token rotation, owner, Worker/pack-host, non-canonical actor, malformed response, or insufficient/duplicate product scopes fail closed. Unknown inert scope strings are not disclosed by Runtime and are outside this pinned-API authority claim; any Runtime source-census change invalidates the proof and requires a successor refresh. REIGH_PAIRED_PRODUCT_ACTOR and credential sidecar metadata are consistency assertions only and never establish authority. The connector repeats the same authenticated proof on startup and refresh. Raw token bytes remain in Runtime/server-side custody; the app does not mint, broaden, log, or treat a local token as an owner credential. Runtime remains the sole authority for admission, idempotency, attempts, fencing, events, and settlement. This successor changes only the app launcher credential handoff, Vite Runtime proxy, environment example, connector check, and their exact tests; it does not rewrite C1 or claim installed acceptance.",
     "runtimeSourceCensus": {
       "path": "config/contracts/astrid-plan-a-runtime-scope-census.json",
-      "rawFileSha256": "d8263f50df014a11fa9b911b545a8fe4f137fdfd474d534f3fae86adcc6afa39",
-      "digest": "sha256:5837fb1092e1a67d1532fb2aec9a59d9c401d930d75922c7fe31fc7634c54a04"
+      "rawFileSha256": "a7109b5d7c83f98d2a70dddfc40d72ac526a7ba7ae9bc28723377be76da8c602",
+      "digest": "sha256:7c420224a4e5be09dddcdd24e66a909d32d60f0e2585fb6bd57a66afa4532695"
     },
     "runtimeSourceSupersessions": [
-      { "predecessorEvidenceId": "runtime-cli", "path": "banodoco_local/cli.py", "predecessorSha256": "105e238ffddd1fa05a9e8bf91088fb8f4aadbe5b1075e96a0eaa5812db3a7305", "successorSha256": "e337a04e1bb33d60c6bb702e8d74c7fb7b8e799edaaa7d731c56aea5f39c3001" },
-      { "predecessorEvidenceId": "runtime-paths", "path": "banodoco_local/paths.py", "predecessorSha256": "c78bba8f5b1f219c2fffa4c1cc3d43fdcc4d6813bfe20f0eb772dbd7a4b9cde5", "successorSha256": "2c30b49a3b24ed7705e9d7bad33e3eeb6fc95457f8ff9500941615759189ae2a" },
-      { "predecessorEvidenceId": "runtime-bootstrap", "path": "banodoco_local/bootstrap.py", "predecessorSha256": "ce262af2595f4117d54bf0632da307d750ae7030a2b56efdb14c78b271a1efff", "successorSha256": "b7ee206ac1fee1ab528b9925b4c6eb398751755f353110e3268f3edd575af9d6" },
-      { "predecessorEvidenceId": "runtime-contract", "path": "contract/openapi/workspace-v1.yaml", "predecessorSha256": "bcb448b25d1516454560476115f7fdbcb21d48b330c46b7292bbe247fce0d896", "successorSha256": "f40526f3b481ac96907bd8838073be98123f8286afe102d50c904b65a0da3604" },
-      { "predecessorEvidenceId": "runtime-task", "path": "contract/schemas/task.json", "predecessorSha256": "e96ad4349e0a8b9f36b3ce8d8c1ca3d3b69456b60b4e5ab3541c31dc31449a44", "successorSha256": "f4ba5d862baa1cc49a2eaef35588d117d63c5a296388eee0ddbe4525e529c6ac" },
-      { "predecessorEvidenceId": "runtime-worker", "path": "contract/schemas/worker.json", "predecessorSha256": "62da42817cf4ca1dbcb5d8e588267ef827c8bd12e5d828c36828e4760fb1e6ec", "successorSha256": "8e875fc1252ecc72dd3234f4702f4e58b8035620d02b9c9393b3e9408559e587" }
+      {
+        "predecessorEvidenceId": "runtime-cli",
+        "path": "banodoco_local/cli.py",
+        "predecessorSha256": "105e238ffddd1fa05a9e8bf91088fb8f4aadbe5b1075e96a0eaa5812db3a7305",
+        "successorSha256": "30b8f750937309d3f8c28c254683b185882646136fc66c58b541fc03356f0749"
+      },
+      {
+        "predecessorEvidenceId": "runtime-paths",
+        "path": "banodoco_local/paths.py",
+        "predecessorSha256": "c78bba8f5b1f219c2fffa4c1cc3d43fdcc4d6813bfe20f0eb772dbd7a4b9cde5",
+        "successorSha256": "2c30b49a3b24ed7705e9d7bad33e3eeb6fc95457f8ff9500941615759189ae2a"
+      },
+      {
+        "predecessorEvidenceId": "runtime-bootstrap",
+        "path": "banodoco_local/bootstrap.py",
+        "predecessorSha256": "ce262af2595f4117d54bf0632da307d750ae7030a2b56efdb14c78b271a1efff",
+        "successorSha256": "548e2a435cbf1be87232797721da694f1ce7f1173c371b1db4e716c21606456e"
+      },
+      {
+        "predecessorEvidenceId": "runtime-contract",
+        "path": "contract/openapi/workspace-v1.yaml",
+        "predecessorSha256": "bcb448b25d1516454560476115f7fdbcb21d48b330c46b7292bbe247fce0d896",
+        "successorSha256": "f40526f3b481ac96907bd8838073be98123f8286afe102d50c904b65a0da3604"
+      },
+      {
+        "predecessorEvidenceId": "runtime-task",
+        "path": "contract/schemas/task.json",
+        "predecessorSha256": "e96ad4349e0a8b9f36b3ce8d8c1ca3d3b69456b60b4e5ab3541c31dc31449a44",
+        "successorSha256": "f4ba5d862baa1cc49a2eaef35588d117d63c5a296388eee0ddbe4525e529c6ac"
+      },
+      {
+        "predecessorEvidenceId": "runtime-worker",
+        "path": "contract/schemas/worker.json",
+        "predecessorSha256": "62da42817cf4ca1dbcb5d8e588267ef827c8bd12e5d828c36828e4760fb1e6ec",
+        "successorSha256": "8e875fc1252ecc72dd3234f4702f4e58b8035620d02b9c9393b3e9408559e587"
+      }
     ],
     "appSourceSupersessions": [
-      { "predecessorEvidenceId": "local-launcher", "successorEvidenceId": "local-launcher-current", "path": "scripts/dev-local-workspace.mjs", "predecessorSha256": "ab45e3d77fc8d17909182febd3522fc2a1394018c092f89c2aa25ed006cf0d0a", "successorSha256": "62b01d1291c07513f0f442b799ed0d62ff6bfbdb40f02d32c02ca1fe6d4fc928" },
-      { "predecessorEvidenceId": "runtime-proxy", "successorEvidenceId": "runtime-proxy-policy", "path": "config/vite/runtimeProxy.ts", "predecessorSha256": "a064f337fc3b8e278585452e6bc0bb0fd6a68f6853b12912cf0cdb0ca0b1bce1", "successorSha256": "c0fb071de0e386e1a10fe464317a0f864ae4a170a2fdf363296b1ccb79e40432" }
+      {
+        "predecessorEvidenceId": "local-launcher",
+        "successorEvidenceId": "local-launcher-current",
+        "path": "scripts/dev-local-workspace.mjs",
+        "predecessorSha256": "ab45e3d77fc8d17909182febd3522fc2a1394018c092f89c2aa25ed006cf0d0a",
+        "successorSha256": "62b01d1291c07513f0f442b799ed0d62ff6bfbdb40f02d32c02ca1fe6d4fc928"
+      },
+      {
+        "predecessorEvidenceId": "runtime-proxy",
+        "successorEvidenceId": "runtime-proxy-policy",
+        "path": "config/vite/runtimeProxy.ts",
+        "predecessorSha256": "a064f337fc3b8e278585452e6bc0bb0fd6a68f6853b12912cf0cdb0ca0b1bce1",
+        "successorSha256": "c0fb071de0e386e1a10fe464317a0f864ae4a170a2fdf363296b1ccb79e40432"
+      }
     ],
     "sourceEvidence": [
-      { "id": "local-launcher-current", "path": "scripts/dev-local-workspace.mjs", "sha256": "62b01d1291c07513f0f442b799ed0d62ff6bfbdb40f02d32c02ca1fe6d4fc928", "role": "authenticated product-credential local launcher and exact server-only proxy token handoff" },
-      { "id": "product-credential-helper", "path": "scripts/reigh-product-credential.mjs", "sha256": "5da810c0a8a2f8cdcc048cc83c22a904050d64ad12c9d9b728653e8a17d97df0", "role": "Runtime-authenticated product actor and fail-closed privilege validator" },
-      { "id": "paired-connector", "path": "scripts/reigh-local-connector.ts", "sha256": "b9b097e62e977e6099e59a556cf03b10791e42c06c6a10fb3d02f145cb83f1ed", "role": "paired connector authenticated identity refresh" },
-      { "id": "product-credential-tests", "path": "scripts/reigh-product-credential.test.mjs", "sha256": "3d17c5bbe8dd2d6acaa034234a23f80d7c586dc4652a6df64fec1f2b03ffe57a", "role": "credential handoff, hidden privilege rejection, launcher, connector, Runtime census preflight, and real Runtime test surface" },
-      { "id": "runtime-source-census", "path": "config/contracts/astrid-plan-a-runtime-scope-census.json", "sha256": "d8263f50df014a11fa9b911b545a8fe4f137fdfd474d534f3fae86adcc6afa39", "role": "hash-bound exact Runtime repository, working-source, authority-file, untracked-file, supersession, and scope census" },
-      { "id": "runtime-proxy-config", "path": "config/vite/vite.config.ts", "sha256": "b9efdf3e48681b44483534ac883b0da3df2bf30744b28c3c16ccfe663ca6bcc9", "role": "Vite /api/runtime proxy consumes only validated server-only token bytes" },
-      { "id": "runtime-proxy-policy", "path": "config/vite/runtimeProxy.ts", "sha256": "c0fb071de0e386e1a10fe464317a0f864ae4a170a2fdf363296b1ccb79e40432", "role": "server-only Runtime proxy token environment and Authorization header policy" },
-      { "id": "runtime-proxy-regression-tests", "path": "config/vite/runtimeProxy.test.ts", "sha256": "f2f10336888e04e7c9240cc18d93ce2224b3383e30af2231a8fecf5b1ea74aba", "role": "post-authentication credential replacement, environment-example, and fail-closed Vite proxy regression" },
-      { "id": "runtime-proxy-environment-example", "path": ".env.example", "sha256": "41c06b258644f67ae3ef9dfac0a96b0901fea201409856a586b2090bd44dbcfc", "role": "supported launcher-injected server-only product token configuration guidance" }
+      {
+        "id": "local-launcher-current",
+        "path": "scripts/dev-local-workspace.mjs",
+        "sha256": "62b01d1291c07513f0f442b799ed0d62ff6bfbdb40f02d32c02ca1fe6d4fc928",
+        "role": "authenticated product-credential local launcher and exact server-only proxy token handoff"
+      },
+      {
+        "id": "product-credential-helper",
+        "path": "scripts/reigh-product-credential.mjs",
+        "sha256": "5da810c0a8a2f8cdcc048cc83c22a904050d64ad12c9d9b728653e8a17d97df0",
+        "role": "Runtime-authenticated product actor and fail-closed privilege validator"
+      },
+      {
+        "id": "paired-connector",
+        "path": "scripts/reigh-local-connector.ts",
+        "sha256": "b9b097e62e977e6099e59a556cf03b10791e42c06c6a10fb3d02f145cb83f1ed",
+        "role": "paired connector authenticated identity refresh"
+      },
+      {
+        "id": "product-credential-tests",
+        "path": "scripts/reigh-product-credential.test.mjs",
+        "sha256": "3d17c5bbe8dd2d6acaa034234a23f80d7c586dc4652a6df64fec1f2b03ffe57a",
+        "role": "credential handoff, hidden privilege rejection, launcher, connector, Runtime census preflight, and real Runtime test surface"
+      },
+      {
+        "id": "runtime-source-census",
+        "path": "config/contracts/astrid-plan-a-runtime-scope-census.json",
+        "sha256": "a7109b5d7c83f98d2a70dddfc40d72ac526a7ba7ae9bc28723377be76da8c602",
+        "role": "hash-bound exact Runtime repository, working-source, authority-file, live-untracked-source, supersession, and scope census"
+      },
+      {
+        "id": "runtime-proxy-config",
+        "path": "config/vite/vite.config.ts",
+        "sha256": "b9efdf3e48681b44483534ac883b0da3df2bf30744b28c3c16ccfe663ca6bcc9",
+        "role": "Vite /api/runtime proxy consumes only validated server-only token bytes"
+      },
+      {
+        "id": "runtime-proxy-policy",
+        "path": "config/vite/runtimeProxy.ts",
+        "sha256": "c0fb071de0e386e1a10fe464317a0f864ae4a170a2fdf363296b1ccb79e40432",
+        "role": "server-only Runtime proxy token environment and Authorization header policy"
+      },
+      {
+        "id": "runtime-proxy-regression-tests",
+        "path": "config/vite/runtimeProxy.test.ts",
+        "sha256": "f2f10336888e04e7c9240cc18d93ce2224b3383e30af2231a8fecf5b1ea74aba",
+        "role": "post-authentication credential replacement, environment-example, and fail-closed Vite proxy regression"
+      },
+      {
+        "id": "runtime-proxy-environment-example",
+        "path": ".env.example",
+        "sha256": "41c06b258644f67ae3ef9dfac0a96b0901fea201409856a586b2090bd44dbcfc",
+        "role": "supported launcher-injected server-only product token configuration guidance"
+      }
     ],
-    "consumerAckRefs": ["sl-c1-s1-ack", "ew-c1-s1-ack"]
+    "consumerAckRefs": [
+      "sl-c1-s1-ack",
+      "ew-c1-s1-ack"
+    ]
   },
   "consumerAcknowledgements": [
-    { "id": "sl-c1-s1-ack", "consumer": "SL", "status": "pending-exact-consumer-ack", "contractRevision": "C1-S1", "scope": "Launcher credential handoff, helper ownership, Vite Runtime proxy, connector refresh, and setup seam binding.", "sourceEvidenceRefs": ["local-launcher-current", "product-credential-helper", "paired-connector", "product-credential-tests", "runtime-source-census", "runtime-proxy-config", "runtime-proxy-policy", "runtime-proxy-regression-tests", "runtime-proxy-environment-example"] },
-    { "id": "ew-c1-s1-ack", "consumer": "EW", "status": "pending-exact-consumer-ack", "contractRevision": "C1-S1", "scope": "Runtime-authenticated product identity and exact bearer bytes consumed by launcher, Vite proxy, and connector plus stable editor boundaries.", "sourceEvidenceRefs": ["local-launcher-current", "product-credential-helper", "paired-connector", "product-credential-tests", "runtime-source-census", "runtime-proxy-config", "runtime-proxy-policy", "runtime-proxy-regression-tests", "runtime-proxy-environment-example"] }
+    {
+      "id": "sl-c1-s1-ack",
+      "consumer": "SL",
+      "status": "pending-exact-consumer-ack",
+      "contractRevision": "C1-S1",
+      "scope": "Launcher credential handoff, helper ownership, Vite Runtime proxy, connector refresh, and setup seam binding.",
+      "sourceEvidenceRefs": [
+        "local-launcher-current",
+        "product-credential-helper",
+        "paired-connector",
+        "product-credential-tests",
+        "runtime-source-census",
+        "runtime-proxy-config",
+        "runtime-proxy-policy",
+        "runtime-proxy-regression-tests",
+        "runtime-proxy-environment-example"
+      ]
+    },
+    {
+      "id": "ew-c1-s1-ack",
+      "consumer": "EW",
+      "status": "pending-exact-consumer-ack",
+      "contractRevision": "C1-S1",
+      "scope": "Runtime-authenticated product identity and exact bearer bytes consumed by launcher, Vite proxy, and connector plus stable editor boundaries.",
+      "sourceEvidenceRefs": [
+        "local-launcher-current",
+        "product-credential-helper",
+        "paired-connector",
+        "product-credential-tests",
+        "runtime-source-census",
+        "runtime-proxy-config",
+        "runtime-proxy-policy",
+        "runtime-proxy-regression-tests",
+        "runtime-proxy-environment-example"
+      ]
+    }
   ]
 }

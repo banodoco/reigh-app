@@ -27,14 +27,7 @@ const SUPERSEDED_RUNTIME_EVIDENCE_IDS = [
   'runtime-cli', 'runtime-paths', 'runtime-bootstrap',
   'runtime-contract', 'runtime-task', 'runtime-worker',
 ];
-const UNTRACKED_SOURCE_PATHS = [
-  'runtime_protocol/handoff_recovery.py',
-  'runtime_protocol/local_worker_handoff.py',
-  'runtime_protocol/orderly_handoff.py',
-  'tests/test_credential_generation_snapshot.py',
-  'tests/test_local_worker_handoff.py',
-  'tests/test_orderly_handoff_record.py',
-];
+const UNTRACKED_SOURCE_PATHS = [];
 const RUNTIME_REPOSITORY = 'banodoco/banodoco-workspace-runtime';
 const RUNTIME_REMOTE = 'https://github.com/banodoco/banodoco-workspace-runtime.git';
 const CLAIM_BOUNDARY = 'For this exact pinned Runtime source and its current HTTP authorization-route census, the authenticated bearer has no HTTP API authority beyond the seven product scopes.';
@@ -126,7 +119,7 @@ function validateRuntimeCensusBinding(contract, repoRoot, runtimeRoot, errors) {
     untrackedPaths.add(source.path);
     require(SHA256.test(source.sha256 ?? ''), `runtimeSourceCensus.untrackedSources.${source.path}: malformed SHA-256`);
   }
-  require(untrackedPaths.size === UNTRACKED_SOURCE_PATHS.length && UNTRACKED_SOURCE_PATHS.every((sourcePath) => untrackedPaths.has(sourcePath)), 'runtimeSourceCensus.untrackedSources: exact six-file untracked census required');
+  require(untrackedPaths.size === UNTRACKED_SOURCE_PATHS.length && UNTRACKED_SOURCE_PATHS.every((sourcePath) => untrackedPaths.has(sourcePath)), 'runtimeSourceCensus.untrackedSources: exact live untracked-source census required');
   const predecessor = JSON.parse(readFileSync(PREDECESSOR_PATH, 'utf8'));
   const predecessorEvidence = new Map((predecessor.sourceEvidence ?? []).map((source) => [source.id, source]));
   const successorMappings = contract.change?.runtimeSourceSupersessions ?? [];
