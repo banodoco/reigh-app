@@ -25,7 +25,7 @@ describe('timeline agent ACP chat', () => {
 
   it('keeps missing identifiers as input errors before contacting ACP', async () => {
     const create = renderHook(() => useCreateSession(null), { wrapper });
-    await expect(act(async () => create.result.current.mutateAsync())).rejects.toThrow('timelineId is required');
+    await expect(act(async () => create.result.current.mutateAsync())).rejects.toThrow('projectId is required');
     create.unmount();
 
     const send = renderHook(() => useSendMessage(null, 'timeline-1'), { wrapper });

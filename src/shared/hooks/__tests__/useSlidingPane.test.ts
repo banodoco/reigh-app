@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 
 vi.mock('@/shared/hooks/mobile', () => ({
@@ -28,6 +28,31 @@ describe('useSlidingPane', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+  afterEach(() => { vi.useRealTimers(); });
+
+  it('keeps a peek open moving from rail to pane, then closes after leaving both', () => {
+    vi.useFakeTimers();
+    const { result } = renderHook(() => useSlidingPane({ side: 'right', isLocked: false, onToggleLock: mockToggleLock }));
+    act(() => result.current.openPane());
+    act(() => result.current.handlePaneLeave());
+    act(() => vi.advanceTimersByTime(100));
+    act(() => result.current.handlePaneEnter());
+    act(() => vi.advanceTimersByTime(1000));
+    expect(result.current.isOpen).toBe(true);
+    act(() => result.current.handlePaneLeave());
+    act(() => vi.advanceTimersByTime(300));
+    expect(result.current.isOpen).toBe(false);
+    expect(mockToggleLock).not.toHaveBeenCalled();
+  });
+
+  it('does not drop a leave during the opening animation', () => {
+    vi.useFakeTimers();
+    const { result } = renderHook(() => useSlidingPane({ side: 'right', isLocked: false, onToggleLock: mockToggleLock }));
+    act(() => result.current.openPane());
+    act(() => result.current.handlePaneLeave());
+    act(() => vi.advanceTimersByTime(600));
+    expect(result.current.isOpen).toBe(false);
   });
 
   it('returns expected shape', () => {

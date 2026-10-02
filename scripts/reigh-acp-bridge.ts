@@ -1,4 +1,6 @@
 import { randomUUID } from 'node:crypto';
+import { ApiError } from '../src/integrations/runtime/generated.ts';
+import { ChatError, ProjectChatRegistry, chatClaimIdentity, chatStoreIdentity, projectChatClaimDirectory, runtimeChatClient, type QueuedChatMessage } from './reigh-project-chat.ts';
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { pathToFileURL } from 'node:url';
@@ -68,6 +70,7 @@ type TerminalRecord = {
 };
 
 type BridgeOptions = {
+  readonly chatRegistry?: ProjectChatRegistry;
   readonly config: ReighAcpBridgeConfig;
   readonly hostFactory?: (options: AstridAcpLauncherOptions) => AcpProcessHost;
   readonly idFactory?: () => string;
@@ -249,6 +252,9 @@ async function readJson(request: IncomingMessage): Promise<unknown> {
 }
 
 function hostError(error: unknown): { status: number; body: JsonRecord } {
+  if (error instanceof ChatError || error instanceof ApiError) {
+    return { status: error.status, body: { error: error.code, detail: error.message } };
+  }
   if (error instanceof AcpProcessHostError) {
     return { status: 502, body: { error: error.code, detail: error.message } };
   }
@@ -263,11 +269,14 @@ export class ReighAcpBridge {
   private readonly hostFactory: (options: AstridAcpLauncherOptions) => AcpProcessHost;
   private readonly idFactory: () => string;
   private readonly connections = new Map<string, Connection>();
+  private readonly chatRegistry?: ProjectChatRegistry;
 
   constructor(options: BridgeOptions) {
     this.config = options.config;
     this.hostFactory = options.hostFactory ?? createAstridAcpProcessHost;
     this.idFactory = options.idFactory ?? randomUUID;
+    const runtime = options.chatRegistry ? undefined : runtimeChatClient();
+    this.chatRegistry = options.chatRegistry ?? (runtime ? new ProjectChatRegistry(runtime, chatStoreIdentity(this.config), Date.now, projectChatClaimDirectory(this.config), chatClaimIdentity(this.config)) : undefined);
   }
 
   async handle(request: IncomingMessage, response: ServerResponse): Promise<void> {
@@ -294,6 +303,12 @@ export class ReighAcpBridge {
       }
       if (request.method === 'POST' && url.pathname === '/connect') {
         await this.connect(response);
+        return;
+      }
+
+      const projectChat = url.pathname.match(/^\/projects\/([^/]+)\/chat(?:\/(sessions|unassigned|associate|draft|prompt))?$/);
+      if (projectChat) {
+        await this.projectChat(decodeURIComponent(projectChat[1]), projectChat[2], request, response);
         return;
       }
 
@@ -427,6 +442,81 @@ export class ReighAcpBridge {
       await host.dispose();
       throw error;
     }
+  }
+
+  private async projectChat(projectId: string, action: string | undefined, request: IncomingMessage, response: ServerResponse): Promise<void> {
+    const registry = this.chatRegistry;
+    if (!registry) throw new ChatError(503, 'chat_storage_unavailable', 'Project chat requires the configured Workspace Runtime endpoint and credential');
+    if (!action && request.method === 'GET') {
+      jsonResponse(response, 200, await registry.get(projectId));
+      return;
+    }
+    if (action === 'unassigned' && request.method === 'GET') {
+      const connectionId = new URL(request.url ?? '/', 'http://localhost').searchParams.get('connection_id');
+      const connection = connectionId ? this.connections.get(connectionId) : undefined;
+      if (!connection || connection.disconnected) throw new ChatError(404, 'connection_not_found', 'ACP connection is unavailable; reconnect');
+      const result = await connection.host.request('session/list', { cwd: this.config.cwd });
+      const root = asRecord(result) ?? {};
+      const items = Array.isArray(result) ? result : Array.isArray(root.sessions) ? root.sessions : Array.isArray(root.items) ? root.items : [];
+      const candidates = items.flatMap(item => {
+        const session = asRecord(item);
+        const id = typeof session?.sessionId === 'string' ? session.sessionId : typeof session?.session_id === 'string' ? session.session_id : typeof session?.id === 'string' ? session.id : null;
+        if (!id) return [];
+        const title = typeof session?.title === 'string' ? session.title : undefined;
+        return [{ id, ...(title ? { title } : {}) }];
+      });
+      jsonResponse(response, 200, { sessions: await registry.unassigned(projectId, candidates) });
+      return;
+    }
+    const body = asRecord(await readJson(request));
+    if (!body) throw new ChatError(400, 'invalid_body', 'Expected a JSON object');
+    if (request.method === 'PATCH' && (!action || action === 'draft')) {
+      if (!Number.isInteger(body.expected_revision) || (body.expected_revision as number) < 0) throw new ChatError(400, 'invalid_body', 'expected_revision must be a nonnegative integer');
+      if (action === 'draft') {
+        if (typeof body.text !== 'string' || body.text.length > 100_000) throw new ChatError(400, 'invalid_body', 'Draft text must be a string of at most 100000 characters');
+        if (body.queued_messages !== undefined && (!Array.isArray(body.queued_messages) || body.queued_messages.length > 100 || !body.queued_messages.every(item => isRecord(item) && typeof item.id === 'string' && typeof item.text === 'string' && typeof item.session_id === 'string' && (item.attachments === undefined || Array.isArray(item.attachments))))) throw new ChatError(400, 'invalid_body', 'queued_messages must contain scoped message records');
+        jsonResponse(response, 200, await registry.draft(projectId, body.expected_revision as number, body.text, body.queued_messages as QueuedChatMessage[] | undefined));
+      } else {
+        if (body.selected_session_id !== null && typeof body.selected_session_id !== 'string') throw new ChatError(400, 'invalid_body', 'selected_session_id is required');
+        jsonResponse(response, 200, await registry.select(projectId, body.expected_revision as number, body.selected_session_id as string | null));
+      }
+      return;
+    }
+    if (request.method === 'POST' && (action === 'sessions' || action === 'prompt' || action === 'associate')) {
+      const connection = typeof body.connection_id === 'string' ? this.connections.get(body.connection_id) : undefined;
+      if (!connection || connection.disconnected) throw new ChatError(404, 'connection_not_found', 'ACP connection is unavailable; reconnect');
+      if (action === 'sessions') {
+        if ((body.mode !== 'ensure' && body.mode !== 'new') || typeof body.operation_id !== 'string' || !body.operation_id || body.operation_id.length > 200) throw new ChatError(400, 'invalid_body', 'mode and operation_id are required');
+        jsonResponse(response, 200, await registry.create(projectId, body.mode, body.operation_id, () => connection.host.request('session/new', { cwd: this.config.cwd, mcpServers: [] }), async sessionId => {
+          try {
+            await connection.host.request('session/resume', { sessionId, cwd: this.config.cwd, mcpServers: [] });
+            return true;
+          } catch (error) {
+            if (error instanceof AcpProcessHostError && error.code === 'acp_transport' && error.message === `ACP request "session/resume" failed: ACP session not found: ${sessionId}`) return false;
+            throw error;
+          }
+        }));
+      } else if (action === 'associate') {
+        if (typeof body.session_id !== 'string' || !Number.isInteger(body.expected_revision)) throw new ChatError(400, 'invalid_body', 'session_id and expected_revision are required');
+        const state = await registry.associate(projectId, body.expected_revision as number, body.session_id, async sessionId => {
+          try {
+            await connection.host.request('session/resume', { sessionId, cwd: this.config.cwd, mcpServers: [] });
+            return true;
+          } catch (error) {
+            if (error instanceof AcpProcessHostError && error.code === 'acp_transport' && error.message === `ACP request "session/resume" failed: ACP session not found: ${sessionId}`) return false;
+            throw error;
+          }
+        });
+        jsonResponse(response, 200, state);
+      } else {
+        if (typeof body.session_id !== 'string' || !Array.isArray(body.prompt)) throw new ChatError(400, 'invalid_body', 'session_id and prompt are required');
+        await registry.assertOwned(projectId, body.session_id);
+        const result = await connection.host.request('session/prompt', { sessionId: body.session_id, prompt: body.prompt });
+        jsonResponse(response, 200, { result });
+      }
+      return;
+    }
+    throw new ChatError(404, 'not_found', 'Unknown project chat operation');
   }
 
   private async rpc(connection: Connection, request: IncomingMessage, response: ServerResponse): Promise<void> {

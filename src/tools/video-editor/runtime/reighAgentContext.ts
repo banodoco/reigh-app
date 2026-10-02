@@ -14,7 +14,7 @@ export type ReighAgentContextSnapshot = {
     slug: string | null;
   };
   timeline: {
-    id: string;
+    id: string | null;
     name: string | null;
     summary?: {
       config_version: number;
