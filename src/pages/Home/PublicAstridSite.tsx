@@ -3,6 +3,7 @@ import { flushSync } from 'react-dom';
 import { PublicAstridShell } from './PublicAstridShell.tsx';
 import { PublicAstridVision } from './PublicAstridVision.tsx';
 import { VISION_PATH } from './publicAstridLinks';
+import { PUBLIC_ASTRID_SHARE_PAGES } from './publicAstridShare';
 import './PublicAstridSite.css';
 
 type PublicAstridPage = 'home' | 'vision';
@@ -35,6 +36,7 @@ export function PublicAstridSite() {
     const commit = () => {
       if (next === 'vision') homeScrollRef.current = window.scrollY;
       pageRef.current = next;
+      document.title = PUBLIC_ASTRID_SHARE_PAGES[next].title;
       flushSync(() => {
         setPage(next);
         if (next === 'home') setHomeMounted(true);

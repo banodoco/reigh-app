@@ -6,7 +6,6 @@
     <link rel="icon" href="/astrid-favicon.svg" type="image/svg+xml" />
     <link rel="icon" href="/astrid-favicon-32.png" type="image/png" sizes="32x32" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <title>Astrid</title>
 
     <!-- Web App Manifest for PWA -->
     <link rel="manifest" href="/manifest.json" />
@@ -23,20 +22,11 @@
     <!-- Installed-app typography is requested by main.tsx only after the
          protected app entry is selected; the public landing stays local-only. -->
 
-    <!-- Meta description for SEO and social sharing -->
-    <meta name="description" content="An agent-powered video editor built to unlock the artistic potential of open-source models." />
     <meta name="author" content="Astrid" />
 
-    <!-- Open Graph tags (Facebook, Discord, etc.) -->
-    <meta property="og:title" content="Astrid" />
-    <meta property="og:description" content="Push local AI to its creative limits." />
-    <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://reigh.art" />
-
-    <!-- Twitter Card tags -->
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Astrid" />
-    <meta name="twitter:description" content="Push local AI to its creative limits." />
+    <!-- Title, description and the link-preview card (Open Graph, X), filled per page by
+         config/vite/shareMeta.ts from src/pages/Home/publicAstridShare.ts. -->
+    <!-- share-meta:start --><!-- share-meta:end -->
 
     <!-- Critical images are preloaded dynamically by useHomePagePreload hook -->
   </head>
