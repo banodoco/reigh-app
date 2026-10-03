@@ -56,7 +56,7 @@ export default defineConfig(() => {
   const pairedRelay = createPairedRelayPlugin(resolvePairedRelayConfig(process.env));
   const astridSource = resolveAstridSource();
   const astridPublicSource = resolveAstridSource(
-    process.env.ASTRID_PUBLIC_CHECKOUT,
+    process.env.ASTRID_PUBLIC_CHECKOUT ?? '',
     'ASTRID_PUBLIC_CHECKOUT',
   );
   const generationComposerConfig = resolveAstridGenerationComposer(process.env, astridSource?.sourceRoot);

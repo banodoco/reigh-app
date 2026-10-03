@@ -1,30 +1,12 @@
-import { useEffect } from 'react';
-import { usePersistentState } from '../usePersistentState';
+import { useAppTheme } from './useAppTheme';
 
 /**
- * Hook to manage dark mode state with persistence.
- * Applies the 'dark' class to document.documentElement when enabled.
- * Also swaps the favicon to match the current theme.
- * Defaults to dark mode (true) for new users.
+ * Whether the app is currently dark, from its time-of-day theme (see useAppTheme). Setting it fixes the
+ * theme at a day or night moment; painting the page is left to useApplyAppTheme at the app's root.
  */
 export function useDarkMode() {
-  const [darkMode, setDarkMode] = usePersistentState<boolean>('dark-mode', true);
-
-  useEffect(() => {
-    if (darkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-
-    // Update favicon to match theme
-    const favicon = document.querySelector('link[rel="icon"]') as HTMLLinkElement;
-    if (favicon) {
-      favicon.href = darkMode ? '/favicon-dark.ico' : '/favicon-light.ico';
-    }
-  }, [darkMode]);
-
+  const { darkMode, setTime } = useAppTheme();
+  const setDarkMode = (dark: boolean) => setTime(dark ? 0.75 : 0.25);
   const toggle = () => setDarkMode(!darkMode);
-
   return { darkMode, setDarkMode, toggle };
 }

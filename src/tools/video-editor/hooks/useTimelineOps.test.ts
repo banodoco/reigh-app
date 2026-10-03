@@ -715,6 +715,142 @@ describe('useTimelineOps', () => {
     });
   });
 
+  describe('whole-timeline editability guard', () => {
+    const deniedEditability = {
+      check: () => ({ allowed: false as const, reason: 'timeline_read_only' as const }),
+      checkTimeline: () => ({ allowed: false as const, reason: 'timeline_read_only' as const }),
+    };
+
+    it('rejects apply before commit and leaves the input snapshot unchanged', () => {
+      const commitData = vi.fn();
+      const dataRef = { current: makeBaseTimelineData() };
+      const before = structuredClone(dataRef.current);
+      const createManualCheckpoint = vi.fn();
+      const jumpToCheckpoint = vi.fn();
+      const { result } = renderHook(() => useTimelineOps({
+        commitData,
+        dataRef,
+        createManualCheckpoint,
+        jumpToCheckpoint,
+        checkpoints: [],
+        editability: deniedEditability,
+      }));
+
+      expect(() => result.current.apply({
+        version: 1,
+        operations: [{
+          op: 'clip.add',
+          target: 'blocked-clip',
+          payload: { track: 'V1', at: 3, clipType: 'hold', hold: 1 },
+        }],
+      })).toThrow('TimelineOps.apply: timeline edit denied (timeline_read_only).');
+      expect(commitData).not.toHaveBeenCalled();
+      expect(createManualCheckpoint).not.toHaveBeenCalled();
+      expect(jumpToCheckpoint).not.toHaveBeenCalled();
+      expect(dataRef.current).toEqual(before);
+    });
+
+    it('rejects checkpoint before registering or persisting it', () => {
+      const dataRef = { current: makeBaseTimelineData() };
+      const before = structuredClone(dataRef.current);
+      const createManualCheckpoint = vi.fn();
+      const jumpToCheckpoint = vi.fn();
+      const { result } = renderHook(() => useTimelineOps({
+        commitData: vi.fn(),
+        dataRef,
+        createManualCheckpoint,
+        jumpToCheckpoint,
+        checkpoints: [],
+        editability: deniedEditability,
+      }));
+
+      expect(() => result.current.checkpoint('blocked')).toThrow(
+        'TimelineOps.checkpoint: timeline edit denied (timeline_read_only).',
+      );
+      expect(createManualCheckpoint).not.toHaveBeenCalled();
+      expect(jumpToCheckpoint).not.toHaveBeenCalled();
+      expect(dataRef.current).toEqual(before);
+    });
+
+    it('rejects rollback before resolving or jumping to a checkpoint', () => {
+      const dataRef = { current: makeBaseTimelineData() };
+      const before = structuredClone(dataRef.current);
+      const createManualCheckpoint = vi.fn();
+      const jumpToCheckpoint = vi.fn();
+      const checkpoints: Checkpoint[] = [{
+        id: 'blocked-checkpoint',
+        timelineId: 'tl-1',
+        config: dataRef.current.config,
+        createdAt: new Date().toISOString(),
+        triggerType: 'manual',
+        label: 'Blocked',
+        editsSinceLastCheckpoint: 0,
+      }];
+      const { result } = renderHook(() => useTimelineOps({
+        commitData: vi.fn(),
+        dataRef,
+        createManualCheckpoint,
+        jumpToCheckpoint,
+        checkpoints,
+        editability: deniedEditability,
+      }));
+
+      expect(() => result.current.rollback('blocked-checkpoint')).toThrow(
+        'TimelineOps.rollback: timeline edit denied (timeline_read_only).',
+      );
+      expect(createManualCheckpoint).not.toHaveBeenCalled();
+      expect(jumpToCheckpoint).not.toHaveBeenCalled();
+      expect(dataRef.current).toEqual(before);
+    });
+
+    it('rejects setAllTracksMuted through guarded apply without committing', () => {
+      const commitData = vi.fn();
+      const dataRef = { current: makeBaseTimelineData() };
+      const before = structuredClone(dataRef.current);
+      const { result } = renderHook(() => useTimelineOps({
+        commitData,
+        dataRef,
+        createManualCheckpoint: vi.fn(),
+        jumpToCheckpoint: vi.fn(),
+        checkpoints: [],
+        editability: deniedEditability,
+      }));
+
+      expect(() => result.current.setAllTracksMuted(true)).toThrow(
+        'TimelineOps.apply: timeline edit denied (timeline_read_only).',
+      );
+      expect(commitData).not.toHaveBeenCalled();
+      expect(dataRef.current).toEqual(before);
+    });
+
+    it('keeps validate and preview available while edits are denied', () => {
+      const commitData = vi.fn();
+      const dataRef = { current: makeBaseTimelineData() };
+      const before = structuredClone(dataRef.current);
+      const patch = {
+        version: 1,
+        operations: [{
+          op: 'clip.add' as const,
+          target: 'preview-only',
+          payload: { track: 'V1', at: 3, clipType: 'hold', hold: 1 },
+        }],
+      };
+      const { result } = renderHook(() => useTimelineOps({
+        commitData,
+        dataRef,
+        createManualCheckpoint: vi.fn(),
+        jumpToCheckpoint: vi.fn(),
+        checkpoints: [],
+        editability: deniedEditability,
+      }));
+
+      expect(result.current.validate(patch).valid).toBe(true);
+      expect(result.current.preview(patch).fullyPreviewable).toBe(true);
+      expect(commitData).not.toHaveBeenCalled();
+      expect(dataRef.current).toEqual(before);
+    });
+  });
+
   // -----------------------------------------------------------------------
   // Preview (read-only, no commit)
   // -----------------------------------------------------------------------

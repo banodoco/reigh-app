@@ -27,6 +27,7 @@ import {
   previewTimelinePatch,
 } from '@/tools/video-editor/lib/timeline-patch';
 import type { TimelineData } from '@/tools/video-editor/lib/timeline-data';
+import type { TimelineEditability } from '@/tools/video-editor/lib/timeline-editability';
 import type { CommitDataOptions } from '@/tools/video-editor/hooks/useTimelineCommit';
 import type { Checkpoint } from '@/tools/video-editor/types/history';
 import { TimelineVersionConflictError } from '@/sdk/video/timeline/errors.ts';
@@ -71,6 +72,9 @@ export interface UseTimelineOpsArgs {
 
   /** Current checkpoint list (for existence checks). */
   checkpoints: Checkpoint[];
+
+  /** Optional host-owned whole-timeline authoring guard. */
+  editability?: TimelineEditability;
 }
 
 // ---------------------------------------------------------------------------
@@ -109,6 +113,7 @@ export function useTimelineOps({
   createManualCheckpoint,
   jumpToCheckpoint,
   checkpoints,
+  editability,
 }: UseTimelineOpsArgs): TimelineOps {
   // Keep checkpoints in a ref so synchronous rollback lookups are always
   // against the latest list without re-creating the adapter on every change.
@@ -128,6 +133,15 @@ export function useTimelineOps({
   // Map client-generated checkpoint IDs to labels so rollback can resolve
   // them against the backend-populated checkpoints list.
   const pendingLabels = useRef<Map<string, string>>(new Map());
+
+  const assertTimelineEditable = useCallback((operation: string) => {
+    const permission = editability?.checkTimeline?.();
+    if (permission?.allowed === false) {
+      throw new Error(
+        `TimelineOps.${operation}: timeline edit denied (${permission.reason ?? 'read_only'}).`,
+      );
+    }
+  }, [editability]);
 
   // ---- validate -----------------------------------------------------------
 
@@ -196,6 +210,8 @@ export function useTimelineOps({
 
   const apply = useCallback(
     (patch: TimelinePatch): TimelineDiff => {
+      assertTimelineEditable('apply');
+
       // 0. Guard against no data
       const current = dataRef.current;
       if (!current) {
@@ -259,13 +275,14 @@ export function useTimelineOps({
       // 4. Return the semantic diff
       return compiled.diff;
     },
-    [commitData, dataRef, getCanonicalVersion],
+    [assertTimelineEditable, commitData, dataRef, getCanonicalVersion],
   );
 
   // ---- checkpoint ---------------------------------------------------------
 
   const checkpoint = useCallback(
     (label?: string): string => {
+      assertTimelineEditable('checkpoint');
       const id = uid();
       const effectiveLabel = label ?? `Patch checkpoint ${id.slice(0, 8)}`;
       pendingLabels.current.set(id, effectiveLabel);
@@ -275,13 +292,14 @@ export function useTimelineOps({
       void createManualCheckpoint(effectiveLabel);
       return id;
     },
-    [createManualCheckpoint],
+    [assertTimelineEditable, createManualCheckpoint],
   );
 
   // ---- rollback -----------------------------------------------------------
 
   const rollback = useCallback(
     (checkpointId: string): TimelineDiff | null => {
+      assertTimelineEditable('rollback');
       const currentCheckpoints = checkpointsRef.current;
 
       // Resolve the checkpoint: first try an exact ID match, then fall back
@@ -347,7 +365,7 @@ export function useTimelineOps({
         affectedObjectIds: affectedIds,
       };
     },
-    [dataRef, jumpToCheckpoint],
+    [assertTimelineEditable, dataRef, jumpToCheckpoint],
   );
 
   // ---- setAllTracksMuted --------------------------------------------------

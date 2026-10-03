@@ -1,43 +1,44 @@
 {
-  "name": "Reigh",
-  "short_name": "Reigh",
-  "description": "A tool for exploring the emerging artform of image-guided video. Create stunning motion by travelling between images with full creative control.",
-  "start_url": "/tools",
+  "name": "Astrid",
+  "short_name": "Astrid",
+  "description": "An agent-powered video editor built to unlock the artistic potential of open-source models.",
+  "start_url": "/tools/video-editor?localProject=demo-project&localTimeline=demo-timeline",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#d4d4d8",
+  "background_color": "#f7f4ed",
+  "theme_color": "#f7f4ed",
   "orientation": "any",
   "scope": "/",
   "icons": [
     {
-      "src": "/favicon-16x16.png",
-      "sizes": "16x16",
-      "type": "image/png"
-    },
-    {
-      "src": "/favicon-32x32.png", 
-      "sizes": "32x32",
-      "type": "image/png"
-    },
-    {
-      "src": "/favicon-192x192.png",
+      "src": "/astrid-app-icon-192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/astrid-app-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
     }
   ],
-  "categories": ["multimedia", "creativity", "utilities"],
+  "categories": [
+    "multimedia",
+    "creativity",
+    "utilities"
+  ],
   "shortcuts": [
     {
       "name": "Create New Project",
-      "short_name": "New Project", 
+      "short_name": "New Project",
       "description": "Start creating a new video project",
       "url": "/?action=new-project",
       "icons": [
         {
-          "src": "/favicon-192x192.png",
+          "src": "/astrid-app-icon-192.png",
           "sizes": "192x192"
         }
       ]
     }
   ]
-} 
+}

@@ -2,45 +2,41 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <!-- Favicon - swapped by useDarkMode hook based on theme -->
-    <link rel="icon" href="/favicon-dark.ico" type="image/x-icon" />
+    <!-- Favicon: the Astrid mink as crisp pixel-art SVG, with a PNG fallback, on the public site and in the app. -->
+    <link rel="icon" href="/astrid-favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/astrid-favicon-32.png" type="image/png" sizes="32x32" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <title>Reigh</title>
+    <title>Astrid</title>
 
     <!-- Web App Manifest for PWA -->
     <link rel="manifest" href="/manifest.json" />
     
     <!-- PWA Meta Tags -->
-    <meta name="theme-color" content="#b8860b" />
+    <!-- The page paper; the public pages and the app then keep it in step with their own background. -->
+    <meta name="theme-color" content="#f7f4ed" />
     <!-- Deprecated tag removed to avoid console warnings -->
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta name="apple-mobile-web-app-title" content="Reigh" />
-    <link rel="apple-touch-icon" href="/favicon-192x192.png" />
+    <meta name="apple-mobile-web-app-title" content="Astrid" />
+    <link rel="apple-touch-icon" href="/astrid-apple-touch-icon.png" />
 
-    <!--
-      Preconnect to Google Fonts and load fonts directly in the <head>.
-      This is critical for performance and preventing Cumulative Layout Shift (CLS),
-      which causes the "jump" effect on page load.
-    -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Crimson+Text:ital,wght@0,400;0,600;0,700;1,400;1,600;1,700&family=Inter:wght@400;500;700&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap" rel="stylesheet">
+    <!-- Installed-app typography is requested by main.tsx only after the
+         protected app entry is selected; the public landing stays local-only. -->
 
     <!-- Meta description for SEO and social sharing -->
-    <meta name="description" content="Reigh is an open-source tool for making art. Create images and travel between them using powerful, controllable models - for free on your computer, or in the cloud." />
-    <meta name="author" content="Reigh" />
+    <meta name="description" content="An agent-powered video editor built to unlock the artistic potential of open-source models." />
+    <meta name="author" content="Astrid" />
 
     <!-- Open Graph tags (Facebook, Discord, etc.) -->
-    <meta property="og:title" content="Reigh – An open-source tool for making art" />
-    <meta property="og:description" content="Create images and travel between them using powerful, controllable models - for free on your computer, or in the cloud." />
+    <meta property="og:title" content="Astrid" />
+    <meta property="og:description" content="Push local AI to its creative limits." />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://reigh.art" />
 
     <!-- Twitter Card tags -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Reigh – An open-source tool for making art" />
-    <meta name="twitter:description" content="Create images and travel between them using powerful, controllable models - for free on your computer, or in the cloud." />
+    <meta name="twitter:title" content="Astrid" />
+    <meta name="twitter:description" content="Push local AI to its creative limits." />
 
     <!-- Critical images are preloaded dynamically by useHomePagePreload hook -->
   </head>

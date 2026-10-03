@@ -1,0 +1,674 @@
+/* Vision & Issues: an editorial page in the landing page's paper, ink and serif voice. */
+.astrid-vision {
+  --astrid-paper: #f7f4ed;
+  --astrid-panel: #fffefa;
+  --astrid-ink: #25241f;
+  --astrid-muted: #615e55;
+  --astrid-line: #d5d0c5;
+  --astrid-accent: #a94714;
+  --astrid-vision-serif: Georgia, "Times New Roman", serif;
+  box-sizing: border-box;
+  min-height: 100vh;
+  padding: 0 clamp(20px, 6vw, 72px) 64px;
+  background: var(--astrid-paper);
+  color: var(--astrid-ink);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+.astrid-vision *,
+.astrid-vision *::before,
+.astrid-vision *::after { box-sizing: inherit; }
+.astrid-vision > * { width: min(100%, 1120px); margin-inline: auto; }
+.astrid-vision a:focus-visible { outline: 2px solid var(--astrid-accent); outline-offset: 3px; border-radius: 3px; }
+
+/* Bar */
+.astrid-vision-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 22px 0;
+}
+.astrid-vision-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--astrid-ink);
+  font-family: var(--astrid-vision-serif);
+  font-size: 23px;
+  letter-spacing: -0.04em;
+  text-decoration: none;
+}
+.astrid-vision-brand img { width: 30px; height: 30px; object-fit: contain; image-rendering: pixelated; transform: scale(1.9); }
+/* Manifesto */
+/*
+ * The opening fills the first screen, whatever its size, with the headline and the juggler centred in it.
+ * The bar sits above it (74px), so the section is one screen less the bar, and the same 74px of padding
+ * below keeps the content centred on the whole screen rather than on the space under the bar. On a tall,
+ * narrow screen (a portrait tablet) a whole screen would leave the content adrift, so it stops at 90vw.
+ */
+.astrid-vision-manifesto {
+  display: grid;
+  align-content: center;
+  min-height: min(calc(100svh - 74px), 90vw);
+  padding-bottom: 74px;
+}
+.astrid-vision-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: clamp(24px, 4vw, 56px);
+}
+/*
+ * The juggler is drawn on a 65 x 100 art-pixel grid at an exact multiple (--px) so every art pixel stays
+ * square. The three items are separate sprites that drift slowly on their own loops, just off the paws.
+ */
+.astrid-vision-juggler {
+  --px: 4px;
+  position: relative;
+  justify-self: center;
+  width: calc(65 * var(--px));
+  height: calc(100 * var(--px));
+}
+.astrid-vision-juggler img { position: absolute; image-rendering: pixelated; }
+.astrid-vision-juggler-mink {
+  position: absolute;
+  left: calc(13 * var(--px));
+  top: calc(22 * var(--px));
+  width: calc(47 * var(--px));
+  height: calc(77 * var(--px));
+  background: url("/astrid-juggler-mink-poses.png") 0 0 / calc(47 * 3 * var(--px)) 100% no-repeat;
+  image-rendering: pixelated;
+  animation: astrid-vision-poses 4s step-end infinite;
+}
+/*
+ * Three drawings from the top of the reach: paws up, a little higher, highest. He tips gently up, holds,
+ * and settles back, stepping through the middle drawing each way.
+ */
+@keyframes astrid-vision-poses {
+  0% { background-position-x: 0; }
+  35% { background-position-x: calc(-47 * var(--px)); }
+  45% { background-position-x: calc(-94 * var(--px)); }
+  85% { background-position-x: calc(-47 * var(--px)); }
+  95% { background-position-x: 0; }
+}
+.astrid-vision-juggled {
+  left: calc(var(--x) * var(--px));
+  top: calc(var(--y) * var(--px));
+  /* Two motions layered: a slow sideways wander of its own, and a lift that answers the paws. */
+  animation:
+    astrid-vision-wander var(--wander, 8.8s) ease-in-out infinite,
+    astrid-vision-buoy 4s ease-in-out var(--lag, .8s) infinite;
+}
+/*
+ * Each item rises a beat after the paws do and sinks a beat after they settle, each a little later than
+ * the one before, so they seem carried on the same breath rather than tied to the paws.
+ */
+.astrid-vision-juggled[data-item="reel"] { width: calc(23 * var(--px)); --wander: 9.6s; --lag: .6s; }
+.astrid-vision-juggled[data-item="chip"] { width: calc(16 * var(--px)); --wander: 8.2s; --lag: .8s; }
+.astrid-vision-juggled[data-item="brush"] { width: calc(15 * var(--px)); --wander: 10.6s; --lag: 1s; }
+@keyframes astrid-vision-wander {
+  0%, 100% { translate: 0 0; }
+  35% { translate: calc(.6 * var(--px)) calc(-.4 * var(--px)); }
+  70% { translate: calc(-.5 * var(--px)) calc(.3 * var(--px)); }
+}
+/* He is at his highest from 1.8s to 3.4s of the 4s loop; the items peak just after he gets there. */
+@keyframes astrid-vision-buoy {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(calc(-2.4 * var(--px))); }
+}
+/* The closing rule. */
+.astrid-vision-end {
+  position: relative;
+  margin-top: clamp(40px, 5vw, 64px);
+  border-top: 1px solid var(--astrid-line);
+}
+.astrid-vision-social { justify-content: center; margin-top: 16px; }
+.astrid-vision-eyebrow {
+  margin: 0 0 22px;
+  color: var(--astrid-accent);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: .08em;
+}
+.astrid-vision-manifesto h1 {
+  max-width: 20ch;
+  margin: 0;
+  font-family: var(--astrid-vision-serif);
+  font-size: clamp(38px, 5vw, 68px);
+  font-weight: 400;
+  line-height: 1;
+  text-wrap: balance;
+  letter-spacing: -0.045em;
+}
+.astrid-vision-nowrap { white-space: nowrap; }
+.astrid-vision-manifesto h1 em { color: var(--astrid-accent); font-style: italic; }
+/* The two things the tool is built around, lifted out of the muted lead with a soft highlighter stroke. */
+.astrid-vision-lead em {
+  color: var(--astrid-ink);
+  font-style: normal;
+  font-weight: 500;
+  background: linear-gradient(transparent 64%, rgba(255, 122, 46, .24) 64%, rgba(255, 122, 46, .24) 92%, transparent 92%);
+}
+.astrid-vision-lead {
+  max-width: 42ch;
+  margin: clamp(22px, 3vw, 34px) 0 0;
+  color: var(--astrid-muted);
+  font-size: clamp(19px, 2vw, 23px);
+  line-height: 1.45;
+}
+
+/*
+ * The North Star minks (see PublicAstridNorthStarArt.css) rest quietly here, faded back into their cards;
+ * hovering a card (or tapping it on a touch screen) brings its mink up to full colour as its details play.
+ */
+.astrid-vision-principles .astrid-vision-principle-art {
+  grid-column: 2;
+  grid-row: 3;
+  align-self: end;
+  opacity: .5;
+  filter: saturate(.45);
+  transition: opacity 320ms ease, filter 320ms ease;
+}
+.astrid-vision-principles li { -webkit-tap-highlight-color: transparent; }
+.astrid-vision-principles li[data-play] .astrid-vision-principle-art { opacity: 1; filter: none; }
+@media (hover: hover) {
+  .astrid-vision-principles li:hover .astrid-vision-principle-art { opacity: 1; filter: none; }
+}
+
+/* Section heads: a small eyebrow over a serif heading. */
+.astrid-vision-north-star { margin-top: 0; }
+.astrid-vision-section-head { margin-bottom: clamp(24px, 3vw, 36px); }
+.astrid-vision-section-head .astrid-vision-eyebrow,
+.astrid-vision-parts-head .astrid-vision-eyebrow { margin-bottom: 12px; color: var(--astrid-accent); font-size: 13px; }
+.astrid-vision-section-head h2 {
+  margin: 0;
+  font-family: var(--astrid-vision-serif);
+  font-size: clamp(32px, 4vw, 48px);
+  font-weight: 400;
+  line-height: 1.05;
+  letter-spacing: -0.035em;
+}
+
+/* The North Star: four goals, each on its own quiet tint with a mink acting it out. */
+.astrid-vision-principles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(14px, 1.6vw, 20px);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: astrid-principle;
+}
+.astrid-vision-principles li {
+  --tone: #fbe9dc;
+  --tone-ink: #a94714;
+  --tone-night: #3b2b23;
+  --tone-ink-night: #f28a4e;
+  padding: clamp(22px, 2.6vw, 32px);
+  border-radius: 16px;
+  background: var(--tone);
+  counter-increment: astrid-principle;
+  container-type: inline-size;
+}
+.astrid-vision-principles li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto auto 1fr;
+  column-gap: clamp(12px, 2vw, 24px);
+}
+.astrid-vision-principles li::before { grid-column: 1 / -1; }
+/* Titles run the card's full width, above the mink, and settle over balanced lines. */
+.astrid-vision-principles h3 { grid-column: 1 / -1; text-wrap: balance; }
+.astrid-vision-principles li > p { grid-column: 1; grid-row: 3; }
+/*
+ * A narrow card (a phone, or two-up on a tablet) has no room for the mink beside the text, so the mink
+ * moves up beside the numeral and the text takes the card's full width beneath. It draws at a whole 2px
+ * per art pixel so it stays crisp on every screen density.
+ */
+@container (max-width: 380px) {
+  .astrid-vision-principles li::before { grid-column: 1; grid-row: 1; align-self: end; margin-bottom: 16px; }
+  .astrid-vision-principles li > p { grid-column: 1 / -1; max-width: none; }
+  .astrid-vision-principle-art { grid-row: 1; margin-bottom: 16px; }
+  .astrid-vision-principles h3 { font-size: 25px; }
+}
+.astrid-vision-principles li:nth-child(2) { --tone: #f3ead6; --tone-ink: #8a6420; --tone-night: #362f22; --tone-ink-night: #d9b26a; }
+.astrid-vision-principles li:nth-child(3) { --tone: #e6eddf; --tone-ink: #4f6a3c; --tone-night: #2a3324; --tone-ink-night: #a3c48c; }
+.astrid-vision-principles li:nth-child(4) { --tone: #e2e8ee; --tone-ink: #41607a; --tone-night: #262e36; --tone-ink-night: #9bb8d0; }
+.astrid-vision-principles li::before {
+  content: counter(astrid-principle, lower-roman) ".";
+  display: block;
+  margin-bottom: 18px;
+  color: var(--tone-ink);
+  font-family: var(--astrid-vision-serif);
+  font-size: 22px;
+  font-style: italic;
+}
+.astrid-vision-principles h3 {
+  margin: 0 0 10px;
+  line-height: 1.2;
+  font-family: var(--astrid-vision-serif);
+  font-size: clamp(24px, 2.4vw, 30px);
+  font-weight: 400;
+  letter-spacing: -0.02em;
+}
+.astrid-vision-principles p { max-width: 46ch; margin: 0; color: #4d4a43; font-size: 16px; line-height: 1.6; }
+
+/* The old saying is struck through once it has risen into place; the idea Astrid is built on rises in
+   beneath with the page's shared reveal, like every other section. */
+.astrid-vision-shift { margin: clamp(96px, 12vw, 152px) auto 0; }
+.astrid-vision-shift-old { margin: 0; }
+.astrid-vision-shift-old p {
+  margin: 0;
+  color: var(--astrid-ink);
+  font-family: var(--astrid-vision-serif);
+  font-size: clamp(26px, 3.2vw, 40px);
+  font-style: italic;
+  font-weight: 400;
+  line-height: 1.3;
+  letter-spacing: -0.015em;
+  transition: color 500ms ease 450ms;
+}
+/* The strike is a line drawn across the words (it continues onto the next line when they wrap). */
+.astrid-vision-shift-old span {
+  background: linear-gradient(var(--astrid-accent), var(--astrid-accent)) 0 58% / 0 2px no-repeat;
+  transition: background-size 600ms cubic-bezier(.65, 0, .35, 1) 450ms;
+}
+.astrid-vision-shift-new {
+  max-width: 22ch;
+  margin: clamp(18px, 2.4vw, 28px) 0 0;
+  font-family: var(--astrid-vision-serif);
+  font-size: clamp(36px, 5.2vw, 64px);
+  font-weight: 400;
+  line-height: 1.04;
+  letter-spacing: -0.035em;
+}
+.astrid-vision-shift-support {
+  max-width: 40ch;
+  margin: 22px 0 0;
+  color: var(--astrid-muted);
+  font-size: clamp(17px, 1.7vw, 20px);
+  line-height: 1.5;
+}
+.astrid-vision-shift-old[data-shown] p { color: var(--astrid-muted); }
+.astrid-vision-shift-old[data-shown] span { background-size: 100% 2px; }
+/*
+ * The new idea sits beside the tinkering mink, which arrives with the supporting line. The text follows
+ * straight on from the struck quote; the taller mink hangs down beside it, and the last row takes up
+ * whatever height he adds.
+ */
+.astrid-vision-shift-grow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto auto 1fr;
+  column-gap: clamp(24px, 4vw, 56px);
+}
+.astrid-vision-shift-new { grid-column: 1; grid-row: 1; }
+.astrid-vision-shift-support { grid-column: 1; grid-row: 2; }
+.astrid-vision-tinkerer { grid-column: 2; grid-row: 1 / -1; align-self: end; }
+.astrid-vision-tinkerer {
+  --px: 3px;
+  position: relative;
+  width: calc(91 * var(--px));
+  height: calc(87 * var(--px));
+}
+.astrid-vision-tinkerer img { display: block; width: 100%; height: 100%; image-rendering: pixelated; }
+/*
+ * 44 frames of hand-placed pixel sparks (two bursts, then a rest) laid out in one strip, stepped through
+ * like film. The strip's anchor pixel (18, 22) sits on the iron's tip at (21, 66).
+ */
+.astrid-vision-sparks {
+  position: absolute;
+  left: calc(3 * var(--px));
+  top: calc(44 * var(--px));
+  width: calc(36 * var(--px));
+  height: calc(26 * var(--px));
+  background: url("/astrid-mink-sparks.png") 0 0 / calc(36 * 44 * var(--px)) 100% no-repeat;
+  image-rendering: pixelated;
+  pointer-events: none;
+}
+.astrid-vision-tinkerer[data-shown] .astrid-vision-sparks { animation: astrid-vision-sparks 3.1s steps(44) 1.2s infinite; }
+@keyframes astrid-vision-sparks { to { background-position-x: calc(-36 * 44 * var(--px)); } }
+@media (prefers-reduced-motion: reduce) {
+  .astrid-vision-juggled, .astrid-vision-juggler-mink { animation: none; }
+  .astrid-vision-sparks { display: none; }
+  .astrid-vision-shift *, .astrid-vision-shift *::before { transition: none !important; }
+  .astrid-vision-shift .astrid-vision-shift-old p { color: var(--astrid-muted); }
+  .astrid-vision-shift .astrid-vision-shift-old span { background-size: 100% 2px; }
+}
+
+/* The vision, part by part, against the issues today */
+.astrid-vision-parts { margin-top: clamp(88px, 11vw, 136px); }
+.astrid-vision-parts-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 24px clamp(28px, 5vw, 64px);
+  align-items: end;
+  padding-bottom: 28px;
+  border-bottom: 1px solid var(--astrid-ink);
+}
+.astrid-vision-parts-head h2 {
+  max-width: 16ch;
+  margin: 0;
+  font-family: var(--astrid-vision-serif);
+  font-size: clamp(32px, 4vw, 48px);
+  font-weight: 400;
+  line-height: 1.05;
+  letter-spacing: -0.035em;
+}
+.astrid-vision-parts-head p { max-width: 40ch; margin: 0; color: var(--astrid-muted); font-size: 16.5px; line-height: 1.55; }
+.astrid-vision-parts > ol { margin: 0; padding: 0; list-style: none; }
+.astrid-vision-part {
+  display: grid;
+  /* The title leads, on its own line across the row; what it means and where it stands sit beneath it. */
+  grid-template-columns: clamp(84px, 9vw, 128px) minmax(0, 1fr) minmax(0, 1fr);
+  gap: 18px clamp(24px, 3.5vw, 48px);
+  padding: 34px 0;
+  border-bottom: 1px solid var(--astrid-line);
+}
+/* The last row needs no divider: the page's closing rule follows it. */
+.astrid-vision-part:last-child { border-bottom: 0; }
+/* Each anchor's numeral is set large, tall and faint, so it reads as a quiet mark in the background of
+   its row rather than a label beside it. */
+.astrid-vision-part { position: relative; }
+.astrid-vision-part-number {
+  align-self: start;
+  margin-top: -6px;
+  color: color-mix(in oklab, var(--astrid-accent) 32%, transparent);
+  font-family: var(--astrid-vision-serif);
+  font-size: clamp(64px, 7vw, 104px);
+  font-style: italic;
+  font-variant-numeric: lining-nums;
+  letter-spacing: -0.06em;
+  line-height: .8;
+  scale: 1 1.2;
+  transform-origin: top left;
+  pointer-events: none;
+}
+.astrid-vision-part h3 {
+  grid-column: 2 / -1;
+  align-self: baseline;
+  margin: 0;
+  font-family: var(--astrid-vision-serif);
+  font-size: clamp(27px, 2.7vw, 36px);
+  font-weight: 400;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+.astrid-vision-part p { margin: 0; font-size: 15.5px; line-height: 1.6; }
+/* The body only groups the two columns for the phone's fold; wider screens lay them out in the row itself. */
+.astrid-vision-part-body { display: contents; }
+.astrid-vision-part-vision { grid-column: 2; }
+.astrid-vision-part-issue { grid-column: 3; align-self: start; }
+.astrid-vision-part h3 button {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.astrid-vision-part h3 button:focus-visible { outline: 2px solid var(--astrid-accent); outline-offset: 4px; border-radius: 3px; }
+.astrid-vision-part h3 svg { flex: none; margin-top: 4px; color: var(--astrid-muted); transition: transform 220ms ease; }
+.astrid-vision-part[data-open] h3 svg { transform: rotate(180deg); }
+.astrid-vision-part-vision p:not(.astrid-vision-label) { color: var(--astrid-ink); }
+.astrid-vision-part-issue {
+  padding: 16px 18px 18px;
+  border-radius: 10px;
+  background: color-mix(in srgb, #ed6b23 7%, var(--astrid-panel));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, #ed6b23 16%, transparent);
+}
+.astrid-vision-part-issue p:not(.astrid-vision-label) { color: #4a3a2e; }
+.astrid-vision-label {
+  margin-bottom: 8px !important;
+  color: var(--astrid-muted);
+  font-size: 12px !important;
+  font-weight: 600;
+  letter-spacing: .06em;
+  line-height: 1.3 !important;
+}
+.astrid-vision-part-issue .astrid-vision-label { color: var(--astrid-accent); }
+.astrid-vision-part-issue a { color: inherit; text-decoration: underline; text-decoration-thickness: 1px; text-decoration-color: color-mix(in srgb, currentColor 40%, transparent); text-underline-offset: 3px; }
+.astrid-vision-part-issue a:hover { text-decoration-color: currentColor; }
+/* Parts of the vision that already hold today sit on a quiet sage tint instead of the issue's apricot. */
+.astrid-vision-part-issue[data-holds] {
+  background: color-mix(in srgb, #4f6a3c 7%, var(--astrid-panel));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, #4f6a3c 18%, transparent);
+}
+.astrid-vision-part-issue[data-holds] p:not(.astrid-vision-label) { color: #33402a; }
+.astrid-vision-part-issue[data-holds] .astrid-vision-label { color: #4f6a3c; }
+/* Each status line carries its own dot: orange for an open issue, sage for what already holds. */
+.astrid-vision-part-issue ul { margin: 0; padding: 0; list-style: none; }
+.astrid-vision-part-issue li { position: relative; padding-left: 14px; }
+.astrid-vision-part-issue li + li { margin-top: 8px; }
+.astrid-vision-part-issue li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: .62em;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--astrid-accent);
+}
+.astrid-vision-part-issue li[data-holds]::before { background: #4f6a3c; }
+.astrid-vision-next {
+  /* The next step reads as part of the same line of thought: same face and size, just a touch lighter. */
+  margin-top: 2px !important;
+  color: var(--astrid-muted) !important;
+  font-weight: 500;
+}
+.astrid-vision-next::before { content: "→ "; color: var(--astrid-accent); font-style: normal; }
+
+.astrid-vision-footer { padding-top: 0; }
+.astrid-vision { padding-bottom: clamp(40px, 6vw, 72px); }
+
+@media (min-width: 761px) and (max-width: 1000px) {
+  .astrid-vision-juggler { --px: 3px; }
+}
+@media (max-width: 900px) {
+  .astrid-vision-part { grid-template-columns: 84px minmax(0, 1fr); }
+  .astrid-vision-part h3 { grid-column: 2; }
+  .astrid-vision-part-vision,
+  .astrid-vision-part-issue { grid-column: 2; }
+  .astrid-vision-parts-head { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 760px) {
+  .astrid-vision-hero { grid-template-columns: minmax(0, 1fr); }
+  .astrid-vision-manifesto { padding: 20px 0 56px; }
+  /* On a phone the headline leads; the minks further down carry the character. */
+  .astrid-vision-juggler { display: none; }
+  .astrid-vision-tinkerer { --px: 2px; }
+}
+@media (max-width: 560px) {
+  /*
+   * On a phone the mink is drawn large and floats right, and the supporting line wraps around his
+   * outline: into the open space beside his head and body, above the bench.
+   */
+  .astrid-vision-shift-grow { display: flow-root; }
+  .astrid-vision-tinkerer {
+    --px: 2.5px;
+    float: right;
+    margin: 14px 0 0 0;
+    shape-outside: polygon(36% 0, 100% 0, 100% 100%, 0 100%, 0 64%, 22% 60%, 34% 40%, 36% 28%);
+    shape-margin: 10px;
+  }
+}
+@media (max-width: 375px) {
+  .astrid-vision-tinkerer { --px: 2.1px; }
+}
+@media (max-width: 640px) {
+  .astrid-vision-principles { grid-template-columns: minmax(0, 1fr); }
+  /* Each row folds to its numeral and title; a tap opens what it means and where it stands. */
+  .astrid-vision-part { grid-template-columns: 58px minmax(0, 1fr); gap: 0; padding: 0; }
+  .astrid-vision-part-number { grid-column: 1; margin-top: 0; padding-block: 16px; font-size: 36px; }
+  .astrid-vision-part h3 { grid-column: 2; font-size: 23px; }
+  .astrid-vision-part h3 button { padding-block: 18px; }
+  .astrid-vision-part-body {
+    display: grid;
+    grid-column: 2 / -1;
+    gap: 12px;
+    padding-bottom: 24px;
+    animation: astrid-vision-unfold 260ms cubic-bezier(.22, .61, .36, 1);
+  }
+  .astrid-vision-part-body > * { grid-column: 1; }
+  /* The text under a title plainly says what it means, and the heading already says what the list is. */
+  .astrid-vision-part-vision .astrid-vision-label,
+  .astrid-vision-parts-head > p { display: none; }
+}
+
+@keyframes astrid-vision-unfold {
+  from { opacity: 0; transform: translateY(-6px); }
+}
+
+/*
+ * Entrance, matching the home page: the hero rises in sequence on load, then the principles and the
+ * vision rows rise the same way as each scrolls into view.
+ */
+@keyframes astrid-vision-rise { from { opacity: 0; translate: 0 14px; } }
+.astrid-vision-bar > *,
+.astrid-vision-hero-copy > *,
+.astrid-vision-hero > .astrid-vision-juggler { animation: astrid-vision-rise 560ms cubic-bezier(.22, .61, .36, 1) backwards; }
+.astrid-vision-hero-copy > .astrid-vision-eyebrow { animation-delay: 70ms; }
+.astrid-vision-hero-copy > h1 { animation-delay: 130ms; }
+.astrid-vision-hero-copy > .astrid-vision-lead { animation-delay: 220ms; }
+.astrid-vision-hero > .astrid-vision-juggler { animation-duration: 700ms; animation-delay: 300ms; }
+.astrid-vision [data-reveal] {
+  transition:
+    opacity 560ms cubic-bezier(.22, .61, .36, 1) var(--reveal-delay, 0ms),
+    translate 560ms cubic-bezier(.22, .61, .36, 1) var(--reveal-delay, 0ms);
+}
+.astrid-vision [data-reveal]:not([data-shown]) { opacity: 0; translate: 0 14px; }
+@media (prefers-reduced-motion: reduce) {
+  .astrid-vision-bar > *,
+  .astrid-vision-hero-copy > *,
+  .astrid-vision-hero > .astrid-vision-juggler,
+  .astrid-vision-part-body { animation: none; }
+  .astrid-vision-part h3 svg { transition: none; }
+  .astrid-vision [data-reveal] { transition: none; }
+  .astrid-vision [data-reveal]:not([data-shown]) { opacity: 1; translate: 0 0; }
+}
+
+/* The home page's sky sits behind Vision too, and the page follows it through twilight with the same
+   dusk values (set inline from the sky; see the dusk rules in PublicAstridShell.css). */
+.astrid-vision > .astrid-sky { width: auto; margin: 0; }
+/* The sky review controls (?sky-review) keep their own size and corner. */
+.astrid-vision > .astrid-sky-review { width: 300px; margin: 0; }
+.astrid-vision > .astrid-sky-review-pill { width: auto; margin: 0; }
+.astrid-vision > :not(.astrid-sky, .astrid-sky-review, .astrid-sky-review-pill) { position: relative; z-index: 1; }
+.astrid-vision[data-dusk] {
+  --astrid-panel: color-mix(in oklab, #fffefa, #221f1a calc(var(--astrid-dusk) * 100%));
+  --astrid-ink: color-mix(in oklab, #25241f, #f3eee4 calc(var(--astrid-dusk-ink) * 100%));
+  --astrid-muted: color-mix(in oklab, color-mix(in oklab, #615e55, #aca395 calc(var(--astrid-dusk-ink) * 100%)), var(--astrid-ink) calc(var(--astrid-dusk-firm) * 100%));
+  --astrid-line: color-mix(in oklab, #d5d0c5, #413a30 calc(var(--astrid-dusk) * 100%));
+  --astrid-accent: color-mix(in oklab, #a94714, #f28a4e calc(var(--astrid-dusk-ink) * 100%));
+  color-scheme: light;
+  background-image: radial-gradient(rgb(243 238 228 / calc(.09 * var(--astrid-dusk))) 1px, transparent 1.3px);
+  background-size: 22px 22px;
+}
+/* The North Star cards follow the sky like the home page's panels: each tint deepens to its own night
+   tone over the whole of twilight, and the text crosses over in the ink window. */
+.astrid-vision[data-dusk] .astrid-vision-principles li {
+  background: color-mix(in oklab, var(--tone), var(--tone-night) calc(var(--astrid-dusk) * 100%));
+  color: color-mix(in oklab, color-mix(in oklab, #25241f, #fbf7ef calc(var(--astrid-dusk-ink) * 100%)), var(--astrid-ink) calc(var(--astrid-dusk-firm) * 100%));
+}
+.astrid-vision[data-dusk] .astrid-vision-principles li::before {
+  color: color-mix(in oklab, color-mix(in oklab, var(--tone-ink), var(--tone-ink-night) calc(var(--astrid-dusk-ink) * 100%)), var(--astrid-ink) calc(var(--astrid-dusk-firm) * 100%));
+}
+.astrid-vision[data-dusk] .astrid-vision-principles p {
+  color: color-mix(in oklab, color-mix(in oklab, #4d4a43, #c2b9a9 calc(var(--astrid-dusk-ink) * 100%)), var(--astrid-ink) calc(var(--astrid-dusk-firm) * 100%));
+}
+/* The issue cards are tinted panels, so their text follows the night. */
+.astrid-vision[data-dusk] .astrid-vision-part-issue p:not(.astrid-vision-label) { color: color-mix(in oklab, #4a3a2e, #e9d9c9 calc(var(--astrid-dusk-ink) * 100%)); }
+.astrid-vision[data-dusk] .astrid-vision-part-issue[data-holds] p:not(.astrid-vision-label) { color: color-mix(in oklab, #33402a, #d3e0c6 calc(var(--astrid-dusk-ink) * 100%)); }
+.astrid-vision[data-dusk] .astrid-vision-part-issue[data-holds] .astrid-vision-label { color: color-mix(in oklab, #4f6a3c, #a3c48c calc(var(--astrid-dusk-ink) * 100%)); }
+.astrid-vision[data-dusk] .astrid-vision-part-issue li[data-holds]::before { background: color-mix(in oklab, #4f6a3c, #a3c48c calc(var(--astrid-dusk-ink) * 100%)); }
+
+
+/* Open issues: the grounded counterpart to the anchor points, set as a compact tracker rather than an
+   essay. One line per issue in the site's pixel "system" type for the area and plain sans for the title,
+   each opening in place; collapsed, the list stays short however long it grows. */
+.astrid-vision-issues { margin-top: clamp(80px, 10vw, 128px); }
+.astrid-vision-issues-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px clamp(28px, 5vw, 64px);
+  align-items: end;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--astrid-ink);
+}
+.astrid-vision-issues-head .astrid-vision-eyebrow { margin-bottom: 10px; }
+.astrid-vision-issues-head h2 {
+  margin: 0;
+  font-family: var(--astrid-vision-serif);
+  font-size: clamp(26px, 2.8vw, 34px);
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  text-wrap: balance;
+}
+.astrid-vision-issues-head > p { max-width: 40ch; margin: 0; color: var(--astrid-muted); font-size: 15.5px; line-height: 1.55; }
+.astrid-vision-issues-list { margin: 0; padding: 0; list-style: none; }
+.astrid-vision-issues-list li { border-bottom: 1px dashed color-mix(in oklab, var(--astrid-ink) 22%, transparent); }
+.astrid-vision-issues-list summary {
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 16px;
+  padding: 14px 4px;
+  cursor: pointer;
+  list-style: none;
+}
+.astrid-vision-issues-list summary::-webkit-details-marker { display: none; }
+.astrid-vision-issues-list summary:focus-visible { outline: 2px solid var(--astrid-accent); outline-offset: 2px; border-radius: 4px; }
+.astrid-vision-issues-area {
+  color: var(--astrid-accent);
+  font-family: "Departure Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  letter-spacing: .06em;
+}
+.astrid-vision-issues-title { color: var(--astrid-ink); font-size: 16px; font-weight: 500; line-height: 1.4; }
+.astrid-vision-issues-list summary:hover .astrid-vision-issues-title { text-decoration: underline; text-decoration-color: color-mix(in oklab, var(--astrid-accent) 55%, transparent); text-underline-offset: 3px; }
+.astrid-vision-issues-chevron { align-self: center; color: var(--astrid-muted); transition: transform 220ms ease; }
+.astrid-vision-issues-list details[open] .astrid-vision-issues-chevron { transform: rotate(180deg); }
+.astrid-vision-issues-detail { padding: 0 36px 16px calc(112px + 16px + 4px); }
+.astrid-vision-issues-detail p { max-width: 62ch; margin: 0; color: var(--astrid-muted); font-size: 15px; line-height: 1.55; }
+.astrid-vision-issues-help { margin-top: 8px !important; color: var(--astrid-ink) !important; }
+.astrid-vision-issues-help span {
+  margin-right: 6px;
+  color: var(--astrid-accent);
+  font-family: "Departure Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  letter-spacing: .04em;
+}
+.astrid-vision-issues-list details[open] .astrid-vision-issues-detail { animation: astrid-vision-unfold 260ms cubic-bezier(.22, .61, .36, 1); }
+.astrid-vision-issues-more { margin: 18px 0 0; color: var(--astrid-muted); font-size: 15px; }
+.astrid-vision-issues-more a {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--astrid-ink);
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in oklab, var(--astrid-accent) 60%, transparent);
+  text-underline-offset: 3px;
+}
+.astrid-vision-issues-more a:hover { text-decoration-color: var(--astrid-accent); }
+@media (max-width: 760px) {
+  .astrid-vision-issues-head { grid-template-columns: minmax(0, 1fr); }
+  .astrid-vision-issues-list summary { grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; }
+  .astrid-vision-issues-area { grid-column: 1; }
+  .astrid-vision-issues-title { grid-column: 1; }
+  .astrid-vision-issues-chevron { grid-column: 2; grid-row: 1 / span 2; }
+  .astrid-vision-issues-detail { padding: 0 4px 16px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .astrid-vision-issues-list details[open] .astrid-vision-issues-detail { animation: none; }
+}

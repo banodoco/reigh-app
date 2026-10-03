@@ -1,6 +1,9 @@
 import { createRoot } from 'react-dom/client';
-import { PublicAstridShell } from '@/pages/Home/PublicAstridShell.tsx';
+import { followIntoInstalledApp } from '@/app/entryClassification.ts';
+import { PublicAstridSite } from '@/pages/Home/PublicAstridSite.tsx';
+import '@/index.css';
 
 export function renderPublicEntry(rootElement: HTMLElement): void {
-  createRoot(rootElement).render(<PublicAstridShell />);
+  followIntoInstalledApp();
+  createRoot(rootElement).render(<PublicAstridSite />);
 }

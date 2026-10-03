@@ -1,47 +1,37 @@
-import { fireEvent, render, screen } from '@testing-library/react';
-import type { ReactNode } from 'react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { act, fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { Dialog, DialogContent } from '@/shared/components/ui/dialog';
+import { COMMUNITY_STEP_AUTO_CLOSE_MS, CommunityStep } from './CommunityStep';
 
-vi.mock('@/shared/components/ui/dialog', () => ({
-  DialogHeader: ({ children, className }: { children: ReactNode; className?: string }) => (
-    <div className={className}>{children}</div>
-  ),
-  DialogTitle: ({ children, className }: { children: ReactNode; className?: string }) => (
-    <h2 className={className}>{children}</h2>
-  ),
-}));
-
-import { CommunityStep } from './CommunityStep';
-
-afterEach(() => {
-  vi.restoreAllMocks();
-});
+const renderStep = (onClose = vi.fn()) => {
+  render(
+    <Dialog open>
+      <DialogContent>
+        <CommunityStep onNext={vi.fn()} onClose={onClose} />
+      </DialogContent>
+    </Dialog>,
+  );
+  return onClose;
+};
 
 describe('CommunityStep', () => {
-  it('renders community copy and both actions', () => {
-    render(<CommunityStep onNext={vi.fn()} />);
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
 
-    expect(screen.getByText('Join Our Community')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Join Discord Community' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Continue Setup' })).toBeInTheDocument();
-    expect(screen.getByText(/hardest part is not/i)).toBeInTheDocument();
+  it('links to the Discord in a new tab and finishes on "I’m ready"', () => {
+    const onClose = renderStep();
+    const link = screen.getByRole('link', { name: /join the discord/i });
+    expect(link.getAttribute('href')).toContain('discord.gg');
+    expect(link.getAttribute('target')).toBe('_blank');
+    fireEvent.click(screen.getByRole('button', { name: /i’m ready/i }));
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it('opens Discord invite in a new tab when join button is clicked', () => {
-    const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
-
-    render(<CommunityStep onNext={vi.fn()} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Join Discord Community' }));
-
-    expect(openSpy).toHaveBeenCalledWith('https://discord.gg/D5K2c6kfhy', '_blank');
-  });
-
-  it('calls onNext when continue setup is clicked', () => {
-    const onNext = vi.fn();
-
-    render(<CommunityStep onNext={onNext} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Continue Setup' }));
-
-    expect(onNext).toHaveBeenCalledTimes(1);
+  it('finishes on its own after the countdown, never holding anyone up', () => {
+    const onClose = renderStep();
+    act(() => { vi.advanceTimersByTime(COMMUNITY_STEP_AUTO_CLOSE_MS - 500); });
+    expect(onClose).not.toHaveBeenCalled();
+    act(() => { vi.advanceTimersByTime(1000); });
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 });

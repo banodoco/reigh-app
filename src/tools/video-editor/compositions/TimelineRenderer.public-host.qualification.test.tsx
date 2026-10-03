@@ -238,10 +238,14 @@ describe('V009 public host behavior qualification', () => {
     expect(routes).toContain("import VideoTravelToolPage from '@/tools/travel-between-images/pages/VideoTravelToolPage'");
     expect(main).toContain("@/tools/video-editor/browser/initializeVideoEditorExtensionRuntime.ts");
     expect(main).not.toMatch(/from\s+['"]@\/tools\/video-editor\/browser(?:\/index(?:\.[cm]?[jt]sx?)?)?['"]/);
-    expect(routes).toContain('<HomeDocumentHandoff />');
+    expect(routes).toContain('<HomeDocumentHandoff replaceDocument={replaceDocument} />');
     expect(home).not.toContain('PublicAstridQualificationSurface');
-    expect(publicShell).toContain('<PublicAstridQualificationSurface />');
-    expect(publicShell).toContain('href="/tools/video-editor"');
+    expect(publicShell).not.toContain('PublicAstridQualificationSurface');
+    expect(publicShell).toContain('<PublicAstridEditorProvider>');
+    expect(publicShell).toContain('<PublicAstridPreview transportOutlet={transportOutlet} />');
+    expect(publicShell).toContain('<PublicAstridInspector />');
+    expect(publicShell).toContain('<PublicAstridTimeline />');
+    expect(publicShell).toContain('<PublicAstridScriptedConversation />');
     expect(publicBootstrap).not.toContain('@/app/bootstrap');
     expect(publicBootstrap).not.toContain('initializeVideoEditorExtensionRuntime');
     expect(renderer).not.toContain("from '@/tools/video-editor/sequences/registry.ts'");

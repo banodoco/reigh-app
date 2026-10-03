@@ -1,7 +1,11 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { MemoryRouter, useInRouterContext } from 'react-router-dom';
-import { EditorRuntimeProvider } from '@/tools/video-editor/contexts/EditorRuntimeProvider.tsx';
+import { EditorRuntimeProvider, type EditorRuntimeProviderProps } from '@/tools/video-editor/contexts/EditorRuntimeProvider.tsx';
+import { useResolvedEffectCatalog } from '@/tools/video-editor/hooks/useEffectResources.ts';
+import { useResolvedSequenceComponentCatalog } from '@/tools/video-editor/hooks/useSequenceResources.ts';
+import { useEffects } from '@/tools/video-editor/hooks/useEffects.ts';
+import { INSTALLED_TIMELINE_SERVICE_HOOKS } from '@/tools/video-editor/runtime/installedTimelineHostServiceHooks.ts';
 import type { DataProvider } from '@/tools/video-editor/data/DataProvider.ts';
 import type { VideoEditorEffectCatalog } from '@/tools/video-editor/hooks/useEffectResources.ts';
 import type {
@@ -54,6 +58,23 @@ function createDefaultQueryClient() {
       },
     },
   });
+}
+
+/** Installed browser adapter: private catalogs stay outside the shared runtime assembly. */
+function BrowserRuntimeWithCatalogs({effectCatalog, userId = null, ...props}: EditorRuntimeProviderProps) {
+  const effectsQuery = useEffects(userId, {enabled: !effectCatalog && Boolean(userId)});
+  const resolvedEffectCatalog = useResolvedEffectCatalog(userId, effectCatalog);
+  const sequenceComponentCatalog = useResolvedSequenceComponentCatalog(userId);
+  return (
+    <EditorRuntimeProvider
+      {...props}
+      userId={userId}
+      effectCatalog={resolvedEffectCatalog}
+      sequenceComponentCatalog={sequenceComponentCatalog}
+      effectsQueryData={effectsQuery.data}
+      timelineServices={INSTALLED_TIMELINE_SERVICE_HOOKS}
+    />
+  );
 }
 
 /**
@@ -196,7 +217,7 @@ export function BrowserVideoEditorProvider({
   });
 
   const runtime = (
-    <EditorRuntimeProvider
+    <BrowserRuntimeWithCatalogs
       astridElementHost={INSTALLED_ASTRID_ELEMENT_HOST}
       dataProvider={dataProvider}
       timelineId={timelineId}
@@ -211,7 +232,7 @@ export function BrowserVideoEditorProvider({
       timelineOverlaysEnabled={timelineOverlaysEnabled}
     >
       {children}
-    </EditorRuntimeProvider>
+    </BrowserRuntimeWithCatalogs>
   );
 
   return (

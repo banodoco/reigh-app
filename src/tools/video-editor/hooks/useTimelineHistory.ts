@@ -490,6 +490,7 @@ export function useTimelineHistory({
   }, [checkpoints, dataRef, editability, restoreHistoryEntry, syncHistoryState]);
 
   const createManualCheckpoint = useCallback(async (label?: string) => {
+    if (editability?.checkTimeline && !editability.checkTimeline().allowed) return;
     const current = dataRef.current;
     if (!current) {
       return;
@@ -502,7 +503,7 @@ export function useTimelineHistory({
       label,
     );
     editsSinceLastCheckpointRef.current = 0;
-  }, [dataRef, persistCheckpoint]);
+  }, [dataRef, editability, persistCheckpoint]);
 
   useEffect(() => {
     if (!isDataProviderPersistenceEnabled(provider) || !provider.loadCheckpoints) {

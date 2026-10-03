@@ -2338,6 +2338,57 @@ describe('useRenderState — M6 export behavior', () => {
     exportMocks.executeCompileOnlyOutput.mockReset();
   });
 
+  it('denies render execution before route selection for a read-only public host', async () => {
+    const runtimeValue = {renderExportEnabled: false} as unknown as VideoEditorRuntimeContextValue;
+    const wrapper = ({children}: {children: ReactNode}) => (
+      <VideoEditorRuntimeContext.Provider value={runtimeValue}>{children}</VideoEditorRuntimeContext.Provider>
+    );
+    const {result} = renderHook(() => useRenderState(
+      buildConfig({id: 'c1', clipType: 'media', track: 'V1', at: 0, hold: 1}),
+      null,
+      null,
+      makeExtensionRuntime(),
+    ), {wrapper});
+
+    await act(async () => { await result.current.startRender(); });
+
+    expect(result.current.renderStatus).toBe('error');
+    expect(result.current.renderLog).toBe('Render is unavailable in this read-only preview.');
+    expect(renderRouterMocks.decideRenderRoute).not.toHaveBeenCalled();
+    expect(renderRouterMocks.enqueueBanodocoRenderTimeline).not.toHaveBeenCalled();
+    expect(mocks.startClientRender).not.toHaveBeenCalled();
+  });
+
+  it('denies compile-only export before evaluating output formats for a read-only public host', async () => {
+    const runtimeValue = {renderExportEnabled: false} as unknown as VideoEditorRuntimeContextValue;
+    const wrapper = ({children}: {children: ReactNode}) => (
+      <VideoEditorRuntimeContext.Provider value={runtimeValue}>{children}</VideoEditorRuntimeContext.Provider>
+    );
+    const extRuntime = makeExtensionRuntime({
+      config: {
+        slots: {},
+        dialogHost: {dialogs: []},
+        registry: {panels: [], inspectorSections: []},
+        outputFormats: [
+          {id: 'fmt-json', extensionId: 'ext-a', label: 'Metadata JSON', requiresRender: false, outputExtension: 'json', outputMimeType: 'application/json', disabled: false},
+        ],
+      } as any,
+    });
+    const {result} = renderHook(() => useRenderState(
+      buildConfig({id: 'c1', clipType: 'media', track: 'V1', at: 0, hold: 1}),
+      null,
+      null,
+      extRuntime,
+    ), {wrapper});
+
+    await act(async () => { await result.current.startExport('fmt-json', new Map([['fmt-json', {}]])); });
+
+    expect(result.current.exportStatus).toBe('error');
+    expect(result.current.exportLog).toBe('Export is unavailable in this read-only preview.');
+    expect(exportMocks.executeCompileOnlyOutput).not.toHaveBeenCalled();
+    expect(guardMocks.scanExportConfig).not.toHaveBeenCalled();
+  });
+
   // ---- exportFormats categorization ---------------------------------------
 
   it('categorizes output formats into compile-only and render-dependent from extension runtime config', () => {

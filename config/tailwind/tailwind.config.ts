@@ -29,9 +29,11 @@ export default {
 				'sm': ['0.875rem', '1.25rem'],
 			},
 			fontFamily: {
-				'cocogoose': ['"Cocogoose"', '"CocogooseNumbers"', '"Inter"', 'system-ui', '-apple-system', '"BlinkMacSystemFont"', '"Segoe UI"', '"Roboto"', 'sans-serif'],
+				// Astrid's text face, as on the public site (the class keeps its legacy name).
+				'cocogoose': ['"Inter"', 'ui-sans-serif', 'system-ui', '-apple-system', '"BlinkMacSystemFont"', '"Segoe UI"', 'sans-serif'],
 				'cocogoose-numbers': ['"Inter"', 'system-ui', '-apple-system', '"BlinkMacSystemFont"', '"Segoe UI"', '"Roboto"', 'sans-serif'],
-				'crimson': ['Crimson Text', 'serif'],
+				// Astrid's display serif, as the public site's headings (the class keeps its legacy name).
+				'crimson': ['Georgia', '"Times New Roman"', 'serif'],
 				'inter': ['Inter', 'sans-serif'],
 				'playfair': ['Playfair Display', 'serif'],
 			},

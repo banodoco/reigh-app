@@ -1,4 +1,4 @@
-import { useMemo, type CSSProperties, type FC, type ReactNode } from 'react';
+import { useMemo, useState, type CSSProperties, type FC, type ReactNode } from 'react';
 import { AbsoluteFill, Img, Sequence, interpolate, useCurrentFrame, useRemotionEnvironment, useVideoConfig } from 'remotion';
 import { Video } from '@remotion/media';
 import {
@@ -16,6 +16,7 @@ import {
   type EffectRegistrySnapshot,
 } from '@/tools/video-editor/effects/registry/index.ts';
 import { MediaErrorBoundary } from '@/tools/video-editor/compositions/MediaErrorBoundary.tsx';
+import { useOptionalPreviewMediaFailure } from '@/tools/video-editor/compositions/PreviewMediaFailureContext.tsx';
 import { computeViewportMediaLayout } from '@/tools/video-editor/lib/render-bounds.ts';
 import {
   useOptionalTransitionRegistryContext,
@@ -290,6 +291,7 @@ function shouldRenderMaterialPlaceholder(status: RenderPlannerMaterialStatus): b
 
 const VisualAsset: FC<VisualClipProps> = ({ clip, track, fps }) => {
   const { width: compositionWidth, height: compositionHeight } = useVideoConfig();
+  const previewMediaFailure = useOptionalPreviewMediaFailure();
   // SD-025: never silent-null when a built-in clip is missing its asset.
   // Render a labeled red band so the gap is obvious in preview/export.
   if (!clip.assetEntry) {
@@ -305,6 +307,27 @@ const VisualAsset: FC<VisualClipProps> = ({ clip, track, fps }) => {
   const effectiveVolume = track.muted ? 0 : getSanitizedVolume(track.volume) * clipVolume;
   const playbackRate = getSanitizedPlaybackRate(clip.speed);
   const trimProps = getSanitizedMediaTrimProps(clip, fps);
+  const retryToken = previewMediaFailure?.enabled
+    ? previewMediaFailure.retryTokenFor(clip.id, mediaSrc)
+    : 0;
+  const posterUrl = clip.assetEntry.thumbnailUrl ?? null;
+  const mediaFailure = previewMediaFailure?.enabled
+      ? {
+        onError: () => {
+          previewMediaFailure.reportFailure({clipId: clip.id, source: mediaSrc, posterUrl}, retryToken);
+          return 'fallback' as const;
+        },
+        onVideoFrame: retryToken > 0
+          ? () => previewMediaFailure.markFrameReady(clip.id, mediaSrc, retryToken)
+          : undefined,
+        onLoadedData: retryToken > 0
+          ? () => previewMediaFailure.markFrameReady(clip.id, mediaSrc, retryToken)
+          : undefined,
+        fallback: (style: CSSProperties) => (
+          <ClipFailurePoster posterUrl={posterUrl} style={style} />
+        ),
+      }
+    : null;
   const isImage = clip.assetEntry.type?.startsWith('image');
   const isVideo = clip.assetEntry.type?.startsWith('video');
   if (!isImage && !isVideo) {
@@ -343,10 +366,12 @@ const VisualAsset: FC<VisualClipProps> = ({ clip, track, fps }) => {
     return (
       <MediaErrorBoundary
         clipId={clip.id}
-        resetKey={`${clip.id}:${mediaSrc}:${trimProps.trimBefore}:${trimProps.trimAfter ?? 'none'}:${playbackRate}:${effectiveVolume}`}
-        fallback={null}
+        resetKey={`${clip.id}:${mediaSrc}:${trimProps.trimBefore}:${trimProps.trimAfter ?? 'none'}:${playbackRate}:${effectiveVolume}:${retryToken}`}
+        fallback={mediaFailure?.fallback(sharedStyle) ?? null}
+        onError={mediaFailure?.onError}
       >
         <Video
+          key={retryToken}
           src={mediaSrc}
           trimBefore={trimProps.trimBefore}
           trimAfter={trimProps.trimAfter}
@@ -354,6 +379,10 @@ const VisualAsset: FC<VisualClipProps> = ({ clip, track, fps }) => {
           volume={effectiveVolume}
           muted={effectiveVolume <= 0}
           style={sharedStyle}
+          data-astrid-retry-token={String(retryToken)}
+          onVideoFrame={mediaFailure?.onVideoFrame}
+          onLoadedData={mediaFailure?.onLoadedData}
+          onError={mediaFailure?.onError}
         />
       </MediaErrorBoundary>
     );
@@ -420,10 +449,12 @@ const VisualAsset: FC<VisualClipProps> = ({ clip, track, fps }) => {
     <div style={viewportStyle}>
       <MediaErrorBoundary
         clipId={clip.id}
-        resetKey={`${clip.id}:${mediaSrc}:${trimProps.trimBefore}:${trimProps.trimAfter ?? 'none'}:${playbackRate}:${effectiveVolume}:viewport`}
-        fallback={null}
+        resetKey={`${clip.id}:${mediaSrc}:${trimProps.trimBefore}:${trimProps.trimAfter ?? 'none'}:${playbackRate}:${effectiveVolume}:viewport:${retryToken}`}
+        fallback={mediaFailure?.fallback({position: 'absolute', inset: 0}) ?? null}
+        onError={mediaFailure?.onError}
       >
         <Video
+          key={retryToken}
           src={mediaSrc}
           trimBefore={trimProps.trimBefore}
           trimAfter={trimProps.trimAfter}
@@ -431,8 +462,37 @@ const VisualAsset: FC<VisualClipProps> = ({ clip, track, fps }) => {
           volume={effectiveVolume}
           muted={effectiveVolume <= 0}
           style={mediaStyle}
+          data-astrid-retry-token={String(retryToken)}
+          onVideoFrame={mediaFailure?.onVideoFrame}
+          onLoadedData={mediaFailure?.onLoadedData}
+          onError={mediaFailure?.onError}
         />
       </MediaErrorBoundary>
+    </div>
+  );
+};
+
+const ClipFailurePoster: FC<{posterUrl: string | null; style: CSSProperties}> = ({posterUrl, style}) => {
+  const [posterFailed, setPosterFailed] = useState(false);
+  return (
+    <div
+      data-astrid-preview-failed-poster="true"
+      style={{
+        ...style,
+        display: 'grid',
+        placeItems: 'center',
+        overflow: 'hidden',
+        background: '#fffefa',
+      }}
+    >
+      {posterUrl && !posterFailed && (
+        <img
+          src={posterUrl}
+          alt=""
+          onError={() => setPosterFailed(true)}
+          style={{width: '100%', height: '100%', objectFit: 'contain'}}
+        />
+      )}
     </div>
   );
 };

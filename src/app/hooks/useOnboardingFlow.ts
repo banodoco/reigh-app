@@ -10,7 +10,7 @@ import {
 import { getBridgeRecoveryGuidance } from '@/integrations/astrid/bridgeRecovery.ts';
 
 export function useOnboardingFlow() {
-  const { showOnboardingModal, closeOnboardingModal } = useOnboarding();
+  const { showOnboardingModal, onboardingMode, closeOnboardingModal } = useOnboarding();
   const navigate = useNavigate();
   const { startTour } = useProductTour();
   const tourStartTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -40,6 +40,11 @@ export function useOnboardingFlow() {
   // choose a "Getting Started" shot in local mode. Check the doctor-owned
   // runtime instead, then enter the tool without fabricating a shot identity.
   const handleOnboardingClose = useCallback(async () => {
+    // Coming back to a Runtime that had stopped: the person was mid-work, so just return them to it.
+    if (onboardingMode === 'reconnect') {
+      closeOnboardingModal();
+      return;
+    }
     const availability = await refreshDoctorAvailability();
     if (availability.status === 'unavailable') {
       const recovery = getBridgeRecoveryGuidance('capability_unavailable');
@@ -60,7 +65,7 @@ export function useOnboardingFlow() {
       tourStartTimeoutRef.current = null;
       startTour();
     }, 1000);
-  }, [clearTourStartTimeout, closeOnboardingModal, navigate, refreshDoctorAvailability, startTour]);
+  }, [clearTourStartTimeout, closeOnboardingModal, navigate, onboardingMode, refreshDoctorAvailability, startTour]);
 
   // Preload ProductTour chunk when onboarding is shown
   useEffect(() => {
@@ -82,6 +87,7 @@ export function useOnboardingFlow() {
 
   return {
     showOnboardingModal,
+    onboardingMode,
     handleOnboardingClose,
     doctorAvailability,
   };

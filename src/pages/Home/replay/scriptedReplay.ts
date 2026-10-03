@@ -8,11 +8,11 @@ export const SCRIPTED_REPLAY_CUES = [
   { atMs: 9_000, id: 'result' },
 ] as const;
 
-export const UNAVAILABLE_SCRIPTED_RESULT = {
-  logicalKey: 'light-study-result-v1',
-  availability: 'unavailable',
-  reason: 'awaiting_verified_project_and_export',
-} as const;
+export const unavailableScriptedResult = (logicalKey: string) => ({
+  logicalKey,
+  availability: 'unavailable' as const,
+  reason: 'awaiting_verified_project_and_export' as const,
+});
 
 export type ScriptedReplayCueId = (typeof SCRIPTED_REPLAY_CUES)[number]['id'];
 
@@ -30,6 +30,7 @@ export type ScriptedReplayScript = {
   fixture_version: string;
   label: string;
   logical_key: string;
+  result_logical_key: string;
   request: string;
   response: string;
   steps: readonly ScriptedReplayStep[];
@@ -61,7 +62,7 @@ export type ScriptedReplayPresentation = {
   currentStepId: ScriptedReplayCueId;
   visibleStepIds: ScriptedReplayCueId[];
   steps: ScriptedReplayPresentationStep[];
-  result: typeof UNAVAILABLE_SCRIPTED_RESULT;
+  result: ReturnType<typeof unavailableScriptedResult>;
 };
 
 const isNonnegativeInteger = (value: unknown): value is number =>
@@ -136,6 +137,6 @@ export const deriveScriptedReplayPresentation = (
     currentStepId,
     visibleStepIds,
     steps: script.steps.map((step) => ({ ...step, visible: visibleStepIds.includes(step.id) })),
-    result: { ...UNAVAILABLE_SCRIPTED_RESULT },
+    result: unavailableScriptedResult(script.result_logical_key),
   };
 };

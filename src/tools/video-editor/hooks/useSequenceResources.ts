@@ -1,4 +1,4 @@
-import { createContext, createElement, useContext, useMemo } from 'react';
+import { useMemo } from 'react';
 import type { UseMutationOptions, UseMutationResult } from '@tanstack/react-query';
 import {
   type CreateResourceArgs,
@@ -16,6 +16,9 @@ import {
   type SequenceComponentResource,
   type VideoEditorSequenceComponentCatalog,
 } from '@/tools/video-editor/lib/sequence-component-catalog.ts';
+import { useOptionalSequenceComponentCatalog } from '@/tools/video-editor/runtime/catalogContexts.tsx';
+
+export { SequenceComponentCatalogProvider } from '@/tools/video-editor/runtime/catalogContexts.tsx';
 
 export type {
   CreateVideoEditorSequenceComponentInput,
@@ -41,18 +44,6 @@ function toSequenceComponentResource(resource: Resource): SequenceComponentResou
     createdAt: resource.createdAt,
     created_at: resource.created_at,
   };
-}
-
-const SequenceComponentCatalogContext = createContext<VideoEditorSequenceComponentCatalog | null>(null);
-
-export function SequenceComponentCatalogProvider({
-  value,
-  children,
-}: {
-  value: VideoEditorSequenceComponentCatalog;
-  children: React.ReactNode;
-}) {
-  return createElement(SequenceComponentCatalogContext.Provider, { value }, children);
 }
 
 function useSupabaseSequenceComponentCatalog(
@@ -114,7 +105,7 @@ export function useResolvedSequenceComponentCatalog(
 }
 
 export function useSequenceResources(userId?: string | null | undefined) {
-  const injectedCatalog = useContext(SequenceComponentCatalogContext);
+  const injectedCatalog = useOptionalSequenceComponentCatalog();
   const fallbackCatalog = useSupabaseSequenceComponentCatalog(userId, { enabled: !injectedCatalog });
   return injectedCatalog ?? fallbackCatalog;
 }

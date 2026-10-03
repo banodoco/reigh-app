@@ -15,6 +15,8 @@ export type ConversationPresentationProps = {
   items: readonly ConversationItem[];
   isLoading?: boolean;
   isProcessing?: boolean;
+  /** Whether processing also shows a spinner beside the name, in addition to the one below the messages. */
+  showHeaderProcessing?: boolean;
   hasPendingWork?: boolean;
   hideEmptyState?: boolean;
   emptyState?: ReactNode;
@@ -24,6 +26,7 @@ export type ConversationPresentationProps = {
   optimisticMaterialized?: boolean;
   onAttachmentClick?: (attachment: ConversationAttachment) => void;
   scrollContainerRef?: RefObject<HTMLDivElement>;
+  scrollContainerTabIndex?: number;
   bottomAnchorRef?: RefObject<HTMLDivElement>;
   label?: string;
   avatarSrc?: string;
@@ -35,6 +38,7 @@ export function ConversationPresentation({
   items,
   isLoading = false,
   isProcessing = false,
+  showHeaderProcessing = true,
   hasPendingWork = false,
   hideEmptyState = false,
   emptyState,
@@ -44,6 +48,7 @@ export function ConversationPresentation({
   optimisticMaterialized = false,
   onAttachmentClick,
   scrollContainerRef,
+  scrollContainerTabIndex,
   bottomAnchorRef,
   label = 'Astrid',
   avatarSrc = '/astrid-avatar.png',
@@ -58,12 +63,12 @@ export function ConversationPresentation({
         <div className="flex items-end gap-2">
           <img src={avatarSrc} alt="" aria-hidden="true" className="h-5 w-5 rounded-full object-cover" />
           <span className="text-sm font-medium">{label}</span>
-          {isProcessing && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
+          {isProcessing && showHeaderProcessing && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
         </div>
         {headerActions && <div className="flex items-center gap-1">{headerActions}</div>}
       </div>
 
-      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto overscroll-contain px-4 py-3">
+      <div ref={scrollContainerRef} tabIndex={scrollContainerTabIndex} className="flex-1 overflow-y-auto overscroll-contain px-4 py-3">
         {isLoading && (
           <div className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />

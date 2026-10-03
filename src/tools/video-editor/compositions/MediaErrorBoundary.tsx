@@ -4,6 +4,7 @@ type MediaErrorBoundaryProps = {
   clipId: string;
   resetKey: string;
   fallback: ReactNode;
+  onError?: (error: Error) => void;
   children: ReactNode;
 };
 
@@ -20,6 +21,7 @@ export class MediaErrorBoundary extends Component<MediaErrorBoundaryProps, Media
 
   componentDidCatch(error: Error) {
     console.error(`[MediaErrorBoundary] clip "${this.props.clipId}" runtime error: ${error.message}`);
+    this.props.onError?.(error);
   }
 
   componentDidUpdate(prevProps: MediaErrorBoundaryProps) {

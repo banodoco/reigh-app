@@ -2519,3 +2519,63 @@ describe('EditorRuntimeProvider timeline-overlay flag', () => {
     expect(screen.getByTestId('timeline-overlays-enabled')).toHaveTextContent('true');
   });
 });
+
+describe('EditorRuntimeProvider browse-only assembly', () => {
+  it('omits supplied extensions and every mutation, live, persistence, process, and export service', async () => {
+    const activate = vi.fn();
+    const extension = defineExtension({
+      manifest: {
+        id: 'com.example.must-not-activate' as never,
+        version: '1.0.0',
+        label: 'Must not activate',
+        contributions: [],
+      },
+      activate,
+    });
+    const dataProvider = {} as DataProvider;
+    let runtime: ReturnType<typeof useVideoEditorRuntime> | null = null;
+
+    function CaptureRuntime() {
+      runtime = useVideoEditorRuntime();
+      return <div data-testid="browse-only-runtime" />;
+    }
+
+    vi.mocked(createProposalRuntime).mockClear();
+    vi.mocked(createProposalPersistenceBridge).mockClear();
+    mocks.syncSlices.mockClear();
+
+    render(
+      <EditorRuntimeProvider
+        dataProvider={dataProvider}
+        timelineId="timeline-read-only"
+        userId="public-user"
+        extensions={[extension]}
+        enableMutationServices={false}
+        enableLiveServices={false}
+        enableRenderExport={false}
+      >
+        <CaptureRuntime />
+      </EditorRuntimeProvider>,
+    );
+
+    await waitFor(() => expect(runtime).not.toBeNull());
+
+    expect(activate).not.toHaveBeenCalled();
+    expect(runtime!.extensionRuntime?.extensions ?? []).toHaveLength(0);
+    expect(runtime!.commandRegistry).toBeUndefined();
+    expect(runtime!.agentToolRegistry).toBeUndefined();
+    expect(runtime!.processManager).toBeUndefined();
+    expect(runtime!.processStatuses).toBeUndefined();
+    expect(runtime!.recordProcessResultAttach).toBeUndefined();
+    expect(runtime!.liveDataRegistry).toBeUndefined();
+    expect(runtime!.livePermissionService).toBeUndefined();
+    expect(runtime!.extensionStateRepository).toBeNull();
+    expect(runtime!.renderExportEnabled).toBe(false);
+    expect(runtime!.provider.createExtensionPersistenceService).toBeUndefined();
+    expect(createProposalRuntime).not.toHaveBeenCalled();
+    expect(createProposalPersistenceBridge).not.toHaveBeenCalled();
+    expect(mocks.syncSlices.mock.calls.some(
+      ([slice]) => slice?.proposalRuntime != null,
+    )).toBe(false);
+  });
+});

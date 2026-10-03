@@ -26,7 +26,6 @@
  * and extra host-owned unmount disposal. Everything else is owned here once.
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject, type ReactNode } from 'react';
-import { useEffects } from '@/tools/video-editor/hooks/useEffects.ts';
 import { createTimelineReader } from '@/tools/video-editor/lib/timeline-reader.ts';
 import {
   createTimelineViewStore,
@@ -41,19 +40,13 @@ import {
   EffectRegistryProvider,
   useEffectRegistryContext,
 } from '@/tools/video-editor/effects/registry/EffectRegistryContext.tsx';
-import {
-  EffectCatalogProvider,
-  useResolvedEffectCatalog,
-  type VideoEditorEffectCatalog,
-} from '@/tools/video-editor/hooks/useEffectResources.ts';
-import {
-  SequenceComponentCatalogProvider,
-  useResolvedSequenceComponentCatalog,
-  type VideoEditorSequenceComponentCatalog,
-} from '@/tools/video-editor/hooks/useSequenceResources.ts';
+import { EffectCatalogProvider, SequenceComponentCatalogProvider } from '@/tools/video-editor/runtime/catalogContexts.tsx';
+import { createVideoEditorEffectCatalog, type VideoEditorEffectCatalog } from '@/tools/video-editor/lib/effect-catalog.ts';
+import { createVideoEditorSequenceComponentCatalog, type VideoEditorSequenceComponentCatalog } from '@/tools/video-editor/lib/sequence-component-catalog.ts';
 import { SequenceComponentRegistryProvider } from '@/tools/video-editor/sequences/SequenceComponentRegistryContext.tsx';
 import { TimelineStoreProvider } from '@/tools/video-editor/hooks/timelineStore.ts';
 import { useTimelineState } from '@/tools/video-editor/hooks/useTimelineState.ts';
+import type { TimelineHostServiceHooks } from '@/tools/video-editor/runtime/timelineHostServiceHooks.ts';
 import type { UseTimelineStateResult } from '@/tools/video-editor/hooks/useTimelineState.types.ts';
 import type { TimelineData } from '@/tools/video-editor/lib/timeline-data.ts';
 import { useVideoEditorRuntime } from '@/tools/video-editor/contexts/VideoEditorRuntimeContext.tsx';
@@ -491,15 +484,12 @@ export function useEditorRuntimeAssembly({
 
 export interface UseEditorRuntimeSyncOptions {
   assembly: EditorRuntimeAssembly;
+  timelineServices: TimelineHostServiceHooks;
   /** Timeline project scope for the reader (app shell: host project id;
    *  embed host: null). */
   projectId: string | null;
-  /** User the effect/sequence catalogs and legacy effects query resolve
-   *  against. */
-  catalogUserId: string | null;
-  /** Host-specific gating for the legacy effects query (the embed host also
-   *  requires a user id). */
-  effectsQueryEnabled: boolean;
+  /** Installed host's optional legacy effect projection; public hosts omit it. */
+  effectsQueryData?: Array<{ slug: string; code: string }>;
   effectCatalog?: VideoEditorEffectCatalog | null;
   sequenceComponentCatalog?: VideoEditorSequenceComponentCatalog | null;
   /**
@@ -509,6 +499,8 @@ export interface UseEditorRuntimeSyncOptions {
    * - `null`: no persistence — ProposalRuntime is created without it.
    */
   proposalPersistenceProvider: ProposalPersistenceProvider | null | undefined;
+  /** Keep proposal and agent invocation services absent in browse-only hosts. */
+  enableMutationServices?: boolean;
   /**
    * App-shell strategy: additionally retry ProposalRuntime / agent tool
    * invocation service creation from post-commit effects (the embed host
@@ -537,12 +529,13 @@ export interface EditorRuntimeSync {
 
 export function useEditorRuntimeSync({
   assembly,
+  timelineServices,
   projectId,
-  catalogUserId,
-  effectsQueryEnabled,
+  effectsQueryData,
   effectCatalog,
   sequenceComponentCatalog,
   proposalPersistenceProvider,
+  enableMutationServices = true,
   eagerProposalRetry = false,
   settings,
   initialTimelineData,
@@ -565,14 +558,10 @@ export function useEditorRuntimeSync({
   const settingsSnapshotsRef = settings?.snapshotsRef;
   const settingsNotificationRegistryRef = settings?.notificationRegistryRef;
 
-  const effectsQuery = useEffects(catalogUserId, { enabled: effectsQueryEnabled });
-  const effectResources = useResolvedEffectCatalog(catalogUserId, effectCatalog);
-  const sequenceComponentResources = useResolvedSequenceComponentCatalog(
-    catalogUserId,
-    sequenceComponentCatalog,
-  );
+  const effectResources = effectCatalog ?? createVideoEditorEffectCatalog();
+  const sequenceComponentResources = sequenceComponentCatalog ?? createVideoEditorSequenceComponentCatalog();
 
-  const { store, editor, chrome } = useTimelineState(initialTimelineData);
+  const { store, editor, chrome } = useTimelineState(timelineServices, initialTimelineData);
   const diagnosticCollection = useVideoEditorRuntime().diagnosticCollection;
   const activeExtensionIds = useMemo(
     () => new Set(extensionRuntime.extensions.map((ext) => ext.manifest.id as string)),
@@ -606,7 +595,7 @@ export function useEditorRuntimeSync({
   // resolves it synchronously; the embed host keeps it `undefined` until its
   // fail-closed initialize() succeeds).
   const proposalRuntimeRef = useRef<ReturnType<typeof createProposalRuntime> | null>(null);
-  if (!proposalRuntimeRef.current && proposalPersistenceProvider !== undefined) {
+  if (enableMutationServices && !proposalRuntimeRef.current && proposalPersistenceProvider !== undefined) {
     const ops = store.getState().timelineOps;
     if (ops) {
       proposalRuntimeRef.current = createProposalRuntime({
@@ -621,7 +610,7 @@ export function useEditorRuntimeSync({
   // App-shell strategy: when timelineOps first becomes available after
   // commit, create the ProposalRuntime if not yet created.
   useEffect(() => {
-    if (!eagerProposalRetry) return;
+    if (!eagerProposalRetry || !enableMutationServices) return;
     if (proposalRuntimeRef.current) return;
     const ops = store.getState().timelineOps;
     if (ops) {
@@ -631,7 +620,7 @@ export function useEditorRuntimeSync({
         persistenceProvider: proposalPersistenceProvider ?? undefined,
       });
     }
-  }, [eagerProposalRetry, proposalPersistenceProvider, store, timelineReader]);
+  }, [eagerProposalRetry, enableMutationServices, proposalPersistenceProvider, store, timelineReader]);
 
   // Sync proposalRuntime to the store so host-owned UI (ProposalPanel) can
   // access it.
@@ -648,7 +637,7 @@ export function useEditorRuntimeSync({
 
   // ---- M10: Agent tool invocation service (registry + ProposalRuntime) -----
   const agentToolInvocationServiceRef = useRef<AgentToolInvocationService | null>(null);
-  if (!agentToolInvocationServiceRef.current) {
+  if (enableMutationServices && !agentToolInvocationServiceRef.current) {
     const registry = agentToolRegistryRef.current;
     const pr = proposalRuntimeRef.current;
     if (registry && pr) {
@@ -662,7 +651,7 @@ export function useEditorRuntimeSync({
   // App-shell strategy: keep the invocation service in sync when
   // proposalRuntime becomes available from an effect.
   useEffect(() => {
-    if (!eagerProposalRetry) return;
+    if (!eagerProposalRetry || !enableMutationServices) return;
     // `timelineReader` is an intentional dependency: it tracks the renders on
     // which the proposal runtime may have been created.
     void timelineReader;
@@ -675,7 +664,7 @@ export function useEditorRuntimeSync({
         proposalRuntime: pr,
       });
     }
-  }, [agentToolRegistryRef, eagerProposalRetry, timelineReader]);
+  }, [agentToolRegistryRef, eagerProposalRetry, enableMutationServices, timelineReader]);
 
   // Sync extensions with live creative context.
   const liveCreativeOverrides = useMemo<Partial<CreativeContext>>(() => {
@@ -899,7 +888,7 @@ export function useEditorRuntimeSync({
     editor,
     chrome,
     activeExtensionIds,
-    effectsQueryData: effectsQuery.data,
+    effectsQueryData,
     effectResources,
     sequenceComponentResources,
   };

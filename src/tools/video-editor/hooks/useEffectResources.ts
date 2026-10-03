@@ -1,4 +1,4 @@
-import { createContext, createElement, useContext, useMemo } from 'react';
+import { useMemo } from 'react';
 import type { UseMutationOptions, UseMutationResult } from '@tanstack/react-query';
 import {
   type CreateResourceArgs,
@@ -19,6 +19,9 @@ import {
   type VideoEditorEffectCatalog,
 } from '@/tools/video-editor/lib/effect-catalog.ts';
 import { useOptionalEffectRegistryContext } from '@/tools/video-editor/effects/registry/EffectRegistryContext';
+import { useOptionalEffectCatalog } from '@/tools/video-editor/runtime/catalogContexts.tsx';
+
+export { EffectCatalogProvider } from '@/tools/video-editor/runtime/catalogContexts.tsx';
 
 export type {
   CreateVideoEditorEffectInput,
@@ -49,18 +52,6 @@ function toEffectResource(resource: Resource): EffectResource {
     createdAt: resource.createdAt,
     created_at: resource.created_at,
   };
-}
-
-const EffectCatalogContext = createContext<VideoEditorEffectCatalog | null>(null);
-
-export function EffectCatalogProvider({
-  value,
-  children,
-}: {
-  value: VideoEditorEffectCatalog;
-  children: React.ReactNode;
-}) {
-  return createElement(EffectCatalogContext.Provider, { value }, children);
 }
 
 function useSupabaseEffectCatalog(
@@ -134,7 +125,7 @@ export function useResolvedEffectCatalog(
 }
 
 export function useEffectResources(userId?: string | null | undefined) {
-  const injectedCatalog = useContext(EffectCatalogContext);
+  const injectedCatalog = useOptionalEffectCatalog();
   const fallbackCatalog = useSupabaseEffectCatalog(userId, { enabled: !injectedCatalog });
   return injectedCatalog ?? fallbackCatalog;
 }

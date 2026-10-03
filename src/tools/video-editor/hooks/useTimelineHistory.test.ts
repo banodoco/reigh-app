@@ -517,6 +517,27 @@ describe('useTimelineHistory', () => {
     expect(saveCheckpoint).not.toHaveBeenCalled();
   });
 
+  it('blocks manual checkpoint persistence when whole-timeline editability is denied', async () => {
+    const saveCheckpoint = vi.fn(async () => 'checkpoint-read-only');
+    const testCase = setup({
+      editability: {
+        check: () => ({ allowed: false, reason: 'timeline_read_only' }),
+        checkTimeline: () => ({ allowed: false, reason: 'timeline_read_only' }),
+      },
+      providerOverrides: {
+        persistenceEnabled: true,
+        saveCheckpoint,
+      },
+    });
+
+    await act(async () => {
+      await testCase.result.current.createManualCheckpoint('Read only');
+    });
+
+    expect(saveCheckpoint).not.toHaveBeenCalled();
+    expect(testCase.result.current.checkpoints).toHaveLength(0);
+  });
+
   it('jumpToCheckpoint restores the checkpoint config and clears both stacks', async () => {
     const checkpointConfig = makeConfig(7);
     const checkpoint: Checkpoint = {

@@ -57,6 +57,10 @@ import {
   type AstridElementHost,
 } from '@/tools/video-editor/runtime/astrid-element-host.ts';
 import { boundCanonicalConfigClips } from '@/tools/video-editor/lib/canonicalRenderBounds.ts';
+import {
+  PreviewMediaFailurePolicyProvider,
+  type PreviewMediaFailurePolicy,
+} from '@/tools/video-editor/compositions/PreviewMediaFailureContext.tsx';
 
 // Phase 4d (Sprint 5): EFFECT_REGISTRY dispatch.
 //
@@ -1674,7 +1678,8 @@ const VisualTrack: FC<VisualTrackProps> = ({
 export const TimelineRenderer: FC<{
   config: ResolvedTimelineConfig;
   astridElementHost?: AstridElementHost;
-}> = memo(({ config, astridElementHost: explicitAstridElementHost }) => {
+  previewMediaFailurePolicy?: PreviewMediaFailurePolicy | null;
+}> = memo(({ config, astridElementHost: explicitAstridElementHost, previewMediaFailurePolicy = null }) => {
   const runtime = useContext(VideoEditorRuntimeContext);
   const astridElementHost = requireAstridElementHost(
     explicitAstridElementHost ?? runtime?.astridElementHost,
@@ -1818,8 +1823,9 @@ export const TimelineRenderer: FC<{
   ]);
 
   return (
-    <AudioAnalysisProvider clips={audioClips} fps={fps} totalDurationInFrames={totalDurationInFrames}>
-      <AbsoluteFill style={{ backgroundColor: 'black', overflow: 'hidden' }}>
+    <PreviewMediaFailurePolicyProvider policy={previewMediaFailurePolicy}>
+      <AudioAnalysisProvider clips={audioClips} fps={fps} totalDurationInFrames={totalDurationInFrames}>
+        <AbsoluteFill style={{ backgroundColor: 'black', overflow: 'hidden' }}>
         <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center' }}>
           <AbsoluteFill style={{ position: 'relative', overflow: 'hidden' }}>
             {visualContent}
@@ -1853,7 +1859,8 @@ export const TimelineRenderer: FC<{
             fps={fps}
           />
         ))}
-      </AbsoluteFill>
-    </AudioAnalysisProvider>
+        </AbsoluteFill>
+      </AudioAnalysisProvider>
+    </PreviewMediaFailurePolicyProvider>
   );
 });

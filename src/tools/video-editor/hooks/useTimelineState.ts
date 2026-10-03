@@ -12,7 +12,7 @@ import {
 import { createInteractionState, type InteractionStateRef } from '@/tools/video-editor/lib/interaction-state.ts';
 import { useVideoEditorRuntime } from '@/tools/video-editor/contexts/VideoEditorRuntimeContext.tsx';
 import { ROW_HEIGHT, TIMELINE_START_LEFT } from '@/tools/video-editor/lib/coordinate-utils.ts';
-import { useAssetManagement } from '@/tools/video-editor/hooks/useAssetManagement.ts';
+import type { UseAssetManagementResult } from '@/tools/video-editor/hooks/useAssetManagement.ts';
 import { useAssetOperations } from '@/tools/video-editor/hooks/useAssetOperations.ts';
 import { useClipEditing } from '@/tools/video-editor/hooks/useClipEditing.ts';
 import { useClipResize } from '@/tools/video-editor/hooks/useClipResize.ts';
@@ -58,7 +58,7 @@ import {
 import type { TimelineData } from '@/tools/video-editor/lib/timeline-data.ts';
 import { useTimelineTrackManagement } from '@/tools/video-editor/hooks/useTimelineTrackManagement.ts';
 import { useTimelineOps } from '@/tools/video-editor/hooks/useTimelineOps';
-import { useFinalVideoAvailable } from '@/tools/video-editor/hooks/useFinalVideoAvailable.ts';
+import type { TimelineHostServiceHooks } from '@/tools/video-editor/runtime/timelineHostServiceHooks.ts';
 
 export type { EditorPreferences } from '@/tools/video-editor/hooks/useEditorPreferences.ts';
 export type { RenderStatus } from '@/tools/video-editor/hooks/useRenderState.ts';
@@ -69,7 +69,7 @@ type MultiSelectHook = ReturnType<typeof useTimelineMultiSelect>;
 type DragCoordinatorHook = ReturnType<typeof useDragCoordinator>;
 type TimelinePlaybackHook = ReturnType<typeof useTimelinePlayback>;
 type TimelineTrackManagementHook = ReturnType<typeof useTimelineTrackManagement>;
-type AssetManagementHook = ReturnType<typeof useAssetManagement>;
+type AssetManagementHook = UseAssetManagementResult;
 type ClipResizeHook = ReturnType<typeof useClipResize>;
 type ClipEditingHook = ReturnType<typeof useClipEditing>;
 type ExternalDropHook = ReturnType<typeof useExternalDrop>;
@@ -480,9 +480,9 @@ function useTimelinePlaybackContextValue({
   ]);
 }
 
-export function useTimelineState(initialTimelineData?: TimelineData): UseTimelineStateResult {
+export function useTimelineState(services: TimelineHostServiceHooks, initialTimelineData?: TimelineData): UseTimelineStateResult {
   const runtime = useVideoEditorRuntime();
-  const { finalVideoMap } = useFinalVideoAvailable();
+  const finalVideoMap = services.useFinalVideoMap();
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
   const isTablet = useIsTablet();
@@ -624,6 +624,7 @@ export function useTimelineState(initialTimelineData?: TimelineData): UseTimelin
     createManualCheckpoint,
     jumpToCheckpoint,
     checkpoints,
+    editability: runtime.timelineEditability,
   });
 
   const {
@@ -719,7 +720,7 @@ export function useTimelineState(initialTimelineData?: TimelineData): UseTimelin
     editability: runtime.timelineEditability,
   });
 
-  const assetManagement = useAssetManagement({
+  const assetManagement = services.useAssetManagement({
     store,
     dataRef,
     selectedTrackId,

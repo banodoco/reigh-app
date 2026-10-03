@@ -39,7 +39,7 @@ import type { ParameterSchema } from '@/tools/video-editor/types/index.ts';
 // Types
 // ---------------------------------------------------------------------------
 
-interface EffectCreatorPanelProps {
+export interface EffectCreatorPanelProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   /** When editing an existing resource-based effect */

@@ -5,10 +5,10 @@ import {
   SCRIPTED_EXAMPLE_LABEL,
   SCRIPTED_REPLAY_CUES,
   SCRIPTED_REPLAY_DURATION_MS,
-  UNAVAILABLE_SCRIPTED_RESULT,
   createInitialScriptedReplayState,
   deriveScriptedReplayPresentation,
   scriptedReplayReducer,
+  unavailableScriptedResult,
   type ScriptedReplayScript,
   type ScriptedReplayState,
 } from './scriptedReplay';
@@ -160,7 +160,7 @@ describe('scripted replay mechanism', () => {
     const inspect = () => {
       const presentation = deriveScriptedReplayPresentation(script, state);
       expect(presentation.label).toBe(SCRIPTED_EXAMPLE_LABEL);
-      expect(presentation.result).toEqual(UNAVAILABLE_SCRIPTED_RESULT);
+      expect(presentation.result).toEqual(unavailableScriptedResult(script.result_logical_key));
       expect(Object.keys(presentation.result)).toEqual(['logicalKey', 'availability', 'reason']);
     };
     inspect();

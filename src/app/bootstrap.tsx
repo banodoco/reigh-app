@@ -1,4 +1,5 @@
 import { initializeLoggerRuntime, reactProfilerOnRender } from '@/shared/lib/logger';
+import { applyAppTheme, appThemeDarkness, readStoredAppThemeTime } from '@/shared/hooks/core/useAppTheme';
 import { registerDebugGlobals } from '@/shared/lib/debug/debugConfig';
 
 import { createRoot } from 'react-dom/client';
@@ -107,11 +108,9 @@ export function initializeAppEnvironment(): void {
   // legacy `dev.videoEditor.localMode` storage flag has been retired — local
   // mode is derived from the URL params alone, so nothing here writes storage.
 
-  // Initialize dark mode from localStorage (prevents flash of wrong theme).
-  const storedDarkMode = localStorage.getItem('dark-mode');
-  if (storedDarkMode === null || storedDarkMode === 'true') {
-    document.documentElement.classList.add('dark');
-  }
+  // Paint the theme before the first frame (no flash of the wrong colours): the time of day where they
+  // are, or the moment they chose.
+  applyAppTheme(appThemeDarkness(readStoredAppThemeTime()));
 
   // Local-trust boot (doc 27 §4.7): the covered journey runs against the
   // Astrid bridge with NO Supabase environment configured. Initializing the

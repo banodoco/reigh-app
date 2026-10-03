@@ -22,7 +22,11 @@ import {
   systemResetSelectionForProjectChange,
   userSelectGalleryItem,
 } from '@/shared/state/selectionStore';
-import { useVideoEditorRuntime } from '@/tools/video-editor/contexts/VideoEditorRuntimeContext';
+import {
+  useVideoEditorRuntime,
+  VideoEditorRuntimeProvider,
+  type VideoEditorRuntimeContextValue,
+} from '@/tools/video-editor/contexts/VideoEditorRuntimeContext';
 import { buildVideoEditorLightboxMedia, VideoEditorProvider } from '@/tools/video-editor/contexts/VideoEditorProvider';
 import { ExtensionSettingsPanel } from '@/tools/video-editor/components/ExtensionSettings/ExtensionSettingsPanel';
 import type { EffectRegistryRecord } from '@/tools/video-editor/effects/registry/types';
@@ -56,6 +60,7 @@ import {
   shouldToggleTouchSelection,
 } from '@/tools/video-editor/lib/mobile-interaction-model';
 import { configToRows, type TimelineData } from '@/tools/video-editor/lib/timeline-data';
+import { createTimelineEditability } from '@/tools/video-editor/lib/timeline-editability';
 import { VIDEO_EDITOR_HOST_PORT_NAMES } from '@/tools/video-editor/runtime/ports';
 import type { DataProvider } from '@/tools/video-editor/data/DataProvider';
 import { createVideoEditorEffectCatalog } from '@/tools/video-editor/lib/effect-catalog';
@@ -1360,11 +1365,8 @@ describe('VideoEditorProvider', () => {
     expect(navigateMock).not.toHaveBeenCalled();
   });
 
-  it('drops immediately when the mounted timeline store is available', () => {
-    const current = buildCommandTimelineData();
-    const patchRegistry = vi.fn((assetId: string, entry: Record<string, unknown>) => {
-      current.registry.assets[assetId] = entry as never;
-    });
+  it('sends prepared media directly to the mounted timeline command surface', () => {
+    const patchRegistry = vi.fn();
     const registerAsset = vi.fn(async () => undefined);
     const applyEdit = vi.fn();
     const queryClient = new QueryClient({
@@ -1375,7 +1377,7 @@ describe('VideoEditorProvider', () => {
       },
     });
     const store = buildCommandTestStore({
-      data: current,
+      data: buildCommandTimelineData(),
       patchRegistry,
       registerAsset,
       applyEdit,
@@ -1395,31 +1397,50 @@ describe('VideoEditorProvider', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'add to video editor' }));
 
-    expect(patchRegistry).toHaveBeenCalledWith(
-      expect.any(String),
-      expect.objectContaining({
-        generationId: 'generation-1',
-        file: 'https://example.com/image.png',
-        type: 'image/png',
-      }),
-      'https://example.com/image.png',
-    );
-    expect(registerAsset).toHaveBeenCalledTimes(1);
+    expect(patchRegistry).not.toHaveBeenCalled();
+    expect(registerAsset).not.toHaveBeenCalled();
     expect(applyEdit).toHaveBeenCalledTimes(1);
-    const insertedAssetId = patchRegistry.mock.calls[0]?.[0] as string;
     const mutation = applyEdit.mock.calls[0]?.[0] as {
       type: string;
-      rows: Array<{ actions: Array<{ start: number; end: number }> }>;
-      metaUpdates: Record<string, { asset: string }>;
+      command: {
+        type: string;
+        payload: {
+          asset: {
+            assetKey: string;
+            mediaType: string;
+            durationSeconds: number | null;
+            entry: Record<string, unknown>;
+            source: string;
+          };
+          trackId?: string;
+          clipSpanSeconds?: number;
+          at: number;
+        };
+      };
     };
-    expect(mutation.type).toBe('rows');
-    expect(mutation.rows[0]?.actions.at(-1)).toEqual(expect.objectContaining({
-      start: 2,
-      end: 7,
-    }));
-    expect(Object.values(mutation.metaUpdates)).toContainEqual(expect.objectContaining({
-      asset: insertedAssetId,
-    }));
+    expect(mutation.type).toBe('prepared-media');
+    expect(mutation.command.type).toBe('place-prepared-media');
+    expect(mutation.command.payload).toMatchObject({
+      asset: {
+        assetKey: expect.any(String),
+        mediaType: 'image',
+        durationSeconds: null,
+        entry: {
+          generationId: 'generation-1',
+          file: 'https://example.com/image.png',
+          type: 'image/png',
+        },
+        source: 'registered',
+      },
+      at: 2,
+    });
+    expect(Object.hasOwn(mutation.command.payload, 'trackId')).toBe(false);
+    expect(Object.hasOwn(mutation.command.payload, 'clipSpanSeconds')).toBe(false);
+    expect(applyEdit.mock.calls[0]?.[1]).toMatchObject({
+      selectedClipId: expect.any(String),
+      selectedTrackId: 'V1',
+      semantic: true,
+    });
     expect(readPendingAdds()).toEqual([]);
     expect(navigateMock).not.toHaveBeenCalled();
   });
@@ -1498,6 +1519,61 @@ describe('VideoEditorProvider', () => {
     expect(commandNames.every(isPublicTimelineCommandName)).toBe(true);
     expect(PUBLIC_TIMELINE_COMMAND_SCOPE).toBe('non-gesture');
     expect(inside.result.current.safeCommands).not.toBeNull();
+  });
+
+  it('returns read-only failures for every public mutation command before touching mounted state', async () => {
+    const applyEdit = vi.fn();
+    const patchRegistry = vi.fn();
+    const unpatchRegistry = vi.fn();
+    const registerAsset = vi.fn(async () => undefined);
+    const store = buildCommandTestStore({
+      applyEdit,
+      patchRegistry,
+      unpatchRegistry,
+      registerAsset,
+    });
+    const readOnlyEditability = {
+      ...createTimelineEditability({ readOnly: true }),
+      checkTimeline: () => ({ allowed: false as const, reason: 'timeline_read_only' as const }),
+    };
+    const runtime = { timelineEditability: readOnlyEditability } as VideoEditorRuntimeContextValue;
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <VideoEditorRuntimeProvider value={runtime}>
+        <TimelineStoreProvider store={store}>{children}</TimelineStoreProvider>
+      </VideoEditorRuntimeProvider>
+    );
+    const { result } = renderHook(() => useTimelineCommandsService(), { wrapper });
+    const commands = result.current;
+    const before = store.getState().data.dataRef.current;
+    const beforeSnapshot = JSON.stringify(before);
+
+    const responses = [
+      commands.addClip({ assetId: 'missing-asset', time: 0 }),
+      commands.updateClip({ clipId: 'clip-1', patch: { at: 1 } }),
+      commands.moveClip({ clipId: 'clip-1', time: 1 }),
+      commands.trimClip({ clipId: 'clip-1', startTime: 0, endTime: 1 }),
+      commands.splitClip({ clipId: 'clip-1', time: 1 }),
+      commands.deleteClip({ clipId: 'clip-1' }),
+      commands.addTrack({ kind: 'visual' }),
+      commands.moveTrack({ trackId: 'V1', overTrackId: 'V2' }),
+      await commands.registerAsset({
+        generationId: 'generation-1',
+        imageUrl: 'https://example.com/image.png',
+        variantType: 'image',
+      }),
+      commands.setClipParams({ clipId: 'clip-1', params: { opacity: 0.5 } }),
+      commands.detachManagedClip({ clipId: 'clip-1' }),
+    ];
+
+    expect(responses.map((response) => response.ok ? null : response.error.code)).toEqual(
+      Array.from({ length: 11 }, () => 'timeline_read_only'),
+    );
+    expect(applyEdit).not.toHaveBeenCalled();
+    expect(patchRegistry).not.toHaveBeenCalled();
+    expect(unpatchRegistry).not.toHaveBeenCalled();
+    expect(registerAsset).not.toHaveBeenCalled();
+    expect(store.getState().data.dataRef.current).toBe(before);
+    expect(JSON.stringify(store.getState().data.dataRef.current)).toBe(beforeSnapshot);
   });
 
   it('returns structured public-command failures for missing assets', () => {
@@ -1628,12 +1704,10 @@ describe('VideoEditorProvider', () => {
     });
   });
 
-  it('rolls back optimistic registry patches when public registerAsset persistence fails', async () => {
+  it('registers generated assets through the mounted registry patch operation', async () => {
     const patchRegistry = vi.fn();
     const unpatchRegistry = vi.fn();
-    const registerAsset = vi.fn(async () => {
-      throw new Error('persist failed');
-    });
+    const registerAsset = vi.fn(async () => undefined);
     const store = buildCommandTestStore({
       patchRegistry,
       registerAsset,
@@ -1650,17 +1724,21 @@ describe('VideoEditorProvider', () => {
       variantType: 'image',
     });
 
-    expect(response).toEqual({
-      ok: false,
-      error: {
-        code: 'asset_registration_failed',
-        message: 'persist failed',
-        cause: expect.any(Error),
-      },
+    expect(response).toMatchObject({
+      ok: true,
+      data: { assetId: expect.any(String) },
     });
     expect(patchRegistry).toHaveBeenCalledTimes(1);
-    expect(registerAsset).toHaveBeenCalledTimes(1);
-    expect(unpatchRegistry).toHaveBeenCalledTimes(1);
+    const [assetId, entry, sourceUrl] = patchRegistry.mock.calls[0] as [string, Record<string, unknown>, string];
+    expect(assetId).toBe((response as { ok: true; data: { assetId: string } }).data.assetId);
+    expect(entry).toMatchObject({
+      generationId: 'generation-1',
+      file: 'https://example.com/image.png',
+      type: 'image/png',
+    });
+    expect(sourceUrl).toBe('https://example.com/image.png');
+    expect(registerAsset).not.toHaveBeenCalled();
+    expect(unpatchRegistry).not.toHaveBeenCalled();
   });
 
   // -------------------------------------------------------------------------

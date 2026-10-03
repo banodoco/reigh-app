@@ -346,6 +346,26 @@ describe('TrackListRenderer', () => {
     expect(screen.getByTitle('Track defaults')).toBeInTheDocument();
   });
 
+  it('keeps public read-only track labels free of edit and reorder controls', () => {
+    render(
+      <TrackLabelContent
+        track={tracks[0]}
+        isSelected={false}
+        hasClips
+        readOnly
+        onSelect={vi.fn()}
+        onChange={vi.fn()}
+        onRemove={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('V1')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Reorder track' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Track defaults' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Remove track' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+  });
+
   it('preserves the native track context menu when no extension items are eligible', () => {
     const registry = createCommandRegistry();
     registerTrackMenuCommand(registry, {

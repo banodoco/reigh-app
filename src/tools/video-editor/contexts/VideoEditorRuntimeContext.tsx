@@ -51,6 +51,9 @@ export interface VideoEditorRuntimeContextValue {
   timelineName?: string | null;
   exporter?: VideoEditorExporter | null;
   hostContext?: VideoEditorHostContext | null;
+  /** Host capability for starting renders and compile-only exports. Omitted
+   *  keeps the established behavior; read-only public previews set false. */
+  renderExportEnabled?: boolean;
   extensions: VideoEditorExtensionRuntimeConfig;
   extensionRuntime?: ExtensionRuntime;
   /** M4: Provider-scoped command registry (commands, keybindings, context menus). */

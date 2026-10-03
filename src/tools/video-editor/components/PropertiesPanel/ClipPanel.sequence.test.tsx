@@ -155,10 +155,14 @@ const renderClipPanel = ({
   clip = sequenceClip,
   activeTab = 'effects',
   onChange = vi.fn(),
+  readOnly = false,
+  deviceClass = 'desktop',
 }: {
   clip?: ResolvedTimelineClip;
   activeTab?: ClipTab;
   onChange?: ReturnType<typeof vi.fn>;
+  readOnly?: boolean;
+  deviceClass?: ComponentProps<typeof ClipPanel>['deviceClass'];
 } = {}) => {
   const setActiveTab = vi.fn();
 
@@ -166,7 +170,8 @@ const renderClipPanel = ({
     <ClipPanel
       clip={clip}
       track={visualTrack}
-      deviceClass="desktop"
+      deviceClass={deviceClass}
+      readOnly={readOnly}
       interactionMode="move"
       precisionEnabled={false}
       hasPredecessor={false}
@@ -194,6 +199,19 @@ const renderClipPanel = ({
 };
 
 describe('ClipPanel sequence inspector', () => {
+  it('keeps read-only inspector values navigable while disabling editing and hiding touch actions', () => {
+    renderClipPanel({ clip: mediaClip, readOnly: true, deviceClass: 'mobile', activeTab: 'position' });
+
+    expect(screen.getByText('Read only')).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Timing' })).toBeInTheDocument();
+    expect(screen.queryByText('Inspector-first actions')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Trim in inspector|Move in inspector|Track up|Split at playhead|Mute or unmute|Delete clip/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Reset position' })).toBeDisabled();
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Timing' }));
+    expect(screen.getAllByRole('spinbutton').every((input) => input.hasAttribute('disabled') || input.closest('fieldset')?.disabled)).toBe(true);
+  });
+
   beforeEach(() => {
     useEffectResourcesMock.mockReturnValue(defaultEffectResources());
   });

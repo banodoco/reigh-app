@@ -53,6 +53,10 @@ import { getClipTimelineDuration } from '@/tools/video-editor/lib/config-utils.t
 import { useTimelineConfigVersion, useTimelineEditorData } from '@/tools/video-editor/hooks/timelineStore.ts';
 import { useEffectResources } from '@/tools/video-editor/hooks/useEffectResources.ts';
 import { useSequenceResources } from '@/tools/video-editor/hooks/useSequenceResources.ts';
+import { useResolvedEffectCatalog } from '@/tools/video-editor/hooks/useEffectResources.ts';
+import { useResolvedSequenceComponentCatalog } from '@/tools/video-editor/hooks/useSequenceResources.ts';
+import { useEffects } from '@/tools/video-editor/hooks/useEffects.ts';
+import { INSTALLED_TIMELINE_SERVICE_HOOKS } from '@/tools/video-editor/runtime/installedTimelineHostServiceHooks.ts';
 import { buildReighAgentElementContext } from '@/tools/video-editor/runtime/element-contract.ts';
 import { AstridElementOperationAdapter } from '@/tools/video-editor/runtime/element-adapter.ts';
 import {
@@ -342,6 +346,9 @@ function InnerProvider({
 }) {
   useRenderDiagnostic('VideoEditorProvider');
   const runtime = useVideoEditorRuntime();
+  const effectsQuery = useEffects(runtime.auth.userId, {enabled: !effectCatalog && Boolean(runtime.auth.userId)});
+  const resolvedEffectCatalog = useResolvedEffectCatalog(runtime.auth.userId, effectCatalog);
+  const resolvedSequenceCatalog = useResolvedSequenceComponentCatalog(runtime.auth.userId, sequenceComponentCatalog);
 
   // ── M3: Provider-backed proposal persistence bridge ─────────────────────
   // App-shell strategy: resolved synchronously on first render, without the
@@ -361,11 +368,11 @@ function InnerProvider({
 
   const sync = useEditorRuntimeSync({
     assembly,
+    timelineServices: INSTALLED_TIMELINE_SERVICE_HOOKS,
     projectId: runtime.project.projectId,
-    catalogUserId: runtime.auth.userId,
-    effectsQueryEnabled: !effectCatalog && Boolean(runtime.auth.userId),
-    effectCatalog,
-    sequenceComponentCatalog,
+    effectsQueryData: effectsQuery.data,
+    effectCatalog: resolvedEffectCatalog,
+    sequenceComponentCatalog: resolvedSequenceCatalog,
     proposalPersistenceProvider: proposalPersistenceRef.current,
     eagerProposalRetry: true,
     initialTimelineData,
