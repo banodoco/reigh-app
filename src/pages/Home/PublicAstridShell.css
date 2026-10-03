@@ -1290,6 +1290,11 @@
 .astrid-callouts { view-transition-name: astrid-labels; }
 ::view-transition-old(astrid-labels) { animation-duration: 180ms; }
 ::view-transition-new(astrid-labels) { animation: none; }
+/* The agent launcher sits over the panels, so in the page snapshot they would cover it for the whole
+   wash. It shows live above them instead, its disc blending with the dusk like theirs. */
+.astrid-agent-launcher { view-transition-name: astrid-agent-launcher; }
+::view-transition-old(astrid-agent-launcher) { display: none; }
+::view-transition-new(astrid-agent-launcher) { animation: none; }
 @supports not (view-transition-name: none) {
   .astrid-public-site { transition: background-color 600ms ease, color 600ms ease; }
   .astrid-editor-stage { transition: box-shadow 600ms ease, background-color 600ms ease, border-color 600ms ease; }
