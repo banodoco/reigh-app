@@ -118,6 +118,85 @@ describe('Reigh ACP HTTP bridge', () => {
     }).sessionDir).toBe('/tmp/reigh-legacy-sessions');
   });
 
+  it('limits session config changes to advertised model/thinking values on an owned session', async () => {
+    const fakeProcess = new FakeProcess();
+    const { bridge, server } = createReighAcpHttpServer({
+      config: {
+        token: 'test-token', port: 0, cwd: '/tmp/reigh-project', profile: 'astrid',
+        systemPromptFile: '/tmp/astrid.md', command: ASTRID_ACP_COMMAND,
+      },
+      hostFactory: (options) => createAstridAcpProcessHost({
+        ...options,
+        fileIsRegularFile: () => true,
+        spawnProcess: () => fakeProcess.asProcess(),
+      }),
+    });
+    const port = await listen(server);
+    const base = `http://127.0.0.1:${port}`;
+    const connecting = fetch(`${base}/connect`, { method: 'POST', headers: headers(), body: '{}' });
+    await waitForRequest(fakeProcess);
+    const initialize = lastRequest(fakeProcess);
+    respond(fakeProcess, initialize.id, { agentCapabilities: { loadSession: true } });
+    const { connection_id: connectionId } = await (await connecting).json() as { connection_id: string };
+
+    const options = [
+      { id: 'model', currentValue: 'openai-codex/gpt-5.6-sol', options: [
+        { value: 'openai-codex/gpt-5.6-sol' }, { value: 'openai-codex/gpt-5.6-luna' },
+      ] },
+      { id: 'thinking', currentValue: 'high', options: [{ value: 'high' }, { value: 'xhigh' }] },
+    ];
+    const afterInitialize = fakeProcess.stdin.writes.length;
+    const resuming = fetch(`${base}/${connectionId}/rpc`, {
+      method: 'POST', headers: headers(),
+      body: JSON.stringify({ method: 'session/resume', params: { sessionId: 'owned-session' } }),
+    });
+    await waitForRequest(fakeProcess, afterInitialize);
+    const resume = lastRequest(fakeProcess);
+    respond(fakeProcess, resume.id, { sessionId: 'owned-session', configOptions: options });
+    await resuming;
+
+    const afterResume = fakeProcess.stdin.writes.length;
+    const setting = fetch(`${base}/${connectionId}/rpc`, {
+      method: 'POST', headers: headers(),
+      body: JSON.stringify({ method: 'session/set_config_option', params: {
+        sessionId: 'owned-session', configId: 'model', value: 'openai-codex/gpt-5.6-luna',
+      } }),
+    });
+    await waitForRequest(fakeProcess, afterResume);
+    const setModel = lastRequest(fakeProcess);
+    expect(setModel).toMatchObject({
+      method: 'session/set_config_option',
+      params: { sessionId: 'owned-session', configId: 'model', value: 'openai-codex/gpt-5.6-luna' },
+    });
+    const updatedOptions = [
+      { ...options[0], currentValue: 'openai-codex/gpt-5.6-luna' }, options[1],
+    ];
+    respond(fakeProcess, setModel.id, { configOptions: updatedOptions });
+    await expect((await setting).json()).resolves.toEqual({ result: { configOptions: updatedOptions } });
+
+    const afterSet = fakeProcess.stdin.writes.length;
+    const rejected = await fetch(`${base}/${connectionId}/rpc`, {
+      method: 'POST', headers: headers(),
+      body: JSON.stringify({ method: 'session/set_config_option', params: {
+        sessionId: 'owned-session', configId: 'model', value: 'openai-codex/gpt-5.6-sol', persist: true,
+      } }),
+    });
+    expect(rejected.status).toBe(400);
+    expect(fakeProcess.stdin.writes).toHaveLength(afterSet);
+
+    const foreign = await fetch(`${base}/${connectionId}/rpc`, {
+      method: 'POST', headers: headers(),
+      body: JSON.stringify({ method: 'session/set_config_option', params: {
+        sessionId: 'other-session', configId: 'thinking', value: 'xhigh',
+      } }),
+    });
+    expect(foreign.status).toBe(400);
+    expect(fakeProcess.stdin.writes).toHaveLength(afterSet);
+
+    await bridge.close();
+    await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  });
+
   it('forwards browser lifecycle controls with host-owned cwd and ephemeral connection identity', async () => {
     const first = new FakeProcess();
     const second = new FakeProcess();

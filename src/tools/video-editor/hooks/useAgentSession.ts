@@ -4,10 +4,7 @@ import { AstridLocalClient } from '@/integrations/astrid/client.ts';
 import type { AgentChatEditorContext } from '@/shared/contexts/AgentChatContext.tsx';
 import type { AgentTurn, AgentTurnAttachment, AgentSessionStatus } from '@/tools/video-editor/types/agent-session.ts';
 import { timelineQueryKey, assetRegistryQueryKey } from '@/tools/video-editor/hooks/useTimeline.ts';
-import {
-  buildReighAgentContextSnapshot,
-  serializeReighAgentContext,
-} from '@/tools/video-editor/runtime/reighAgentContext.ts';
+import type { LiveSceneScope } from '@/sdk/video/liveSceneAuthoring';
 
 type SendMessageInput = { message: string; attachments?: AgentTurnAttachment[] };
 export type TrackedAgentTurn = AgentTurn & { messageId?: string };
@@ -88,6 +85,7 @@ function formatElementOperationResult(result: unknown): string {
 
 /** Keep the transport context model-visible but hide it from the chat UI. */
 export function stripReighEditorContext(content: string): string {
+  if (content.startsWith('<reigh_live_scene_result>') || content.startsWith('<reigh_live_scene_context>')) return '';
   const markerIndex = content.indexOf('<reigh_editor_context>');
   if (markerIndex >= 0) return content.slice(0, markerIndex).trimEnd();
 
@@ -184,11 +182,11 @@ export function appendAcpAssistantDraft(
  * for session identity and transcript persistence; this store only adapts the
  * streamed ACP notifications to the legacy chat panel's turn model.
  */
-class AstridAgentSessionStore {
-  private readonly client = new AstridLocalClient({
+export class AstridAgentSessionStore {
+  constructor(private readonly client = new AstridLocalClient({
     projectSlug: 'reigh-acp',
     timeoutMs: ACP_PROMPT_TIMEOUT_MS,
-  });
+  })) {}
   private connectionId: string | null = null;
   private connectionPromise: Promise<string> | null = null;
   private eventsPromise: Promise<void> | null = null;
@@ -196,6 +194,7 @@ class AstridAgentSessionStore {
   private readonly loaded = new Set<string>();
   private readonly activePrompts = new Set<string>();
   private readonly activePromptTexts = new Map<string, string>();
+  private readonly promptControllers = new Map<string, AbortController>();
 
   private async connection(): Promise<string> {
     if (this.connectionId) return this.connectionId;
@@ -260,32 +259,81 @@ class AstridAgentSessionStore {
     input: SendMessageInput,
     editorContext: AgentChatEditorContext,
   ): Promise<void> {
+    if (this.activePrompts.has(sessionId)) throw new Error('An ACP prompt is already active for this session');
     const connectionId = await this.connection();
     if (!this.loaded.has(sessionId)) {
       await this.client.acp.loadSession(connectionId, sessionId);
       this.loaded.add(sessionId);
     }
 
-    const contextSnapshot = buildReighAgentContextSnapshot(editorContext, input.attachments ?? []);
-    const context = serializeReighAgentContext(contextSnapshot);
+    const isSessionConfigCommand = !input.attachments?.length
+      && /^\/(?:model|thinking)(?:\s|$)/.test(input.message.trim());
+    if (isSessionConfigCommand) {
+      if (this.activePrompts.has(sessionId)) throw new Error('An ACP prompt is already active for this session');
+      this.activePrompts.add(sessionId);
+      const session = this.state(sessionId);
+      session.status = 'processing';
+      try {
+        const { setSessionConfigOption } = await import('../runtime/agentSessionSettings');
+        const acknowledgement = await setSessionConfigOption(this.client.acp, connectionId, sessionId, input.message);
+        session.turns.push({
+          role: 'user', content: input.message, attachments: input.attachments, timestamp: timestamp(),
+          messageId: `reigh-setting-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        });
+        this.commitAssistantDraft(session, acknowledgement);
+        await this.pullEvents();
+      } finally {
+        this.activePrompts.delete(sessionId);
+        session.status = 'waiting_user';
+      }
+      return;
+    }
 
+    if (this.activePrompts.has(sessionId)) throw new Error('An ACP prompt is already active for this session');
+    const controller = new AbortController();
     const session = this.state(sessionId);
-    session.turns.push({
-      role: 'user',
-      content: input.message,
-      attachments: input.attachments,
-      timestamp: timestamp(),
-      messageId: `reigh-prompt-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-    });
     session.status = 'processing';
     session.assistantDraft = undefined;
     session.assistantDraftMessageId = undefined;
     this.activePrompts.add(sessionId);
+    this.promptControllers.set(sessionId, controller);
     this.activePromptTexts.set(sessionId, input.message);
+    let sceneScope: LiveSceneScope | undefined;
     try {
+      const reighAgentContext = await import('@/tools/video-editor/runtime/reighAgentContext.ts');
+      if (controller.signal.aborted) return;
+      const contextSnapshot = reighAgentContext.buildReighAgentContextSnapshot(editorContext, input.attachments ?? []);
+      const context = reighAgentContext.serializeReighAgentContext(contextSnapshot);
+      const activeSceneScope: LiveSceneScope = {
+        sessionId, turnId: contextSnapshot.request_id,
+        projectId: editorContext.projectId ?? '', timelineId: editorContext.timelineId,
+        capturedTimelineVersion: editorContext.timelineSummary?.configVersion ?? -1,
+      };
+      sceneScope = activeSceneScope;
+      session.turns.push({
+        role: 'user',
+        content: input.message,
+        attachments: input.attachments,
+        timestamp: timestamp(),
+        messageId: `reigh-prompt-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      });
+
+      let liveSceneAcp: typeof import('../runtime/liveSceneAcpRoundtrip') | null = null;
+      if (editorContext.liveSceneOperationPort) {
+        try {
+          liveSceneAcp = await import('../runtime/liveSceneAcpRoundtrip');
+        } catch (error) {
+          throw new Error(
+            `Live-scene ACP implementation failed to load: ${error instanceof Error ? error.message : String(error)}`,
+          );
+        }
+      }
+      if (controller.signal.aborted) return;
+
       await this.client.acp.promptSession(connectionId, sessionId, [
         { type: 'text', text: input.message },
         { type: 'text', text: context },
+        ...(liveSceneAcp ? [{ type: 'text' as const, text: liveSceneAcp.liveScenePromptContract(activeSceneScope) }] : []),
       ]);
       await this.pullEvents();
       const draft = trimString(session.assistantDraft);
@@ -308,8 +356,23 @@ class AstridAgentSessionStore {
           }
         }
       }
+      if (liveSceneAcp) {
+        finalContent = await liveSceneAcp.runLiveSceneAcpRoundtrip({
+          content: finalContent, scope: activeSceneScope, port: editorContext.liveSceneOperationPort,
+          signal: controller.signal,
+          followup: async (feedback) => {
+            session.assistantDraft = undefined;
+            session.assistantDraftMessageId = undefined;
+            await this.client.acp.promptSession(connectionId, sessionId, [{ type: 'text', text: feedback }]);
+            await this.pullEvents();
+            return trimString(session.assistantDraft);
+          },
+        });
+      }
       this.commitAssistantDraft(session, finalContent);
     } finally {
+      if (sceneScope) editorContext.liveSceneOperationPort?.endTurn(sceneScope);
+      this.promptControllers.delete(sessionId);
       this.activePrompts.delete(sessionId);
       this.activePromptTexts.delete(sessionId);
       session.assistantDraft = undefined;
@@ -335,6 +398,7 @@ class AstridAgentSessionStore {
   }
 
   async cancel(sessionId: string): Promise<void> {
+    this.promptControllers.get(sessionId)?.abort();
     const connectionId = await this.connection();
     await this.client.acp.cancelSession(connectionId, sessionId);
     this.state(sessionId).status = 'cancelled';

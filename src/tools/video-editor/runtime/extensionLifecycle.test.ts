@@ -1530,6 +1530,7 @@ describe('ExtensionLifecycle — creative.timeline with live TimelineOps (M3 pub
       checkpoint: vi.fn().mockReturnValue('ckpt-1'),
       rollback: vi.fn().mockReturnValue(null),
       setAllTracksMuted: vi.fn().mockReturnValue({ version: 0, entries: [], affectedObjectIds: [] } as TimelineDiff),
+      flush: vi.fn(async () => { throw new Error('Durable persistence is unavailable in this test host.'); }),
       ...overrides,
     };
   }
@@ -1567,9 +1568,27 @@ describe('ExtensionLifecycle — creative.timeline with live TimelineOps (M3 pub
     expect(typeof timeline.validate).toBe('function');
     expect(typeof timeline.preview).toBe('function');
     expect(typeof timeline.apply).toBe('function');
+    expect(typeof timeline.flush).toBe('function');
     expect(typeof timeline.checkpoint).toBe('function');
     expect(typeof timeline.rollback).toBe('function');
     expect(typeof timeline.setAllTracksMuted).toBe('function');
+  });
+
+  it('extension-scoped flush forwards the exact host acknowledgement barrier and rejection', async () => {
+    let acknowledge!: (receipt: { readonly version: number }) => void;
+    const pending = new Promise<{ readonly version: number }>((resolve) => { acknowledge = resolve; });
+    const flush = vi.fn(() => pending);
+    const ops = mockTimelineOps({ flush });
+    const ctx = createExtensionContext(ext('com.example.flush'), { timeline: ops });
+    expect(ctx.creative.timeline.flush()).toBe(pending);
+    expect(flush).toHaveBeenCalledTimes(1);
+    const receipt = Object.freeze({ version: 12 });
+    acknowledge(receipt);
+    await expect(pending).resolves.toBe(receipt);
+
+    const conflict = new Error('timeline conflict');
+    flush.mockImplementationOnce(() => Promise.reject(conflict));
+    await expect(ctx.creative.timeline.flush()).rejects.toBe(conflict);
   });
 
   it('extension activate function receives ctx.creative.timeline and can call validate', () => {
@@ -1856,10 +1875,15 @@ describe('ExtensionLifecycle — creative.timeline stubs (unmounted contexts)', 
     }
   });
 
-  it('createCreativeContextStubs() throws for ALL creative members when accessed', () => {
+  it('createCreativeContextStubs() leaves projectObjects unavailable and throws for other members', () => {
     const stubs = createCreativeContextStubs();
     const members = Object.keys(CREATIVE_MEMBER_MILESTONE) as (keyof CreativeContext)[];
     for (const member of members) {
+      if (member === 'projectObjects') {
+        expect(stubs[member]).toBeUndefined();
+        continue;
+      }
+
       expect(() => stubs[member]).toThrow(ExtensionNotImplementedError);
     }
   });
@@ -1998,6 +2022,7 @@ describe('ExtensionLifecycle — creative context internal API boundary', () => 
       'export',
       'materials',
       'project',
+      'projectObjects',
       'proposals',
       'reader',
       'sessions',
@@ -2044,7 +2069,7 @@ describe('ExtensionLifecycle — creative context internal API boundary', () => 
 
     const timeline = ctx.creative.timeline as Record<string, unknown>;
     // Only the public TimelineOps methods should be present
-    const publicMethods = ['validate', 'preview', 'apply', 'checkpoint', 'rollback', 'setAllTracksMuted'];
+    const publicMethods = ['validate', 'preview', 'apply', 'flush', 'checkpoint', 'rollback', 'setAllTracksMuted'];
     for (const method of publicMethods) {
       expect(typeof timeline[method]).toBe('function');
     }
@@ -2172,6 +2197,7 @@ describe('ExtensionLifecycle — mutations through public SDK contracts only', (
         };
       }),
       checkpoint: vi.fn().mockReturnValue('apply-ckpt'),
+      flush: async () => { throw new Error('Durable persistence is unavailable in this test host.'); },
       rollback: vi.fn().mockReturnValue(null),
       setAllTracksMuted: vi.fn((muted: boolean): TimelineDiff => ({
         version: 1,

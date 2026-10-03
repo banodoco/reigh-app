@@ -1,6 +1,8 @@
 import type { OutputBundle, OutputChunk } from 'rollup';
+import { rollup } from 'rollup';
 import { describe, expect, it } from 'vitest';
 import {
+  createBundleBudgetPlugin,
   findJavaScriptBudgetFailures,
   measureJavaScriptBudget,
   type JavaScriptBudget,
@@ -34,6 +36,38 @@ function chunk(
 }
 
 describe('production bundle budget', () => {
+  async function generateEntry(plugins: Parameters<typeof rollup>[0]['plugins']): Promise<string> {
+    const build = await rollup({
+      input: 'virtual:entry',
+      plugins: [
+        {
+          name: 'virtual-entry',
+          resolveId(id) {
+            return id === 'virtual:entry' ? id : null;
+          },
+          load(id) {
+            return id === 'virtual:entry' ? 'export const answer = 42;' : null;
+          },
+        },
+        ...plugins,
+      ],
+    });
+
+    try {
+      const generated = await build.generate({
+        format: 'es',
+        entryFileNames: 'entry.js',
+      });
+      const entry = generated.output.find(
+        (output): output is OutputChunk => output.type === 'chunk' && output.isEntry,
+      );
+      if (!entry) throw new Error('test bundle did not contain an entry chunk');
+      return entry.code;
+    } finally {
+      await build.close();
+    }
+  }
+
   it('measures the entry and recursively imported startup graph, excluding lazy chunks', () => {
     const entry = chunk('entry.js', 'entry', {
       entry: true,
@@ -94,5 +128,28 @@ describe('production bundle budget', () => {
       initialGraphRawBytes: 200,
       initialGraphGzipBytes: 90,
     })).toEqual([]);
+  });
+
+  it('measures bytes added by a later ordinary generateBundle hook', async () => {
+    const baseline = await generateEntry([]);
+    const budget = createBundleBudgetPlugin({
+      entryRawBytes: Buffer.byteLength(baseline, 'utf8'),
+      entryGzipBytes: Number.MAX_SAFE_INTEGER,
+      initialGraphRawBytes: Number.MAX_SAFE_INTEGER,
+      initialGraphGzipBytes: Number.MAX_SAFE_INTEGER,
+    });
+    const lateBytes = 'x'.repeat(128);
+    const laterOrdinaryHook = {
+      name: 'later-ordinary-hook',
+      generateBundle(_options: unknown, bundle: OutputBundle) {
+        const entry = Object.values(bundle).find(
+          (output): output is OutputChunk => output.type === 'chunk' && output.isEntry,
+        );
+        if (!entry) throw new Error('test bundle did not contain an entry chunk');
+        entry.code += lateBytes;
+      },
+    };
+
+    await expect(generateEntry([budget, laterOrdinaryHook])).rejects.toThrow(/entry raw/);
   });
 });

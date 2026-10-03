@@ -47,6 +47,19 @@ declare module '@astrid/*' {
   export default AstridSequenceComponent;
 }
 
+declare module '@astrid/packs/rendering/editor/catalog' {
+  import type { ReighExtension } from '@reigh/editor-sdk';
+
+  export type AstridEditorExtensionDescriptor = {
+    readonly packId: string;
+    readonly entryPath: string;
+    readonly extension: ReighExtension;
+  };
+
+  export const ASTRID_EDITOR_EXTENSION_CATALOG: readonly AstridEditorExtensionDescriptor[];
+  export const ASTRID_EDITOR_EXTENSIONS: readonly ReighExtension[];
+}
+
 declare module '@astrid/packs/local/elements/effects/end-spanning-layer/component.tsx' {
   const EndSpanningLayer: (props: {
     clip: unknown;

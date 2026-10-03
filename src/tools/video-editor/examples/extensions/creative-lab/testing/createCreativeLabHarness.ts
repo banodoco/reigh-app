@@ -108,6 +108,7 @@ export function createCreativeLabExtensionHarness(
       };
     },
     checkpoint: () => 'creative-lab-checkpoint',
+    flush: async () => { throw new Error('Durable persistence is unavailable in this test host.'); },
     rollback: () => null,
     setAllTracksMuted: () => ({
       version: currentSnapshot.currentVersion,

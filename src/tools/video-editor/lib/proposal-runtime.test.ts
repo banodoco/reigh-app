@@ -116,6 +116,7 @@ function createMockTimelineOps(overrides: Partial<{
     },
 
     checkpoint: vi.fn().mockReturnValue('ckpt-1'),
+    flush: async () => { throw new Error('Durable persistence is unavailable in this test host.'); },
     rollback: vi.fn().mockReturnValue(null),
     setAllTracksMuted: vi.fn().mockReturnValue(makeEmptyDiff(1)),
   };

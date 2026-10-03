@@ -24,6 +24,7 @@ function json(value: unknown): Uint8Array {
 function runtimeResponses(options: {
   headRevisionId?: string;
   childAssets?: Record<string, Record<string, unknown>>;
+  childRegistryAssets?: Record<string, unknown>;
   manifestAudioAsset?: boolean;
 } = {}) {
   const headRevisionId = options.headRevisionId ?? 'timeline-rev-2';
@@ -84,8 +85,12 @@ function runtimeResponses(options: {
       project_id: PROJECT_ID,
       timeline_id: TIMELINE_ID,
       content_digest: revision.internal_timeline_revision.content_digest,
-      payload: revision.shot_id === 'shot-alpha' && options.childAssets
-        ? { ...revision.internal_timeline_revision.timeline, assets: options.childAssets }
+      payload: revision.shot_id === 'shot-alpha'
+        ? {
+            ...revision.internal_timeline_revision.timeline,
+            ...(options.childAssets ? { assets: options.childAssets } : {}),
+            ...(options.childRegistryAssets ? { registry: { assets: options.childRegistryAssets } } : {}),
+          }
         : revision.internal_timeline_revision.timeline,
       created_at: '2026-09-19T00:00:00Z',
     });
@@ -98,11 +103,13 @@ function fixtureTransport(options: {
   initialHeadRevisionId?: string | null;
   internalRevisionUnavailable?: boolean;
   childAssets?: Record<string, Record<string, unknown>>;
+  childRegistryAssets?: Record<string, unknown>;
   manifestAudioAsset?: boolean;
   commitThenLoseFirstResponse?: boolean;
 } = {}) {
   const responses = runtimeResponses({
     childAssets: options.childAssets,
+    childRegistryAssets: options.childRegistryAssets,
     manifestAudioAsset: options.manifestAudioAsset,
   });
   let currentHeadRevisionId = options.initialHeadRevisionId === undefined
@@ -334,7 +341,7 @@ describe('Runtime shot-composition port', () => {
     };
     const alpha = loaded.shot_revisions.find((revision) => revision.shot_id === 'shot-alpha');
 
-    expect(alpha?.assets).toContainEqual(expect.objectContaining({
+    expect(alpha?.runtime_playback_assets).toContainEqual(expect.objectContaining({
       asset_id: 'alpha-audio',
       object_id: 'object-alpha-audio',
       digest: 'sha256:3333333333333333333333333333333333333333333333333333333333333333',
@@ -357,6 +364,68 @@ describe('Runtime shot-composition port', () => {
 
     await expect(provider.shotComposition.load({ projectId: PROJECT_ID, parentDocumentId: TIMELINE_ID }))
       .rejects.toThrow(/conflicts with object object-alpha-image/);
+  });
+
+  it('uses the pinned internal registry for playback without rewriting immutable shot payloads', async () => {
+    const registryBinding = {
+      object_id: 'object-registry-image',
+      digest: 'sha256:4444444444444444444444444444444444444444444444444444444444444444',
+      media_type: 'video/mp4',
+      registry_only_metadata: 'must-not-merge-from-manifest',
+    };
+    const fixtureRuntime = fixtureTransport({ childRegistryAssets: { 'alpha-image': registryBinding } });
+    const provider = new RuntimeDataProvider({ projectId: PROJECT_ID, transport: fixtureRuntime.transport });
+    const graph = await provider.shotComposition.load({ projectId: PROJECT_ID, parentDocumentId: TIMELINE_ID }) as {
+      shot_revisions: Array<Record<string, any>>;
+    };
+    const alpha = graph.shot_revisions.find((revision) => revision.shot_id === 'shot-alpha');
+    expect(alpha?.assets[0]).toMatchObject({ object_id: 'object-alpha-image' });
+    expect(alpha?.runtime_playback_assets).toContainEqual(expect.objectContaining({
+      asset_id: 'alpha-image',
+      object_id: 'object-registry-image',
+      digest: registryBinding.digest,
+      media_type: 'video/mp4',
+    }));
+    expect(alpha?.runtime_playback_assets[0]).not.toHaveProperty('role', 'source');
+
+    const composition = createShotCompositionAdapter({ load: async () => graph }).prepare(graph);
+    const projection = projectCanonicalComposition(composition);
+    expect(projection.config.clips.find((clip) => clip.id === 'occ-1:alpha-video')?.assetEntry).toMatchObject({
+      file: 'object-registry-image',
+      type: 'video/mp4',
+    });
+
+    const publishableGraph = {
+      ...graph,
+      shot_revisions: graph.shot_revisions.map((revision) => revision.shot_id === 'shot-alpha'
+        ? {
+            ...revision,
+            publish: true,
+            internal_timeline_revision: { ...revision.internal_timeline_revision, publish: true },
+          }
+        : revision),
+    };
+    await provider.shotComposition.publish?.({
+      projectId: PROJECT_ID,
+      parentDocumentId: TIMELINE_ID,
+      expectedHeadRevisionId: 'timeline-rev-2',
+      graph: publishableGraph as any,
+    });
+    const publication = fixtureRuntime.requests.find((request) => request.method === 'POST' && request.path.includes('/composition-revisions'))?.body;
+    const publishedAlpha = (publication?.shot_revisions as Array<Record<string, any>>).find((revision) => revision.shot_id === 'shot-alpha');
+    expect(publishedAlpha?.payload.assets[0]).toMatchObject({ object_id: 'object-alpha-image' });
+    expect(publishedAlpha?.payload).not.toHaveProperty('runtime_playback_assets');
+    const publishedInternal = (publication?.internal_timeline_revisions as Array<Record<string, any>>)
+      .find((revision) => revision.revision_id === 'timeline-alpha-a');
+    expect(publishedInternal?.payload.registry.assets['alpha-image']).toEqual(registryBinding);
+  });
+
+  it('fails closed when a selected internal registry binding is malformed', async () => {
+    const fixtureRuntime = fixtureTransport({ childRegistryAssets: { 'alpha-image': { media_type: 'video/mp4' } } });
+    const provider = new RuntimeDataProvider({ projectId: PROJECT_ID, transport: fixtureRuntime.transport });
+
+    await expect(provider.shotComposition.load({ projectId: PROJECT_ID, parentDocumentId: TIMELINE_ID }))
+      .rejects.toThrow(/selected asset alpha-image has no immutable object identity/);
   });
 
   it('preserves an explicit manifest audio role when the child registry omits its type', async () => {

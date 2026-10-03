@@ -210,6 +210,7 @@ function createExtensionTimelineOps(
       return timeline.apply(patch);
     },
     checkpoint: (label?: string) => timeline.checkpoint(label),
+    flush: () => timeline.flush(),
     rollback: (checkpointId: string) => timeline.rollback(checkpointId),
     setAllTracksMuted: (muted: boolean) => timeline.setAllTracksMuted(muted),
   });
@@ -246,6 +247,7 @@ export function createExtensionContext(
   settingsServiceOptions?: CreateExtensionSettingsServiceOptions,
   uiService?: ExtensionUiService,
   dataKinds?: DataKindRegistrationService,
+  liveSceneAuthoring?: ExtensionContext['liveSceneAuthoring'],
 ): ExtensionContext {
   const extensionId = extension.manifest.id as string;
   const manifest = extension.manifest; // Already frozen by defineExtension
@@ -570,6 +572,16 @@ export function createExtensionContext(
   };
 
   // ---- assemble, attach dispose, then freeze -------------------------------
+  const sceneAuthoringHandles: DisposeHandle[] = [];
+  let sceneAuthoringDisposed = false;
+  const scopedSceneAuthoring: ExtensionContext['liveSceneAuthoring'] = liveSceneAuthoring ? {
+    register(handler) {
+      if (sceneAuthoringDisposed) throw new Error('Live-scene context disposed');
+      const handle = liveSceneAuthoring.register(handler);
+      sceneAuthoringHandles.push(handle);
+      return handle;
+    },
+  } : undefined;
   const ctx = {
     apiVersion: 1,
     extension: {
@@ -592,6 +604,7 @@ export function createExtensionContext(
     clipTypes: clipTypesService,
     shaders: shadersService,
     agentTools: agentToolsService,
+    ...(scopedSceneAuthoring ? { liveSceneAuthoring: scopedSceneAuthoring } : {}),
     ui: uiServiceInstance,
     dataKinds: dataKindsService,
   } as ExtensionContext;
@@ -607,6 +620,8 @@ export function createExtensionContext(
 
   Object.defineProperty(ctx, CONTEXT_DISPOSE_SYMBOL, {
     value: function disposeHostServices(): void {
+      sceneAuthoringDisposed = true;
+      for (const handle of sceneAuthoringHandles.splice(0)) handle.dispose();
       disposeSettings();
       disposeChromeSubscriptions();
     },

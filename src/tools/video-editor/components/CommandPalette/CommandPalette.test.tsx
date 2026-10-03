@@ -190,6 +190,27 @@ describe('CommandPalette component', () => {
     expect(screen.getByText('Export Project')).toBeTruthy();
   });
 
+  it('shows a command registered after the palette mounts without remounting', async () => {
+    const handler = vi.fn();
+    renderPalette();
+
+    act(() => {
+      registerCommand(commandRegistry, 'ext.late', 'ext.late.command', 'Late Command', {
+        handler,
+      });
+    });
+
+    // Assert before any user input can cause an incidental render.
+    expect(await screen.findByText('Late Command')).toBeTruthy();
+    await userEvent.click(screen.getByText('Late Command'));
+    await waitFor(() => expect(handler).toHaveBeenCalledTimes(1));
+
+    act(() => {
+      commandRegistry.unregisterAll('ext.late');
+    });
+    await waitFor(() => expect(screen.queryByText('Late Command')).toBeNull());
+  });
+
   it('groups commands by category', () => {
     registerCommand(commandRegistry, 'ext.a', 'ext.a.cut', 'Cut', {
       category: 'Edit',
@@ -219,6 +240,19 @@ describe('CommandPalette component', () => {
     // Agent tool should appear under "Agent Tools" group
     expect(screen.getByText('Agent Tools')).toBeTruthy();
     expect(screen.getByText('Analyze Tool')).toBeTruthy();
+  });
+
+  it('shows an agent tool registered after the palette mounts without remounting', async () => {
+    renderPalette();
+
+    act(() => {
+      registerAgentTool(agentToolRegistry, 'ext.late', 'tool.late', 'Late Tool', {
+        handler: makeHandler(makeUISummaryResult('ok')),
+      });
+    });
+
+    // Assert before any user input can cause an incidental render.
+    expect(await screen.findByText('Late Tool')).toBeTruthy();
   });
 
   it('shows result family badge for agent tools', () => {

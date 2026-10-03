@@ -716,6 +716,10 @@ describe('session handles', () => {
   it('activates typed GenerationSession sample delivery with lineage metadata in live ring buffers', async () => {
     const liveRegistry = createLiveDataRegistry({ emitLifecycleDiagnostics: false });
     const registry = createAgentToolRegistry({ liveDataRegistry: liveRegistry });
+    let latestSnapshot = registry.getSnapshot();
+    registry.subscribe(() => {
+      latestSnapshot = registry.getSnapshot();
+    });
     const decision = makeSteeringDecision();
     let sampleListener: ((sample: LiveSample) => void) | null = null;
     const progressListeners: Array<(progress: number, label?: string) => void> = [];
@@ -773,6 +777,7 @@ describe('session handles', () => {
 
     progressListeners[0]?.(44, 'Rendering');
     expect(registry.getSnapshot().sessions[0].liveDelivery?.progress).toBe(44);
+    expect(latestSnapshot.sessions[0].liveDelivery?.progress).toBe(44);
 
     sampleListener?.({
       channelId: 'producer-channel' as LiveChannelDescriptor,
@@ -781,6 +786,7 @@ describe('session handles', () => {
     });
 
     const sample = liveRegistry.getLatestSample(hostChannel as LiveChannelDescriptor);
+    expect(latestSnapshot.sessions[0].liveDelivery?.sampleCount).toBe(1);
     expect(sample?.frame.metadata).toMatchObject({
       origin: 'agent-tool',
       sessionId: 'live-session-1',
@@ -903,6 +909,74 @@ describe('result validation', () => {
 // ---------------------------------------------------------------------------
 
 describe('subscriptions', () => {
+  it('notifies subscribers with complete snapshots for tool, status, and session mutations', async () => {
+    const registry = createAgentToolRegistry();
+    let latestSnapshot = registry.getSnapshot();
+    registry.subscribe(() => {
+      latestSnapshot = registry.getSnapshot();
+    });
+
+    const initialSnapshot = registry.getSnapshot();
+    expect(registry.getSnapshot()).toBe(initialSnapshot);
+
+    registry.ingestAgentToolContribution('ext-a', makeContribution({ id: 'c1', toolId: 'sub-state' }));
+    expect(latestSnapshot.tools.map((tool) => tool.toolId)).toEqual(['sub-state']);
+    const toolSnapshot = latestSnapshot;
+    expect(toolSnapshot).not.toBe(initialSnapshot);
+    expect(registry.getSnapshot()).toBe(toolSnapshot);
+
+    const handler = makeHandler(makeValidResult());
+    const handlerHandle = registry.registerTool('ext-a', 'sub-state', handler);
+    expect(latestSnapshot.getTool('sub-state')?.hasHandler).toBe(true);
+    handlerHandle.dispose();
+    expect(latestSnapshot.getTool('sub-state')?.hasHandler).toBe(false);
+
+    registry.registerTool('ext-a', 'sub-state', handler);
+    await registry.invokeTool(makeRequest('sub-state', 'ext-a'));
+    expect(latestSnapshot.getStatus('sub-state').invocationCount).toBe(1);
+    expect(latestSnapshot.getStatus('sub-state').lastRunOk).toBe(true);
+
+    registry.ingestAgentToolContribution('ext-a', makeContribution({ id: 'c-fail', toolId: 'sub-fail' }));
+    registry.registerTool('ext-a', 'sub-fail', makeHandler(undefined, new Error('failure')));
+    await registry.invokeTool(makeRequest('sub-fail', 'ext-a'));
+    expect(latestSnapshot.getStatus('sub-fail').invocationCount).toBe(1);
+    expect(latestSnapshot.getStatus('sub-fail').lastRunOk).toBe(false);
+
+    const session = makeSession({ id: 'sub-session' });
+    registry.trackSession('sub-state', 'ext-a', session);
+    expect(latestSnapshot.sessions.map((entry) => entry.session.id)).toEqual(['sub-session']);
+    session.complete({ output: 'done' });
+    expect(latestSnapshot.sessions).toHaveLength(0);
+
+    const cancelledSession = makeSession({ id: 'sub-cancelled' });
+    registry.trackSession('sub-state', 'ext-a', cancelledSession);
+    expect(registry.cancelSessions('sub-state')).toBe(1);
+    expect(latestSnapshot.sessions).toHaveLength(0);
+
+    registry.unregisterAll('ext-a');
+    expect(latestSnapshot.tools).toHaveLength(0);
+  });
+
+  it('isolates throwing listeners and still notifies healthy listeners', () => {
+    const registry = createAgentToolRegistry();
+    const throwingListener = vi.fn(() => {
+      throw new Error('listener failure');
+    });
+    let healthySnapshot: ReturnType<typeof registry.getSnapshot> | undefined;
+    const healthyListener = vi.fn(() => {
+      healthySnapshot = registry.getSnapshot();
+    });
+    registry.subscribe(throwingListener);
+    registry.subscribe(healthyListener);
+
+    expect(() => {
+      registry.ingestAgentToolContribution('ext-a', makeContribution({ id: 'c1', toolId: 'throwing' }));
+    }).not.toThrow();
+    expect(throwingListener).toHaveBeenCalled();
+    expect(healthyListener).toHaveBeenCalled();
+    expect(healthySnapshot?.tools[0]?.toolId).toBe('throwing');
+  });
+
   it('notifies listener on ingestion that produces diagnostics', () => {
     const registry = createAgentToolRegistry();
     const listener = vi.fn();
@@ -1134,11 +1208,14 @@ describe('HMR-safe unregisterAll', () => {
 // ---------------------------------------------------------------------------
 
 describe('dispose', () => {
-  it('clears all tools, sessions, listeners, and diagnostics', () => {
+  it('notifies subscribers with the cleared terminal snapshot before unsubscribing them', () => {
     const registry = createAgentToolRegistry();
     registry.ingestAgentToolContribution('ext-a', makeContribution({ id: 'c1', toolId: 'd1' }));
     registry.trackSession('d1', 'ext-a', makeSession({ id: 'ds1' }));
-    const listener = vi.fn();
+    let disposedSnapshot: ReturnType<typeof registry.getSnapshot> | undefined;
+    const listener = vi.fn(() => {
+      disposedSnapshot = registry.getSnapshot();
+    });
     registry.subscribe(listener);
 
     registry.dispose();
@@ -1146,9 +1223,13 @@ describe('dispose', () => {
     expect(registry.getSnapshot().tools.length).toBe(0);
     expect(registry.getSnapshot().sessions.length).toBe(0);
     expect(registry.diagnostics.length).toBe(0); // disposed warning may remain
+    expect(listener).toHaveBeenCalled();
+    expect(disposedSnapshot?.tools).toHaveLength(0);
+    expect(disposedSnapshot?.sessions).toHaveLength(0);
 
-    // Listener should not be called after dispose
-    // (ingest after dispose produces a warning diagnostic but should not notify disposed listeners)
+    const callsAfterDispose = listener.mock.calls.length;
+    registry.ingestAgentToolContribution('ext-b', makeContribution({ id: 'c2', toolId: 'after-dispose' }));
+    expect(listener).toHaveBeenCalledTimes(callsAfterDispose);
   });
 
   it('dispose is idempotent', () => {

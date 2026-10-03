@@ -123,6 +123,7 @@ import {
   EXTENSION_PROJECT_DATA_LIMITS,
   CREATIVE_MEMBER_MILESTONE,
   createCreativeContextStubs,
+  createCreativeContext,
   ExtensionNotImplementedError,
   contributionKindNotYetBridged,
   CONTRIBUTION_KIND_MILESTONE,
@@ -188,6 +189,9 @@ import type {
   ProposalImportResult,
   ProposalImportStatus,
   // CreativeContext (updated in M3)
+  ImmutableProjectPackageDescriptor,
+  ProjectObjectMetadata,
+  ProjectObjectStorage,
   CreativeContext,
   // M6: Parser / output format / search provider
   ParserContribution,
@@ -303,10 +307,18 @@ describe('M3: value exports are importable from @reigh/editor-sdk', () => {
     );
     expect(EXTENSION_PROJECT_DATA_LIMITS.MAX_ENTRIES_PER_EXTENSION).toBe(128);
   });
+  it('CREATIVE_MEMBER_MILESTONE includes projectObjects with the L2a milestone', () => {
+    expect(CREATIVE_MEMBER_MILESTONE.projectObjects).toBe('L2a');
+  });
 
-  it('CREATIVE_MEMBER_MILESTONE includes timeline with M3 milestone', () => {
-    expect(typeof CREATIVE_MEMBER_MILESTONE).toBe('object');
-    expect(CREATIVE_MEMBER_MILESTONE.timeline).toBe('M3');
+  it('createCreativeContext keeps unsupported project objects unavailable', () => {
+    expect(createCreativeContextStubs().projectObjects).toBeUndefined();
+    expect(createCreativeContext().projectObjects).toBeUndefined();
+    expect(createCreativeContext({ project: 'host-project' }).projectObjects).toBeUndefined();
+    expect(createCreativeContext({ projectObjects: undefined }).projectObjects).toBeUndefined();
+
+    expect(() => createCreativeContextStubs().timeline).toThrow(ExtensionNotImplementedError);
+    expect(() => createCreativeContext().timeline).toThrow(ExtensionNotImplementedError);
   });
 
   it('createCreativeContextStubs still produces a frozen object', () => {
@@ -318,6 +330,7 @@ describe('M3: value exports are importable from @reigh/editor-sdk', () => {
       'export',
       'materials',
       'project',
+      'projectObjects',
       'proposals',
       'reader',
       'sessions',
@@ -835,6 +848,32 @@ describe('M3: type interfaces are importable from @reigh/editor-sdk', () => {
       expect(e.milestone).toBe('M3');
     }
   });
+  it('exports portable project-object and immutable-package contracts', async () => {
+    const bytes = new TextEncoder().encode('<html></html>');
+    const metadata: ProjectObjectMetadata = {
+      object_id: 'sha256:entry',
+      digest: 'sha256:entry',
+      media_type: 'text/html',
+      size: bytes.byteLength,
+      filename: 'scene.html',
+    };
+    const storage: ProjectObjectStorage = {
+      ingest: async () => metadata,
+      read: async () => bytes,
+    };
+    const descriptor: ImmutableProjectPackageDescriptor = {
+      revision: metadata.digest,
+      manifest: { formatVersion: 1, entry: 'scene.html', duration: 1, authoredFps: 30 },
+      entry: metadata,
+      assets: [],
+    };
+
+    await expect(storage.ingest(bytes, metadata.media_type, metadata.filename)).resolves.toEqual(metadata);
+    await expect(storage.read(metadata.object_id)).resolves.toEqual(bytes);
+    expect(descriptor.entry.object_id).toBe(metadata.object_id);
+    expect(descriptor.assets).toEqual([]);
+  });
+
 });
 
 // ---------------------------------------------------------------------------

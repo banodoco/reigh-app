@@ -10,6 +10,7 @@ export const RUNAWAY_RELEASE_EXTENSION_ID = 'com.reigh.astrid-runaway-timeline';
 
 /** Frozen production inventory; unknown local examples fail closed. */
 export const REVIEWED_PRODUCTION_EXTENSION_IDS = Object.freeze([
+  'com.reigh.astrid.live-scenes',
   'com.reigh.scene-phase-markers',
   TRANSCRIPT_RELEASE_EXTENSION_ID,
   RUNAWAY_RELEASE_EXTENSION_ID,

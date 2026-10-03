@@ -78,6 +78,15 @@ export class AstridLocalAcpRoutes {
     return this.rpc<T>(connectionId, 'session/prompt', { sessionId, prompt });
   }
 
+  async setConfigOption<T = unknown>(
+    connectionId: string,
+    sessionId: string,
+    configId: 'model' | 'thinking',
+    value: string,
+  ): Promise<T> {
+    return this.rpc<T>(connectionId, 'session/set_config_option', { sessionId, configId, value });
+  }
+
   async cancelSession(connectionId: string, sessionId: string): Promise<z.infer<typeof cancelResponseSchema>> {
     return this.transport.requestJson(
       `/acp/${encodeURIComponent(connectionId)}/cancel`,

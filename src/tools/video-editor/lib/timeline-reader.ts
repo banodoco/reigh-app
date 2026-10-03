@@ -181,6 +181,30 @@ function extractGeneratedMeta(
   return meta;
 }
 
+/** Clone JSON-shaped app data so public readers never expose provider-owned objects. */
+function cloneReadonlyApp(value: unknown, seen = new WeakMap<object, unknown>()): unknown {
+  if (value === null || typeof value !== 'object') return value;
+  const existing = seen.get(value);
+  if (existing !== undefined) return existing;
+  if (Array.isArray(value)) {
+    const copy: unknown[] = [];
+    seen.set(value, copy);
+    for (const item of value) copy.push(cloneReadonlyApp(item, seen));
+    return Object.freeze(copy);
+  }
+  const copy: Record<string, unknown> = {};
+  seen.set(value, copy);
+  for (const [key, item] of Object.entries(value)) {
+    copy[key] = cloneReadonlyApp(item, seen);
+  }
+  return Object.freeze(copy);
+}
+
+function projectClipApp(app: TimelineClip['app']): Readonly<Record<string, unknown>> | undefined {
+  if (app === undefined) return undefined;
+  return cloneReadonlyApp(app) as Readonly<Record<string, unknown>>;
+}
+
 function getStringField(
   value: Record<string, unknown> | undefined,
   keys: readonly string[],
@@ -191,6 +215,35 @@ function getStringField(
     if (typeof field === 'string' && field.length > 0) return field;
   }
   return undefined;
+}
+function liveSceneSourceSummary(
+  clip: TimelineClip,
+  clipId: string,
+): TimelineSourceRefSummary | undefined {
+  if (clip.clipType !== 'com.reigh.astrid.liveScene') return undefined;
+  const liveScene = clip.app?.liveScene;
+  if (!liveScene || typeof liveScene !== 'object' || Array.isArray(liveScene)) return undefined;
+  const packageRecord = liveScene as Record<string, unknown>;
+  const source = packageRecord.source && typeof packageRecord.source === 'object'
+    && !Array.isArray(packageRecord.source)
+    ? packageRecord.source as Record<string, unknown>
+    : undefined;
+  const sourceObjectId = getStringField(source, ['objectId', 'object_id', 'media_id'])
+    ?? getStringField(packageRecord, ['sourceObjectId', 'source_object_id']);
+  const sourceRevision = getStringField(source, ['revision', 'content_sha256', 'digest'])
+    ?? getStringField(packageRecord, ['sourceRevision', 'source_revision']);
+  const packageRevision = getStringField(packageRecord, ['revision', 'packageRevision', 'package_revision']);
+  if (!sourceObjectId && !sourceRevision && !packageRevision) return undefined;
+  return {
+    id: `source.live-scene.${sourceObjectId ?? sourceRevision ?? packageRevision}.${clipId}`,
+    clipId,
+    sourceKind: 'provider',
+    extensionId: 'com.reigh.astrid.live-scenes',
+    ...(sourceObjectId ? { sourceObjectId } : {}),
+    ...(sourceRevision ? { sourceRevision } : {}),
+    ...(packageRevision ? { packageRevision } : {}),
+    determinism: 'preview-only',
+  };
 }
 
 function collectLiveBindingRecords(data: TimelineData): TimelineLiveBindingRecord[] {
@@ -472,6 +525,9 @@ export interface TimelineReaderOptions {
    */
   projectId?: string | null;
 
+  /** Timeline identifier for the document scope, when available. */
+  timelineId?: string | null;
+
   /**
    * Extension requirements for this project.
    * Extracted from project metadata (e.g. TimelineConfig.app or a
@@ -507,6 +563,7 @@ export function createTimelineReader(
     : () => dataSource;
 
   const projectId = options.projectId ?? null;
+  const timelineId = options.timelineId ?? null;
   const extensionRequirements: readonly ProjectExtensionRequirement[] =
     options.extensionRequirements ?? [];
 
@@ -807,6 +864,23 @@ export function createTimelineReader(
           clipSourceRefs.push(sourceRef);
           sourceRefSummaries.push(sourceRef);
         }
+        const liveSceneSource = liveSceneSourceSummary(clip, clip.id);
+        if (liveSceneSource) {
+          clipSourceRefs.push(liveSceneSource);
+          sourceRefSummaries.push(liveSceneSource);
+        }
+
+        const clipSourceRate = typeof clipMeta.speed === 'number'
+          && Number.isFinite(clipMeta.speed) && clipMeta.speed > 0
+          ? clipMeta.speed
+          : 1;
+        const clipSourceOffset = typeof clipMeta.from === 'number' && Number.isFinite(clipMeta.from)
+          ? clipMeta.from
+          : 0;
+        const clipDuration = computeClipDuration(clipMeta);
+        const clipSourceEnd = typeof clipMeta.to === 'number' && Number.isFinite(clipMeta.to)
+          ? clipMeta.to
+          : clipSourceOffset + clipDuration * clipSourceRate;
 
         clipSummaries.push({
           id: clip.id,
@@ -814,6 +888,10 @@ export function createTimelineReader(
           at: clip.at,
           clipType: clip.clipType,
           duration: computeClipDuration(clipMeta),
+          sourceOffset: clipSourceOffset,
+          ...(clipSourceEnd !== undefined ? { sourceEnd: clipSourceEnd } : {}),
+          rate: clipSourceRate,
+          ...(clip.app !== undefined ? { app: projectClipApp(clip.app) } : {}),
           ...(typeof clipMeta.text?.content === 'string'
             ? { textContent: clipMeta.text.content }
             : {}),
@@ -848,6 +926,7 @@ export function createTimelineReader(
             : {}),
         });
       }
+
 
       // ── Tracks ─────────────────────────────────────────────────────
       const trackSummaries: TimelineTrackSummary[] = (config.tracks ?? []).map(
@@ -953,6 +1032,7 @@ export function createTimelineReader(
 
       return {
         projectId,
+        timelineId,
         baseVersion: configVersion,
         currentVersion: configVersion,
         extensionRequirements,

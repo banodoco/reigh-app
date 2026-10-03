@@ -322,7 +322,7 @@ export interface AgentToolRegistry {
   /** All diagnostics emitted by the registry. */
   readonly diagnostics: readonly ExtensionDiagnostic[];
 
-  /** Subscribe to registry diagnostic changes. */
+  /** Subscribe to observable registry snapshot changes. */
   subscribe(listener: () => void): DisposeHandle;
 
   // ---- Snapshot ----------------------------------------------------------
@@ -365,6 +365,7 @@ export function createAgentToolRegistry(config: AgentToolRegistryConfig = {}): A
   let callbacks: AgentToolRegistryCallbacks = {};
   let disposed = false;
   let frozenSnapshot: AgentToolRegistrySnapshot | null = null;
+  let suppressSessionNotifications = 0;
 
   // ---- helpers -----------------------------------------------------------
 
@@ -383,9 +384,14 @@ export function createAgentToolRegistry(config: AgentToolRegistryConfig = {}): A
     frozenSnapshot = null;
   }
 
-  function notifyListeners(): void {
+  function notifySnapshotChanged(): void {
+    invalidateSnapshot();
     for (const listener of listeners) {
-      listener();
+      try {
+        listener();
+      } catch {
+        // A consumer must not be able to break the registry operation.
+      }
     }
   }
 
@@ -396,10 +402,14 @@ export function createAgentToolRegistry(config: AgentToolRegistryConfig = {}): A
     extensionId?: string,
     contributionId?: string,
     detail?: Record<string, unknown>,
+    notify = true,
   ): void {
     emitDiagnostic(diagnostics, severity, code, message, extensionId, contributionId, detail);
-    invalidateSnapshot();
-    notifyListeners();
+    if (notify) {
+      notifySnapshotChanged();
+    } else {
+      invalidateSnapshot();
+    }
   }
 
   function getOrCreateStatus(toolId: string): InternalRunStatus {
@@ -453,6 +463,7 @@ export function createAgentToolRegistry(config: AgentToolRegistryConfig = {}): A
             extensionId,
             contribution.id,
             { family },
+            false,
           );
         }
       }
@@ -498,10 +509,11 @@ export function createAgentToolRegistry(config: AgentToolRegistryConfig = {}): A
         extensionId,
         contribution.id,
         diag.detail,
+        false,
       );
     }
 
-    invalidateSnapshot();
+    notifySnapshotChanged();
   }
 
   // ---- registerTool ------------------------------------------------------
@@ -543,11 +555,13 @@ export function createAgentToolRegistry(config: AgentToolRegistryConfig = {}): A
         `Tool "${toolId}" already has a handler registered by extension "${extensionId}". Overwriting.`,
         extensionId,
         tool.contributionId,
+        undefined,
+        false,
       );
     }
 
     tool.handler = handler;
-    invalidateSnapshot();
+    notifySnapshotChanged();
 
     let unregistered = false;
 
@@ -559,7 +573,7 @@ export function createAgentToolRegistry(config: AgentToolRegistryConfig = {}): A
         const current = tools.get(toolId);
         if (current && current.extensionId === extensionId) {
           current.handler = null;
-          invalidateSnapshot();
+          notifySnapshotChanged();
         }
       },
     };
@@ -616,6 +630,7 @@ export function createAgentToolRegistry(config: AgentToolRegistryConfig = {}): A
           extensionId,
           tool.contributionId,
           diag.detail,
+          false,
         );
       }
 
@@ -633,6 +648,7 @@ export function createAgentToolRegistry(config: AgentToolRegistryConfig = {}): A
                 extensionId,
                 tool.contributionId,
                 d.detail as Record<string, unknown> | undefined,
+                false,
               );
             }
           }
@@ -657,10 +673,12 @@ export function createAgentToolRegistry(config: AgentToolRegistryConfig = {}): A
             extensionId,
             sessionResult.session,
             sessionResult.liveDelivery ?? sessionResult.session.liveDelivery,
+            false,
           );
         }
       }
 
+      notifySnapshotChanged();
       return result;
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
@@ -690,44 +708,56 @@ export function createAgentToolRegistry(config: AgentToolRegistryConfig = {}): A
     callbacks.onToolProgress?.(toolId, extensionId, progress, label);
   }
 
-  function cancelSessions(toolId: string): number {
+  function cancelSessions(toolId: string, notify = true): number {
     let count = 0;
-    for (const [sessionId, entry] of sessions) {
-      if (entry.toolId === toolId) {
-        try {
-          entry.session.cancel();
-        } catch {
-          // Cancel should never throw, but guard anyway
+    suppressSessionNotifications += 1;
+    try {
+      for (const [sessionId, entry] of sessions) {
+        if (entry.toolId === toolId) {
+          try {
+            entry.session.cancel();
+          } catch {
+            // Cancel should never throw, but guard anyway
+          }
+          cleanupSession(sessionId);
+          sessions.delete(sessionId);
+          callbacks.onToolCancelled?.(toolId, entry.extensionId, sessionId);
+          count += 1;
         }
-        cleanupSession(sessionId);
-        sessions.delete(sessionId);
-        callbacks.onToolCancelled?.(toolId, entry.extensionId, sessionId);
-        count += 1;
       }
+    } finally {
+      suppressSessionNotifications -= 1;
     }
     if (count > 0) {
-      invalidateSnapshot();
+      if (notify) notifySnapshotChanged();
+      else invalidateSnapshot();
     }
     return count;
   }
 
-  function cancelExtensionSessions(extensionId: string): number {
+  function cancelExtensionSessions(extensionId: string, notify = true): number {
     let count = 0;
-    for (const [sessionId, entry] of sessions) {
-      if (entry.extensionId === extensionId) {
-        try {
-          entry.session.cancel();
-        } catch {
-          // Cancel should never throw, but guard anyway
+    suppressSessionNotifications += 1;
+    try {
+      for (const [sessionId, entry] of sessions) {
+        if (entry.extensionId === extensionId) {
+          try {
+            entry.session.cancel();
+          } catch {
+            // Cancel should never throw, but guard anyway
+          }
+          cleanupSession(sessionId);
+          sessions.delete(sessionId);
+          callbacks.onToolCancelled?.(entry.toolId, extensionId, sessionId);
+          count += 1;
         }
-        cleanupSession(sessionId);
-        sessions.delete(sessionId);
-        callbacks.onToolCancelled?.(entry.toolId, extensionId, sessionId);
-        count += 1;
       }
+    } finally {
+      suppressSessionNotifications -= 1;
     }
     if (count > 0) {
-      invalidateSnapshot();
+      if (notify) notifySnapshotChanged();
+      else invalidateSnapshot();
     }
     return count;
   }
@@ -739,6 +769,7 @@ export function createAgentToolRegistry(config: AgentToolRegistryConfig = {}): A
     extensionId: string,
     session: GenerationSession,
     liveDelivery?: GenerationSessionLiveDelivery,
+    notify = true,
   ): void {
     const entry: InternalSessionEntry = {
       session,
@@ -763,22 +794,26 @@ export function createAgentToolRegistry(config: AgentToolRegistryConfig = {}): A
     };
 
     if (entry.liveDelivery) {
-      const liveDelivery = entry.liveDelivery;
+      const liveDeliveryState = entry.liveDelivery;
       const originalCancel = session.cancel.bind(session);
       session.cancel = () => {
-        liveDelivery.cancelled = true;
+        liveDeliveryState.cancelled = true;
         originalCancel();
+        if (suppressSessionNotifications === 0) {
+          notifySnapshotChanged();
+        }
       };
     }
 
-    invalidateSnapshot();
+    if (notify) notifySnapshotChanged();
+    else invalidateSnapshot();
   }
 
   function untrackSession(sessionId: string): void {
     cleanupSession(sessionId);
     const existed = sessions.delete(sessionId);
     if (existed) {
-      invalidateSnapshot();
+      notifySnapshotChanged();
     }
   }
 
@@ -838,6 +873,7 @@ export function createAgentToolRegistry(config: AgentToolRegistryConfig = {}): A
         entry.extensionId,
         undefined,
         diagnostic.detail,
+        false,
       );
     }
 
@@ -855,7 +891,7 @@ export function createAgentToolRegistry(config: AgentToolRegistryConfig = {}): A
         detail: { sessionId, toolId: entry.toolId },
       };
       state.diagnostics.push(diagnostic);
-      addDiagnostic(diagnostic.severity, diagnostic.code, diagnostic.message, entry.extensionId, undefined, diagnostic.detail);
+      addDiagnostic(diagnostic.severity, diagnostic.code, diagnostic.message, entry.extensionId, undefined, diagnostic.detail, false);
       state.canActivate = false;
       invalidateSnapshot();
       return;
@@ -902,7 +938,7 @@ export function createAgentToolRegistry(config: AgentToolRegistryConfig = {}): A
       try {
         const progressHandle = entry.session.onProgress((progress) => {
           state.progress = progress;
-          invalidateSnapshot();
+          notifySnapshotChanged();
           reportProgress(entry.toolId, entry.extensionId, progress, entry.session.progressLabel);
         });
         addSessionDisposer(sessionId, progressHandle);
@@ -935,7 +971,7 @@ export function createAgentToolRegistry(config: AgentToolRegistryConfig = {}): A
           if (!state.activeChannels.includes(sample.channelId)) {
             state.activeChannels = [...state.activeChannels, sample.channelId];
           }
-          invalidateSnapshot();
+          notifySnapshotChanged();
         });
         addSessionDisposer(sessionId, sampleHandle);
       } catch (error) {
@@ -959,7 +995,7 @@ export function createAgentToolRegistry(config: AgentToolRegistryConfig = {}): A
       detail: { sessionId: entry.session.id, toolId: entry.toolId },
     };
     state.diagnostics.push(diagnostic);
-    addDiagnostic(diagnostic.severity, diagnostic.code, diagnostic.message, entry.extensionId, undefined, diagnostic.detail);
+    addDiagnostic(diagnostic.severity, diagnostic.code, diagnostic.message, entry.extensionId, undefined, diagnostic.detail, false);
   }
 
   function collectInitialChannels(delivery: GenerationSessionLiveDelivery): LiveChannelDescriptor[] {
@@ -1075,18 +1111,21 @@ export function createAgentToolRegistry(config: AgentToolRegistryConfig = {}): A
     if (guardDisposed('unregisterAll')) return;
 
     // Remove all tools owned by this extension
+    let removedToolCount = 0;
     for (const [toolId, tool] of tools) {
       if (tool.extensionId === extensionId) {
         tools.delete(toolId);
         runStatuses.delete(toolId);
+        removedToolCount += 1;
       }
     }
 
     // Cancel and remove all sessions owned by this extension
-    cancelExtensionSessions(extensionId);
+    const cancelledSessionCount = cancelExtensionSessions(extensionId, false);
 
-    invalidateSnapshot();
-    notifyListeners();
+    if (removedToolCount > 0 || cancelledSessionCount > 0) {
+      notifySnapshotChanged();
+    }
   }
 
   function setCallbacks(cbs: AgentToolRegistryCallbacks): void {
@@ -1097,13 +1136,18 @@ export function createAgentToolRegistry(config: AgentToolRegistryConfig = {}): A
     if (disposed) return;
     disposed = true;
 
-    // Cancel all sessions
-    for (const [, entry] of sessions) {
-      try {
-        entry.session.cancel();
-      } catch {
-        // Ignore
+    // Cancel all sessions without exposing the intermediate cancellation state.
+    suppressSessionNotifications += 1;
+    try {
+      for (const [, entry] of sessions) {
+        try {
+          entry.session.cancel();
+        } catch {
+          // Ignore
+        }
       }
+    } finally {
+      suppressSessionNotifications -= 1;
     }
     for (const sessionId of sessions.keys()) {
       cleanupSession(sessionId);
@@ -1113,9 +1157,9 @@ export function createAgentToolRegistry(config: AgentToolRegistryConfig = {}): A
     tools.clear();
     runStatuses.clear();
     diagnostics.length = 0;
-    listeners.clear();
     callbacks = {};
-    frozenSnapshot = null;
+    notifySnapshotChanged();
+    listeners.clear();
   }
 
   // ---- return public API ------------------------------------------------

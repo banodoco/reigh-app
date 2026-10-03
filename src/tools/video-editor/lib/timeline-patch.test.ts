@@ -5553,4 +5553,39 @@ describe('compileTimelinePatch — extension-authored clip label and hold', () =
     // The clip meta must carry label so rows-based rebuilds keep it.
     expect((compiled.nextData!.meta as Record<string, Record<string, unknown>>)['scene-phase-shot-1']?.label).toBe('Shot 1');
   });
+
+  it('applies clip.add then clip.update with source timing and opaque app data', () => {
+    const compiled = compileTimelinePatch(
+      makePatch({
+        operations: [
+          makeOp('clip.add', 'maple-2', { track: 'V1', at: 2, clipType: 'com.reigh.astrid.liveScene' }, 0),
+          makeOp('clip.update', 'maple-2', {
+            mode: 'merge',
+            from: 55,
+            to: 75,
+            speed: 1,
+            app: {
+              unrelated: { sentinel: 'keep' },
+              liveScene: { revision: 'sha256:abc' },
+            },
+          }, 1),
+        ],
+      }),
+      data,
+    );
+    expect(compiled.valid).toBe(true);
+    const clip = compiled.nextData!.config.clips.find((candidate: { id: string }) => candidate.id === 'maple-2');
+    expect(clip).toMatchObject({ track: 'V1', at: 2, clipType: 'com.reigh.astrid.liveScene', from: 55, to: 75, speed: 1 });
+    expect(clip?.app).toEqual({ unrelated: { sentinel: 'keep' }, liveScene: { revision: 'sha256:abc' } });
+  });
+
+  it('rejects clip.add when the target ID already exists', () => {
+    const compiled = compileTimelinePatch(
+      makePatch({ operations: [makeOp('clip.add', 'scene-phase-shot-1', { track: 'V1', at: 0, clipType: 'hold' })] }),
+      makeMinimalTimelineData({ tracks: [{ id: 'V1', kind: 'visual', label: 'V1' }], clips: [{ id: 'scene-phase-shot-1', at: 0, track: 'V1', clipType: 'hold', hold: 1 }] }),
+    );
+    expect(compiled.valid).toBe(false);
+    expect(compiled.nextData).toBeNull();
+    expect(compiled.diagnostics.some((diagnostic) => diagnostic.code === 'timeline-patch/clip-id-collision')).toBe(true);
+  });
 });

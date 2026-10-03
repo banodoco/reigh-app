@@ -74,6 +74,7 @@ export interface EditorRuntimeProviderProps {
 
 function EditorRuntimeProviderInner({
   children,
+  timelineId,
   userId,
   effectCatalog,
   sequenceComponentCatalog,
@@ -82,8 +83,10 @@ function EditorRuntimeProviderInner({
   settingsSnapshotsRef,
   settingsNotificationRegistryRef,
   extensionStateRepository,
+  projectObjects,
 }: {
   children: ReactNode;
+  timelineId: string;
   userId: string | null;
   effectCatalog?: VideoEditorEffectCatalog | null;
   sequenceComponentCatalog?: VideoEditorSequenceComponentCatalog | null;
@@ -92,10 +95,13 @@ function EditorRuntimeProviderInner({
   settingsSnapshotsRef: React.MutableRefObject<Record<string, ExtensionSettingsSnapshot> | null>;
   settingsNotificationRegistryRef: React.MutableRefObject<ExtensionSettingsNotificationRegistry | null>;
   extensionStateRepository: ExtensionStateRepository | null | undefined;
+  projectObjects?: DataProvider['projectObjects'];
 }) {
   const sync = useEditorRuntimeSync({
     assembly,
     projectId: null,
+    timelineId,
+    projectObjects,
     catalogUserId: userId,
     effectsQueryEnabled: !effectCatalog && Boolean(userId),
     effectCatalog,
@@ -404,6 +410,7 @@ export function EditorRuntimeProvider({
     <VideoEditorRuntimeProvider value={contextValue}>
       <EditorRuntimeProviderInner
         userId={userId}
+        timelineId={timelineId}
         effectCatalog={effectCatalog}
         sequenceComponentCatalog={sequenceComponentCatalog}
         assembly={assembly}
@@ -411,6 +418,7 @@ export function EditorRuntimeProvider({
         settingsSnapshotsRef={settingsSnapshotsRef}
         settingsNotificationRegistryRef={settingsNotificationRegistryRef}
         extensionStateRepository={extensionStateRepository}
+        projectObjects={dataProvider.projectObjects}
       >
         {children}
       </EditorRuntimeProviderInner>

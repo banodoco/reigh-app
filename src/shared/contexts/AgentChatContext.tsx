@@ -24,6 +24,7 @@ export type AgentChatEditorContext = {
   elementContext?: ReighAgentElementContext;
   /** Host-side execution boundary; deliberately omitted from serialized prompt context. */
   elementOperationAdapter?: AstridElementOperationAdapter;
+  liveSceneOperationPort?: import('@/tools/video-editor/runtime/liveSceneOperationPort').LiveSceneOperationPort;
 };
 
 export type AgentChatContextValue = {

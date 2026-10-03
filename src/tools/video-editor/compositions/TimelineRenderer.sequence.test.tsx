@@ -1269,6 +1269,22 @@ describe('TimelineRenderer — live binding renderer facade (M11 T6)', () => {
     expect(screen.queryByTestId('live-binding-placeholder')).not.toBeInTheDocument();
   });
 
+  it('passes host source time and opaque source independently of animated params', () => {
+    currentFrame = 180;
+    const TestRenderer: FC<ClipRendererProps> = props => <div data-testid="scene-clock" data-time={props.sourceTime} data-source={JSON.stringify(props.source)} data-params={JSON.stringify(props.params)} />;
+    mockClipTypeRegistryGet.mockReturnValue(makeRegistryRecord({clipTypeId:'ext.live-clip',renderer:TestRenderer,schema:[{name:'scale',label:'Scale',description:'',type:'number',default:1}]}));
+    mockClipTypeRegistryHas.mockReturnValue(true);
+    const config = liveBuildConfig([{...liveClip('scene',[]),at:2,from:55,hold:20,speed:2,app:{liveScene:{revision:'pinned'}},keyframes:{scale:[{time:0,value:1},{time:10,value:2}]}}]);
+    const view = render(<TimelineRenderer config={config} />);
+    expect(screen.getByTestId('scene-clock')).toHaveAttribute('data-time','63');
+    expect(screen.getByTestId('scene-clock')).toHaveAttribute('data-source',JSON.stringify({liveScene:{revision:'pinned'}}));
+    expect(JSON.parse(screen.getByTestId('scene-clock').getAttribute('data-params') ?? '{}')).not.toHaveProperty('liveScene');
+    currentFrame = 120;
+    view.rerender(<TimelineRenderer config={{...config, clips:[...config.clips]}} />);
+    expect(screen.getByTestId('scene-clock')).toHaveAttribute('data-time','59');
+    currentFrame = 0;
+  });
+
   it('renders live diagnostics placeholders for unresolved live binding states', () => {
     const TestRenderer: FC<ClipRendererProps> = () => (
       <div data-testid="extension-live-renderer" />

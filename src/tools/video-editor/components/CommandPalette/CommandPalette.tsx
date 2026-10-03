@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState, useSyncExternalStore } from 'react';
 import { Search, Wrench } from 'lucide-react';
 import {
   CommandDialog,
@@ -10,8 +10,16 @@ import {
   CommandShortcut,
 } from '@/shared/components/ui/command.tsx';
 import { useVideoEditorRuntime } from '@/tools/video-editor/contexts/VideoEditorRuntimeContext.tsx';
-import type { CommandEntry, CommandRunStatus } from '@/tools/video-editor/runtime/commandRegistry.ts';
-import type { AgentToolEntry, AgentToolRunStatus } from '@/tools/video-editor/runtime/agentToolRegistry.ts';
+import type {
+  CommandEntry,
+  CommandRegistrySnapshot,
+  CommandRunStatus,
+} from '@/tools/video-editor/runtime/commandRegistry.ts';
+import type {
+  AgentToolEntry,
+  AgentToolRegistrySnapshot,
+  AgentToolRunStatus,
+} from '@/tools/video-editor/runtime/agentToolRegistry.ts';
 
 export interface CommandPaletteProps {
   /** Whether the palette is open. */
@@ -78,11 +86,76 @@ function formatKeybinding(key: string): string {
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+const EMPTY_COMMAND_REGISTRY_SNAPSHOT: CommandRegistrySnapshot = Object.freeze({
+  commands: Object.freeze([]),
+  keybindings: Object.freeze([]),
+  contextMenuItems: Object.freeze([]),
+  diagnostics: Object.freeze([]),
+  getCommand: () => undefined,
+  getKeybinding: () => undefined,
+  getStatus: () => Object.freeze({
+    invocationCount: 0,
+    lastRunAt: 0,
+    lastRunOk: true,
+    lastError: null,
+  }),
+});
+
+const EMPTY_AGENT_TOOL_REGISTRY_SNAPSHOT: AgentToolRegistrySnapshot = Object.freeze({
+  tools: Object.freeze([]),
+  sessions: Object.freeze([]),
+  diagnostics: Object.freeze([]),
+  getTool: () => undefined,
+  getStatus: () => ({
+    invocationCount: 0,
+    lastRunAt: 0,
+    lastRunOk: true,
+    lastError: null,
+  }),
+  getSessions: () => Object.freeze([]),
+});
+
+interface RegistrySnapshotSource<TSnapshot> {
+  subscribe: (listener: () => void) => { dispose: () => void };
+  getSnapshot: () => TSnapshot;
+}
+
+/** Read a provider-scoped registry through its stable external-store contract. */
+function useRegistrySnapshot<TSnapshot>(
+  registry: RegistrySnapshotSource<TSnapshot> | undefined,
+  emptySnapshot: TSnapshot,
+): TSnapshot {
+  const subscribe = useCallback(
+    (onStoreChange: () => void) => {
+      if (!registry) return () => {};
+      const handle = registry.subscribe(onStoreChange);
+      return () => handle.dispose();
+    },
+    [registry],
+  );
+
+  const getSnapshot = useCallback(
+    () => registry?.getSnapshot() ?? emptySnapshot,
+    [emptySnapshot, registry],
+  );
+
+  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+}
+
 export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
   const runtime = useVideoEditorRuntime();
   const commandRegistry = runtime.commandRegistry;
   const agentToolRegistry = runtime.agentToolRegistry;
   const [search, setSearch] = useState('');
+
+  const commandSnapshot = useRegistrySnapshot(
+    commandRegistry,
+    EMPTY_COMMAND_REGISTRY_SNAPSHOT,
+  );
+  const agentToolSnapshot = useRegistrySnapshot(
+    agentToolRegistry,
+    EMPTY_AGENT_TOOL_REGISTRY_SNAPSHOT,
+  );
 
   // Build the full item list from command registry + agent tool registry snapshots
   const allItems = useMemo<CommandPaletteItem[]>(() => {
@@ -90,12 +163,11 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
 
     // ---- Commands --------------------------------------------------------
     if (commandRegistry) {
-      const snapshot = commandRegistry.getSnapshot();
-      const commands = snapshot.commands;
+      const commands = commandSnapshot.commands;
 
       for (const entry of commands) {
-        const kb = snapshot.keybindings.find((k) => k.commandId === entry.commandId);
-        const status = snapshot.getStatus(entry.commandId);
+        const kb = commandSnapshot.keybindings.find((k) => k.commandId === entry.commandId);
+        const status = commandSnapshot.getStatus(entry.commandId);
         const hasHandler = true; // Validated on invocation; show all as available
         items.push({
           kind: 'command',
@@ -109,9 +181,8 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
 
     // ---- Agent Tools -----------------------------------------------------
     if (agentToolRegistry) {
-      const toolSnapshot = agentToolRegistry.getSnapshot();
-      for (const toolEntry of toolSnapshot.tools) {
-        const toolStatus = toolSnapshot.getStatus(toolEntry.toolId);
+      for (const toolEntry of agentToolSnapshot.tools) {
+        const toolStatus = agentToolSnapshot.getStatus(toolEntry.toolId);
         items.push({
           kind: 'agentTool',
           entry: toolEntry,
@@ -121,7 +192,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
     }
 
     return items;
-  }, [commandRegistry, agentToolRegistry]);
+  }, [agentToolRegistry, agentToolSnapshot, commandRegistry, commandSnapshot]);
 
   // Filter items by search query
   const filteredItems = useMemo(() => {

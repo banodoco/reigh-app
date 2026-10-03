@@ -6,10 +6,8 @@ import {
 import { getLocalProjectSlug } from '@/shared/dev/devSession.ts';
 import { AstridBridgeTransport, BridgeRouteError } from './transport.ts';
 import { AstridLocalProjectRoutes } from './projectRoutes.ts';
-import {
-  runtimeGenerationPageSchema,
-  runtimeTaskPageSchema,
-} from '@/tools/video-editor/data/bridgeContract.ts';
+import { runtimeTaskReadPageSchema } from './taskReadSchemas.ts';
+import { runtimeGenerationPageSchema } from '@/tools/video-editor/data/bridgeContract.ts';
 
 export type AstridCapability = 'tasks' | 'generations' | 'media';
 export type AstridCapabilitySupport = 'checking' | 'supported' | 'unavailable' | 'unknown';
@@ -227,7 +225,7 @@ export async function inspectAstridCapabilities(
     probeJsonCapability(() => transport.requestJson(
       `/v1/projects/${encodedProject}/tasks?limit=1`,
       {},
-      runtimeTaskPageSchema,
+      runtimeTaskReadPageSchema,
       'task capability probe',
     )),
     probeGenerationCapability(transport, encodedProject),

@@ -194,6 +194,12 @@ export interface TimelineSourceRefSummary {
   generationId?: string;
   /** Extension that owns this source ref, when known. */
   extensionId?: string;
+  /** Immutable project-managed source object identity, when available. */
+  sourceObjectId?: string;
+  /** Immutable source/package revision carried by the reference. */
+  sourceRevision?: string;
+  /** Revision of the canonical built/runtime entry, when distinct metadata exists. */
+  packageRevision?: string;
   /** Determinism posture for this source ref. */
   determinism?: DeterminismStatus;
 }
@@ -263,6 +269,8 @@ export interface TimelineOutputMetadata {
 export interface TimelineSnapshot {
   /** Project identifier, when available. */
   projectId: string | null;
+  /** Timeline identifier for the document scope, when available. */
+  timelineId?: string | null;
   /**
    * Base version for concurrency control. This is the version the snapshot
    * was taken at; proposals based on this snapshot must revalidate against
@@ -318,6 +326,17 @@ export interface TimelineClipSummary {
   clipType?: string;
   /** Duration in seconds (derived from to-from or hold). */
   duration: number;
+  /**
+   * Source offset in seconds. Source time is
+   * `sourceOffset + max(0, compositionTime - at) * rate`.
+   */
+  sourceOffset?: number;
+  /** Exclusive source-range end in seconds, when the clip carries one. */
+  sourceEnd?: number;
+  /** Positive playback rate used by the established source-time mapping. */
+  rate?: number;
+  /** Defensive read-only projection of opaque clip app data. */
+  app?: Readonly<Record<string, unknown>>;
   /** Current plain text content for built-in text clips, when present. */
   textContent?: string;
   /** True when this clip is managed by a registered extension. */
@@ -333,15 +352,15 @@ export interface TimelineClipSummary {
    * receiving raw provider rows.
    */
   contentFingerprint?: string;
-  /** M12: Effects applied to this clip. */
+  /** M12: Effects applied to the clip. */
   effects?: readonly TimelineEffectSummary[];
-  /** M12: Transition applied to this clip, if any. */
+  /** M12: Transition applied to the clip, if any. */
   transition?: TimelineTransitionSummary;
-  /** M12: Live bindings attached to this clip. */
+  /** M12: Live bindings attached to the clip. */
   liveBindings?: readonly TimelineLiveBindingSummary[];
   /** M2: Automation summaries attached to this automation clip. */
   automation?: readonly TimelineAutomationSummary[];
-  /** M12: Material refs consumed by this clip. */
+  /** M12: Material refs consumed by the clip. */
   materialRefs?: readonly TimelineMaterialRefSummary[];
   /** M12: Source refs carried by this clip. */
   sourceRefs?: readonly TimelineSourceRefSummary[];

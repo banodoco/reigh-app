@@ -6,6 +6,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { createTimelineReader } from '@/tools/video-editor/lib/timeline-reader';
+import { compileTimelinePatch } from '@/tools/video-editor/lib/timeline-patch';
 import { getTimelineClipShader, serializeTimelineConfigSnapshot } from '@/tools/video-editor/lib/timeline-domain.ts';
 import type {
   TimelineReader,
@@ -217,6 +218,116 @@ describe('createTimelineReader — clip summaries', () => {
     expect(clip3).toBeDefined();
     // from=0, to=4, speed=2 => duration = (4-0)/2 = 2 seconds
     expect(clip3!.duration).toBeCloseTo(2, 2);
+  });
+
+  it('exposes managed live-scene source identity and ordinary source timing', async () => {
+    const source = {
+      objectId: 'sha256:scene-source',
+      revision: 'sha256:scene-revision',
+    };
+    const liveScene = {
+      revision: source.revision,
+      source,
+      packageBody: '{"manifest":{"formatVersion":1,"entry":"scene.html","duration":100,"authoredFps":30},"entry":{"object_id":"sha256:scene-entry","digest":"sha256:scene-entry-revision"},"assets":[]}',
+      html: '<html></html>',
+    };
+    const config = makeBaseConfig();
+    config.clips = [
+      {
+        id: 'scene-a',
+        at: 2,
+        track: 'V1',
+        clipType: 'com.reigh.astrid.liveScene',
+        from: 55,
+        to: 75,
+        speed: 1,
+        app: { liveScene },
+      },
+      {
+        id: 'scene-b',
+        at: 22,
+        track: 'V1',
+        clipType: 'com.reigh.astrid.liveScene',
+        from: 20,
+        to: 30,
+        speed: 2,
+        app: { liveScene },
+      },
+    ];
+    const data = await buildTimelineData(config, emptyRegistry);
+    const clips = createTimelineReader({ data }).snapshot().clips;
+
+    expect(clips.map((clip) => ({
+      id: clip.id,
+      sourceOffset: clip.sourceOffset,
+      sourceEnd: clip.sourceEnd,
+      rate: clip.rate,
+      sourceRefs: clip.sourceRefs,
+    }))).toEqual([
+      {
+        id: 'scene-a',
+        sourceOffset: 55,
+        sourceEnd: 75,
+        rate: 1,
+        sourceRefs: [{
+          id: 'source.live-scene.sha256:scene-source.scene-a',
+          clipId: 'scene-a',
+          sourceKind: 'provider',
+          extensionId: 'com.reigh.astrid.live-scenes',
+          sourceObjectId: source.objectId,
+          sourceRevision: source.revision,
+          packageRevision: source.revision,
+          determinism: 'preview-only',
+        }],
+      },
+      {
+        id: 'scene-b',
+        sourceOffset: 20,
+        sourceEnd: 30,
+        rate: 2,
+        sourceRefs: [{
+          id: 'source.live-scene.sha256:scene-source.scene-b',
+          clipId: 'scene-b',
+          sourceKind: 'provider',
+          extensionId: 'com.reigh.astrid.live-scenes',
+          sourceObjectId: source.objectId,
+          sourceRevision: source.revision,
+          packageRevision: source.revision,
+          determinism: 'preview-only',
+        }],
+      },
+    ]);
+  });
+
+  it('projects opaque clip app data as a defensive frozen read-only value', async () => {
+    const config = makeBaseConfig();
+    config.clips[0].app = {
+      unrelated: { sentinel: 'preserve-me' },
+      liveScene: { revision: 'sha256:abc' },
+    };
+    const data = await buildTimelineData(config, emptyRegistry);
+    const reader = createTimelineReader({ data, projectId: 'project-a', timelineId: 'timeline-a' });
+
+    const clip = reader.snapshot().clips.find((candidate) => candidate.id === 'clip-1');
+    expect(clip?.app).toEqual(config.clips[0].app);
+    expect(clip?.app).not.toBe(config.clips[0].app);
+    expect(Object.isFrozen(clip?.app)).toBe(true);
+    expect(Object.isFrozen(clip?.app?.unrelated)).toBe(true);
+    expect(reader.snapshot().timelineId).toBe('timeline-a');
+
+    const patch = compileTimelinePatch({
+      version: 1,
+      operations: [{
+        op: 'clip.update',
+        target: 'clip-1',
+        payload: { mode: 'merge', app: { ...clip!.app, liveScene: { revision: 'sha256:new' } } },
+      }],
+    }, data);
+    expect(patch.valid).toBe(true);
+    expect(patch.nextData!.config.clips.find((candidate) => candidate.id === 'clip-1')?.app).toEqual({
+      unrelated: { sentinel: 'preserve-me' },
+      liveScene: { revision: 'sha256:new' },
+    });
   });
 
   it('marks clips as unmanaged by default', async () => {

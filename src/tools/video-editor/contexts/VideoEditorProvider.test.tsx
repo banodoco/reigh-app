@@ -1056,6 +1056,97 @@ describe('VideoEditorProvider', () => {
     expect(disposeReplacement).toHaveBeenCalledTimes(1);
   });
 
+  it('ingests replacement manifest commands after old lifecycle cleanup and before activation', async () => {
+    const provider: DataProvider = {
+      loadTimeline: vi.fn(),
+      saveTimeline: vi.fn(),
+      loadAssetRegistry: vi.fn(),
+      resolveAssetUrl: vi.fn(),
+    };
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const extensionId = 'com.example.command-manifest-replacement';
+    const oldCommandId = `${extensionId}.obsolete`;
+    const replacementCommandId = `${extensionId}.import`;
+    const replacementHandler = vi.fn();
+    const oldExtension = defineExtension({
+      manifest: {
+        id: extensionId as never,
+        version: '1.0.0',
+        label: 'Command manifest replacement v1',
+        contributions: [{
+          id: 'obsolete-command' as never,
+          kind: 'command',
+          command: oldCommandId,
+          label: 'Obsolete command',
+        }],
+      },
+      activate(ctx) {
+        return ctx.commands.registerCommand(oldCommandId, vi.fn());
+      },
+    });
+    const replacementExtension = defineExtension({
+      manifest: {
+        id: extensionId as never,
+        version: '1.0.0',
+        label: 'Command manifest replacement v2',
+        contributions: [{
+          id: 'prepared-scene-import' as never,
+          kind: 'command',
+          command: replacementCommandId,
+          label: 'Import prepared scene',
+        }],
+      },
+      activate(ctx) {
+        return ctx.commands.registerCommand(replacementCommandId, replacementHandler);
+      },
+    });
+
+    let commandRegistry: ReturnType<typeof useVideoEditorRuntime>['commandRegistry'];
+    function CaptureCommandRegistry() {
+      commandRegistry = useVideoEditorRuntime().commandRegistry;
+      return null;
+    }
+
+    const props = {
+      dataProvider: provider,
+      projectId: 'project-command-manifest-replacement',
+      timelineId: 'timeline-command-manifest-replacement',
+      userId: 'user-command-manifest-replacement',
+    };
+    const tree = (extension: ReighExtension) => (
+      <MemoryRouter>
+        <QueryClientProvider client={queryClient}>
+          <AgentChatProvider>
+            <VideoEditorProvider {...props} extensions={[extension]}>
+              <CaptureCommandRegistry />
+            </VideoEditorProvider>
+          </AgentChatProvider>
+        </QueryClientProvider>
+      </MemoryRouter>
+    );
+    const { rerender } = render(tree(oldExtension));
+
+    await waitFor(() => {
+      expect(commandRegistry?.getSnapshot().commands.map((command) => command.commandId))
+        .toContain(oldCommandId);
+    });
+
+    rerender(tree(replacementExtension));
+
+    await waitFor(() => {
+      const commandIds = commandRegistry?.getSnapshot().commands.map((command) => command.commandId) ?? [];
+      expect(commandIds).toContain(replacementCommandId);
+      expect(commandIds).not.toContain(oldCommandId);
+    });
+    expect(commandRegistry?.diagnostics.some((diagnostic) =>
+      diagnostic.code === 'command-registry/handler-no-command',
+    )).toBe(false);
+    await expect(commandRegistry?.executeCommand(replacementCommandId)).resolves.toBe(true);
+    expect(replacementHandler).toHaveBeenCalledTimes(1);
+  });
+
   // -------------------------------------------------------------------------
   // T1: Focused compatibility tests — extensions prop lifecycle
   // -------------------------------------------------------------------------

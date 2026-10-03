@@ -4,6 +4,7 @@ import type { DataProvider } from '@/tools/video-editor/data/DataProvider.ts';
 import { getAudioTracks, getVisualTracks } from '@/tools/video-editor/lib/editor-utils.ts';
 import { getClipDurationInFrames, getTimelineDurationInFrames, resolveTimelineConfig, secondsToFrames } from '@/tools/video-editor/lib/config-utils.ts';
 import { BUILTIN_CLIP_TYPES } from '@/sdk/video/timeline/clipTypes.ts';
+import { clipSourceTime } from '../clip-types/sourceTime';
 import {
   type ParameterSchema,
   type ResolvedTimelineClip,
@@ -1265,13 +1266,16 @@ const ExtensionClipSequence: FC<ExtensionClipSequenceProps> = ({
   const interpolatedParams = useMemo(() => {
     const schema: ParameterSchema | undefined = registryRecord.schema as ParameterSchema | undefined;
     const keyframes = clip.keyframes ?? {};
+    const rawParams = (clip.params as Record<string, unknown>) ?? {};
     let baseParams: Record<string, unknown>;
     if (!schema || schema.length === 0) {
       // No schema → pass raw params (no interpolation needed)
-      baseParams = (clip.params as Record<string, unknown>) ?? {};
+      baseParams = { ...rawParams };
     } else {
       const resolved = resolveAnimatedParams(keyframes, schema, timeSeconds);
-      baseParams = interpolatedParamsToRecord(resolved);
+      // Parameter resolution owns only declared animated values. Preserve
+      // opaque source/package identity carried beside them.
+      baseParams = { ...rawParams, ...interpolatedParamsToRecord(resolved) };
     }
 
     // Apply automation overrides
@@ -1295,6 +1299,8 @@ const ExtensionClipSequence: FC<ExtensionClipSequenceProps> = ({
     clipId: clip.id,
     clipTypeId: registryRecord.clipTypeId,
     time: timeSeconds,
+    sourceTime: clipSourceTime(clip, timeSeconds),
+    source: clip.app,
     params: interpolatedParams,
     width,
     height,

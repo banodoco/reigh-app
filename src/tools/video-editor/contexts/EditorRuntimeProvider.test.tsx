@@ -1064,6 +1064,73 @@ describe('EditorRuntimeProvider live data registry lifecycle', () => {
 // M3: Repository-backed runtime settings write-through
 // ---------------------------------------------------------------------------
 
+describe('EditorRuntimeProvider project-object capability', () => {
+  it('passes only the active provider object port to extension creative context', async () => {
+    const projectObjects = {
+      ingest: vi.fn(),
+      read: vi.fn(),
+    };
+    let captured: unknown;
+    const extension = defineExtension({
+      manifest: {
+        id: 'com.example.project-objects',
+        version: '1.0.0',
+        label: 'Project objects',
+        apiVersion: 1,
+      },
+      activate(ctx) {
+        captured = ctx.creative.projectObjects;
+        return { dispose() {} };
+      },
+    });
+
+    const { unmount } = render(
+      <EditorRuntimeProvider
+        dataProvider={{ projectObjects } as unknown as DataProvider}
+        timelineId="timeline-project-objects"
+        userId="user-project-objects"
+        extensions={[extension]}
+      >
+        <div />
+      </EditorRuntimeProvider>,
+    );
+
+    await waitFor(() => expect(captured).toBe(projectObjects));
+    expect(captured).not.toHaveProperty('client');
+    unmount();
+  });
+
+  it('leaves project objects unavailable when the provider omits the port', async () => {
+    let captured: unknown = 'not-captured';
+    const extension = defineExtension({
+      manifest: {
+        id: 'com.example.project-objects-unavailable',
+        version: '1.0.0',
+        label: 'Project objects unavailable',
+        apiVersion: 1,
+      },
+      activate(ctx) {
+        captured = ctx.creative.projectObjects;
+        return { dispose() {} };
+      },
+    });
+
+    const { unmount } = render(
+      <EditorRuntimeProvider
+        dataProvider={{} as DataProvider}
+        timelineId="timeline-project-objects-unavailable"
+        userId="user-project-objects"
+        extensions={[extension]}
+      >
+        <div />
+      </EditorRuntimeProvider>,
+    );
+
+    await waitFor(() => expect(captured).toBeUndefined());
+    unmount();
+  });
+});
+
 describe('EditorRuntimeProvider repository-backed runtime settings', () => {
   const EXTENSION_ID = 'com.example.runtime-settings';
 
@@ -2173,6 +2240,7 @@ describe('M1: proposal persistence provider lifecycle', () => {
       checkpoint: vi.fn().mockReturnValue('ckpt-1'),
       rollback: vi.fn().mockReturnValue(null),
       setAllTracksMuted: vi.fn().mockReturnValue({ version: 1, entries: [], affectedObjectIds: [] }),
+      flush: async () => { throw new Error('Durable persistence is unavailable in this test host.'); },
     };
   }
 

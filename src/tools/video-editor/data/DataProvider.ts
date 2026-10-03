@@ -1,3 +1,11 @@
+export type {
+  ImmutableProjectPackageDescriptor,
+  ProjectObjectMetadata,
+  ProjectObjectStorage,
+} from '@/sdk/video/assets/projectObjects.ts';
+
+import type { ProjectObjectStorage } from '@/sdk/video/assets/projectObjects.ts';
+
 export {
   TimelineVersionConflictError,
   isTimelineVersionConflictError,
@@ -340,6 +348,8 @@ export interface DataProvider extends AssetResolver {
   shotComposition?: ShotCompositionPort;
   /** Optional provider-owned generation lookup for editor asset actions. */
   loadGenerationForLightbox?(generationId: string): Promise<GenerationRow | null>;
+  /** Existing Runtime-managed object plane for editable project sources. */
+  projectObjects?: ProjectObjectStorage;
   persistenceEnabled?: boolean;
   /** Durable-recovery metadata captured synchronously at the first local edit. */
   getTimelineDraftRecoveryMetadata?(): import('./timelineDraftIndexedDb.ts').TimelineDraftRecoveryMetadata;
