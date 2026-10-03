@@ -6,7 +6,8 @@ import { useAppTheme } from './useAppTheme';
  */
 export function useDarkMode() {
   const { darkMode, setTime } = useAppTheme();
-  const setDarkMode = (dark: boolean) => setTime(dark ? 0.75 : 0.25);
+  // Fixing the theme picks a time: late evening for dark, midday for light.
+  const setDarkMode = (dark: boolean) => setTime(dark ? 23 : 12);
   const toggle = () => setDarkMode(!darkMode);
   return { darkMode, setDarkMode, toggle };
 }

@@ -1,20 +1,31 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
-import { Moon, Sun } from 'lucide-react';
-import { DUSK_SWITCH, renderPublicAstridSky } from '@/pages/Home/publicAstridSkyRender';
-import { useAppTheme } from '@/shared/hooks/core/useAppTheme';
+import { renderPublicAstridSky, skyState, sunTimes } from '@/pages/Home/publicAstridSkyRender';
+import { visitorLocation } from '@/pages/Home/publicAstridLocation';
+import { todayAtHour, useAppTheme } from '@/shared/hooks/core/useAppTheme';
 
 /**
- * The app's appearance as a time of day: 0 is midday, 1 is midnight, as on the public site. By default it
- * follows the real sky where the person is; picking a moment here fixes it there instead. The app's
- * palette crosses from day to night at dusk, and the little sky above the slider moves continuously so
- * the choice feels like picking a moment rather than a mode.
+ * The app's appearance as a time on a 24-hour clock, midnight to midnight, as on the public site. By
+ * default it follows the real sky where the person is (the clock shows the time now); choosing a time
+ * fixes the app at the sky's brightness then.
  */
-export const TIME_OF_DAY_DUSK = DUSK_SWITCH.at;
-
 export function useTimeOfDayTheme() {
-  const { setTime, followsSky, followSky, darkness, darkMode } = useAppTheme();
-  const setTimeOfDay = (value: number) => setTime(Math.min(1, Math.max(0, value)));
-  return { timeOfDay: darkness, setTimeOfDay, followsSky, followSky, darkMode };
+  const { setTime, followsSky, followSky, hours, darkness, darkMode } = useAppTheme();
+  const setHours = (value: number) => setTime(Math.min(24, Math.max(0, value)));
+  return { hours, setHours, followsSky, followSky, darkness, darkMode };
+}
+
+/** "8:00 am", "12:30 pm": a time on the clock as people say it. */
+export function formatClockTime(hours: number): string {
+  const total = Math.round(Math.min(24, Math.max(0, hours)) * 60) % (24 * 60);
+  const hour = Math.floor(total / 60);
+  const minute = total % 60;
+  return `${hour % 12 || 12}:${String(minute).padStart(2, '0')} ${hour < 12 ? 'am' : 'pm'}`;
+}
+
+/** The real sky where the person is, at a time today. */
+function skyAtHour(hours: number) {
+  const at = todayAtHour(hours);
+  return { ...skyState(hours % 24, sunTimes(at, visitorLocation(at))), hours: hours % 24 };
 }
 
 type Rgb = readonly [number, number, number];
@@ -44,10 +55,8 @@ function skyAt(value: number): { top: string; bottom: string } {
 
 /** The preview's art pixel, in CSS px. */
 const PREVIEW_PIXEL = 4;
-/** The clock the preview's clouds are placed by: midday at the slider's start, midnight at its end, so
- *  they move with the chosen time as the home page's clouds move with the day. */
-const previewCloudHours = (darkness: number) => (12 + 12 * darkness) % 24;
-/** The sun's and moon's size against the preview's height; the moon is the smaller. */
+/** The sun's and moon's size against the preview's height (the moon the smaller), and a lower arc than
+ *  the home page's so at their highest they stay within the frame. */
 const PREVIEW_SUN_SIZE = 0.3;
 const PREVIEW_MOON_SCALE = 0.62;
 const PREVIEW_ARC_LIFT = -0.34;
@@ -72,18 +81,16 @@ const HILL_TONES = {
 };
 
 /**
- * A small pixel sky for the chosen time, drawn by the public site's own sky renderer so it matches the
- * home page: by day the sun sinks across the sky and sets behind the hills on the right; past dusk a
- * smaller moon rises from behind the hills on the left and climbs; stars come out, and the clouds move
- * with the time, as on the home page.
- * The sun and moon are never on show together, and one never turns into the other.
+ * A small pixel sky at a time of day, drawn by the public site's own sky renderer from the real sky where
+ * the person is, so it matches the home page and makes physical sense: the sun rises and sets behind the
+ * hills, a smaller moon rises after dark, twilight comes and goes, stars come out, and the clouds move
+ * with the time. Nothing ever turns into anything else.
  */
-export function TimeOfDaySky({ value, className = '' }: { value: number; className?: string }) {
-  const { top, bottom } = skyAt(value);
+export function TimeOfDaySky({ hours, className = '' }: { hours: number; className?: string }) {
+  const sky = skyAtHour(hours);
+  const { top, bottom } = skyAt(sky.night);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
-  const valueRef = useRef(value);
-  valueRef.current = value;
   const [size, setSize] = useState({ columns: 0, rows: 0 });
 
   useEffect(() => {
@@ -103,63 +110,37 @@ export function TimeOfDaySky({ value, className = '' }: { value: number; classNa
   useEffect(() => {
     const canvas = canvasRef.current;
     const { columns, rows } = size;
-    if (!canvas || !columns || !rows) return undefined;
-    const context = canvas.getContext('2d');
-    if (!context) return undefined;
+    const context = canvas?.getContext('2d');
+    if (!canvas || !context || !columns || !rows) return;
     canvas.width = columns;
     canvas.height = rows;
+    const state = skyAtHour(hours);
+    const image = context.createImageData(columns, rows);
+    image.data.set(renderPublicAstridSky({
+      columns,
+      rows,
+      state,
+      phase: 0.5,
+      intensity: 0.5,
+      path: 'arc',
+      size: PREVIEW_SUN_SIZE,
+      lift: PREVIEW_ARC_LIFT,
+      moonScale: PREVIEW_MOON_SCALE,
+    }));
+    // The hills last, in front of everything, so the sun and moon rise and set behind them.
     const hills = hillHeights(columns, rows);
-    const draw = () => {
-      const darkness = valueRef.current;
-      const day = darkness < TIME_OF_DAY_DUSK;
-      // By day the sun runs from its height (midday) to its setting (dusk); by night the moon from its
-      // rising (dusk) to its height (midnight). At dusk both are below the hills.
-      const progress = day ? 0.5 + 0.5 * (darkness / TIME_OF_DAY_DUSK) : 0.5 * ((darkness - TIME_OF_DAY_DUSK) / (1 - TIME_OF_DAY_DUSK));
-      const pixels = renderPublicAstridSky({
-        columns,
-        rows,
-        state: {
-          body: day ? 'sun' : 'moon',
-          altitude: Math.sin(Math.PI * progress),
-          progress,
-          rising: !day,
-          hours: previewCloudHours(darkness),
-          stars: Math.min(1, Math.max(0, (darkness - 0.55) / 0.3)),
-          clouds: 1,
-          night: darkness,
-        },
-        phase: 0.5,
-        intensity: 0.5,
-        path: 'arc',
-        size: PREVIEW_SUN_SIZE,
-        // A lower arc than the home page's, so at midday and midnight the sun and moon stay within the frame.
-        lift: PREVIEW_ARC_LIFT,
-        moonScale: PREVIEW_MOON_SCALE,
-      });
-      const image = context.createImageData(columns, rows);
-      image.data.set(pixels);
-      // The hills last, in front of everything, so the sun and moon set and rise behind them.
-      const paint = (heights: number[], tone: Rgb) => {
-        for (let x = 0; x < columns; x += 1) {
-          for (let y = rows - heights[x]; y < rows; y += 1) {
-            const i = (y * columns + x) * 4;
-            image.data[i] = tone[0]; image.data[i + 1] = tone[1]; image.data[i + 2] = tone[2]; image.data[i + 3] = 255;
-          }
+    const paint = (heights: number[], tone: Rgb) => {
+      for (let x = 0; x < columns; x += 1) {
+        for (let y = rows - heights[x]; y < rows; y += 1) {
+          const i = (y * columns + x) * 4;
+          image.data[i] = tone[0]; image.data[i + 1] = tone[1]; image.data[i + 2] = tone[2]; image.data[i + 3] = 255;
         }
-      };
-      paint(hills.far, mix(HILL_TONES.far.day, HILL_TONES.far.night, darkness));
-      paint(hills.near, mix(HILL_TONES.near.day, HILL_TONES.near.night, darkness));
-      context.putImageData(image, 0, 0);
+      }
     };
-    draw();
-    canvas.addEventListener('astrid-sky-redraw', draw);
-    return () => canvas.removeEventListener('astrid-sky-redraw', draw);
-  }, [size]);
-
-  // The sky is redrawn whenever the time changes.
-  useEffect(() => {
-    canvasRef.current?.dispatchEvent(new Event('astrid-sky-redraw'));
-  }, [value]);
+    paint(hills.far, mix(HILL_TONES.far.day, HILL_TONES.far.night, state.night));
+    paint(hills.near, mix(HILL_TONES.near.day, HILL_TONES.near.night, state.night));
+    context.putImageData(image, 0, 0);
+  }, [size, hours]);
 
   return (
     <div
@@ -173,40 +154,39 @@ export function TimeOfDaySky({ value, className = '' }: { value: number; classNa
   );
 }
 
-export function TimeOfDaySlider({ value, onChange, label = 'Time of day' }: { value: number; onChange: (value: number) => void; label?: string }) {
+/** A 24-hour clock, midnight to midnight: 8am a third of the way along, noon in the middle. */
+export function TimeOfDaySlider({ hours, onChange, label = 'Time of day' }: { hours: number; onChange: (hours: number) => void; label?: string }) {
   return (
-    <div className="flex items-center gap-3">
-      <Sun className="h-5 w-5 shrink-0 text-primary" aria-hidden />
+    <div className="space-y-1">
       <input
         type="range"
         min={0}
-        max={1}
-        step={0.01}
-        value={value}
+        max={24}
+        step={0.25}
+        value={hours}
         onChange={(event) => onChange(Number(event.target.value))}
         aria-label={label}
-        aria-valuetext={value < TIME_OF_DAY_DUSK ? 'Day (light)' : 'Night (dark)'}
+        aria-valuetext={formatClockTime(hours)}
         className="h-2 w-full cursor-pointer accent-primary"
       />
-      <Moon className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden />
     </div>
   );
 }
 
 /**
- * The time-of-day picker as used in onboarding and settings: follow the real sky (the default), or choose a
- * moment. The sky preview and slider show the sky as it is now while following it; dragging the slider
- * picks a moment.
+ * The brightness picker as used in onboarding and settings: follow the time of day where the person is
+ * (the default; the clock shows the time now and moves with it), or choose a time and keep the app as
+ * bright as the sky is then.
  */
 export function TimeOfDayControl({ compact = false }: { compact?: boolean }) {
-  const { timeOfDay, setTimeOfDay, followsSky, followSky } = useTimeOfDayTheme();
+  const { hours, setHours, followsSky, followSky } = useTimeOfDayTheme();
   const options = [
     { follows: true, title: 'Follow the time of day', note: 'Light by day, dark by night, like the sky where you are.', choose: followSky },
-    { follows: false, title: 'Choose a level', note: 'Keep it at one brightness, from midday to midnight.', choose: () => setTimeOfDay(timeOfDay) },
+    { follows: false, title: 'Choose a level', note: 'Pick a time on the clock, and keep it as bright as the sky is then.', choose: () => setHours(hours) },
   ];
   return (
     <div className="space-y-3">
-      <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Appearance">
+      <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Brightness">
         {options.map((option) => {
           const selected = followsSky === option.follows;
           return (
@@ -224,13 +204,8 @@ export function TimeOfDayControl({ compact = false }: { compact?: boolean }) {
           );
         })}
       </div>
-      <TimeOfDaySky value={timeOfDay} className={compact ? 'h-16' : 'h-36'} />
-      <TimeOfDaySlider value={timeOfDay} onChange={setTimeOfDay} label={followsSky ? 'Time of day (now, where you are)' : 'Time of day'} />
-      {followsSky && (
-        <p className="text-xs text-muted-foreground">
-          Showing the sky where you are right now. Drag to choose a level instead.
-        </p>
-      )}
+      <TimeOfDaySky hours={hours} className={compact ? 'h-16' : 'h-36'} />
+      <TimeOfDaySlider hours={hours} onChange={setHours} label={followsSky ? 'Time of day (now, where you are)' : 'Time of day'} />
     </div>
   );
 }

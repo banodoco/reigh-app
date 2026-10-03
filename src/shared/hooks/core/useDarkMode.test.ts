@@ -14,12 +14,12 @@ vi.mock('@/shared/components/ui/runtime/sonner', () => ({
   toast: { error: vi.fn(), warning: vi.fn() },
 }));
 
-// The sky where the person is: controlled per test (0 midday … 1 midnight).
-let skyDarkness = 0;
+// A simple sky: light from 7am to 7pm, dark otherwise.
 vi.mock('@/pages/Home/publicAstridSkyRender', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/pages/Home/publicAstridSkyRender')>();
-  return { ...actual, skyDarknessAt: () => skyDarkness };
+  return { ...actual, skyDarknessAt: (at: Date) => (at.getHours() >= 7 && at.getHours() < 19 ? 0 : 1) };
 });
+const setNow = (hour: number) => vi.setSystemTime(new Date(2026, 9, 3, hour, 0));
 
 import { useDarkMode } from './useDarkMode';
 import { useAppTheme, useApplyAppTheme } from './useAppTheme';
@@ -28,7 +28,8 @@ describe('the app theme', () => {
   let faviconLink: HTMLLinkElement;
 
   beforeEach(() => {
-    skyDarkness = 0;
+    vi.useFakeTimers({ toFake: ['Date'] });
+    setNow(12);
     document.documentElement.classList.remove('dark');
     document.documentElement.removeAttribute('style');
     faviconLink = document.createElement('link');
@@ -38,28 +39,31 @@ describe('the app theme', () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     document.documentElement.classList.remove('dark');
     document.documentElement.removeAttribute('style');
     faviconLink.parentNode?.removeChild(faviconLink);
   });
 
-  it('follows the time of day until a time is chosen', () => {
-    skyDarkness = 1;
+  it('follows the time of day until a time is chosen, showing the time now on the clock', () => {
+    setNow(23);
     const night = renderHook(() => useAppTheme());
     expect(night.result.current.followsSky).toBe(true);
     expect(night.result.current.darkMode).toBe(true);
+    expect(night.result.current.hours).toBe(23);
 
-    skyDarkness = 0;
+    setNow(9);
     const day = renderHook(() => useAppTheme());
     expect(day.result.current.followsSky).toBe(true);
     expect(day.result.current.darkMode).toBe(false);
   });
 
-  it('keeps a chosen time whatever the sky does, and can go back to following it', () => {
-    skyDarkness = 0;
+  it('keeps the sky of a chosen time whatever the time now, and can go back to following it', () => {
+    setNow(12);
     const { result } = renderHook(() => useAppTheme());
-    act(() => result.current.setTime(0.9));
+    act(() => result.current.setTime(22));
     expect(result.current.followsSky).toBe(false);
+    expect(result.current.hours).toBe(22);
     expect(result.current.darkMode).toBe(true);
 
     act(() => result.current.followSky());
@@ -68,7 +72,7 @@ describe('the app theme', () => {
   });
 
   it('paints the page in Astrid\'s palette, with the dark class and the browser colour, keeping the favicon', () => {
-    skyDarkness = 1;
+    setNow(23);
     renderHook(() => useApplyAppTheme());
     const root = document.documentElement;
     expect(root.classList.contains('dark')).toBe(true);
@@ -81,7 +85,7 @@ describe('the app theme', () => {
   });
 
   it('useDarkMode reads the theme, and setting it fixes a day or night time', () => {
-    skyDarkness = 0;
+    setNow(12);
     const { result } = renderHook(() => useDarkMode());
     expect(result.current.darkMode).toBe(false);
 

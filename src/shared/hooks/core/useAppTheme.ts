@@ -6,12 +6,24 @@ import { syncThemeColorToBackground } from '@/shared/lib/themeColor';
 /**
  * The app's colours, in Astrid's palette, set by the time of day as on the public site. Until someone
  * picks otherwise (in onboarding or settings) the app follows the sky where they are: light by day,
- * through dusk, to dark by night. They can instead fix it at a moment of their choosing, from midday
- * (0) to midnight (1), and it stays there.
+ * through dusk, to dark by night. They can instead fix it at a time of their choosing on a 24-hour clock,
+ * and it stays as bright as the sky where they are at that time.
  */
-export const APP_THEME_TIME_KEY = 'theme-time-of-day';
-/** null: follow the time of day; a number: a fixed moment, 0 midday … 1 midnight. */
+export const APP_THEME_TIME_KEY = 'theme-hour';
+/** null: follow the time of day; a number: a fixed time, in hours from midnight (0 to 24). */
 export type AppThemeTime = number | null;
+
+/** Today at a given hour of the clock (0 to 24), on this device. */
+export function todayAtHour(hours: number, now = new Date()): Date {
+  const at = new Date(now);
+  at.setHours(0, 0, 0, 0);
+  return new Date(at.getTime() + Math.min(24, Math.max(0, hours)) * 3_600_000);
+}
+
+/** The hour of the clock right now, on this device (0 to 24). */
+export function hourOfDay(now = new Date()): number {
+  return now.getHours() + now.getMinutes() / 60;
+}
 /** How often the app checks the sky while following it. */
 const SKY_CHECK_MS = 60_000;
 
@@ -25,9 +37,9 @@ export function readStoredAppThemeTime(): AppThemeTime {
   }
 }
 
-/** How dark the app is drawn for a choice: the sky's own darkness, or the chosen moment. */
+/** How dark the app is drawn for a choice: the sky's darkness now, or at the chosen time today. */
 export function appThemeDarkness(time: AppThemeTime, now = new Date()): number {
-  return time === null ? skyDarknessAt(now) : Math.min(1, Math.max(0, time));
+  return skyDarknessAt(time === null ? now : todayAtHour(time, now));
 }
 
 /** Paints the app for a darkness: every design token, the dark class its components key off, and the
@@ -53,6 +65,8 @@ export function useAppTheme() {
   return {
     /** The stored choice: null while following the sky. */
     time,
+    /** The time the theme is showing: the chosen one, or the time now while following the sky. */
+    hours: time ?? hourOfDay(new Date(now)),
     setTime,
     followsSky,
     followSky: () => setTime(null),
