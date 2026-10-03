@@ -1,4 +1,8 @@
-import { describe, expect, it, vi } from 'vitest';
+import { act, renderHook } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import React from 'react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { ReighRuntimeClient } from '@/integrations/runtime/client.ts';
 import type {
   ManagedOutput,
   Task as RuntimeTask,
@@ -12,7 +16,9 @@ import {
   runtimeTaskStatusGroup,
   runtimeTaskTimelineRef,
   runtimeTaskType,
+  runtimeTaskQueryKey,
   transitionRuntimeTask,
+  useRuntimeTasks,
 } from './useRuntimeTasks';
 
 function task(state: RuntimeTask['state'], taskId = `task-${state}`): RuntimeTask {
@@ -176,5 +182,194 @@ describe('Runtime TasksPane adapter', () => {
       action: 'cancel',
     })).rejects.toThrow('not other-project');
     expect(client.cancelTask).not.toHaveBeenCalled();
+  });
+});
+
+function createRuntimeTaskQueryClient() {
+  return new QueryClient({
+    defaultOptions: { queries: { retry: false, gcTime: Infinity } },
+  });
+}
+
+function createRuntimeTaskQueryWrapper(queryClient: QueryClient) {
+  return ({ children }: { children: React.ReactNode }) => React.createElement(
+    QueryClientProvider,
+    { client: queryClient },
+    children,
+  );
+}
+
+function taskPage(items: RuntimeTask[]) {
+  return { items, next_cursor: null };
+}
+
+async function flushRuntimeTaskQuery() {
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(0);
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+}
+
+async function advanceRuntimeTaskTime(ms: number) {
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(ms);
+  });
+}
+
+describe('useRuntimeTasks shared-query polling', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  it.each(['queued', 'ready', 'running', 'cancel_requested', 'retrying'] as const)(
+    'keeps %s tasks on the active refresh cadence',
+    async (state) => {
+      const listProjectTasks = vi.spyOn(ReighRuntimeClient.prototype, 'listProjectTasks')
+        .mockResolvedValue(taskPage([task(state)]));
+      const queryClient = createRuntimeTaskQueryClient();
+      const { unmount } = renderHook(() => useRuntimeTasks('runtime-project'), {
+        wrapper: createRuntimeTaskQueryWrapper(queryClient),
+      });
+
+      await flushRuntimeTaskQuery();
+      expect(listProjectTasks).toHaveBeenCalledTimes(1);
+      await advanceRuntimeTaskTime(1_999);
+      expect(listProjectTasks).toHaveBeenCalledTimes(1);
+      await advanceRuntimeTaskTime(1);
+      expect(listProjectTasks).toHaveBeenCalledTimes(2);
+
+      unmount();
+      queryClient.clear();
+    },
+  );
+
+  it('keeps an unrecognized task state on the active cadence', async () => {
+    const taskWithFutureState = task('queued');
+    taskWithFutureState.state = 'future_state' as RuntimeTask['state'];
+    const listProjectTasks = vi.spyOn(ReighRuntimeClient.prototype, 'listProjectTasks')
+      .mockResolvedValue(taskPage([taskWithFutureState]));
+    const queryClient = createRuntimeTaskQueryClient();
+    const { unmount } = renderHook(() => useRuntimeTasks('runtime-project'), {
+      wrapper: createRuntimeTaskQueryWrapper(queryClient),
+    });
+
+    await flushRuntimeTaskQuery();
+    expect(listProjectTasks).toHaveBeenCalledTimes(1);
+    await advanceRuntimeTaskTime(1_999);
+    expect(listProjectTasks).toHaveBeenCalledTimes(1);
+    await advanceRuntimeTaskTime(1);
+    expect(listProjectTasks).toHaveBeenCalledTimes(2);
+
+    unmount();
+    queryClient.clear();
+  });
+
+  it('discovers an externally admitted task on the idle poll, then returns to the active cadence', async () => {
+    const listProjectTasks = vi.spyOn(ReighRuntimeClient.prototype, 'listProjectTasks')
+      .mockResolvedValueOnce(taskPage([]))
+      .mockResolvedValueOnce(taskPage([task('queued', 'external-task')]))
+      .mockResolvedValueOnce(taskPage([task('succeeded', 'external-task')]));
+    const queryClient = createRuntimeTaskQueryClient();
+    const { unmount } = renderHook(() => useRuntimeTasks('runtime-project'), {
+      wrapper: createRuntimeTaskQueryWrapper(queryClient),
+    });
+
+    await flushRuntimeTaskQuery();
+    expect(listProjectTasks).toHaveBeenCalledTimes(1);
+    expect(queryClient.getQueryData<RuntimeTask[]>(runtimeTaskQueryKey('runtime-project')))
+      .toEqual([]);
+
+    await advanceRuntimeTaskTime(9_999);
+    expect(listProjectTasks).toHaveBeenCalledTimes(1);
+    await advanceRuntimeTaskTime(1);
+    await flushRuntimeTaskQuery();
+    expect(listProjectTasks).toHaveBeenCalledTimes(2);
+    expect(queryClient.getQueryData<RuntimeTask[]>(runtimeTaskQueryKey('runtime-project')))
+      .toEqual([task('queued', 'external-task')]);
+
+    await advanceRuntimeTaskTime(1_999);
+    expect(listProjectTasks).toHaveBeenCalledTimes(2);
+    await advanceRuntimeTaskTime(1);
+    await flushRuntimeTaskQuery();
+    expect(listProjectTasks).toHaveBeenCalledTimes(3);
+    expect(queryClient.getQueryData<RuntimeTask[]>(runtimeTaskQueryKey('runtime-project')))
+      .toEqual([task('succeeded', 'external-task')]);
+
+    unmount();
+    queryClient.clear();
+  });
+
+  it('shares one idle refresh stream when multiple consumers observe the project query', async () => {
+    const listProjectTasks = vi.spyOn(ReighRuntimeClient.prototype, 'listProjectTasks')
+      .mockResolvedValue(taskPage([]));
+    const queryClient = createRuntimeTaskQueryClient();
+    const wrapper = createRuntimeTaskQueryWrapper(queryClient);
+    const first = renderHook(() => useRuntimeTasks('runtime-project'), { wrapper });
+    const second = renderHook(() => useRuntimeTasks('runtime-project'), { wrapper });
+
+    await flushRuntimeTaskQuery();
+    expect(listProjectTasks).toHaveBeenCalledTimes(1);
+    await advanceRuntimeTaskTime(10_000);
+    expect(listProjectTasks).toHaveBeenCalledTimes(2);
+    await advanceRuntimeTaskTime(9_999);
+    expect(listProjectTasks).toHaveBeenCalledTimes(2);
+    await advanceRuntimeTaskTime(1);
+    expect(listProjectTasks).toHaveBeenCalledTimes(3);
+
+    first.unmount();
+    second.unmount();
+    queryClient.clear();
+  });
+
+  it('returns to the fast cadence after a failed idle refresh instead of trusting stale terminal data', async () => {
+    const listProjectTasks = vi.spyOn(ReighRuntimeClient.prototype, 'listProjectTasks')
+      .mockResolvedValueOnce(taskPage([task('succeeded')]))
+      .mockRejectedValueOnce(new Error('network unavailable'))
+      .mockResolvedValueOnce(taskPage([task('queued', 'new-task')]));
+    const queryClient = createRuntimeTaskQueryClient();
+    const { unmount } = renderHook(() => useRuntimeTasks('runtime-project'), {
+      wrapper: createRuntimeTaskQueryWrapper(queryClient),
+    });
+
+    await flushRuntimeTaskQuery();
+    expect(listProjectTasks).toHaveBeenCalledTimes(1);
+    await advanceRuntimeTaskTime(10_000);
+    expect(listProjectTasks).toHaveBeenCalledTimes(2);
+    await advanceRuntimeTaskTime(1_999);
+    expect(listProjectTasks).toHaveBeenCalledTimes(2);
+    await advanceRuntimeTaskTime(1);
+    await flushRuntimeTaskQuery();
+    expect(listProjectTasks).toHaveBeenCalledTimes(3);
+    expect(queryClient.getQueryData<RuntimeTask[]>(runtimeTaskQueryKey('runtime-project')))
+      .toEqual([task('queued', 'new-task')]);
+
+    unmount();
+    queryClient.clear();
+  });
+
+  it('uses the idle cadence only after a successful all-terminal result', async () => {
+    const listProjectTasks = vi.spyOn(ReighRuntimeClient.prototype, 'listProjectTasks')
+      .mockResolvedValueOnce(taskPage([task('failed'), task('cancelled'), task('succeeded')]))
+      .mockResolvedValue(taskPage([task('succeeded')]));
+    const queryClient = createRuntimeTaskQueryClient();
+    const { unmount } = renderHook(() => useRuntimeTasks('runtime-project'), {
+      wrapper: createRuntimeTaskQueryWrapper(queryClient),
+    });
+
+    await flushRuntimeTaskQuery();
+    expect(listProjectTasks).toHaveBeenCalledTimes(1);
+    await advanceRuntimeTaskTime(9_999);
+    expect(listProjectTasks).toHaveBeenCalledTimes(1);
+    await advanceRuntimeTaskTime(1);
+    expect(listProjectTasks).toHaveBeenCalledTimes(2);
+
+    unmount();
+    queryClient.clear();
   });
 });

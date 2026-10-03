@@ -41,6 +41,7 @@ export const REVIEWED_EXTENSION_IDS = new Set([
   'com.reigh.scene-phase-markers',
   'com.reigh.transcript-lane',
   'com.reigh.astrid-runaway-timeline',
+  'com.reigh.astrid.live-scenes',
   'com.reigh.creative-lab.pulse-map',
   'com.reigh.creative-lab.soundtrack-cartographer',
   'com.reigh.creative-lab.caption-safe-zone-orchestra',

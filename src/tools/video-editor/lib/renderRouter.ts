@@ -661,7 +661,39 @@ export function decideRenderRoute(
 // ---------------------------------------------------------------------------
 
 const MANAGED_RENDER_CAPABILITY_ID = 'rendering.render';
-const MANAGED_RENDER_SELECTOR = 'rendering.remotion';
+const LIVE_SCENE_CLIP_TYPE = 'com.reigh.astrid.liveScene';
+
+/** Choose the existing scene composition only for its supported clip subset. */
+function managedRenderSelector(timeline: unknown): string {
+  if (!timeline || typeof timeline !== 'object') return 'rendering.remotion';
+  const config = timeline as { clips?: unknown; tracks?: unknown };
+  if (!Array.isArray(config.clips)
+    || !config.clips.some((clip) => clip?.clipType === LIVE_SCENE_CLIP_TYPE)) return 'rendering.remotion';
+  const tracks = Array.isArray(config.tracks) ? config.tracks : [];
+  const audioTracks = new Set(tracks.filter((track) => track?.kind === 'audio').map((track) => track.id));
+  for (const clip of config.clips) {
+    const audio = audioTracks.has(clip?.track);
+    if (!clip || (audio ? clip.clipType !== 'media' : ![LIVE_SCENE_CLIP_TYPE, 'text'].includes(clip.clipType))
+      || clip.effects || clip.transition || clip.animation || (clip.opacity != null && clip.opacity !== 1)) {
+      throw new Error('live-scene managed render contains a mixed or unsupported clip; use prepared scenes, supported text, and ordinary audio media');
+    }
+    if (!audio) {
+      const track = tracks.find((value) => value?.id === clip.track);
+      if (track?.muted !== true && (Number(clip.volume ?? 0) > 0 || Number(track?.volume ?? 0) > 0)) {
+        throw new Error('live-scene visual clips cannot declare audio; use an ordinary audio track');
+      }
+    }
+    if (clip.clipType === 'text') {
+      const textKeys = ['content', 'fontSize', 'color', 'align', 'bold'];
+      const paramKeys = ['anchor', 'offsetX', 'offsetY', 'textShadow', 'maxWidth', 'weight'];
+      if (Object.keys(clip.text ?? {}).some((key) => !textKeys.includes(key))
+        || Object.keys(clip.params ?? {}).some((key) => !paramKeys.includes(key))) {
+        throw new Error('live-scene managed render contains unsupported text fields');
+      }
+    }
+  }
+  return 'rendering.threejs';
+}
 const RUNTIME_SHA256_ID = /^sha256:[0-9a-f]{64}$/;
 const BARE_SHA256 = /^[0-9a-f]{64}$/;
 const MAX_MANAGED_RENDER_INPUTS = 256;
@@ -888,7 +920,7 @@ export async function enqueueBanodocoRenderTimeline(
           ...(options.expectedVersion !== undefined
             ? { expected_version: options.expectedVersion }
             : {}),
-          selector: MANAGED_RENDER_SELECTOR,
+          selector: managedRenderSelector(payload.timeline),
           output_name: payload.output_filename,
           ...canonicalAdmissionMetadata(payload.timeline),
         },

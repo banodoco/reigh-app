@@ -11,6 +11,11 @@ import { spawn } from 'node:child_process';
 import { homedir } from 'node:os';
 import { resolve } from 'node:path';
 import { readGeneratedSchemaDigest, schemaDigestMismatch } from './runtime-schema-guard.mjs';
+import {
+  parseDevLocalWorkspaceArgs,
+  validatePreviewOutputDirectory,
+  viteChildArgs,
+} from './dev-local-workspace-options.mjs';
 
 const configuredAstridCheckout = process.env.ASTRID_CHECKOUT?.trim();
 const siblingAstridCheckout = resolve(process.cwd(), '..', 'Astrid');
@@ -23,9 +28,23 @@ const defaultDiscoveryPath = astridCheckout
   : `${homedir()}/Library/Application Support/Banodoco/runtime/discovery.json`;
 const discoveryPath = resolve(process.env.ASTRID_WORKSPACE_DISCOVERY ?? defaultDiscoveryPath);
 const port = process.env.PORT ?? '2222';
-const checkOnly = process.argv.includes('--check');
-const paired = process.argv.includes('--paired');
-const resetPairing = process.argv.includes('--reset-pairing');
+let launcherOptions;
+try {
+  launcherOptions = parseDevLocalWorkspaceArgs(process.argv.slice(2));
+} catch (error) {
+  process.exit(fail(error instanceof Error ? error.message : String(error)) ? 1 : 1);
+}
+const checkOnly = launcherOptions.checkOnly;
+const paired = launcherOptions.paired;
+const resetPairing = launcherOptions.resetPairing;
+let previewDirectory = null;
+if (launcherOptions.preview) {
+  try {
+    previewDirectory = validatePreviewOutputDirectory(launcherOptions.previewDir);
+  } catch (error) {
+    process.exit(fail(error instanceof Error ? error.message : String(error)) ? 1 : 1);
+  }
+}
 const pairedRelayOrigin = process.env.REIGH_PAIRED_RELAY_ORIGIN?.trim();
 const generatedMetadataPath = resolve(process.cwd(), 'src/integrations/runtime/generated-contract-metadata.ts');
 
@@ -143,7 +162,7 @@ const env = {
   ASTRID_ACP_BRIDGE_PORT: process.env.VITE_ASTRID_ACP_BRIDGE_PORT ?? '17335',
 };
 
-console.log(`workspace.v1 runtime healthy at ${endpoint.origin}; Reigh will use port ${port}`);
+console.log(`workspace.v1 runtime healthy at ${endpoint.origin}; Reigh will use ${launcherOptions.preview ? `preview output ${previewDirectory} on port ${port}` : `port ${port}`}`);
 if (checkOnly) process.exit(0);
 
 let connector;
@@ -158,7 +177,10 @@ if (paired) {
   });
 }
 
-const child = spawn('npm', ['run', 'dev', '--', '--host', '127.0.0.1', '--strictPort'], {
+const child = spawn('npm', viteChildArgs({
+  preview: launcherOptions.preview,
+  previewDir: previewDirectory,
+}), {
   stdio: 'inherit',
   // The local Vite process is the connector's fixed compose/ACP destination;
   // it must not install another relay and accidentally loop back to itself.

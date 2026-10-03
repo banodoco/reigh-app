@@ -55,6 +55,7 @@ export interface VideoEditorRuntimeContextValue {
   commandRegistry?: CommandRegistry;
   /** M10: Provider-scoped agent tool registry for host-mediated, proposal-backed agent tools. */
   agentToolRegistry?: AgentToolRegistry;
+  liveSceneOperationPort?: import('../runtime/liveSceneOperationPort').LiveSceneOperationPort;
   /** M11: Provider-scoped live data registry for source lifecycle, channels, samples, and bake. */
   liveDataRegistry?: LiveDataRegistry;
   /** M11: Provider-scoped live permission service for browser-gated permission probes/requests. */

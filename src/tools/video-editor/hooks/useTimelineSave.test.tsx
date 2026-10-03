@@ -90,6 +90,14 @@ function setup(
     provider,
     timelineId: 'timeline-1',
     assetResolver: { resolveAssetUrl: vi.fn(async (file: string) => file) },
+    shots: {
+      shots: undefined,
+      isLoading: false,
+      error: null,
+      refetchShots: vi.fn(),
+      finalVideoMap: new Map(),
+      dismissFinalVideo: vi.fn(),
+    },
     timelineEditability,
   } as unknown as VideoEditorRuntimeContextValue;
   const wrapper = ({ children }: { children: React.ReactNode }) => (

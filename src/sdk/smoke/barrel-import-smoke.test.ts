@@ -2697,6 +2697,7 @@ describe('M2b barrel-import smoke — TimelineOps', () => {
         return { version: 0, entries: [], affectedObjectIds: [] };
       },
       checkpoint(_label) { return 'ckpt-1'; },
+      async flush() { throw new Error('Durable persistence is unavailable in this test host.'); },
       rollback(_checkpointId) { return null; },
       setAllTracksMuted(_muted) {
         return { version: 0, entries: [], affectedObjectIds: [] };
@@ -2720,6 +2721,7 @@ describe('M2b barrel-import smoke — TimelineOps', () => {
         return { version: 0, entries: [], affectedObjectIds: [] };
       },
       checkpoint(_label) { return 'ckpt-1'; },
+      async flush() { throw new Error('Durable persistence is unavailable in this test host.'); },
       rollback(_checkpointId) { return null; },
       setAllTracksMuted(_muted) {
         return { version: 0, entries: [], affectedObjectIds: [] };

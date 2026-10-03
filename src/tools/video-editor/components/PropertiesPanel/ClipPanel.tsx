@@ -247,6 +247,7 @@ export function ClipPanel({
               onChange={onChange}
               effectResources={effectResources}
               clipDescriptor={clipDescriptor}
+              isClipTypeRegistered={Boolean(clipTypeRegistryRecord)}
               clipTypeResolution={clipTypeResolution}
               isEffectLayer={isEffectLayer}
               isSequenceClip={isSequenceClip}

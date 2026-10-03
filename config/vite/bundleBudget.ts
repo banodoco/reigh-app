@@ -108,23 +108,29 @@ export function createBundleBudgetPlugin(
   return {
     name: 'reigh-production-bundle-budget',
     apply: 'build',
-    generateBundle(_options, bundle) {
-      const entries = Object.values(bundle).filter(
-        (output): output is OutputChunk => output.type === 'chunk' && output.isEntry,
-      );
+    generateBundle: {
+      // Vite's import-analysis plugin mutates generated chunks in its own
+      // generateBundle hook. A post-ordered output hook is required here;
+      // enforce: 'post' only orders Vite plugin containers, not Rollup hooks.
+      order: 'post',
+      handler(_options, bundle) {
+        const entries = Object.values(bundle).filter(
+          (output): output is OutputChunk => output.type === 'chunk' && output.isEntry,
+        );
 
-      for (const entry of entries) {
-        const measurement = measureJavaScriptBudget(bundle, entry);
-        const failures = findJavaScriptBudgetFailures(measurement, budget);
-        if (failures.length === 0) continue;
+        for (const entry of entries) {
+          const measurement = measureJavaScriptBudget(bundle, entry);
+          const failures = findJavaScriptBudgetFailures(measurement, budget);
+          if (failures.length === 0) continue;
 
-        this.error([
-          `Production JavaScript budget exceeded for ${entry.fileName}.`,
-          ...failures.map((failure) => `- ${failure}`),
-          `Static startup files: ${measurement.initialGraphFiles.join(', ')}`,
-          'Reduce startup imports or move optional functionality behind a tested route/feature boundary.',
-        ].join('\n'));
-      }
+          this.error([
+            `Production JavaScript budget exceeded for ${entry.fileName}.`,
+            ...failures.map((failure) => `- ${failure}`),
+            `Static startup files: ${measurement.initialGraphFiles.join(', ')}`,
+            'Reduce startup imports or move optional functionality behind a tested route/feature boundary.',
+          ].join('\n'));
+        }
+      },
     },
   };
 }

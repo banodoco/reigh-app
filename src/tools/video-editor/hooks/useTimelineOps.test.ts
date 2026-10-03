@@ -76,6 +76,61 @@ function makeBaseTimelineData(overrides: Partial<TimelineConfig> = {}): Timeline
 // ---------------------------------------------------------------------------
 
 describe('useTimelineOps', () => {
+  describe('flush — durable host acknowledgement', () => {
+    it('keeps apply synchronous and awaits exactly the host barrier receipt', async () => {
+      let acknowledge!: (version: number) => void;
+      const receipt = new Promise<number>((resolve) => { acknowledge = resolve; });
+      const flushPendingSave = vi.fn(() => receipt);
+      const commitData = vi.fn();
+      const { result } = renderHook(() => useTimelineOps({
+        dataRef: { current: makeBaseTimelineData() },
+        commitData,
+        flushPendingSave,
+        createManualCheckpoint: vi.fn(),
+        jumpToCheckpoint: vi.fn(),
+        checkpoints: [],
+      }));
+
+      const diff = result.current.apply({
+        version: 1,
+        operations: [{ op: 'track.update', target: 'A1', payload: { muted: true } }],
+      });
+      expect(diff).not.toBeInstanceOf(Promise);
+      expect(commitData).toHaveBeenCalledWith(expect.anything(), { save: true, semantic: true });
+      expect(flushPendingSave).not.toHaveBeenCalled();
+
+      let settled = false;
+      const flushed = result.current.flush().then((ack) => { settled = true; return ack; });
+      expect(flushPendingSave).toHaveBeenCalledTimes(1);
+      await Promise.resolve();
+      expect(settled).toBe(false);
+      acknowledge(7);
+      const ack = await flushed;
+      expect(ack).toEqual({ version: 7 });
+      expect(Object.isFrozen(ack)).toBe(true);
+      expect(commitData).toHaveBeenCalledTimes(1);
+    });
+
+    it('rejects unloaded data, absent persistence, and the host failure without inventing a receipt', async () => {
+      const dataRef: { current: TimelineData | null } = { current: makeBaseTimelineData() };
+      const args = { dataRef, commitData: vi.fn(), createManualCheckpoint: vi.fn(), jumpToCheckpoint: vi.fn(), checkpoints: [] };
+      const { result, rerender } = renderHook(
+        ({ barrier }: { barrier?: () => Promise<number> }) => useTimelineOps({ ...args, flushPendingSave: barrier }),
+        { initialProps: { barrier: undefined as (() => Promise<number>) | undefined } },
+      );
+      const adapter = result.current;
+      await expect(adapter.flush()).rejects.toThrow('durable persistence is unavailable');
+      const failure = new Error('write acknowledgement unavailable; remote outcome unknown');
+      const barrier = vi.fn(() => Promise.reject(failure));
+      rerender({ barrier });
+      expect(result.current).toBe(adapter);
+      await expect(adapter.flush()).rejects.toBe(failure);
+      dataRef.current = null;
+      await expect(adapter.flush()).rejects.toThrow('timeline data is not yet loaded');
+      expect(barrier).toHaveBeenCalledTimes(1);
+    });
+  });
+
   // -----------------------------------------------------------------------
   // Atomic apply through native commitData
   // -----------------------------------------------------------------------

@@ -105,6 +105,7 @@ function makeTimelineHarness(initialMarkers: ScenePhaseMarker[]): TimelineHarnes
     checkpoint: () => 'ckpt',
     rollback: () => null,
     setAllTracksMuted: () => ({ version: 0, entries: [], affectedObjectIds: [] }),
+    flush: async () => { throw new Error('Durable persistence is unavailable in this test host.'); },
   };
 
   const reader: TimelineReader = {

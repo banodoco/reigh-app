@@ -48,6 +48,19 @@ export interface TimelineOps {
   apply(patch: TimelinePatch): TimelineDiff;
 
   /**
+   * Await durable acknowledgement of the host edit sequence current at this
+   * call, including edits made through synchronous apply(). Later edits may
+   * be coalesced into the same save. The receipt is an acknowledged editor
+   * timeline version, not a Runtime revision ID.
+   *
+   * Rejects when durable persistence is unavailable, data is unloaded, the
+   * host cannot save during an interaction, a save fails or conflicts, or the
+   * timeline session is closed/replaced/reloaded. A transport rejection does
+   * not prove that the server did not commit. Hosts own retries and conflict UX.
+   */
+  flush(): Promise<{ readonly version: number }>;
+
+  /**
    * Take a checkpoint of the current timeline state for later rollback.
    * Returns the checkpoint identifier.
    */

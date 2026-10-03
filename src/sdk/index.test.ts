@@ -1567,10 +1567,15 @@ describe('createCreativeContextStubs', () => {
     expect(Object.isFrozen(stubs)).toBe(true);
   });
 
-  it('every member throws ExtensionNotImplementedError', () => {
+  it('projectObjects is unavailable while other members remain throwing stubs', () => {
     const stubs = createCreativeContextStubs();
     const members = Object.keys(CREATIVE_MEMBER_MILESTONE) as string[];
     for (const member of members) {
+      if (member === 'projectObjects') {
+        expect((stubs as Record<string, unknown>)[member]).toBeUndefined();
+        continue;
+      }
+
       expect(
         () => (stubs as Record<string, unknown>)[member],
         `creative.${member} should throw`,
@@ -1582,6 +1587,11 @@ describe('createCreativeContextStubs', () => {
     const stubs = createCreativeContextStubs();
     const members = Object.keys(CREATIVE_MEMBER_MILESTONE) as string[];
     for (const member of members) {
+      if (member === 'projectObjects') {
+        expect((stubs as Record<string, unknown>)[member]).toBeUndefined();
+        continue;
+      }
+
       try {
         (stubs as Record<string, unknown>)[member];
         // should not reach here
@@ -1597,7 +1607,7 @@ describe('createCreativeContextStubs', () => {
     }
   });
 
-  it('all 11 creative members are enumerable', () => {
+  it('all 12 creative members are enumerable', () => {
     const stubs = createCreativeContextStubs();
     const keys = Object.keys(stubs).sort();
     expect(keys).toEqual([
@@ -1605,6 +1615,7 @@ describe('createCreativeContextStubs', () => {
       'export',
       'materials',
       'project',
+      'projectObjects',
       'proposals',
       'reader',
       'sessions',
@@ -1647,13 +1658,14 @@ describe('ExtensionNotImplementedError', () => {
 // ---------------------------------------------------------------------------
 
 describe('CREATIVE_MEMBER_MILESTONE', () => {
-  it('has entries for all 11 creative members', () => {
+  it('has entries for all 12 creative members', () => {
     const keys = Object.keys(CREATIVE_MEMBER_MILESTONE).sort();
     expect(keys).toEqual([
       'assets',
       'export',
       'materials',
       'project',
+      'projectObjects',
       'proposals',
       'reader',
       'sessions',
@@ -1664,9 +1676,9 @@ describe('CREATIVE_MEMBER_MILESTONE', () => {
     ]);
   });
 
-  it('all values are milestone strings starting with M', () => {
+  it('all values are milestone strings', () => {
     for (const milestone of Object.values(CREATIVE_MEMBER_MILESTONE)) {
-      expect(milestone).toMatch(/^M\d+$/);
+      expect(milestone).toMatch(/^(M\d+|L2a)$/);
     }
   });
 });

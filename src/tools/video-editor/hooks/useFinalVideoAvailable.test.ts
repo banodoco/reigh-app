@@ -6,6 +6,10 @@ import type {
 } from '@/integrations/runtime/generated.ts';
 import { ReighRuntimeClient } from '@/integrations/runtime/client.ts';
 import {
+  RUNTIME_SCHEMA_DIGEST,
+  RUNTIME_TARGETED_EXECUTION_CAPABILITY,
+} from '@/integrations/runtime/contract-metadata.ts';
+import {
   formatManagedOutputExportReceipt,
   getManagedOutputExportExpectedIdentity,
   readRuntimeFinalVideos,
@@ -98,10 +102,10 @@ describe('Runtime final-video hydration boundary', () => {
     const transport: Transport = async (method, path) => {
       requests.push(`${method} ${path}`);
       if (path === '/v1/health') {
-        return { status: 200, headers: {}, body: json({ status: 'ok', protocol: 'workspace.v1', schema_digest: 'sha256:test', runtime_epoch: 4 }) };
+        return { status: 200, headers: {}, body: json({ status: 'ok', protocol: 'workspace.v1', schema_digest: RUNTIME_SCHEMA_DIGEST, runtime_epoch: 4 }) };
       }
       if (path === '/v1/handshake') {
-        return { status: 200, headers: {}, body: json({ protocol: 'workspace.v1', schema_digest: 'sha256:test', session_id: 'session-retained-output', actor_id: 'owner', realm_id: 'realm-retained-output', scopes: ['handshake', 'tasks:read'] }) };
+        return { status: 200, headers: {}, body: json({ protocol: 'workspace.v1', schema_digest: RUNTIME_SCHEMA_DIGEST, session_id: 'session-retained-output', actor_id: 'owner', realm_id: 'realm-retained-output', scopes: ['handshake', 'tasks:read'], capabilities: [RUNTIME_TARGETED_EXECUTION_CAPABILITY] }) };
       }
       if (path === '/v1/realm') {
         return { status: 200, headers: {}, body: json({ realm_id: 'realm-retained-output', display_name: 'Retained output fixture', version: 1, created_at: '2026-09-13T00:00:00Z' }) };

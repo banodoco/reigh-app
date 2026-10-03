@@ -30,6 +30,7 @@ const REQUEST_METHODS = new Set([
   'session/fork',
   'session/close',
   'session/prompt',
+  'session/set_config_option',
 ]);
 
 type JsonRecord = Record<string, unknown>;
@@ -49,6 +50,8 @@ type Connection = {
   readonly host: AcpProcessHost;
   readonly notifications: unknown[];
   readonly terminals: Map<string, TerminalRecord>;
+  readonly sessions: Set<string>;
+  readonly configOptions: Map<string, Map<string, Set<string>>>;
   disconnected: boolean;
 };
 
@@ -96,6 +99,27 @@ function requiredAbsolute(env: Readonly<Record<string, string | undefined>>, key
 
 function isRecord(value: unknown): value is JsonRecord {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function advertisedConfigOptions(value: unknown): Map<string, Set<string>> {
+  const record = asRecord(value);
+  if (!Array.isArray(record?.configOptions)) return new Map();
+  const result = new Map<string, Set<string>>();
+  for (const candidate of record.configOptions) {
+    if (!isRecord(candidate) || typeof candidate.id !== 'string' || !Array.isArray(candidate.options)) continue;
+    const values = new Set<string>();
+    for (const option of candidate.options) {
+      if (isRecord(option) && typeof option.value === 'string') values.add(option.value);
+    }
+    if (values.size > 0) result.set(candidate.id, values);
+  }
+  return result;
+}
+
+function sessionIdFrom(value: unknown): string | null {
+  const record = asRecord(value);
+  const sessionId = record?.sessionId ?? record?.session_id ?? record?.id;
+  return typeof sessionId === 'string' && sessionId ? sessionId : null;
 }
 
 function isPathWithin(root: string, candidate: string): boolean {
@@ -337,7 +361,7 @@ export class ReighAcpBridge {
     } catch (error) {
       const result = error instanceof Error && error.message.includes('128 KiB')
         ? { status: 413, body: { error: 'payload_too_large', detail: error.message } }
-        : error instanceof Error && (error.message.includes('request body') || error.message.includes('method') || error.message.includes('sessionId'))
+      : error instanceof Error && (error.message.includes('request body') || error.message.includes('method') || error.message.includes('sessionId') || error.message.includes('config option'))
           ? { status: 400, body: { error: 'invalid_body', detail: error.message } }
           : hostError(error);
       jsonResponse(response, result.status, result.body);
@@ -412,7 +436,7 @@ export class ReighAcpBridge {
       command: this.config.command,
       callbacks,
     });
-    connection = { host, notifications, terminals, disconnected: false };
+    connection = { host, notifications, terminals, sessions: new Set(), configOptions: new Map(), disconnected: false };
     this.connections.set(connectionId, connection);
     try {
       const initialize = await host.initialize({
@@ -441,7 +465,44 @@ export class ReighAcpBridge {
       // The host owns the process cwd; the browser cannot redirect the ACP session.
       params = { ...input, cwd: this.config.cwd, mcpServers: input.mcpServers ?? [] };
     }
+    if (method === 'session/set_config_option') {
+      const input = asRecord(params);
+      if (!input || Object.keys(input).some((key) => !['sessionId', 'configId', 'value'].includes(key))) {
+        throw new Error('config option request accepts only sessionId, configId, and value');
+      }
+      if (typeof input.sessionId !== 'string' || !input.sessionId) throw new Error('sessionId is required for config option updates');
+      if (!connection.sessions.has(input.sessionId)) throw new Error('config option sessionId is not owned by this ACP connection');
+      if (input.configId !== 'model' && input.configId !== 'thinking') throw new Error('config option id must be model or thinking');
+      if (typeof input.value !== 'string' || !input.value) throw new Error('config option value is required');
+      const allowedValues = connection.configOptions.get(input.sessionId)?.get(input.configId);
+      if (!allowedValues?.has(input.value)) throw new Error('config option value was not advertised for this session');
+    }
     const result = await connection.host.request(method, params);
+    if (method === 'session/new' || method === 'session/load' || method === 'session/resume' || method === 'session/fork') {
+      const input = asRecord(params);
+      const sessionId = sessionIdFrom(result) ?? (method === 'session/load' || method === 'session/resume' ? sessionIdFrom(input) : null);
+      if (sessionId) {
+        connection.sessions.add(sessionId);
+        const options = advertisedConfigOptions(result);
+        if (options.size > 0) connection.configOptions.set(sessionId, options);
+      }
+    } else if (method === 'session/list') {
+      const items = Array.isArray(result) ? result : isRecord(result) && Array.isArray(result.sessions) ? result.sessions : [];
+      for (const item of items) {
+        const sessionId = sessionIdFrom(item);
+        if (sessionId) connection.sessions.add(sessionId);
+      }
+    } else if (method === 'session/set_config_option') {
+      const input = asRecord(params)!;
+      const options = advertisedConfigOptions(result);
+      if (options.size > 0) connection.configOptions.set(input.sessionId as string, options);
+    } else if (method === 'session/close') {
+      const sessionId = sessionIdFrom(params);
+      if (sessionId) {
+        connection.sessions.delete(sessionId);
+        connection.configOptions.delete(sessionId);
+      }
+    }
     jsonResponse(response, 200, { result });
   }
 

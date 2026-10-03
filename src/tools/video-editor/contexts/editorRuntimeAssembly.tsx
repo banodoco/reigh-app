@@ -85,8 +85,10 @@ import {
   type DataKindRegistrationService,
   type SettingsPersistenceError,
   type ProcessSpawnConfig,
+  type ProjectObjectStorage,
 } from '@reigh/editor-sdk';
 import { createExtensionContext } from '@/tools/video-editor/runtime/extensionContextFactory';
+import { LiveSceneOperationPort } from '@/tools/video-editor/runtime/liveSceneOperationPort';
 import { createRendererRegistry } from '@/tools/video-editor/runtime/extensionRendererRegistry';
 import {
   createExtensionUiService,
@@ -274,6 +276,7 @@ export interface EditorRuntimeAssembly {
   /** dataKind V1: assembly-owned data-kind registry (single bind path). */
   dataKindRegistryRef: MutableRefObject<DataKindRegistry | null>;
   agentToolRegistryRef: MutableRefObject<AgentToolRegistry | null>;
+  liveSceneOperationPort: LiveSceneOperationPort;
   rendererRegistryRef: MutableRefObject<RendererRegistry>;
   liveDataRegistryRef: MutableRefObject<LiveDataRegistry | null>;
   diagnosticCollectionRef: MutableRefObject<DiagnosticCollection | null>;
@@ -348,6 +351,11 @@ export function useEditorRuntimeAssembly({
 
   // ---- M10: agent tool registry (one per provider mount) -------------------
   const agentToolRegistryRef = useRef<AgentToolRegistry | null>(null);
+  const [liveSceneOperationPort] = useState(() => new LiveSceneOperationPort());
+  useEffect(() => {
+    liveSceneOperationPort.setAvailable(true);
+    return () => liveSceneOperationPort.setAvailable(false);
+  }, [liveSceneOperationPort]);
   if (!agentToolRegistryRef.current) {
     agentToolRegistryRef.current = liveDataRegistryRef.current
       ? createAgentToolRegistry({ liveDataRegistry: liveDataRegistryRef.current })
@@ -471,6 +479,7 @@ export function useEditorRuntimeAssembly({
     clipTypeRegistryRef,
     dataKindRegistryRef,
     agentToolRegistryRef,
+    liveSceneOperationPort,
     rendererRegistryRef,
     liveDataRegistryRef,
     diagnosticCollectionRef,
@@ -494,6 +503,10 @@ export interface UseEditorRuntimeSyncOptions {
   /** Timeline project scope for the reader (app shell: host project id;
    *  embed host: null). */
   projectId: string | null;
+  /** Timeline identifier for the reader's document scope. */
+  timelineId: string | null;
+  /** Active provider's optional project-bound immutable object port. */
+  projectObjects?: ProjectObjectStorage;
   /** User the effect/sequence catalogs and legacy effects query resolve
    *  against. */
   catalogUserId: string | null;
@@ -534,10 +547,11 @@ export interface EditorRuntimeSync {
   effectResources: VideoEditorEffectCatalog;
   sequenceComponentResources: VideoEditorSequenceComponentCatalog;
 }
-
 export function useEditorRuntimeSync({
   assembly,
   projectId,
+  timelineId,
+  projectObjects,
   catalogUserId,
   effectsQueryEnabled,
   effectCatalog,
@@ -596,10 +610,12 @@ export function useEditorRuntimeSync({
         },
         configVersion: () => store.getState().configVersion,
         projectId,
+        timelineId,
         extensionRequirements: extensionRuntime.requirements,
       }),
-    [store, projectId, extensionRuntime.requirements],
+    [store, projectId, timelineId, extensionRuntime.requirements],
   );
+  assembly.liveSceneOperationPort.setReader(timelineReader);
 
   // One ProposalRuntime per provider mount, stable for the provider lifetime.
   // Creation is gated on the persistence bridge being resolved (the app shell
@@ -686,41 +702,44 @@ export function useEditorRuntimeSync({
       reader: timelineReader,
       proposals: proposals as unknown as CreativeContext['proposals'],
       timelineView: timelineViewStoreRef.current as unknown as CreativeContext['timelineView'],
+      projectObjects,
     };
-  }, [timelineReader, timelineViewStoreRef, store]);
+  }, [projectObjects, timelineReader, timelineViewStoreRef, store]);
 
   useEffect(() => {
     const host = lifecycleHostRef.current;
     const registry = commandRegistryRef.current;
     if (!host) return;
 
-    // Ingest declarative command/keybinding/context-menu contributions
-    if (registry) {
-      for (const ext of extensionRuntime.extensions) {
-        const extId = ext.manifest.id as string;
-        for (const contrib of ext.manifest.contributions ?? []) {
-          switch (contrib.kind) {
-            case 'command':
-              registry.ingestCommandContribution(extId, contrib as CommandContribution);
-              break;
-            case 'keybinding':
-              registry.ingestKeybindingContribution(extId, contrib as KeybindingContribution);
-              break;
-            case 'contextMenuItem':
-              registry.ingestContextMenuItemContribution(extId, contrib as ContextMenuItemContribution);
-              break;
-            case 'agentTool':
-              agentToolRegistryRef.current?.ingestAgentToolContribution(extId, contrib as AgentToolContribution);
-              break;
-          }
-        }
-      }
-    }
-
     host.synchronize(
       extensionRuntime.extensions,
       (ext) => {
         const extId = ext.manifest.id as string;
+
+        // Lifecycle synchronization disposes an old instance (and removes all
+        // of its registry entries) before it calls this factory for the
+        // replacement. Ingest this manifest here, after that cleanup and
+        // immediately before activation, so the replacement's handlers always
+        // have matching declarative command/tool entries to bind to.
+        if (registry) {
+          for (const contrib of ext.manifest.contributions ?? []) {
+            switch (contrib.kind) {
+              case 'command':
+                registry.ingestCommandContribution(extId, contrib as CommandContribution);
+                break;
+              case 'keybinding':
+                registry.ingestKeybindingContribution(extId, contrib as KeybindingContribution);
+                break;
+              case 'contextMenuItem':
+                registry.ingestContextMenuItemContribution(extId, contrib as ContextMenuItemContribution);
+                break;
+              case 'agentTool':
+                agentToolRegistryRef.current?.ingestAgentToolContribution(extId, contrib as AgentToolContribution);
+                break;
+            }
+          }
+        }
+
         const effectRegistry = effectRegistryRef.current;
         const transitionRegistry = transitionRegistryRef.current;
         const shaderRegistry = shaderRegistryRef.current;
@@ -844,6 +863,7 @@ export function useEditorRuntimeSync({
             rendererRegistry: rendererRegistryRef.current,
           }),
           dataKindsService,
+          assembly.liveSceneOperationPort.registration(extId),
         );
 
         // Register the settings service for explicit local-only listeners.
@@ -863,6 +883,7 @@ export function useEditorRuntimeSync({
     ], { activeExtensionIds });
   }, [
     activeExtensionIds,
+    assembly.liveSceneOperationPort,
     agentToolRegistryRef,
     clipTypeRegistryRef,
     commandRegistryRef,

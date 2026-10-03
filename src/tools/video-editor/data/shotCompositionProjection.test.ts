@@ -106,6 +106,37 @@ describe('canonical shot-composition downstream projection', () => {
       .toBe(projection.occurrenceIdentities.get('occ-2')?.revisionId);
   });
 
+  it('scopes a reused asset alias by occurrence only when its pinned objects differ', () => {
+    const source: PreparedShotComposition = {
+      ...prepared,
+      occurrences: prepared.occurrences.map((occurrence) => {
+        if (occurrence.occurrenceId !== 'occ-3') return occurrence;
+        return {
+          ...occurrence,
+          revision: {
+            ...occurrence.revision,
+            runtime_playback_assets: [{
+              asset_id: 'alpha-image',
+              object_id: 'object-alpha-image-take-2',
+              digest: 'sha256:9999999999999999999999999999999999999999999999999999999999999999',
+              media_type: 'image/png',
+            }],
+          },
+        };
+      }),
+    };
+
+    const projection = projectCanonicalComposition(source);
+    const first = projection.config.clips.find((clip) => clip.id === 'occ-1:alpha-video');
+    const secondCut = projection.config.clips.find((clip) => clip.id === 'occ-3:alpha-video-b');
+
+    expect(first).toMatchObject({ asset: 'occ-1:alpha-image', assetEntry: { file: 'object-alpha-image' } });
+    expect(secondCut).toMatchObject({ asset: 'occ-3:alpha-image', assetEntry: { file: 'object-alpha-image-take-2' } });
+    expect(projection.config.registry).toHaveProperty('occ-1:alpha-image');
+    expect(projection.config.registry).toHaveProperty('occ-3:alpha-image');
+    expect(projection.config.registry['alpha-image']).toBeUndefined();
+  });
+
   it('clips an overlong child to the occurrence in the parent projection', () => {
     const source = withOccurrenceRevision(prepared, 0, (timeline) => ({
       ...timeline,

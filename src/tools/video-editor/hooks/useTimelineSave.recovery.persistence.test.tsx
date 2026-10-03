@@ -72,7 +72,18 @@ async function mountRecoveryEditor(options?: {
   );
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
   const store = createTimelineStore();
-  const runtime = { timelineId, assetResolver: null } as unknown as VideoEditorRuntimeContextValue;
+  const runtime = {
+    timelineId,
+    assetResolver: null,
+    shots: {
+      shots: undefined,
+      isLoading: false,
+      error: null,
+      refetchShots: vi.fn(),
+      finalVideoMap: new Map(),
+      dismissFinalVideo: vi.fn(),
+    },
+  } as unknown as VideoEditorRuntimeContextValue;
   const wrapper = ({ children }: { children: React.ReactNode }) => React.createElement(
     QueryClientProvider,
     { client: queryClient },
