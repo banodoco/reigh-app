@@ -27,7 +27,7 @@ interface CalloutDefinition {
   phoneAt?: readonly [number, number];
   /**
    * A more specific target on phones, where the cards sit above and below the conversation and can each
-   * point at a different part of it. The connector waits until it exists (the reply arrives later).
+   * point at a different part of it. The connector waits until the conversation is mounted.
    */
   phoneTarget?: string;
   /**
@@ -43,7 +43,7 @@ const PHONE_CLAMP_SELECTOR = '.astrid-chat-surface';
 const AGENT_CALLOUTS: readonly CalloutDefinition[] = [
   {
     id: 'community',
-    title: 'Backed by community knowledge',
+    title: 'Access to communities and collective intelligence',
     body: 'Shared ideas and examples inform every edit it makes.',
     target: '.astrid-chat-surface',
     at: [0, 0.2],
@@ -56,7 +56,7 @@ const AGENT_CALLOUTS: readonly CalloutDefinition[] = [
   {
     id: 'workflows',
     title: 'Leverages reusable agent workflows',
-    body: 'Repeatable steps for arranging and refining a project.',
+    body: 'Community-built plans and tools for creative work.',
     target: '.astrid-chat-surface',
     at: [0, 0.68],
     side: 'right',
@@ -68,7 +68,7 @@ const AGENT_CALLOUTS: readonly CalloutDefinition[] = [
   },
   {
     id: 'tools',
-    title: 'Integrated into every open-source tool',
+    title: 'Integrated into many open-source tools',
     body: 'Open models and project-specific tools, adapted as you go.',
     target: '.astrid-chat-surface',
     at: [1, 0.42],
@@ -84,7 +84,7 @@ const AGENT_CALLOUTS: readonly CalloutDefinition[] = [
 const APP_CALLOUTS: readonly CalloutDefinition[] = [
   {
     id: 'effects',
-    title: 'Live code complex effects and visuals',
+    title: 'Live vibe code effects and visuals',
     body: 'Describe a look and edit the effect’s code live, right on the clip.',
     // The Effects tab itself, reached from above.
     target: '.astrid-inspector-surface [role="tablist"].grid-cols-4 > [role="tab"]:first-child',
@@ -97,7 +97,7 @@ const APP_CALLOUTS: readonly CalloutDefinition[] = [
   },
   {
     id: 'timeline',
-    title: 'Edit your timeline with agents',
+    title: 'Do complex editing work with your agents',
     body: 'Arrange, trim and layer clips by hand, or ask the agent to.',
     // A fixed point on the timeline panel (where the first clip rests), not the clip itself, so the
     // connector holds still when the timeline is scrolled.

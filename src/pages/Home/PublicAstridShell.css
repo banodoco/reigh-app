@@ -690,11 +690,6 @@
  */
 .astrid-scripted-conversation [data-conversation-presentation] > div:nth-child(2) { display: flex; flex-direction: column; }
 .astrid-scripted-conversation [data-conversation-presentation] > div:nth-child(2) > :first-child { margin-top: auto; }
-/* New messages (and the "Thinking…" line) rise into the thread as the exchange plays out. */
-.astrid-scripted-conversation [data-conversation-presentation] > div:nth-child(2) > .flex-col > * {
-  animation: astrid-message-in 380ms cubic-bezier(.22,.61,.36,1) backwards;
-}
-@keyframes astrid-message-in { from { opacity: 0; translate: 0 10px; scale: .98; } }
 .astrid-scripted-conversation [data-conversation-presentation] img { object-fit: cover; }
 .astrid-scripted-conversation [data-conversation-presentation] > div:first-child img {
   width: 25px; height: 25px; image-rendering: pixelated; transform: scale(2.25);
@@ -711,7 +706,6 @@
   outline-offset: -2px;
 }
 .astrid-conversation-footer { display: grid; gap: 8px; }
-.astrid-conversation-footer > .astrid-example-result { animation: astrid-message-in 440ms cubic-bezier(.22,.61,.36,1) 160ms backwards; }
 /* The example's composer: looks and types like the real one; sending explains the example is scripted. */
 .astrid-composer { position: relative; margin: 0; }
 .astrid-composer-field {
@@ -1523,9 +1517,6 @@
 
 @media (prefers-reduced-motion: reduce) {
   .astrid-hero-cta > * { transition: none !important; }
-  .astrid-scripted-conversation [data-conversation-presentation] > div:nth-child(2) > .flex-col > *,
-  .astrid-scripted-conversation [data-conversation-presentation] > div:has(> .astrid-conversation-footer),
-  .astrid-conversation-footer > .astrid-example-result { animation: none !important; }
   .astrid-editor-surfaces,
   .astrid-editor-stage { transition-duration: 0ms !important; transition-delay: 0ms !important; }
   .astrid-surface,
