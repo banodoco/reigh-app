@@ -29,8 +29,8 @@ import type { TimelineClip, TimelineConfig } from '@/tools/video-editor/types/in
  *   commit's `'config'`-shaped path (new-track drops).
  * - `useClipResize` — snaps pixel-derived start/end before deriving
  *   `from`/`to`/`speed`, so media trim math starts from grid instants.
- * - `getClipDurationInFrames` (`lib/config-utils.ts`) — media clips derive
- *   `durationInFrames` from the trim window via `mediaDurationInFrames`.
+ * - `getClipDurationInFrames` (`lib/config-utils.ts`) — delegates final
+ *   duration rounding to the shared renderer rule, after visible-time math.
  *
  * Deliberately **not** snapped: remote/accepted data (poll acceptance,
  * conflict reloads, agent `'config'` mutations). Remote data is only

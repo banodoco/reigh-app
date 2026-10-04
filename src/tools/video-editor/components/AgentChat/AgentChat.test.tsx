@@ -9,6 +9,9 @@ const mocks = vi.hoisted(() => ({
   useAgentChatActionsRegistry: vi.fn(),
   useVideoEditorRuntime: vi.fn(),
   useAgentSessions: vi.fn(),
+  useProjectChat: vi.fn(),
+  useSaveProjectDraft: vi.fn(),
+  useSelectProjectSession: vi.fn(),
   useCreateSession: vi.fn(),
   useAgentSession: vi.fn(),
   useSendMessage: vi.fn(),
@@ -36,6 +39,9 @@ vi.mock('@/tools/video-editor/contexts/VideoEditorRuntimeContext', () => ({
 vi.mock('@/tools/video-editor/hooks/useAgentSession', () => ({
   isTimelineAgentSessionsAvailable: () => mocks.agentSessionsAvailable,
   useAgentSessions: (...args: unknown[]) => mocks.useAgentSessions(...args),
+  useProjectChat: (...args: unknown[]) => mocks.useProjectChat(...args),
+  useSaveProjectDraft: (...args: unknown[]) => mocks.useSaveProjectDraft(...args),
+  useSelectProjectSession: (...args: unknown[]) => mocks.useSelectProjectSession(...args),
   useCreateSession: (...args: unknown[]) => mocks.useCreateSession(...args),
   useAgentSession: (...args: unknown[]) => mocks.useAgentSession(...args),
   useSendMessage: (...args: unknown[]) => mocks.useSendMessage(...args),
@@ -130,6 +136,11 @@ function createTimelineClip(clipId: string) {
 
 function createState() {
   return {
+    projectId: 'project-1' as string | null,
+    projectChats: {
+      'project-1': { project_id: 'project-1', scope_key: 'scope-1', revision: 1, selected_session_id: 'session-1', sessions: [{ id: 'session-1' }], draft: { text: '', revision: 0, queued_messages: [] as Array<{ id: string; text: string; session_id: string; attachments?: unknown[] }> } },
+      'project-2': { project_id: 'project-2', scope_key: 'scope-2', revision: 1, selected_session_id: 'session-1', sessions: [{ id: 'session-1' }], draft: { text: '', revision: 0, queued_messages: [] as Array<{ id: string; text: string; session_id: string; attachments?: unknown[] }> } },
+    },
     timelineId: 'timeline-1' as string | null,
     timelineClips: [] as Array<ReturnType<typeof createTimelineClip>>,
     sessionsData: [{ id: 'session-1', status: 'waiting_user' }],
@@ -172,6 +183,7 @@ function mockFromState(state: ReturnType<typeof createState>) {
   }));
   mocks.useAgentChatBridge.mockImplementation(() => ({
     timelineId: state.timelineId,
+    editorContext: state.projectId ? { tool: 'video-editor', projectId: state.projectId, projectSlug: 'project-one', timelineId: state.timelineId, timelineName: null } : null,
   }));
   mocks.useAgentChatActionsRegistry.mockImplementation(() => ({
     registerHandlers: vi.fn(),
@@ -182,6 +194,13 @@ function mockFromState(state: ReturnType<typeof createState>) {
     data: state.sessionsData,
     isLoading: false,
   }));
+  mocks.useProjectChat.mockImplementation((projectId: string | null) => ({ data: projectId ? state.projectChats[projectId as 'project-1' | 'project-2'] : undefined }));
+  mocks.useSaveProjectDraft.mockImplementation((projectId: string | null) => ({ mutateAsync: vi.fn().mockImplementation(async (input: { text: string; queuedMessages: Array<{ id: string; text: string; session_id: string; attachments?: unknown[] }> }) => {
+    const chat = state.projectChats[projectId as 'project-1' | 'project-2'];
+    chat.draft = { text: input.text, revision: chat.draft.revision + 1, queued_messages: input.queuedMessages };
+    return chat;
+  }) }));
+  mocks.useSelectProjectSession.mockImplementation(() => ({ mutateAsync: vi.fn().mockResolvedValue(undefined) }));
   mocks.useCreateSession.mockImplementation(() => state.createSession);
   mocks.useAgentSession.mockImplementation(() => ({
     data: state.activeSessionData,
@@ -266,7 +285,7 @@ describe('AgentChat', () => {
     expect(state.createSession.mutate).not.toHaveBeenCalled();
   });
 
-  it('shows a no-timeline prompt and does not auto-create a session even when engaged', async () => {
+  it('creates project chat without a timeline when engaged', async () => {
     const state = createState();
     state.timelineId = null;
     state.sessionsData = [];
@@ -279,8 +298,30 @@ describe('AgentChat', () => {
 
     renderAgentChat();
 
-    expect(await screen.findByText('Create a timeline to start chatting.')).toBeInTheDocument();
-    await waitFor(() => expect(state.createSession.mutate).not.toHaveBeenCalled());
+    expect(await screen.findByText('✨ I can do almost anything')).toBeInTheDocument();
+    expect(screen.getByText('Press', { exact: false })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Attach existing' })).not.toBeInTheDocument();
+    await waitFor(() => expect(state.createSession.mutate).toHaveBeenCalledTimes(1));
+  });
+
+  it('restores the local project draft after switching A→B→A while the host save is pending', async () => {
+    mocks.panesState.isTasksPaneLocked = false;
+    const state = createState();
+    state.sessionsData = [{ id: 'session-1', status: 'waiting_user' }];
+    mockFromState(state);
+    const view = renderAgentChat();
+    const textbox = await getInput();
+    fireEvent.change(textbox, { target: { value: 'A local draft' } });
+
+    state.projectId = 'project-2';
+    rerenderAgentChat(view.rerender);
+    await waitFor(() => expect(screen.getByRole('textbox')).toHaveValue(''));
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'B draft' } });
+
+    state.projectId = 'project-1';
+    rerenderAgentChat(view.rerender);
+    await waitFor(() => expect(screen.getByRole('textbox')).toHaveValue('A local draft'));
+    expect(state.projectChats['project-2'].draft.text).not.toBe('A local draft');
   });
 
   it('uses four composer rows in split view and eight when chat fills the pane', async () => {
@@ -329,7 +370,7 @@ describe('AgentChat', () => {
     expect(state.createSession.mutate).not.toHaveBeenCalled();
   });
 
-  it('Cmd+Shift+R is a no-op when no timeline exists', async () => {
+  it('Cmd+Shift+R remains available for project chat without a timeline', async () => {
     const state = createState();
     state.timelineId = null;
     state.sessionsData = [];
@@ -351,7 +392,7 @@ describe('AgentChat', () => {
       shiftKey: true,
     });
 
-    expect(state.voice.startRecording).not.toHaveBeenCalled();
+    expect(state.voice.startRecording).toHaveBeenCalledTimes(1);
   });
 
   it('routes attachment removal through the composer intent', async () => {
@@ -407,10 +448,10 @@ describe('AgentChat', () => {
 
     await waitFor(() => {
       expect(state.sendMessage.mutateAsync).toHaveBeenCalledWith({
-        message: 'send old attachment',
-        attachments: [
-          expect.objectContaining({ clipId: 'clip-1' }),
-        ],
+        input: { message: 'send old attachment', attachments: [expect.objectContaining({ clipId: 'clip-1' })] },
+        projectId: 'project-1',
+        sessionId: 'session-1',
+        context: expect.objectContaining({ projectId: 'project-1' }),
       });
     });
   });
@@ -455,7 +496,7 @@ describe('AgentChat', () => {
   it('keeps a failed head queued, shows an error, and only resumes draining after the failed head is removed', async () => {
     const state = createState();
     state.activeSessionData.status = 'processing';
-    state.sendMessage.mutateAsync = vi.fn().mockImplementation(async ({ message }: { message: string }) => {
+    state.sendMessage.mutateAsync = vi.fn().mockImplementation(async ({ input: { message } }: { input: { message: string } }) => {
       if (message === 'first queued') {
         state.sendMessage.localError = 'Send failed';
         throw new Error('Send failed');
@@ -482,8 +523,10 @@ describe('AgentChat', () => {
 
     await waitFor(() => {
       expect(state.sendMessage.mutateAsync).toHaveBeenNthCalledWith(2, {
-        message: 'second queued',
-        attachments: [],
+        input: { message: 'second queued', attachments: [] },
+        projectId: 'project-1',
+        sessionId: 'session-1',
+        context: expect.objectContaining({ projectId: 'project-1' }),
       });
     });
   });
@@ -505,7 +548,7 @@ describe('AgentChat', () => {
     rerenderAgentChat(view.rerender);
 
     await waitFor(() => expect(screen.getByText('Send failed')).toBeInTheDocument());
-    expect(screen.getByText('Ask me to edit your timeline.')).toBeInTheDocument();
+    expect(screen.getByText('✨ I can do almost anything')).toBeInTheDocument();
     expect(screen.getByText('failed queued message')).toBeInTheDocument();
   });
 

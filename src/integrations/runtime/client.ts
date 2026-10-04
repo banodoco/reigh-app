@@ -10,16 +10,17 @@ import {
   type GenerationVariant,
   type ManagedOutput,
   type ManagedOutputExportReceipt,
-  type MediaImport,
+  type MediaImportOperation as MediaImport,
   type MutationResult,
   type Page,
   type Project,
   type Realm,
   type Task,
+  type TimelineInspectionResult,
   type Transport,
 } from './generated.ts';
 import {
-  RUNTIME_SCHEMA_DIGEST,
+  RUNTIME_ACCEPTED_SCHEMA_DIGESTS,
   RUNTIME_TARGETED_EXECUTION_CAPABILITY,
 } from './contract-metadata.ts';
 
@@ -120,9 +121,10 @@ export class ReighRuntimeClient {
         RUNTIME_CLIENT_VERSION,
         RUNTIME_CLIENT_SCOPES,
       );
-      if (health.schema_digest !== RUNTIME_SCHEMA_DIGEST || handshake.schema_digest !== RUNTIME_SCHEMA_DIGEST) {
+      if (!RUNTIME_ACCEPTED_SCHEMA_DIGESTS.includes(health.schema_digest as typeof RUNTIME_ACCEPTED_SCHEMA_DIGESTS[number])
+        || !RUNTIME_ACCEPTED_SCHEMA_DIGESTS.includes(handshake.schema_digest as typeof RUNTIME_ACCEPTED_SCHEMA_DIGESTS[number])) {
         throw new RuntimeCompatibilityError(
-          `schema digest mismatch (health=${health.schema_digest}, handshake=${handshake.schema_digest}, expected=${RUNTIME_SCHEMA_DIGEST})`,
+          `schema digest mismatch (health=${health.schema_digest}, handshake=${handshake.schema_digest}, expected one of ${RUNTIME_ACCEPTED_SCHEMA_DIGESTS.join(', ')})`,
           this.baseUrl,
         );
       }
@@ -206,6 +208,21 @@ export class ReighRuntimeClient {
     return this.withSession(() => this.client.getProjectTimeline(projectId, timelineId));
   }
 
+  /**
+   * Read the Runtime-owned canonical timeline head. Consumers that need the
+   * shot-composition closure must begin here so a mutable legacy timeline
+   * document cannot select the editor's authority by accident.
+   */
+  async inspectTimeline(
+    projectId: string,
+    timelineId: string,
+    options: Record<string, unknown> = {},
+  ): Promise<TimelineInspectionResult> {
+    return this.withSession(async () => (
+      await this.client.inspectTimeline(projectId, timelineId, options)
+    ) as unknown as TimelineInspectionResult);
+  }
+
   async publishParentComposition(
     projectId: string,
     timelineId: string,
@@ -230,10 +247,6 @@ export class ReighRuntimeClient {
 
   async getProjectTimelineRevision(projectId: string, timelineId: string, revision: string): Promise<Record<string, unknown>> {
     return this.withSession(() => this.client.getProjectTimelineRevision(projectId, timelineId, revision));
-  }
-
-  async getTimeline(timelineId: string): Promise<Record<string, unknown>> {
-    return this.withSession(() => this.client.getTimeline(timelineId));
   }
 
   async updateTimelineDocument(
@@ -278,11 +291,7 @@ export class ReighRuntimeClient {
       data,
       mediaType,
       idempotencyKey,
-      filename,
-      expectedDigest,
-      width,
-      height,
-      durationSeconds,
+      { filename, expectedDigest, width, height, durationSeconds },
     ));
   }
 
@@ -362,6 +371,34 @@ export class ReighRuntimeClient {
       destinationFilename,
       idempotencyKey(),
       expected,
+    ));
+  }
+
+  /** Read a Runtime-owned thumbnail selected from a source video frame. */
+  async getSourceFrameThumbnail(
+    projectId: string,
+    sourceObjectId: string,
+    sourceTimeSeconds: number,
+    recipeVersion = 1,
+  ): Promise<Record<string, unknown> | null> {
+    return this.withSession(() => this.client.getSourceFrameThumbnail(
+      projectId,
+      sourceObjectId,
+      sourceTimeSeconds,
+      recipeVersion,
+    ));
+  }
+
+  /** Ensure a typed source-frame thumbnail relation exists, idempotently. */
+  async ensureSourceFrameThumbnail(
+    projectId: string,
+    thumbnail: Record<string, unknown>,
+    idempotencyKeyValue: string,
+  ): Promise<MutationResult<Record<string, unknown>>> {
+    return this.withSession(() => this.client.ensureSourceFrameThumbnail(
+      projectId,
+      thumbnail,
+      idempotencyKeyValue,
     ));
   }
 

@@ -287,7 +287,10 @@ export function buildDeleteShotGroupMutation({
 
 function getClipDuration(meta: ClipMeta, action: TimelineAction): number {
   if (typeof meta.hold === 'number' && Number.isFinite(meta.hold) && meta.hold > 0) {
-    return meta.hold;
+    const speed = typeof meta.speed === 'number' && Number.isFinite(meta.speed) && meta.speed > 0
+      ? meta.speed
+      : 1;
+    return meta.hold / speed;
   }
 
   if (

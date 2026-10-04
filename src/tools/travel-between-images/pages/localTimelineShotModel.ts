@@ -75,6 +75,31 @@ function displayReference(asset: AssetRegistryEntry | undefined): string | undef
   return stringValue(candidate.src) ?? stringValue(candidate.url) ?? stringValue(candidate.file) ?? stringValue(candidate.media_id);
 }
 
+type MediaKind = 'image' | 'video' | 'audio' | 'unknown';
+
+function mediaKind(value: unknown): MediaKind {
+  if (typeof value !== 'string' || !value.trim()) return 'unknown';
+  const normalized = value.trim().toLowerCase();
+  if (normalized === 'image' || normalized.startsWith('image/')) return 'image';
+  if (normalized === 'video' || normalized.startsWith('video/')) return 'video';
+  if (normalized === 'audio' || normalized.startsWith('audio/')) return 'audio';
+  return 'unknown';
+}
+
+function assetMediaKind(asset: JsonObject | undefined): MediaKind {
+  const source = asset && isRecord(asset.source) ? asset.source : undefined;
+  // Runtime's managed-media media_type is the classification authority.
+  // Legacy aliases and registry display metadata cannot turn absent or
+  // unsupported canonical media into an image.
+  if (asset && Object.prototype.hasOwnProperty.call(asset, 'media_type')) {
+    return mediaKind(asset.media_type);
+  }
+  if (source && Object.prototype.hasOwnProperty.call(source, 'media_type')) {
+    return mediaKind(source.media_type);
+  }
+  return 'unknown';
+}
+
 function revisionTimeline(revision: JsonObject): JsonObject {
   const internal = isRecord(revision.internal_timeline_revision) ? revision.internal_timeline_revision : {};
   return isRecord(internal.timeline) ? internal.timeline : {};
@@ -109,23 +134,31 @@ function clipStartSeconds(clip: JsonObject): number {
 }
 
 function clipDurationSeconds(clip: JsonObject): number {
+  const speed = positiveNumber(clip.speed) ?? 1;
   const durationMs = positiveNumber(clip.duration_ms);
-  if (durationMs !== undefined) return durationMs / 1000;
+  if (durationMs !== undefined) return durationMs / 1000 / speed;
   const duration = positiveNumber(clip.duration);
-  if (duration !== undefined) return duration;
+  if (duration !== undefined) return duration / speed;
   const hold = positiveNumber(clip.hold);
-  if (hold !== undefined) return hold;
+  if (hold !== undefined) return hold / speed;
   const from = finiteNumber(clip.from);
   const to = finiteNumber(clip.to);
-  if (from !== undefined && to !== undefined && to > from) return to - from;
+  if (from !== undefined && to !== undefined && to > from) return (to - from) / speed;
   const at = finiteNumber(clip.at);
-  if (at !== undefined && to !== undefined && to > at) return to - at;
+  if (at !== undefined && to !== undefined && to > at) return (to - at) / speed;
   return 0;
 }
 
 function shotName(occurrence: CanonicalShotOccurrence): string {
+  const revisionName = stringValue(occurrence.revision.name);
+  if (revisionName) return revisionName;
   const provenance = isRecord(occurrence.revision.provenance) ? occurrence.revision.provenance : {};
-  return stringValue(provenance.name) ?? stringValue(provenance.title) ?? occurrence.shotId;
+  const metadata = isRecord(occurrence.revision.metadata) ? occurrence.revision.metadata : {};
+  return stringValue(provenance.name)
+    ?? stringValue(provenance.title)
+    ?? stringValue(metadata.name)
+    ?? stringValue(metadata.title)
+    ?? occurrence.shotId;
 }
 
 function toOccurrenceShot(occurrence: CanonicalShotOccurrence, registry: AssetRegistry | null | undefined, projectSlug?: string): LocalTimelineShot {
@@ -133,8 +166,16 @@ function toOccurrenceShot(occurrence: CanonicalShotOccurrence, registry: AssetRe
   const timeline = revisionTimeline(occurrence.revision);
   const assetObjects = revisionAssets(occurrence.revision);
   const rawClips = Array.isArray(timeline.clips) ? timeline.clips : [];
+  const occurrenceDurationSeconds = Math.max(0, occurrence.durationMs / 1000);
   const clips = rawClips.flatMap((rawClip, clipIndex) => {
     if (!isRecord(rawClip)) return [];
+    const startSeconds = clipStartSeconds(rawClip);
+    if (startSeconds >= occurrenceDurationSeconds) return [];
+    const durationSeconds = Math.min(
+      clipDurationSeconds(rawClip),
+      occurrenceDurationSeconds - startSeconds,
+    );
+    if (durationSeconds <= 0) return [];
     const clipId = stringValue(rawClip.id) ?? `${occurrence.occurrenceId}-clip-${clipIndex}`;
     // Runtime canonical revisions may expose the same selected asset in the
     // transport form (`asset_id`) or the editor form (`asset`).  Both are
@@ -149,20 +190,24 @@ function toOccurrenceShot(occurrence: CanonicalShotOccurrence, registry: AssetRe
         return rawAsset.asset_id === assetId || rawAsset.object_id === assetId || rawAsset.media_id === assetId;
       })
       : undefined;
+    const registeredAsset = registryAsset(registry, assetId, objectId);
+    const canonicalAssetKind = isRecord(canonicalAsset) ? assetMediaKind(canonicalAsset) : 'unknown';
     const canonicalAssetEntry = isRecord(canonicalAsset) && stringValue(canonicalAsset.object_id)
       ? {
         media_id: canonicalAsset.object_id,
-        type: stringValue(canonicalAsset.media_type) ?? 'image',
+        ...(canonicalAssetKind !== 'unknown' ? { type: canonicalAssetKind } : {}),
         file: canonicalAsset.object_id,
       } as AssetRegistryEntry
       : undefined;
-    const asset = registryAsset(registry, assetId, objectId) ?? canonicalAssetEntry;
+    const asset = registeredAsset
+      ? { ...registeredAsset, type: canonicalAssetKind }
+      : canonicalAssetEntry;
     const thumb = assetReference(asset);
     return [{
       clipId,
       clip: rawClip,
-      durationSeconds: clipDurationSeconds(rawClip),
-      startSeconds: clipStartSeconds(rawClip),
+      durationSeconds,
+      startSeconds,
       relativeStartSeconds: 0,
       lane: 0,
       asset,
@@ -213,34 +258,45 @@ export function selectCanonicalShotOccurrences(composition: PreparedShotComposit
 }
 
 export function toCanonicalShotModel(shot: LocalTimelineShot, fps = 30, projectSlug?: string): LocalTimelineShotModel {
-  const images = shot.clips.flatMap((item, index) => {
-    const locationReference = displayReference(item.asset);
-    if (!locationReference) return [];
-    const location = bridgeMediaUrl(projectSlug, locationReference);
-    const generationId = item.asset?.generationId ?? item.asset?.variantId ?? item.asset?.media_id ?? item.clipId;
-    return [{
-      id: `${shot.occurrenceId}:${item.clipId}`,
-      shot_generation_id: `${shot.occurrenceId}:${item.clipId}`,
-      generation_id: generationId,
-      location,
-      imageUrl: location,
-      thumbUrl: item.thumbnailUrl ?? location,
-      type: item.asset?.type ?? 'image',
-      createdAt: new Date(index).toISOString(),
-      name: stringValue(item.clip.label) ?? item.clipId,
-      timeline_frame: Math.max(0, Math.round(item.startSeconds * fps)),
-      metadata: {
-        source: 'canonical-shot-composition',
-        projectSlug,
-        shotId: shot.shotId,
-        revisionId: shot.revisionId,
-        occurrenceId: shot.occurrenceId,
-        stableDeepLink: shot.stableDeepLink,
-        outputIdentity: shot.outputIdentity,
-        clipId: item.clipId,
-      },
-    } satisfies GenerationRow];
-  });
+  // A canonical shot's internal timeline may contain one primitive per frame
+  // (for example a 120-frame camera composition). Those primitives are render
+  // instructions, not independent generation images or shots. The canonical
+  // editor consumes `shot.clips` directly; legacy consumers only need one
+  // representative thumbnail for the shot card.
+  const representative = shot.clips.find((item) => mediaKind(item.asset?.type) === 'image' && displayReference(item.asset));
+  const images = representative && displayReference(representative.asset)
+    ? (() => {
+      const locationReference = displayReference(representative.asset)!;
+      const location = bridgeMediaUrl(projectSlug, locationReference);
+      const generationId = representative.asset?.generationId
+        ?? representative.asset?.variantId
+        ?? representative.asset?.media_id
+        ?? representative.clipId;
+      return [{
+        id: `${shot.occurrenceId}:representative`,
+        shot_generation_id: `${shot.occurrenceId}:representative`,
+        generation_id: generationId,
+        location,
+        imageUrl: location,
+        thumbUrl: representative.thumbnailUrl ?? location,
+        type: representative.asset?.type ?? 'image',
+        createdAt: new Date(0).toISOString(),
+        name: shot.name,
+        timeline_frame: Math.max(0, Math.round(representative.startSeconds * fps)),
+        metadata: {
+          source: 'canonical-shot-composition',
+          projectSlug,
+          shotId: shot.shotId,
+          revisionId: shot.revisionId,
+          occurrenceId: shot.occurrenceId,
+          stableDeepLink: shot.stableDeepLink,
+          outputIdentity: shot.outputIdentity,
+          clipId: representative.clipId,
+          internalClipCount: shot.clips.length,
+        },
+      } satisfies GenerationRow];
+    })()
+    : [];
 
   return {
     id: shot.occurrenceId,

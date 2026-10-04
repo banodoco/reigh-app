@@ -409,7 +409,7 @@ describe('media Sequence duration', () => {
         const speed = [0.5, 1, 1.5, 2, 3][Math.floor(rng() * 5)];
         const clip = { id: 'c', track: 'V1', at: 0, clipType: 'media', from, to, speed } as TimelineClip;
 
-        const durationInFrames = getClipDurationInFrames(clip, fps);
+        const durationInFrames = mediaDurationInFrames({ from, to, speed, fps });
         const trims = getSanitizedMediaTrimProps(clip, fps);
         // @remotion/media renders null once unloopedTime·rate ≥ (trimAfter−trimBefore)/fps.
         const cutoffSourceSeconds = ((trims.trimAfter ?? 0) - trims.trimBefore) / fps;
@@ -424,11 +424,10 @@ describe('media Sequence duration', () => {
     }
   });
 
-  it('is the formula config-utils delegates to (one owner)', () => {
+  it('keeps the editor-only trim guard separate from shared renderer rounding', () => {
     const clip = { id: 'c', track: 'V1', at: 0, clipType: 'media', from: 1.69, to: 8.17, speed: 1 } as TimelineClip;
-    expect(getClipDurationInFrames(clip, 24)).toBe(
-      mediaDurationInFrames({ from: 1.69, to: 8.17, speed: 1, fps: 24 }),
-    );
+    expect(mediaDurationInFrames({ from: 1.69, to: 8.17, speed: 1, fps: 24 })).toBe(155);
+    expect(getClipDurationInFrames(clip, 24)).toBe(156);
     // config-utils re-exports the module's converter, not a copy.
     expect(compositionSecondsToFrames).toBe(secondsToFrames);
   });

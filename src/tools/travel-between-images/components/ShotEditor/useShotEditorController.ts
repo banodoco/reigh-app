@@ -283,6 +283,7 @@ export function useShotEditorController({
   videoJustQueued: parentVideoJustQueued,
   onDragStateChange,
   readOnly,
+  canonicalOnly,
 }: ShotEditorProps): ShotEditorControllerResult {
   const {
     promptSettings,
@@ -695,6 +696,9 @@ export function useShotEditorController({
 
   return {
     hasSelectedShot: Boolean(selectedShot),
-    layoutProps,
+    layoutProps: {
+      ...layoutProps,
+      canonicalOnly,
+    },
   };
 }

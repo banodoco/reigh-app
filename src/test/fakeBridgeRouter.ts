@@ -87,6 +87,11 @@ type FixtureGenerationVariant = {
   is_primary?: boolean;
   starred?: boolean;
   viewed_at?: string | null;
+  thumbnail?: {
+    object_id: string;
+    source_object_id: string;
+    recipe_version: number;
+  } | null;
   created_at: string;
 };
 
@@ -398,6 +403,7 @@ export function createFakeBridgeRouter(): FakeBridgeRouter {
       generation_id: variant.generation_id,
       object_id: objectId,
       variant_type: variant.variant_type ?? 'original',
+      ...(variant.thumbnail ? { thumbnail: variant.thumbnail } : {}),
       metadata: {
         name: variant.name,
         params: variant.params ?? {},

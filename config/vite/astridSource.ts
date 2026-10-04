@@ -6,12 +6,13 @@ export type AstridSource = {
   sourceRoot: string;
 };
 
-/** Resolve the canonical Astrid checkout without guessing a sibling path. */
+/** Resolve an explicit checkout, or the pinned browser sources shipped with this app. */
 export function resolveAstridSource(
   configuredPath = process.env.ASTRID_CHECKOUT,
   environmentName = 'ASTRID_CHECKOUT',
 ): AstridSource | null {
-  const value = configuredPath?.trim();
+  const bundledCheckout = path.resolve(__dirname, '../../vendor/astrid-browser');
+  const value = configuredPath?.trim() || (fs.existsSync(bundledCheckout) ? bundledCheckout : '');
   if (!value) {
     return null;
   }

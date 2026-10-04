@@ -61,18 +61,6 @@ function digest(value: unknown, path: string): string {
   return result;
 }
 
-function rejectLegacy(value: unknown, path = 'contract'): void {
-  if (Array.isArray(value)) {
-    value.forEach((item, index) => rejectLegacy(item, `${path}[${index}]`));
-    return;
-  }
-  if (typeof value !== 'object' || value === null) return;
-  const record = value as JsonObject;
-  if ('pinnedShotGroups' in record) fail(path, 'pinnedShotGroups is migration-only');
-  if (record.clipType === 'shot') fail(path, 'clipType=shot is migration-only');
-  Object.entries(record).forEach(([key, child]) => rejectLegacy(child, `${path}.${key}`));
-}
-
 export function stableOccurrenceDeepLink(
   projectId: string,
   parentDocumentId: string,
@@ -104,8 +92,8 @@ export function assertExpectedHead(expectedRevisionId: string | null, actualRevi
 }
 
 export function validateShotComposition(raw: unknown): ShotCompositionContract {
-  rejectLegacy(raw);
   const root = object(raw, 'contract');
+  if ('pinnedShotGroups' in root) fail('contract.pinnedShotGroups', 'pinnedShotGroups is migration-only');
   if (root.schema_version !== SHOT_COMPOSITION_SCHEMA_VERSION) fail('schema_version', 'must be 1');
   const project = object(root.project, 'project');
   const projectId = string(project.project_id, 'project.project_id');
@@ -118,7 +106,7 @@ export function validateShotComposition(raw: unknown): ShotCompositionContract {
   const headRevisionId = string(head.revision_id, 'primary_timeline.head.revision_id');
   digest(head.content_digest, 'primary_timeline.head.content_digest');
 
-  if (!Array.isArray(root.shot_revisions) || root.shot_revisions.length === 0) fail('shot_revisions', 'must be a non-empty list');
+  if (!Array.isArray(root.shot_revisions)) fail('shot_revisions', 'must be a list');
   const revisions = new Map<string, JsonObject>();
   root.shot_revisions.forEach((rawRevision, index) => {
     const path = `shot_revisions[${index}]`;
@@ -135,25 +123,43 @@ export function validateShotComposition(raw: unknown): ShotCompositionContract {
     digest(internal.content_digest, `${path}.internal_timeline_revision.content_digest`);
     const timeline = object(internal.timeline, `${path}.internal_timeline_revision.timeline`);
     if (!Array.isArray(timeline.tracks) || !Array.isArray(timeline.clips)) fail(`${path}.internal_timeline_revision.timeline`, 'tracks and clips must be lists');
+    timeline.clips.forEach((rawClip, clipIndex) => {
+      const clipPath = `${path}.internal_timeline_revision.timeline.clips[${clipIndex}]`;
+      if (object(rawClip, clipPath).clipType === 'shot') fail(clipPath, 'clipType=shot is migration-only');
+    });
     const timing = object(revision.timing, `${path}.timing`);
     nonNegativeInteger(timing.duration_ms, `${path}.timing.duration_ms`);
-    const audio = object(revision.audio, `${path}.audio`);
-    string(audio.track_id, `${path}.audio.track_id`);
-    string(audio.object_id, `${path}.audio.object_id`);
-    digest(audio.digest, `${path}.audio.digest`);
-    if (object(audio.scope, `${path}.audio.scope`).project_id !== projectId) fail(`${path}.audio.scope.project_id`, 'must match project.project_id');
-    if (!Array.isArray(revision.assets)) fail(`${path}.assets`, 'must be a list');
-    revision.assets.forEach((rawAsset, assetIndex) => {
+    if (revision.audio !== undefined) {
+      const audio = object(revision.audio, `${path}.audio`);
+      for (const field of ['track_id', 'object_id']) {
+        if (audio[field] !== undefined) string(audio[field], `${path}.audio.${field}`);
+      }
+      if (audio.digest !== undefined) digest(audio.digest, `${path}.audio.digest`);
+      if (audio.scope !== undefined && object(audio.scope, `${path}.audio.scope`).project_id !== undefined
+        && object(audio.scope, `${path}.audio.scope`).project_id !== projectId) {
+        fail(`${path}.audio.scope.project_id`, 'must match project.project_id');
+      }
+    }
+    if (revision.name !== undefined) string(revision.name, `${path}.name`);
+    if (revision.assets !== undefined && !Array.isArray(revision.assets)) fail(`${path}.assets`, 'must be a list');
+    if (Array.isArray(revision.assets)) revision.assets.forEach((rawAsset, assetIndex) => {
       const assetPath = `${path}.assets[${assetIndex}]`;
       const asset = object(rawAsset, assetPath);
-      string(asset.asset_id, `${assetPath}.asset_id`);
-      string(asset.object_id, `${assetPath}.object_id`);
-      digest(asset.digest, `${assetPath}.digest`);
-      string(asset.role, `${assetPath}.role`);
-      if (object(asset.scope, `${assetPath}.scope`).project_id !== projectId) fail(`${assetPath}.scope.project_id`, 'must match project.project_id');
+      for (const field of ['asset_id', 'object_id', 'media_id', 'role', 'type', 'media_kind']) {
+        if (asset[field] !== undefined) string(asset[field], `${assetPath}.${field}`);
+      }
+      if (asset.media_type !== undefined) string(asset.media_type, `${assetPath}.media_type`);
+      if (asset.digest !== undefined) digest(asset.digest, `${assetPath}.digest`);
+      if (asset.scope !== undefined) {
+        const scope = object(asset.scope, `${assetPath}.scope`);
+        if (scope.project_id !== undefined && scope.project_id !== projectId) {
+          fail(`${assetPath}.scope.project_id`, 'must match project.project_id');
+        }
+      }
     });
-    if (!Array.isArray(revision.generation_inputs)) fail(`${path}.generation_inputs`, 'must be a list');
-    const ordinals = revision.generation_inputs.map((rawInput, inputIndex) => {
+    if (revision.generation_inputs !== undefined && !Array.isArray(revision.generation_inputs)) fail(`${path}.generation_inputs`, 'must be a list');
+    const generationInputs = Array.isArray(revision.generation_inputs) ? revision.generation_inputs : [];
+    const ordinals = generationInputs.map((rawInput, inputIndex) => {
       const inputPath = `${path}.generation_inputs[${inputIndex}]`;
       const input = object(rawInput, inputPath);
       string(input.input_id, `${inputPath}.input_id`);
@@ -163,7 +169,10 @@ export function validateShotComposition(raw: unknown): ShotCompositionContract {
       return nonNegativeInteger(input.ordinal, `${inputPath}.ordinal`);
     });
     if (ordinals.some((ordinal, ordinalIndex) => ordinal !== ordinalIndex)) fail(`${path}.generation_inputs`, 'ordinals must be contiguous and ordered');
-    if (typeof revision.provenance !== 'object' || revision.provenance === null || Array.isArray(revision.provenance)) fail(`${path}.provenance`, 'must be an object');
+    if (revision.provenance !== undefined
+      && (typeof revision.provenance !== 'object' || revision.provenance === null || Array.isArray(revision.provenance))) {
+      fail(`${path}.provenance`, 'must be an object');
+    }
   });
   root.shot_revisions.forEach((rawRevision, index) => {
     const revision = object(rawRevision, `shot_revisions[${index}]`);
@@ -177,7 +186,7 @@ export function validateShotComposition(raw: unknown): ShotCompositionContract {
     });
   });
 
-  if (!Array.isArray(root.occurrences) || root.occurrences.length === 0) fail('occurrences', 'must be a non-empty list');
+  if (!Array.isArray(root.occurrences)) fail('occurrences', 'must be a list');
   const occurrenceIds = new Set<string>();
   root.occurrences.forEach((rawOccurrence, index) => {
     const path = `occurrences[${index}]`;

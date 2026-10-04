@@ -1,4 +1,4 @@
-import type { ReactNode, RefObject } from 'react';
+import type { ReactNode, RefObject, UIEventHandler } from 'react';
 import { Loader2 } from 'lucide-react';
 import {
   ConversationAttachmentStrip,
@@ -27,6 +27,8 @@ export type ConversationPresentationProps = {
   onAttachmentClick?: (attachment: ConversationAttachment) => void;
   scrollContainerRef?: RefObject<HTMLDivElement>;
   scrollContainerTabIndex?: number;
+  scrollContentRef?: RefObject<HTMLDivElement>;
+  onScroll?: UIEventHandler<HTMLDivElement>;
   bottomAnchorRef?: RefObject<HTMLDivElement>;
   label?: string;
   avatarSrc?: string;
@@ -49,6 +51,8 @@ export function ConversationPresentation({
   onAttachmentClick,
   scrollContainerRef,
   scrollContainerTabIndex,
+  scrollContentRef,
+  onScroll,
   bottomAnchorRef,
   label = 'Astrid',
   avatarSrc = '/astrid-avatar.png',
@@ -68,7 +72,7 @@ export function ConversationPresentation({
         {headerActions && <div className="flex items-center gap-1">{headerActions}</div>}
       </div>
 
-      <div ref={scrollContainerRef} tabIndex={scrollContainerTabIndex} className="flex-1 overflow-y-auto overscroll-contain px-4 py-3">
+      <div ref={scrollContainerRef} onScroll={onScroll} tabIndex={scrollContainerTabIndex} className="flex-1 overflow-y-auto overscroll-contain px-4 py-3">
         {isLoading && (
           <div className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
@@ -78,7 +82,7 @@ export function ConversationPresentation({
 
         {!isLoading && items.length === 0 && !isProcessing && !hideEmptyState && emptyState}
 
-        <div className="flex flex-col gap-2.5">
+        <div ref={scrollContentRef} className="flex flex-col gap-2.5">
           {items.map((item) => item.kind === 'message' ? (
             <ConversationMessage key={item.key} turn={item.turn} onAttachmentClick={onAttachmentClick} />
           ) : (

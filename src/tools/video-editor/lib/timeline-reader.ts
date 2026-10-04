@@ -105,12 +105,14 @@ function deriveEffectManaged(
  * Mirrors the hold-vs-speed logic in timeline-data.ts.
  */
 function computeClipDuration(meta: ClipMeta): number {
+  const speed = typeof meta.speed === 'number' && Number.isFinite(meta.speed) && meta.speed > 0
+    ? meta.speed
+    : 1;
   if (typeof meta.hold === 'number') {
-    return meta.hold;
+    return meta.hold / speed;
   }
   const from = meta.from ?? 0;
   const to = meta.to ?? 0;
-  const speed = meta.speed ?? 1;
   return to > from ? (to - from) / speed : 0;
 }
 

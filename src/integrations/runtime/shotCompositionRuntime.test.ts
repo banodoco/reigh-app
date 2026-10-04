@@ -96,7 +96,7 @@ function runtimeResponses(options: {
 function fixtureTransport(options: {
   conflict?: boolean;
   initialHeadRevisionId?: string | null;
-  legacyInternalScope?: boolean;
+  internalRevisionUnavailable?: boolean;
   childAssets?: Record<string, Record<string, unknown>>;
   manifestAudioAsset?: boolean;
   commitThenLoseFirstResponse?: boolean;
@@ -120,6 +120,37 @@ function fixtureTransport(options: {
     if (path === '/v1/health') return { status: 200, headers: {}, body: json({ status: 'ok', protocol: 'workspace.v1', schema_digest: RUNTIME_SCHEMA_DIGEST, runtime_epoch: 1 }) };
     if (path === '/v1/handshake') return { status: 200, headers: {}, body: json({ protocol: 'workspace.v1', schema_digest: RUNTIME_SCHEMA_DIGEST, session_id: 'session', actor_id: 'owner', realm_id: 'realm', scopes: ['projects:read', 'projects:write'], capabilities: [RUNTIME_TARGETED_EXECUTION_CAPABILITY] }) };
     if (path === '/v1/realm') return { status: 200, headers: {}, body: json({ realm_id: 'realm', display_name: 'fixture', version: 1, created_at: '2026-09-19T00:00:00Z' }) };
+    if (method === 'POST' && path === `/v1/projects/${PROJECT_ID}/timelines/${TIMELINE_ID}/inspect`) {
+      return {
+        status: 200,
+        headers: {},
+        body: json({
+          schema: 'runtime.timeline.declared_inputs/v1',
+          evidence_kind: 'declared_inputs',
+          render_requested: false,
+          representation: 'canonical_head',
+          authority: 'runtime_parent_composition',
+          project_id: PROJECT_ID,
+          timeline_id: TIMELINE_ID,
+          revision_id: currentHeadRevisionId ?? responses.parent.revision_id,
+          head_revision_id: currentHeadRevisionId,
+          is_current_head: true,
+          parent_content_digest: responses.parent.content_digest,
+          head_content_digest: responses.parent.content_digest,
+          snapshot_digest: 'sha256:fixture-inspection',
+          selectors: {},
+          selection_status: 'selected',
+          target_count: responses.occurrences.length,
+          occurrence_count: responses.occurrences.length,
+          parent_clip_count: 0,
+          parent_clip_target_count: 0,
+          selected_clip_count: 0,
+          selected: [],
+          selected_parent_clips: [],
+          next_cursor: null,
+        }),
+      };
+    }
     if (method === 'GET' && path === `/v1/projects/${PROJECT_ID}/timelines/${TIMELINE_ID}`) return { status: 200, headers: {}, body: json({ timeline_id: TIMELINE_ID, project_id: PROJECT_ID, version: 1, head_revision_id: currentHeadRevisionId, archived: false, shots: [], references: [] }) };
     const compositionRevisionId = path.match(/\/composition-revisions\/([^/]+)$/)?.[1];
     if (compositionRevisionId && committedParents.has(compositionRevisionId)) {
@@ -131,15 +162,9 @@ function fixtureTransport(options: {
       return { status: 200, headers: {}, body: json(committedShots.get(`${shotId}\u0000${revisionId}`) ?? responses.shots.get(`${shotId}\u0000${revisionId}`)) };
     }
     if (path.startsWith(`/v1/projects/${PROJECT_ID}/timelines/${TIMELINE_ID}/revisions/`)) {
-      if (options.legacyInternalScope) return { status: 404, headers: {}, body: json({ code: 'not_found', message: 'legacy child scope' }) };
+      if (options.internalRevisionUnavailable) return { status: 404, headers: {}, body: json({ code: 'not_found', message: 'canonical internal revision unavailable' }) };
       const revisionId = path.split('/').pop() ?? '';
       return { status: 200, headers: {}, body: json(committedInternals.get(revisionId) ?? responses.internals.get(revisionId)) };
-    }
-    if (path.startsWith(`/v1/projects/${PROJECT_ID}/timelines/${encodeURIComponent('shot:')}`)) {
-      const match = path.match(/\/timelines\/shot%3A([^/]+)\/revisions\/([^/]+)$/);
-      if (!match) throw new Error(`unexpected legacy internal path ${path}`);
-      const revision = responses.internals.get(decodeURIComponent(match[2]));
-      return { status: 200, headers: {}, body: json({ ...revision, timeline_id: `shot:${decodeURIComponent(match[1])}` }) };
     }
     if (method === 'POST' && path === `/v1/projects/${PROJECT_ID}/timelines/${TIMELINE_ID}/composition-revisions`) {
       if (options.commitThenLoseFirstResponse) {
@@ -262,12 +287,34 @@ describe('Runtime shot-composition port', () => {
 
     expect(loaded).toMatchObject({ project: { project_id: PROJECT_ID, document_id: TIMELINE_ID }, primary_timeline: { head: { revision_id: 'timeline-rev-2' } } });
     expect(fixtureRuntime.requests.map(({ method, path }) => `${method} ${path}`).filter((value) => value.includes('/timelines/') || value.includes('/revisions/'))).toEqual(expect.arrayContaining([
-      `GET /v1/projects/${PROJECT_ID}/timelines/${TIMELINE_ID}`,
+      `POST /v1/projects/${PROJECT_ID}/timelines/${TIMELINE_ID}/inspect`,
       `GET /v1/projects/${PROJECT_ID}/timelines/${TIMELINE_ID}/composition-revisions/timeline-rev-2`,
       `GET /v1/projects/${PROJECT_ID}/shots/shot-alpha/revisions/rev-a`,
       `GET /v1/projects/${PROJECT_ID}/timelines/${TIMELINE_ID}/revisions/timeline-alpha-a`,
     ]));
+    expect(fixtureRuntime.requests.some(({ method, path }) => method === 'GET' && path === `/v1/projects/${PROJECT_ID}/timelines/${TIMELINE_ID}`)).toBe(false);
     expect(fixtureRuntime.requests.some(({ path }) => path.includes('/documents/'))).toBe(false);
+  });
+
+  it('fails closed on a non-canonical inspection without consulting the mutable timeline resource', async () => {
+    const fixtureRuntime = fixtureTransport();
+    const provider = new RuntimeDataProvider({
+      projectId: PROJECT_ID,
+      transport: async (...args) => {
+        const response = await fixtureRuntime.transport(...args);
+        if (args[1].endsWith(`/timelines/${TIMELINE_ID}/inspect`)) {
+          const body = JSON.parse(new TextDecoder().decode(response.body)) as Record<string, unknown>;
+          return { ...response, body: json({ ...body, representation: 'canonical_revision', is_current_head: false }) };
+        }
+        return response;
+      },
+    });
+
+    await expect(provider.shotComposition.load({ projectId: PROJECT_ID, parentDocumentId: TIMELINE_ID }))
+      .rejects.toThrow('instead of canonical_head');
+    expect(fixtureRuntime.requests.some(({ method, path }) => (
+      method === 'GET' && path === `/v1/projects/${PROJECT_ID}/timelines/${TIMELINE_ID}`
+    ))).toBe(false);
   });
 
   it('normalizes child timeline assets into the pinned revision at the Runtime boundary', async () => {
@@ -332,6 +379,82 @@ describe('Runtime shot-composition port', () => {
       file: 'object-alpha-audio',
       type: 'audio',
     });
+  });
+
+  it.each(['asset', 'asset_id'])('preserves multiple child audio bindings without synthesizing legacy aggregate audio (%s)', async (assetField) => {
+    const fixtureRuntime = fixtureTransport({
+      childAssets: {
+        'alpha-audio': {
+          media_id: 'object-alpha-audio',
+          content_sha256: '3333333333333333333333333333333333333333333333333333333333333333',
+          type: 'audio',
+        },
+      },
+    });
+    const voiceover = { id: 'sdk-voiceover', track: 'audio', [assetField]: 'alpha-audio', at: 0.2, from: 0.5, to: 1.5, volume: 0.7 };
+    const secondVoiceover = { id: 'sdk-voiceover-2', track: 'audio', [assetField]: 'alpha-audio', at: 1.5, from: 1, to: 2, volume: 0.35 };
+    const provider = new RuntimeDataProvider({
+      projectId: PROJECT_ID,
+      transport: async (...args) => {
+        const response = await fixtureRuntime.transport(...args);
+        const body = JSON.parse(new TextDecoder().decode(response.body));
+        if (args[1].endsWith('/shots/shot-alpha/revisions/rev-a')) {
+          delete body.payload.audio;
+          delete body.payload.timing;
+          body.payload.generation_inputs = {};
+          body.payload.name = 'Canonical top-level name';
+          body.payload.app = { opaque: { future: true } };
+          body.payload.audio_bindings = [
+            { binding_id: 'vo-1', clip_id: 'sdk-voiceover', asset: 'alpha-audio' },
+            { binding_id: 'vo-2', clip_id: 'sdk-voiceover-2', asset: 'alpha-audio' },
+          ];
+        }
+        if (args[1].endsWith('/revisions/timeline-alpha-a')) {
+          body.payload.tracks = [{ id: 'video', kind: 'visual' }, { id: 'audio', kind: 'audio' }];
+          body.payload.clips.push(voiceover, secondVoiceover);
+        }
+        return { ...response, body: json(body) };
+      },
+    });
+    const raw = await provider.shotComposition.load({ projectId: PROJECT_ID, parentDocumentId: TIMELINE_ID });
+    const composition = createShotCompositionAdapter({ load: async () => raw }).prepare(raw);
+    const alpha = composition.occurrences.find((occurrence) => occurrence.shotId === 'shot-alpha');
+    expect(alpha?.revision.audio).toBeUndefined();
+    expect(alpha?.revision).toMatchObject({
+      name: 'Canonical top-level name',
+      app: { opaque: { future: true } },
+      audio_bindings: [
+        { binding_id: 'vo-1', clip_id: 'sdk-voiceover', asset: 'alpha-audio' },
+        { binding_id: 'vo-2', clip_id: 'sdk-voiceover-2', asset: 'alpha-audio' },
+      ],
+    });
+    const projection = projectCanonicalComposition(composition);
+    const projectedVoiceover = projection.config.clips.find((clip) => clip.id.endsWith(':sdk-voiceover'));
+    expect(projectedVoiceover).toMatchObject({ from: 0.5, to: 1.5, volume: 0.7 });
+    expect(projectedVoiceover?.assetEntry).toMatchObject({ file: 'object-alpha-audio', type: 'audio' });
+    expect(projection.config.clips.find((clip) => clip.id.endsWith(':sdk-voiceover-2')))
+      .toMatchObject({ from: 1, to: 2, volume: 0.35 });
+  });
+
+  it('loads a silent child revision without inventing an audio descriptor', async () => {
+    const fixtureRuntime = fixtureTransport();
+    const provider = new RuntimeDataProvider({
+      projectId: PROJECT_ID,
+      transport: async (...args) => {
+        const response = await fixtureRuntime.transport(...args);
+        const body = JSON.parse(new TextDecoder().decode(response.body));
+        if (args[1].endsWith('/shots/shot-alpha/revisions/rev-a')) delete body.payload.audio;
+        if (args[1].endsWith('/revisions/timeline-alpha-a')) {
+          body.payload.tracks = [{ id: 'video', kind: 'visual' }];
+          body.payload.clips = body.payload.clips.filter((clip: Record<string, unknown>) => clip.track !== 'audio');
+        }
+        return { ...response, body: json(body) };
+      },
+    });
+    const raw = await provider.shotComposition.load({ projectId: PROJECT_ID, parentDocumentId: TIMELINE_ID });
+    const composition = createShotCompositionAdapter({ load: async () => raw }).prepare(raw);
+    expect(composition.occurrences.find((occurrence) => occurrence.shotId === 'shot-alpha')?.revision.audio).toBeUndefined();
+    expect(projectCanonicalComposition(composition).config.clips.some((clip) => clip.track === 'audio')).toBe(false);
   });
 
   it('publishes the complete Runtime body and reloads the committed graph', async () => {
@@ -401,17 +524,18 @@ describe('Runtime shot-composition port', () => {
     expect(publication).toMatchObject({ expected_head: null });
   });
 
-  it('falls back to the legacy shot timeline scope for immutable internal revisions', async () => {
-    const fixtureRuntime = fixtureTransport({ legacyInternalScope: true });
+  it('fails closed when the canonical immutable internal revision is unavailable', async () => {
+    const fixtureRuntime = fixtureTransport({ internalRevisionUnavailable: true });
     const provider = new RuntimeDataProvider({ projectId: PROJECT_ID, transport: fixtureRuntime.transport });
 
-    await provider.shotComposition.load({ projectId: PROJECT_ID, parentDocumentId: TIMELINE_ID });
+    await expect(provider.shotComposition.load({ projectId: PROJECT_ID, parentDocumentId: TIMELINE_ID }))
+      .rejects.toThrow(/canonical internal timeline revision .* unavailable/);
 
     const internalReads = fixtureRuntime.requests
       .map(({ method, path }) => `${method} ${path}`)
       .filter((value) => value.includes('/revisions/'));
     expect(internalReads.some((value) => value.includes(`/timelines/${TIMELINE_ID}/revisions/`))).toBe(true);
-    expect(internalReads.some((value) => value.includes('/timelines/shot%3A'))).toBe(true);
+    expect(internalReads.some((value) => value.includes('/timelines/shot%3A'))).toBe(false);
     expect(fixtureRuntime.requests.some(({ path }) => path.includes('/documents/') || path.startsWith('/v1/timelines/'))).toBe(false);
   });
 

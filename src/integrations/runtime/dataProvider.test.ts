@@ -18,6 +18,7 @@ function json(value: unknown): Uint8Array {
 
 function runtimeFixture(options: { mediaEtag?: string } = {}) {
   let documentVersion = 1;
+  let headRevisionId = 'parent-r1';
   let config = createDefaultTimelineConfig();
   let registry = { assets: {} };
   const mediaEtag = options.mediaEtag ?? `"${MANAGED_OBJECT_DIGEST}"`;
@@ -84,36 +85,80 @@ function runtimeFixture(options: { mediaEtag?: string } = {}) {
         body: method === 'HEAD' ? new Uint8Array() : new Uint8Array([1, 2, 3, 4]),
       };
     }
-    if (path === `/v1/projects/${PROJECT_ID}/timelines/${TIMELINE_ID}`) {
-      return { status: 200, headers: {}, body: json({ timeline_id: TIMELINE_ID, project_id: PROJECT_ID, version: documentVersion, config_version: documentVersion, config, registry }) };
+    if (method === 'POST' && path === `/v1/projects/${PROJECT_ID}/timelines/${TIMELINE_ID}/inspect`) {
+      return {
+        status: 200,
+        headers: {},
+        body: json({
+          schema: 'runtime.timeline.declared_inputs/v1',
+          evidence_kind: 'declared_inputs',
+          render_requested: false,
+          representation: 'canonical_head',
+          authority: 'runtime_parent_composition',
+          project_id: PROJECT_ID,
+          timeline_id: TIMELINE_ID,
+          revision_id: headRevisionId,
+          head_revision_id: headRevisionId,
+          is_current_head: true,
+          parent_content_digest: `sha256:${'1'.repeat(64)}`,
+          head_content_digest: `sha256:${'1'.repeat(64)}`,
+          snapshot_digest: `sha256:${'2'.repeat(64)}`,
+          selectors: {},
+          selection_status: 'selected',
+          target_count: 0,
+          occurrence_count: 0,
+          parent_clip_count: 0,
+          parent_clip_target_count: 0,
+          selected_clip_count: 0,
+          selected: [],
+          selected_parent_clips: [],
+          next_cursor: null,
+        }),
+      };
     }
-    if (path === `/v1/projects/${PROJECT_ID}/documents/timeline%3A${TIMELINE_ID}` && method === 'GET') {
-      return { status: 200, headers: {}, body: json({ document_id: `timeline:${TIMELINE_ID}`, project_id: PROJECT_ID, kind: 'timeline', content: { config, registry }, version: documentVersion, created_at: '2026-09-11T00:00:00Z', updated_at: '2026-09-11T00:00:00Z' }) };
+    if (method === 'GET' && path === `/v1/projects/${PROJECT_ID}/timelines/${TIMELINE_ID}/composition-revisions/${headRevisionId}`) {
+      return {
+        status: 200,
+        headers: {},
+        body: json({
+          revision_id: headRevisionId,
+          project_id: PROJECT_ID,
+          timeline_id: TIMELINE_ID,
+          content_digest: `sha256:${'1'.repeat(64)}`,
+          payload: { config, registry, clips: [], occurrences: [] },
+          created_at: '2026-09-11T00:00:00Z',
+        }),
+      };
     }
-    if (path === `/v1/projects/${PROJECT_ID}/documents/timeline%3A${TIMELINE_ID}` && method === 'PATCH') {
-      const request = parsedBody as { expected_version: number; content: { config: typeof config; registry: typeof registry } };
-      if (request.expected_version !== documentVersion) {
-        return { status: 409, headers: {}, body: json({ code: 'conflict', message: 'version conflict', details: { expected: request.expected_version, actual: documentVersion } }) };
+    if (method === 'POST' && path === `/v1/projects/${PROJECT_ID}/timelines/${TIMELINE_ID}/composition-revisions`) {
+      const request = parsedBody as {
+        expected_head: string | null;
+        parent_revision_id: string;
+        parent_composition: { config: typeof config; registry: typeof registry };
+      };
+      if (request.expected_head !== headRevisionId) {
+        return { status: 409, headers: {}, body: json({ code: 'conflict', message: 'head conflict', details: { actual_head: headRevisionId } }) };
       }
       documentVersion += 1;
-      config = request.content.config;
-      registry = request.content.registry;
+      headRevisionId = request.parent_revision_id;
+      config = request.parent_composition.config;
+      registry = request.parent_composition.registry;
       return {
         status: 200,
         headers: {},
         body: json({
           data: {
-            document_id: `timeline:${TIMELINE_ID}`,
             project_id: PROJECT_ID,
-            kind: 'timeline',
-            content: request.content,
-            version: documentVersion,
-            created_at: '2026-09-11T00:00:00Z',
-            updated_at: '2026-09-11T00:00:00Z',
+            timeline_id: TIMELINE_ID,
+            revision_id: headRevisionId,
+            parent_revision_id: headRevisionId,
+            new_head: headRevisionId,
+            content_digest: `sha256:${'1'.repeat(64)}`,
+            payload: { config, registry, clips: [], occurrences: [] },
           },
           receipt: {
             receipt_id: `receipt-${documentVersion}`,
-            command_kind: 'document.update',
+            command_kind: 'parent_composition.publish',
             idempotency_key: headers['Idempotency-Key'],
             request_hash: 'hash',
             project_id: PROJECT_ID,
@@ -124,6 +169,12 @@ function runtimeFixture(options: { mediaEtag?: string } = {}) {
           },
         }),
       };
+    }
+    if (path === `/v1/projects/${PROJECT_ID}/timelines/${TIMELINE_ID}`) {
+      throw new Error('retired mutable timeline GET must not be used');
+    }
+    if (path.includes('/documents/timeline%3A')) {
+      throw new Error('retired mutable timeline document route must not be used');
     }
     throw new Error(`unexpected ${method} ${path}`);
   };

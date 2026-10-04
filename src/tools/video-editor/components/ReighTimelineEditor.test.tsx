@@ -3,6 +3,7 @@ import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ReighTimelineEditor } from '@/tools/video-editor/components/ReighTimelineEditor';
+import { getCanonicalLoadState } from '@/tools/video-editor/components/ReighTimelineEditor';
 import {
   createTimelineStore,
   TimelineStoreProvider,
@@ -422,5 +423,48 @@ describe('ReighTimelineEditor canonical shot opening', () => {
     expect(screen.getByRole('dialog')).toBeInTheDocument();
     expect(screen.getByText('Edit shot-ordinary')).toBeInTheDocument();
     expect(container.querySelector('[data-action-id="shot-group-label"]')).toBeNull();
+  });
+});
+
+describe('ReighTimelineEditor canonical read state', () => {
+  it('keeps an empty successful composition on the canonical route', () => {
+    expect(getCanonicalLoadState({
+      canonicalRoute: true,
+      isLoading: false,
+      hasComposition: true,
+      error: null,
+    })).toBe('current');
+    expect(getCanonicalLoadState({
+      canonicalRoute: true,
+      isLoading: false,
+      hasComposition: false,
+      error: null,
+    })).toBe('loading');
+  });
+
+  it('distinguishes failed initial reads, stale pinned heads, and explicit legacy mode', () => {
+    const error = new Error('temporary read failure');
+    expect(getCanonicalLoadState({ canonicalRoute: true, isLoading: false, hasComposition: false, error })).toBe('error');
+    expect(getCanonicalLoadState({ canonicalRoute: true, isLoading: false, hasComposition: true, error })).toBe('stale');
+    expect(getCanonicalLoadState({ canonicalRoute: false, isLoading: false, hasComposition: false, error })).toBe('legacy');
+  });
+
+  it('keeps a failed canonical read visible and retries that route without legacy substitution', () => {
+    const refetchShots = vi.fn();
+    renderEditor({ runtime: {
+      shots: {
+        shotComposition: {},
+        canonicalOccurrences: [],
+        canonicalComposition: null,
+        canonicalCompositionError: new Error('Runtime unavailable'),
+        refetchShots,
+      },
+    } });
+
+    expect(screen.getByRole('alert')).toHaveAttribute('data-canonical-load-state', 'error');
+    expect(screen.getByText(/Legacy shot data was not substituted/)).toBeInTheDocument();
+    expect(screen.queryByText(/explicit legacy shot view/)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Retry canonical read' }));
+    expect(refetchShots).toHaveBeenCalledTimes(1);
   });
 });

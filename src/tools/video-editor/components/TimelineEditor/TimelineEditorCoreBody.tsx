@@ -27,7 +27,7 @@ import {
 } from '@/tools/video-editor/hooks/timelineStore.ts';
 import { useClipDrag } from '@/tools/video-editor/hooks/useClipDrag.ts';
 import { useMarqueeSelect } from '@/tools/video-editor/hooks/useMarqueeSelect.ts';
-import { projectCanonicalShotRows, type ShotGroup } from '@/tools/video-editor/hooks/useShotGroups.ts';
+import { maxShotGroupEndSeconds, projectCanonicalShotRows, type ShotGroup } from '@/tools/video-editor/hooks/useShotGroups.ts';
 import type { CanonicalShotOccurrence } from '@/tools/video-editor/data/shotCompositionAdapter.ts';
 import type { EditorVariantPicker, TimelineCoreHostObservations } from '@/tools/video-editor/runtime/editorHostObservations.ts';
 import { useTimelineScale } from '@/tools/video-editor/hooks/useTimelineScale.ts';
@@ -461,13 +461,14 @@ function TimelineEditorCoreComponent({
   const timelineExtent = useMemo(() => computeTimelineExtent({
     maxEndSeconds: Math.max(
       maxClipEndSeconds(renderRows),
+      maxShotGroupEndSeconds(shotGroups),
       durationLimitSeconds ?? 0,
       hardDurationSeconds ?? 0,
     ),
     scale,
     scaleWidth,
     startLeft: TIMELINE_START_LEFT,
-  }), [durationLimitSeconds, hardDurationSeconds, renderRows, scale, scaleWidth]);
+  }), [durationLimitSeconds, hardDurationSeconds, renderRows, scale, scaleWidth, shotGroups]);
 
   const thumbnailMap = useMemo<Record<string, string>>(() => {
     if (!resolvedConfig) {

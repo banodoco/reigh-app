@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   getConfigSignature,
+  getClipDurationInFrames,
   getClipTimelineDuration,
   getSanitizedAssetFile,
   getSanitizedMediaSrc,
@@ -8,6 +9,7 @@ import {
   getSanitizedPlaybackRate,
   getStableConfigSignature,
   getSanitizedVolume,
+  getTimelineDurationInFrames,
   resolveTimelineConfig,
   type StableTimelineConfigSignatureInput,
   type TimelineConfigSignatureInput,
@@ -24,6 +26,28 @@ import {
 } from '@/tools/video-editor/lib/timeline-domain';
 
 describe('config-utils media sanitizers', () => {
+  it.each([
+    ['hold-plain', { id: 'hold-plain', at: 0.125, track: 'V1', hold: 0.5, speed: 1 }, 0.5, 15],
+    ['duration-ms-fast', { id: 'duration-ms-fast', at: 0.001, track: 'V1', hold: 0.017, speed: 2 }, 0.0085, 1],
+    ['trim-slow', { id: 'trim-slow', at: 0.1, track: 'V1', from: 2, to: 3, speed: 0.5 }, 2, 60],
+    ['trim-fast', { id: 'trim-fast', at: 0.1, track: 'V1', from: 2, to: 6, speed: 2 }, 2, 60],
+    ['hold-fast-clipped', { id: 'hold-fast-clipped', at: 0.25, track: 'V1', hold: 1.5, speed: 2 }, 0.75, 23],
+    ['hold-slow-clipped', { id: 'hold-slow-clipped', at: 0, track: 'V1', hold: 0.625, speed: 0.5 }, 1.25, 38],
+  ] as const)('matches shared visible-time vector %s', (_vectorId, clip, expectedDuration, expectedDurationFrames) => {
+    expect(getClipTimelineDuration(clip)).toBe(expectedDuration);
+    expect(getClipDurationInFrames(clip, 30)).toBe(expectedDurationFrames);
+  });
+
+  it('uses renderer-owned independent start/duration rounding for the final boundary', () => {
+    const config = {
+      output: { file: 'out.mp4', resolution: '1920x1080', fps: 30 },
+      tracks: [{ id: 'V1', kind: 'visual' as const, label: 'V1' }],
+      clips: [{ id: 'half-frame', at: 0.25, track: 'V1', hold: 1.5, speed: 2 }],
+      registry: {},
+    };
+    expect(getTimelineDurationInFrames(config, 30)).toBe(31);
+  });
+
   it('omits trimAfter when source out is not greater than source in', () => {
     expect(getSanitizedMediaTrimProps({ from: 4, to: 4 }, 30)).toEqual({ trimBefore: 120 });
     expect(getSanitizedMediaTrimProps({ from: 4, to: 3 }, 30)).toEqual({ trimBefore: 120 });

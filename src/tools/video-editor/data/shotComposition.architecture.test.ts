@@ -33,6 +33,6 @@ describe('canonical shot-composition architecture boundary', () => {
     expect(host).not.toMatch(/\buseShots\s*\(/);
     expect(host).toContain('selectCanonicalShotViewModels');
     expect(host).toContain('ShotCompositionUnavailableError');
-    expect(host).toContain('canonicalOccurrences: scopedComposition?.occurrences ?? []');
+    expect(host).toContain('canonicalOccurrences: activeCanonicalOccurrences');
   });
 });

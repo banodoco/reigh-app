@@ -153,6 +153,7 @@ function ShotTimelineEditorSurface({
   const { previewRef, playerContainerRef, currentTime, onPreviewTimeUpdate } = useTimelinePlaybackContext();
   const editorData = useTimelineEditorData();
   const activeConfig = editorData.resolvedConfig ?? config;
+  const [showClipDetail, setShowClipDetail] = useState(() => config.clips.length <= 24);
   // Resolved config is the visual/rendering model and may omit timeline-level
   // metadata. Prefer the persisted config actually consumed by this mounted
   // query; only fall back to that same editor query's resolved config when a
@@ -227,6 +228,23 @@ function ShotTimelineEditorSurface({
     return getTimelineDurationInFrames(activeConfig, activeConfig.output.fps) / activeConfig.output.fps;
   }, [activeConfig]);
 
+  const saveStatus = chrome.isConflictExhausted
+    ? 'conflict'
+    : chrome.watchdogTripped
+      ? 'error'
+      : chrome.saveStatus;
+  const saveStatusLabel = saveStatus === 'saved'
+    ? 'Saved to canonical timeline'
+    : saveStatus === 'saving'
+      ? 'Saving canonical timeline…'
+      : saveStatus === 'retrying'
+        ? 'Retrying canonical save…'
+        : saveStatus === 'conflict'
+          ? 'Save blocked: timeline changed elsewhere'
+          : saveStatus === 'error'
+            ? 'Save needs attention'
+            : 'Unsaved changes — saving shortly';
+
   const previewConfig = useMemo(
     () => boundShotTimelinePreviewConfig(activeConfig, hardDurationSeconds),
     [activeConfig, hardDurationSeconds],
@@ -245,9 +263,18 @@ function ShotTimelineEditorSurface({
         </div>
       ) : null}
       <div className="flex justify-end">
-        <span className="shrink-0 text-right font-mono text-[11px] text-muted-foreground">
-          {activeConfig.output.fps} fps · shot ends {durationLimitSeconds.toFixed(2)}s · {freeSeconds === undefined ? 'no free-space limit' : `${freeSeconds.toFixed(2)}s free`} · {hardDurationSeconds === undefined ? 'no hard stop' : `blocked at ${hardDurationSeconds.toFixed(2)}s`}
-        </span>
+        <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1 text-right font-mono text-[11px] text-muted-foreground">
+          <span
+            role={saveStatus === 'saved' ? undefined : 'status'}
+            data-shot-timeline-save-status={saveStatus}
+            className={saveStatus === 'saved' ? 'text-emerald-600 dark:text-emerald-400' : undefined}
+          >
+            {saveStatusLabel}
+          </span>
+          <span>
+            {activeConfig.output.fps} fps · shot ends {durationLimitSeconds.toFixed(2)}s · {freeSeconds === undefined ? 'no free-space limit' : `${freeSeconds.toFixed(2)}s free`} · {hardDurationSeconds === undefined ? 'no hard stop' : `blocked at ${hardDurationSeconds.toFixed(2)}s`}
+          </span>
+        </div>
       </div>
       <div className="overflow-hidden rounded-lg border border-border">
         <div className="relative mx-auto aspect-video min-h-[220px] w-full max-w-[640px]">
@@ -262,16 +289,43 @@ function ShotTimelineEditorSurface({
         </div>
       </div>
       <div
-        className="h-44 min-h-36 overflow-hidden rounded-lg"
+        className="overflow-hidden rounded-lg"
         data-shot-timeline-canvas="true"
         data-shot-timeline-clip-count={activeConfig.clips.length}
         data-shot-timeline-tracks={activeConfig.tracks.map((track) => `${track.id}:${track.kind}`).join('|')}
         data-shot-timeline-clip-assets={activeConfig.clips.map((clip) => `${clip.id}:${clip.track}:${clip.at}:${clip.from ?? 'no-from'}:${clip.to ?? 'no-to'}:${clip.hold ?? 'no-hold'}:${clip.clipType ?? 'media'}:${clip.asset ? 'asset' : 'no-asset'}:${clip.assetEntry?.type ?? 'unknown'}`).join('|')}
       >
-        <TimelineEditorCore
-          durationLimitSeconds={durationLimitSeconds}
-          hardDurationSeconds={hardDurationSeconds}
-        />
+        {activeConfig.clips.length > 24 ? (
+          <div className="flex items-center justify-between gap-3 border-b border-border bg-muted/20 px-3 py-2 text-xs">
+            <span className="text-muted-foreground">
+              One canonical shot · {activeConfig.clips.length} internal render clips
+            </span>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              aria-expanded={showClipDetail}
+              onClick={() => setShowClipDetail((visible) => !visible)}
+            >
+              {showClipDetail ? 'Hide frame detail' : 'Edit frame detail'}
+            </Button>
+          </div>
+        ) : null}
+        {showClipDetail ? (
+          <div className="h-44 min-h-36 overflow-hidden">
+            <TimelineEditorCore
+              durationLimitSeconds={durationLimitSeconds}
+              hardDurationSeconds={hardDurationSeconds}
+            />
+          </div>
+        ) : (
+          <div
+            className="flex min-h-24 items-center justify-center px-4 text-center text-xs text-muted-foreground"
+            data-shot-timeline-overview="true"
+          >
+            This shot is shown as one timeline item. Expand frame detail only when you need to edit its internal composition.
+          </div>
+        )}
       </div>
       <div className="sr-only">Shot timeline duration {durationSeconds.toFixed(2)} seconds.</div>
     </div>

@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import fixture from './shotComposition.fixture.json';
 import {
+  canonicalSourceFrameRequest,
   createShotCompositionAdapter,
   ShotCompositionUnavailableError,
 } from './shotCompositionAdapter.ts';
@@ -115,5 +116,31 @@ describe('shot-composition product adapter', () => {
       expectedHeadRevisionId: 'timeline-rev-2',
       graph: fixture,
     })).rejects.toBeInstanceOf(ShotCompositionUnavailableError);
+  });
+
+  it('maps the canonical midpoint to one source-frame key with trim and speed applied once', () => {
+    const graph = JSON.parse(JSON.stringify(fixture)) as Record<string, any>;
+    const revision = graph.shot_revisions.find((item: Record<string, any>) => item.shot_id === 'shot-alpha' && item.revision_id === 'rev-a')!;
+    revision.internal_timeline_revision.timeline = {
+      tracks: [{ id: 'video', kind: 'visual' }],
+      clips: [
+        { id: 'gap', clip_type: 'gap', track: 'video', at_ms: 0, duration_ms: 1000 },
+        { id: 'video-clip', clip_type: 'media', track: 'video', at_ms: 2000, duration_ms: 4000, from: 3, speed: 2, asset_id: 'video-source' },
+      ],
+    };
+    revision.assets = [{
+      asset_id: 'video-source',
+      object_id: `sha256:${'a'.repeat(64)}`,
+      media_type: 'video/mp4',
+    }];
+    graph.occurrences[0].duration_ms = 7000;
+
+    const occurrence = createShotCompositionAdapter({ load: vi.fn() }).prepare(graph).occurrences[0]!;
+    expect(canonicalSourceFrameRequest(occurrence)).toMatchObject({
+      projectId: 'project-001',
+      sourceObjectId: `sha256:${'a'.repeat(64)}`,
+      sourceTimeSeconds: 6,
+      recipeVersion: 1,
+    });
   });
 });

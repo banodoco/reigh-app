@@ -16,6 +16,8 @@ import {
 } from '@/tools/travel-between-images/settings';
 
 export interface ShotEditorLayoutProps {
+  /** Do not mount legacy image/generation controls for canonical shot timelines. */
+  canonicalOnly?: boolean;
   contextValue: ShotSettingsContextValue;
   header: HeaderSectionCallbacks & HeaderSectionLayout;
 
@@ -89,6 +91,7 @@ export interface ShotEditorLayoutProps {
 }
 
 export const ShotEditorLayout: React.FC<ShotEditorLayoutProps> = ({
+  canonicalOnly = false,
   contextValue,
   header,
   finalVideo,
@@ -125,83 +128,87 @@ export const ShotEditorLayout: React.FC<ShotEditorLayoutProps> = ({
           }}
         />
 
-        <div ref={finalVideo.videoGalleryRef} className="flex flex-col gap-4">
-          <fieldset disabled={Boolean(finalVideo.readOnly)} className={finalVideo.readOnly ? 'opacity-70' : undefined}>
-            <FinalVideoSection
-            shotId={finalVideo.selectedShotId}
-            projectId={finalVideo.projectId}
-            projectAspectRatio={finalVideo.effectiveAspectRatio}
-            onApplySettingsFromTask={finalVideo.onApplySettingsFromTask}
-            onJoinSegmentsClick={finalVideo.onJoinSegmentsClick}
-            selectedParentId={finalVideo.selectedOutputId}
-            onSelectedParentChange={finalVideo.onSelectedOutputChange}
-            parentGenerations={finalVideo.parentGenerations.length > 0 ? finalVideo.parentGenerations : finalVideo.initialParentGenerations}
-            segmentProgress={finalVideo.segmentProgress}
-            isParentLoading={finalVideo.isSegmentOutputsLoading && finalVideo.initialParentGenerations.length === 0}
-            getFinalVideoCount={finalVideo.getFinalVideoCount}
-            onDelete={finalVideo.onDeleteFinalVideo}
-            isDeleting={finalVideo.isClearingFinalVideo}
+        {!canonicalOnly ? (
+          <>
+            <div ref={finalVideo.videoGalleryRef} className="flex flex-col gap-4">
+              <fieldset disabled={Boolean(finalVideo.readOnly)} className={finalVideo.readOnly ? 'opacity-70' : undefined}>
+                <FinalVideoSection
+                shotId={finalVideo.selectedShotId}
+                projectId={finalVideo.projectId}
+                projectAspectRatio={finalVideo.effectiveAspectRatio}
+                onApplySettingsFromTask={finalVideo.onApplySettingsFromTask}
+                onJoinSegmentsClick={finalVideo.onJoinSegmentsClick}
+                selectedParentId={finalVideo.selectedOutputId}
+                onSelectedParentChange={finalVideo.onSelectedOutputChange}
+                parentGenerations={finalVideo.parentGenerations.length > 0 ? finalVideo.parentGenerations : finalVideo.initialParentGenerations}
+                segmentProgress={finalVideo.segmentProgress}
+                isParentLoading={finalVideo.isSegmentOutputsLoading && finalVideo.initialParentGenerations.length === 0}
+                getFinalVideoCount={finalVideo.getFinalVideoCount}
+                onDelete={finalVideo.onDeleteFinalVideo}
+                isDeleting={finalVideo.isClearingFinalVideo}
+                />
+              </fieldset>
+            </div>
+
+            <div className="flex flex-col gap-4">
+              <TimelineSection
+                readOnly={timeline.readOnly}
+                timelineSectionRef={timeline.timelineSectionRef}
+                isModeReady={timeline.isModeReady}
+                settingsError={timeline.settingsError}
+                isMobile={timeline.isPhone}
+                generationMode={timeline.generationMode}
+                onGenerationModeChange={timeline.onGenerationModeChange}
+                batchVideoFrames={timeline.batchVideoFrames}
+                onBatchVideoFramesChange={timeline.onBatchVideoFramesChange}
+                columns={timeline.aspectAdjustedColumns}
+                pendingPositions={timeline.pendingFramePositions}
+                onPendingPositionApplied={timeline.onPendingPositionApplied}
+                onSelectionChange={timeline.onSelectionChange}
+                defaultPrompt={timeline.prompt}
+                onDefaultPromptChange={timeline.onPromptChange}
+                defaultNegativePrompt={timeline.negativePrompt}
+                onDefaultNegativePromptChange={timeline.onNegativePromptChange}
+                maxFrameLimit={timelinePolicy.continuation.enabled
+                  ? timelinePolicy.continuation.maxOutputFrames
+                  : getModelSpec(timeline.selectedModel).maxFrames}
+                smoothContinuations={timeline.smoothContinuations}
+                selectedOutputId={finalVideo.selectedOutputId}
+                onSelectedOutputChange={finalVideo.onSelectedOutputChange}
+                onDragStateChange={timeline.onDragStateChange}
+                cachedHasStructureVideo={timeline.getHasStructureVideo?.(finalVideo.selectedShotId) ?? false}
+              />
+
+              <GenerationSection
+                readOnly={generation.readOnly}
+                refs={{
+                  generateVideosCardRef: finalVideo.generateVideosCardRef,
+                  ctaContainerRef: generation.ctaContainerRef,
+                  swapButtonRef: generation.swapButtonRef,
+                  joinSegmentsSectionRef: generation.joinSegmentsSectionRef,
+                }}
+                cta={{
+                  parentVariantName: generation.parentVariantName,
+                  parentOnVariantNameChange: generation.parentOnVariantNameChange,
+                  parentIsGeneratingVideo: generation.parentIsGeneratingVideo,
+                  parentVideoJustQueued: generation.parentVideoJustQueued,
+                }}
+              />
+            </div>
+
+            <ModalsSection
+              isLoraModalOpen={modals.isLoraModalOpen}
+              onLoraModalClose={modals.onLoraModalClose}
+              onAddLora={modals.onAddLora}
+              onRemoveLora={modals.onRemoveLora}
+              onUpdateLoraStrength={modals.onUpdateLoraStrength}
+              selectedLoras={modals.selectedLoras}
+              selectedModel={modals.selectedModel}
+              isSettingsModalOpen={modals.isSettingsModalOpen}
+              onSettingsModalOpenChange={modals.onSettingsModalOpenChange}
             />
-          </fieldset>
-        </div>
-
-        <div className="flex flex-col gap-4">
-          <TimelineSection
-            readOnly={timeline.readOnly}
-            timelineSectionRef={timeline.timelineSectionRef}
-            isModeReady={timeline.isModeReady}
-            settingsError={timeline.settingsError}
-            isMobile={timeline.isPhone}
-            generationMode={timeline.generationMode}
-            onGenerationModeChange={timeline.onGenerationModeChange}
-            batchVideoFrames={timeline.batchVideoFrames}
-            onBatchVideoFramesChange={timeline.onBatchVideoFramesChange}
-            columns={timeline.aspectAdjustedColumns}
-            pendingPositions={timeline.pendingFramePositions}
-            onPendingPositionApplied={timeline.onPendingPositionApplied}
-            onSelectionChange={timeline.onSelectionChange}
-            defaultPrompt={timeline.prompt}
-            onDefaultPromptChange={timeline.onPromptChange}
-            defaultNegativePrompt={timeline.negativePrompt}
-            onDefaultNegativePromptChange={timeline.onNegativePromptChange}
-            maxFrameLimit={timelinePolicy.continuation.enabled
-              ? timelinePolicy.continuation.maxOutputFrames
-              : getModelSpec(timeline.selectedModel).maxFrames}
-            smoothContinuations={timeline.smoothContinuations}
-            selectedOutputId={finalVideo.selectedOutputId}
-            onSelectedOutputChange={finalVideo.onSelectedOutputChange}
-            onDragStateChange={timeline.onDragStateChange}
-            cachedHasStructureVideo={timeline.getHasStructureVideo?.(finalVideo.selectedShotId) ?? false}
-          />
-
-          <GenerationSection
-            readOnly={generation.readOnly}
-            refs={{
-              generateVideosCardRef: finalVideo.generateVideosCardRef,
-              ctaContainerRef: generation.ctaContainerRef,
-              swapButtonRef: generation.swapButtonRef,
-              joinSegmentsSectionRef: generation.joinSegmentsSectionRef,
-            }}
-            cta={{
-              parentVariantName: generation.parentVariantName,
-              parentOnVariantNameChange: generation.parentOnVariantNameChange,
-              parentIsGeneratingVideo: generation.parentIsGeneratingVideo,
-              parentVideoJustQueued: generation.parentVideoJustQueued,
-            }}
-          />
-        </div>
-
-        <ModalsSection
-          isLoraModalOpen={modals.isLoraModalOpen}
-          onLoraModalClose={modals.onLoraModalClose}
-          onAddLora={modals.onAddLora}
-          onRemoveLora={modals.onRemoveLora}
-          onUpdateLoraStrength={modals.onUpdateLoraStrength}
-          selectedLoras={modals.selectedLoras}
-          selectedModel={modals.selectedModel}
-          isSettingsModalOpen={modals.isSettingsModalOpen}
-          onSettingsModalOpenChange={modals.onSettingsModalOpenChange}
-        />
+          </>
+        ) : null}
       </div>
     </ShotSettingsProvider>
   );

@@ -1,4 +1,4 @@
-import { ApiError, type ByteResponse, type MediaImport } from './generated.ts';
+import { ApiError, type ByteResponse, type MediaImportOperation as MediaImport } from './generated.ts';
 import {
   ReighRuntimeClient,
   RuntimeAuthenticationError,
@@ -22,7 +22,7 @@ import type {
   TimelineConfig,
 } from '@/tools/video-editor/types/index.ts';
 import type { GenerationRow } from '@/domains/generation/types/index.ts';
-import type { Transport } from './generated.ts';
+import type { TimelineInspectionResult, Transport } from './generated.ts';
 import type {
   AssetResolveRequest,
   AssetUploadRequest,
@@ -53,6 +53,12 @@ import { recordShotTimelinePhase } from '@/tools/video-editor/lib/shot-timeline-
 
 type RuntimeRecord = Record<string, unknown>;
 
+type CanonicalTimelineState = {
+  headRevisionId: string | null;
+  parentComposition: RuntimeRecord;
+  version: number;
+};
+
 export interface RuntimeDataProviderOptions {
   projectId: string;
   baseUrl?: string;
@@ -64,9 +70,9 @@ export interface RuntimeDataProviderOptions {
 }
 
 /**
- * Reigh's first neutral-runtime provider. It owns no storage: the generated
- * WorkspaceClient is the only IO authority, and the Runtime timeline document
- * is the single versioned config/registry record.
+ * Reigh's neutral-runtime provider. It owns no storage: the generated
+ * WorkspaceClient is the only IO authority, and the Runtime's immutable
+ * parent-composition head is the editor's config/registry record.
  */
 export class RuntimeDataProvider implements DataProvider {
   readonly persistenceEnabled = true;
@@ -80,6 +86,18 @@ export class RuntimeDataProvider implements DataProvider {
   readonly refreshIntervalMs = 2_000;
   readonly apiBaseUrl: string;
   readonly shotComposition: ShotCompositionPort = {
+    getSourceFrameThumbnailUrl: async (request) => {
+      const descriptor = await this.client.getSourceFrameThumbnail(
+        request.projectId,
+        request.sourceObjectId,
+        request.sourceTimeSeconds,
+        request.recipeVersion ?? 1,
+      );
+      const objectId = descriptor && typeof descriptor.object_id === 'string'
+        ? descriptor.object_id
+        : null;
+      return objectId ? this.client.objectContentUrl(objectId) : null;
+    },
     load: async (request) => this.loadRuntimeShotComposition(request.projectId, request.parentDocumentId),
     loadAtHead: async (request) => this.loadRuntimeShotCompositionAtHead(request),
     publish: async (request) => {
@@ -87,13 +105,27 @@ export class RuntimeDataProvider implements DataProvider {
       try {
         assertGraphRequestIdentity(request.graph, request.projectId, request.parentDocumentId);
         const headReadStartedAt = import.meta.env.DEV ? performance.now() : 0;
-        const timeline = await this.client.getProjectTimeline(request.projectId, request.parentDocumentId);
+        // A null expected head is an explicit first publication, so there is
+        // no existing head to inspect. Every non-null head is still checked
+        // through the canonical inspection contract before publishing.
+        const inspection = request.expectedHeadRevisionId === null
+          ? null
+          : await this.inspectCanonicalTimelineHead(request.projectId, request.parentDocumentId);
         this.logShotTimelineLatency('runtime-head-read', headReadStartedAt, request.timingTraceId);
-        assertRuntimeIdentity(timeline, request.projectId, request.parentDocumentId, 'timeline');
         // Do not reject a retry merely because the mutable head has advanced:
         // Runtime checks durable idempotency replay before its CAS comparison.
         // A new key still receives the Runtime's explicit stale-head 409.
-        nullableString(timeline.head_revision_id, 'timeline.head_revision_id');
+        if (inspection) {
+          const currentHead = nullableString(
+            inspection.head_revision_id,
+            'canonical timeline inspection.head_revision_id',
+          );
+          if (currentHead === null) {
+            throw new ShotCompositionUnavailableError(
+              `Workspace Runtime timeline ${request.parentDocumentId} has no published canonical shot-composition head`,
+            );
+          }
+        }
         const publication = await toRuntimePublication(request.graph, request.projectId, request.parentDocumentId, request.expectedHeadRevisionId);
         const idempotencyKey = request.idempotencyKey ?? await stablePublicationKey(
           request.projectId,
@@ -153,6 +185,7 @@ export class RuntimeDataProvider implements DataProvider {
   private readonly client: ReighRuntimeClient;
   private readonly onRuntimeError?: (error: RuntimeConnectorError) => void;
   private activeRegistry: AssetRegistry | null = null;
+  private readonly canonicalTimelineState = new Map<string, CanonicalTimelineState>();
 
   constructor(options: RuntimeDataProviderOptions) {
     this.projectId = options.projectId;
@@ -163,9 +196,8 @@ export class RuntimeDataProvider implements DataProvider {
 
   private async loadRuntimeShotComposition(projectId: string, timelineId: string): Promise<unknown> {
     const startedAt = import.meta.env.DEV ? performance.now() : 0;
-    const timeline = await this.client.getProjectTimeline(projectId, timelineId);
-    assertRuntimeIdentity(timeline, projectId, timelineId, 'timeline');
-    const headRevisionId = nullableString(timeline.head_revision_id, 'timeline.head_revision_id');
+    const inspection = await this.inspectCanonicalTimelineHead(projectId, timelineId);
+    const headRevisionId = nullableString(inspection.head_revision_id, 'canonical timeline inspection.head_revision_id');
     if (headRevisionId === null) {
       throw new ShotCompositionUnavailableError(
         `Workspace Runtime timeline ${timelineId} has no published canonical shot-composition head`,
@@ -174,6 +206,52 @@ export class RuntimeDataProvider implements DataProvider {
     const graph = await this.loadRuntimeShotCompositionAtHead({ projectId, parentDocumentId: timelineId, headRevisionId });
     this.logShotTimelineLatency('runtime-composition-load', startedAt);
     return graph;
+  }
+
+  /**
+   * Resolve the current immutable composition head through Runtime's typed
+   * inspection contract. The legacy timeline resource is deliberately not a
+   * head-discovery fallback: it is a mutable document and may describe a
+   * different shell than the canonical shot composition.
+   */
+  private async inspectCanonicalTimelineHead(
+    projectId: string,
+    timelineId: string,
+  ): Promise<TimelineInspectionResult> {
+    const inspection = await this.client.inspectTimeline(projectId, timelineId);
+    if (inspection.project_id !== projectId) {
+      throw new Error(
+        `Workspace Runtime canonical timeline inspection belongs to project ${String(inspection.project_id)}, not ${projectId}`,
+      );
+    }
+    if (inspection.timeline_id !== timelineId) {
+      throw new Error(
+        `Workspace Runtime canonical timeline inspection belongs to timeline ${String(inspection.timeline_id)}, not ${timelineId}`,
+      );
+    }
+    if (inspection.representation !== 'canonical_head') {
+      throw new Error(
+        `Workspace Runtime canonical timeline inspection returned ${String(inspection.representation)} instead of canonical_head`,
+      );
+    }
+    if (inspection.authority !== 'runtime_parent_composition') {
+      throw new Error(
+        `Workspace Runtime canonical timeline inspection returned authority ${String(inspection.authority)}`,
+      );
+    }
+    if (inspection.is_current_head !== true) {
+      throw new Error('Workspace Runtime canonical timeline inspection is not the current head');
+    }
+    const headRevisionId = nullableString(
+      inspection.head_revision_id,
+      'canonical timeline inspection.head_revision_id',
+    );
+    if (headRevisionId !== null && inspection.revision_id !== headRevisionId) {
+      throw new Error(
+        `Workspace Runtime canonical timeline inspection revision ${inspection.revision_id} does not match head ${headRevisionId}`,
+      );
+    }
+    return inspection;
   }
 
   private logShotTimelineLatency(phase: string, startedAt: number, traceId?: string): void {
@@ -205,26 +283,23 @@ export class RuntimeDataProvider implements DataProvider {
       assertRevisionIdentity(shot, revisionId, 'shot revision');
       if (shot.shot_id !== shotId) throw new Error(`Runtime shot revision identity mismatch: requested ${shotId}, got ${String(shot.shot_id)}`);
       const internalRevisionId = requiredString(shot.internal_timeline_revision_id, `shot revision ${revisionId}.internal_timeline_revision_id`);
-      const candidateScopes = [
-        typeof shot.timeline_id === 'string' && shot.timeline_id.length > 0 ? shot.timeline_id : undefined,
-        timelineId,
-        `shot:${shotId}`,
-      ].filter((scope, index, scopes): scope is string => Boolean(scope) && scopes.indexOf(scope) === index);
-      let internalTimelineScope: string | undefined;
-      let internal: RuntimeRecord | undefined;
-      let lastNotFound: ApiError | undefined;
-      for (const candidateScope of candidateScopes) {
-        try {
-          internal = await this.client.getProjectTimelineRevision(projectId, candidateScope, internalRevisionId);
-          internalTimelineScope = candidateScope;
-          break;
-        } catch (error) {
-          if (!(error instanceof ApiError) || error.status !== 404) throw error;
-          lastNotFound = error;
+      // The shot revision may carry the canonical immutable timeline scope;
+      // otherwise the parent timeline is the only admitted scope. A missing
+      // revision is a hard availability failure. Do not probe synthetic
+      // `shot:<id>` scopes, which can revive the retired child-timeline path.
+      const internalTimelineScope = typeof shot.timeline_id === 'string' && shot.timeline_id.length > 0
+        ? shot.timeline_id
+        : timelineId;
+      let internal: RuntimeRecord;
+      try {
+        internal = await this.client.getProjectTimelineRevision(projectId, internalTimelineScope, internalRevisionId);
+      } catch (error) {
+        if (error instanceof ApiError && error.status === 404) {
+          throw new ShotCompositionUnavailableError(
+            `Workspace Runtime canonical internal timeline revision ${internalRevisionId} is unavailable at scope ${internalTimelineScope}`,
+          );
         }
-      }
-      if (!internal || !internalTimelineScope) {
-        throw lastNotFound ?? new Error(`Workspace Runtime internal timeline revision ${internalRevisionId} was not found`);
+        throw error;
       }
       assertRuntimeIdentity(internal, projectId, internalTimelineScope, 'internal timeline revision');
       assertRevisionIdentity(internal, internalRevisionId, 'internal timeline revision');
@@ -310,26 +385,73 @@ export class RuntimeDataProvider implements DataProvider {
     bundle?: TimelineBundleEnvelope | null,
   ): Promise<number> {
     if (bundle !== undefined && bundle !== null) parseTimelineBundle(bundle);
-    const current = await this.readTimeline(timelineId);
-    const nextRegistry = registry ?? normalizeRegistry(current.registry);
+    let current = this.canonicalTimelineState.get(timelineId);
+    if (!current) {
+      await this.readTimeline(timelineId);
+      current = this.canonicalTimelineState.get(timelineId);
+    }
+    if (!current) {
+      throw new TimelineSchemaIncompatibleError('Workspace Runtime canonical timeline state was not loaded');
+    }
+    if (expectedVersion !== current.version) {
+      throw new TimelineVersionConflictError(
+        'Workspace Runtime rejected a stale timeline version; reload to review the canonical head.',
+        expectedVersion,
+        current.version,
+      );
+    }
+    const nextRegistry = registry ?? normalizeRegistry(current.parentComposition.registry);
     const { output: _derivedOutput, ...configWithoutOutput } = config;
     const configForWire: RuntimeRecord = {
       ...configWithoutOutput,
       tracks: config.tracks ?? [],
       ...(bundle !== undefined ? { bundle } : {}),
     };
+    const parentComposition: RuntimeRecord = {
+      ...current.parentComposition,
+      config: configForWire,
+      registry: nextRegistry,
+    };
+    const idempotencyKey = await stableTimelinePublicationKey(
+      this.projectId,
+      timelineId,
+      current.headRevisionId,
+      parentComposition,
+    );
 
     try {
-      const saved = await this.client.updateTimelineDocument(
+      const saved = await this.client.publishParentComposition(
         this.projectId,
         timelineId,
-        expectedVersion,
-        configForWire,
-        nextRegistry as unknown as RuntimeRecord,
+        {
+          expected_head: current.headRevisionId,
+          parent_revision_id: idempotencyKey,
+          parent_composition: parentComposition,
+          // Existing immutable child revisions are resolved by Runtime from
+          // the parent occurrences. The editor only changes the parent
+          // config/registry, so it must not reconstruct child authority.
+          internal_timeline_revisions: [],
+          shot_revisions: [],
+        },
+        idempotencyKey,
       );
-      const savedRegistry = normalizeRegistry(saved.registry);
+      const committedHead = saved.revision_id ?? saved.parent_revision_id ?? saved.new_head;
+      if (typeof committedHead !== 'string' || committedHead.length === 0) {
+        throw new Error('Workspace Runtime publication receipt omitted its committed parent head');
+      }
+      const savedRegistry = normalizeRegistry(parentComposition.registry);
+      const nextVersion = current.version + 1;
+      this.canonicalTimelineState.set(timelineId, {
+        headRevisionId: committedHead,
+        parentComposition: {
+          ...parentComposition,
+          config: configForWire,
+          registry: savedRegistry,
+        },
+        version: nextVersion,
+      });
       this.activeRegistry = savedRegistry;
-      return runtimeVersion(saved);
+      return nextVersion;
     } catch (error) {
       throw this.toProviderError(error, timelineId, expectedVersion);
     }
@@ -506,14 +628,42 @@ export class RuntimeDataProvider implements DataProvider {
 
   private async readTimeline(timelineId: string): Promise<RuntimeRecord> {
     try {
-      const record = await this.client.getProjectTimeline(this.projectId, timelineId);
-      if (record.project_id !== undefined && record.project_id !== this.projectId) {
-        throw new Error(`Workspace Runtime timeline belongs to project ${String(record.project_id)}, not ${this.projectId}`);
+      const inspection = await this.inspectCanonicalTimelineHead(this.projectId, timelineId);
+      const headRevisionId = nullableString(
+        inspection.head_revision_id,
+        'canonical timeline inspection.head_revision_id',
+      );
+      const parentComposition = headRevisionId === null
+        ? { config: {}, registry: { assets: {} }, clips: [], occurrences: [] }
+        : await this.client.getProjectParentCompositionRevision(
+            this.projectId,
+            timelineId,
+            headRevisionId,
+          ).then((record) => {
+            assertRuntimeIdentity(record, this.projectId, timelineId, 'parent composition revision');
+            assertRevisionIdentity(record, headRevisionId, 'parent composition revision');
+            return requiredRecord(record.payload, 'parent composition revision.payload');
+          });
+      const config = asRecord(parentComposition.config);
+      if (!config) {
+        throw new TimelineSchemaIncompatibleError('Workspace Runtime canonical timeline has no config object');
       }
-      if (record.timeline_id !== undefined && record.timeline_id !== timelineId) {
-        throw new Error(`Workspace Runtime timeline identity mismatch: requested ${timelineId}, got ${String(record.timeline_id)}`);
-      }
-      return record;
+      const previous = this.canonicalTimelineState.get(timelineId);
+      const version = previous && previous.headRevisionId === headRevisionId
+        ? previous.version
+        : (previous?.version ?? 0) + 1;
+      this.canonicalTimelineState.set(timelineId, {
+        headRevisionId,
+        parentComposition,
+        version,
+      });
+      return {
+        project_id: this.projectId,
+        timeline_id: timelineId,
+        version,
+        config,
+        registry: parentComposition.registry ?? { assets: {} },
+      };
     } catch (error) {
       throw this.toProviderError(error, timelineId);
     }
@@ -830,6 +980,23 @@ async function stablePublicationKey(
   return `reigh.shot-composition.${Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('')}`;
 }
 
+async function stableTimelinePublicationKey(
+  projectId: string,
+  timelineId: string,
+  expectedHead: string | null,
+  parentComposition: RuntimeRecord,
+): Promise<string> {
+  const bytes = new TextEncoder().encode(stableJson({
+    projectId,
+    timelineId,
+    expectedHead,
+    parentComposition,
+  }));
+  const digest = await globalThis.crypto.subtle.digest('SHA-256', bytes);
+  const hex = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
+  return `reigh.editor.timeline.${hex}`;
+}
+
 function publicationChangedIdentities(result: RuntimeRecord | null, parentRevisionId: string): string[] {
   const identities = new Set<string>([parentRevisionId]);
   const manifest = asRecord(result?.dependency_manifest);
@@ -848,18 +1015,16 @@ function publicationChangedIdentities(result: RuntimeRecord | null, parentRevisi
   return [...identities];
 }
 
-function canonicalAudio(payload: RuntimeRecord, projectId: string, shotId: string, revisionId: string): RuntimeRecord {
-  const candidate = Array.isArray(payload.audio) ? payload.audio[0] : payload.audio;
-  const audio = candidate && typeof candidate === 'object' && !Array.isArray(candidate)
-    ? candidate as RuntimeRecord
-    : undefined;
+function canonicalAudio(payload: RuntimeRecord): RuntimeRecord | undefined {
+  if (payload.audio === undefined) return undefined;
+  const audio = asRecord(payload.audio);
   if (!audio) {
-    throw new Error(`Workspace Runtime shot revision ${shotId}/${revisionId} has no canonical audio record`);
+    throw new Error('Workspace Runtime shot revision has an invalid legacy audio descriptor');
   }
-  const scope = audio.scope && typeof audio.scope === 'object' && !Array.isArray(audio.scope)
-    ? audio.scope as RuntimeRecord
-    : { project_id: projectId };
-  return { ...audio, scope: { ...scope, project_id: projectId } };
+  // This is a read-only compatibility field. Child timeline clips and
+  // bindings remain playback authority; never synthesize or collapse them
+  // into one aggregate descriptor.
+  return audio;
 }
 
 const SHA256_DIGEST = /^sha256:[0-9a-f]{64}$/i;
@@ -970,6 +1135,8 @@ function runtimeGraphToContract(
     const provenance = shotPayload.provenance && typeof shotPayload.provenance === 'object' && !Array.isArray(shotPayload.provenance)
       ? shotPayload.provenance as RuntimeRecord
       : {};
+    const assets = normalizeShotRevisionAssets(projectId, String(shot.shot_id), String(shot.revision_id), shotPayload, timelinePayload);
+    const audio = canonicalAudio(shotPayload);
     return {
       ...shotPayload,
       shot_id: requiredString(shot.shot_id, 'shot revision.shot_id'),
@@ -985,10 +1152,10 @@ function runtimeGraphToContract(
         timeline: timelinePayload,
       },
       dependencies: canonicalArray(shotPayload.dependencies),
-      assets: normalizeShotRevisionAssets(projectId, String(shot.shot_id), String(shot.revision_id), shotPayload, timelinePayload),
+      assets,
       generation_inputs: canonicalArray(shotPayload.generation_inputs),
       timing,
-      audio: canonicalAudio(shotPayload, projectId, String(shot.shot_id), String(shot.revision_id)),
+      ...(audio ? { audio } : {}),
       provenance,
     };
   });
