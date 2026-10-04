@@ -56,6 +56,7 @@ import {
   shouldToggleTouchSelection,
 } from '@/tools/video-editor/lib/mobile-interaction-model';
 import { configToRows, type TimelineData } from '@/tools/video-editor/lib/timeline-data';
+import { applyPreparedMediaCommand, type PlacePreparedMediaCommand } from '@/tools/video-editor/commands/media.ts';
 import { VIDEO_EDITOR_HOST_PORT_NAMES } from '@/tools/video-editor/runtime/ports';
 import type { DataProvider } from '@/tools/video-editor/data/DataProvider';
 import { createVideoEditorEffectCatalog } from '@/tools/video-editor/lib/effect-catalog';
@@ -491,6 +492,7 @@ function buildCommandTestStore(overrides?: {
 const media = {
   id: 'generation-1',
   generation_id: 'generation-1',
+  media_id: 'media-1',
   location: 'https://example.com/image.png',
   imageUrl: 'https://example.com/image.png',
   thumbUrl: 'https://example.com/image-thumb.png',
@@ -1452,12 +1454,13 @@ describe('VideoEditorProvider', () => {
   });
 
   it('drops immediately when the mounted timeline store is available', () => {
-    const current = buildCommandTimelineData();
-    const patchRegistry = vi.fn((assetId: string, entry: Record<string, unknown>) => {
-      current.registry.assets[assetId] = entry as never;
+    let materialized = buildCommandTimelineData();
+    const applyEdit = vi.fn((...args: unknown[]) => {
+      const mutation = args[0] as { type: string; command: PlacePreparedMediaCommand };
+      if (mutation.type !== 'prepared-media') return;
+      const prepared = applyPreparedMediaCommand(materialized, mutation.command);
+      if (prepared) materialized = prepared.nextData;
     });
-    const registerAsset = vi.fn(async () => undefined);
-    const applyEdit = vi.fn();
     const queryClient = new QueryClient({
       defaultOptions: {
         queries: {
@@ -1466,9 +1469,7 @@ describe('VideoEditorProvider', () => {
       },
     });
     const store = buildCommandTestStore({
-      data: current,
-      patchRegistry,
-      registerAsset,
+      data: materialized,
       applyEdit,
     });
 
@@ -1486,31 +1487,48 @@ describe('VideoEditorProvider', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'add to video editor' }));
 
-    expect(patchRegistry).toHaveBeenCalledWith(
-      expect.any(String),
-      expect.objectContaining({
-        generationId: 'generation-1',
-        file: 'https://example.com/image.png',
-        type: 'image/png',
-      }),
-      'https://example.com/image.png',
-    );
-    expect(registerAsset).toHaveBeenCalledTimes(1);
     expect(applyEdit).toHaveBeenCalledTimes(1);
-    const insertedAssetId = patchRegistry.mock.calls[0]?.[0] as string;
     const mutation = applyEdit.mock.calls[0]?.[0] as {
       type: string;
-      rows: Array<{ actions: Array<{ start: number; end: number }> }>;
-      metaUpdates: Record<string, { asset: string }>;
+      command: PlacePreparedMediaCommand;
     };
-    expect(mutation.type).toBe('rows');
-    expect(mutation.rows[0]?.actions.at(-1)).toEqual(expect.objectContaining({
-      start: 2,
-      end: 7,
-    }));
-    expect(Object.values(mutation.metaUpdates)).toContainEqual(expect.objectContaining({
-      asset: insertedAssetId,
-    }));
+    expect(mutation.type).toBe('prepared-media');
+    expect(mutation.command.type).toBe('place-prepared-media');
+    expect(mutation.command.payload).toMatchObject({
+      at: 2,
+      selectedTrackId: 'V1',
+      asset: {
+        assetKey: expect.any(String),
+        mediaType: 'image',
+        durationSeconds: null,
+        entry: {
+          file: 'https://example.com/image.png',
+          type: 'image/png',
+          generationId: 'generation-1',
+          media_id: 'media-1',
+        },
+        source: 'registered',
+      },
+    });
+    expect(Object.hasOwn(mutation.command.payload, 'trackId')).toBe(false);
+    expect(Object.hasOwn(mutation.command.payload, 'clipSpanSeconds')).toBe(false);
+    expect(JSON.parse(JSON.stringify(mutation.command))).toStrictEqual(mutation.command);
+
+    const { asset } = mutation.command.payload;
+    expect(materialized.registry.assets[asset.assetKey]).toEqual(asset.entry);
+    const insertedClip = materialized.config.clips.find((clip) => clip.asset === asset.assetKey);
+    expect(insertedClip).toBeDefined();
+    if (!insertedClip) throw new Error('Prepared media reducer did not materialize the placed clip');
+    expect(insertedClip).toMatchObject({
+      asset: asset.assetKey,
+      at: 2,
+      track: 'V1',
+      clipType: 'hold',
+      hold: 5,
+    });
+    const insertedAction = materialized.rows.flatMap(({ actions }) => actions)
+      .find(({ id }) => id === insertedClip.id);
+    expect(insertedAction).toMatchObject({ start: 2, end: 7 });
     expect(readPendingAdds()).toEqual([]);
     expect(navigateMock).not.toHaveBeenCalled();
   });
