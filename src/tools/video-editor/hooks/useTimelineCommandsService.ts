@@ -1,3 +1,5 @@
+import { getAssetImmediateSource } from '../lib/asset-registry.ts';
+import { canonicalJsonStringify } from '../data/typed/timelineBundle.ts';
 import { useMemo } from 'react';
 import {
   addTrack as addTrackToConfig,
@@ -355,6 +357,7 @@ export function createTimelineCommands(
   store: TimelineStoreApi,
   options?: CreateTimelineCommandsOptions,
 ): TimelineCommands {
+  const registrationPlans = new WeakMap<object, Map<string, { assetId: string; entry: AssetRegistryEntry; sourceUrl?: string }>>();
   const explicitGuard = options?.managedObjectGuard;
   const getManagedObjectGuard = (): ManagedObjectGuard | null => {
     if (explicitGuard !== undefined) return explicitGuard;
@@ -926,31 +929,35 @@ export function createTimelineCommands(
 
     async registerAsset(input) {
       const state = getMountedState();
-      if (!state) {
-        return failure('editor_not_mounted', 'Timeline commands are only available in a mounted editor.');
+      if (!state) return failure('editor_not_mounted', 'Timeline commands are only available in a mounted editor.');
+      let plans = registrationPlans.get(state.data.dataRef);
+      if (!plans) {
+        plans = new Map();
+        registrationPlans.set(state.data.dataRef, plans);
       }
-
-      if ('entry' in input) {
-        state.ops.patchRegistry(input.assetId, input.entry, input.sourceUrl ?? input.entry.file);
-        return success({ assetId: input.assetId });
+      const key = canonicalJsonStringify(input);
+      let normalized = plans.get(key);
+      if (!normalized) {
+        if ('entry' in input) {
+          if (!input.assetId.trim() || !input.entry || !(input.sourceUrl ?? getAssetImmediateSource(input.entry))?.trim()) {
+            return failure('invalid_argument', 'registerAsset requires an asset identity and media source.');
+          }
+          normalized = { assetId: input.assetId, entry: structuredClone(input.entry), sourceUrl: input.sourceUrl ?? getAssetImmediateSource(input.entry) };
+        } else {
+          const plan = planGenerationAssetRegistration(input);
+          if (!plan.ok || !input.imageUrl.trim()) {
+            return failure('invalid_argument', 'registerAsset requires a non-empty media URL.');
+          }
+          normalized = { assetId: plan.assetId, entry: plan.assetEntry, sourceUrl: plan.sourceUrl };
+        }
+        plans.set(key, normalized);
       }
-
-      const plan = planGenerationAssetRegistration({
-        assetId: input.assetId,
-        generationId: input.generationId,
-        variantId: input.variantId,
-        variantType: input.variantType,
-        imageUrl: input.imageUrl,
-        thumbUrl: input.thumbUrl,
-        metadata: input.metadata,
-        assetDurationSeconds: input.assetDurationSeconds,
-      });
-      if (!plan.ok) {
-        return failure('invalid_argument', 'registerAsset requires a non-empty media URL.');
+      try {
+        await state.ops.registerAsset(normalized.assetId, normalized.entry, normalized.sourceUrl);
+        return success({ assetId: normalized.assetId });
+      } catch (cause) {
+        return failure('asset_registration_failed', cause instanceof Error ? cause.message : 'Asset registration failed.', { cause });
       }
-
-      state.ops.patchRegistry(plan.assetId, plan.assetEntry, plan.sourceUrl);
-      return success({ assetId: plan.assetId });
     },
 
     setClipParams(input) {

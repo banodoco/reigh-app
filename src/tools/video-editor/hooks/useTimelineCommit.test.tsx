@@ -563,3 +563,33 @@ describe('useTimelineCommit — registry patches preserve in-flight placements',
     expect(current.meta['uploading-test']).toMatchObject({ asset: 'uploading:clip.mp4' });
   });
 });
+
+
+describe('useTimelineCommit owned registry receipts', () => {
+  it('restores the prior entry/source while preserving unrelated edits', () => {
+    const eventBus = new TimelineEventBus();
+    const { result } = renderHook(() => useTimelineCommit({ eventBus, lastSavedSignatureRef: { current: '' }, initialData: makeVideoModeGroupData() }));
+    act(() => result.current.patchRegistry('asset-own', { file: 'prior.png' }, 'resolved-prior.png'));
+    let receipt!: ReturnType<typeof result.current.patchRegistryOwned>;
+    act(() => { receipt = result.current.patchRegistryOwned('asset-own', { file: 'new.png' }, 'resolved-new.png'); });
+    act(() => result.current.patchRegistry('unrelated', { file: 'other.png' }));
+    act(() => { expect(result.current.rollbackRegistryMutation(receipt)).toBe(true); });
+    expect(result.current.dataRef.current?.registry.assets['asset-own']).toEqual({ file: 'prior.png' });
+    expect(result.current.dataRef.current?.resolvedConfig.registry['asset-own'].src).toBe('resolved-prior.png');
+    expect(result.current.dataRef.current?.registry.assets.unrelated.file).toBe('other.png');
+    expect(result.current.rollbackRegistryMutation(receipt)).toBe(false);
+  });
+
+  it('protects newer same-key mutations and newly referenced entries', () => {
+    const { result } = renderHook(() => useTimelineCommit({ eventBus: new TimelineEventBus(), lastSavedSignatureRef: { current: '' }, initialData: makeVideoModeGroupData() }));
+    let older!: ReturnType<typeof result.current.patchRegistryOwned>;
+    let newer!: ReturnType<typeof result.current.patchRegistryOwned>;
+    act(() => { older = result.current.patchRegistryOwned('asset-own', { file: 'old.png' }); });
+    act(() => { newer = result.current.patchRegistryOwned('asset-own', { file: 'new.png' }); });
+    expect(result.current.rollbackRegistryMutation(older)).toBe(false);
+    const current = result.current.dataRef.current!;
+    act(() => result.current.commitData({ ...current, config: { ...current.config, clips: [...current.config.clips, { id: 'ref', at: 0, track: 'V1', clipType: 'media', asset: 'asset-own', from: 0, to: 1 }] } }));
+    expect(result.current.rollbackRegistryMutation(newer)).toBe(false);
+    expect(result.current.dataRef.current?.registry.assets['asset-own'].file).toBe('new.png');
+  });
+});

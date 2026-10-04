@@ -1,5 +1,8 @@
+import { canonicalJsonStringify } from '../data/typed/timelineBundle.ts';
+import type { OwnedRegistryMutation } from './useTimelineCommit.ts';
+import type { TimelineSaveTarget } from './useTimelinePersistence.ts';
 import type { QueryClient } from '@tanstack/react-query';
-import { useCallback, type MutableRefObject } from 'react';
+import { useCallback, useRef, type MutableRefObject } from 'react';
 import { assetRegistryQueryKey, timelineQueryKey } from '@/tools/video-editor/hooks/useTimeline.ts';
 import {
   prepareAssetWithResolver,
@@ -7,7 +10,7 @@ import {
   type AssetResolver,
 } from '@/tools/video-editor/data/AssetResolver.ts';
 import type { AssetRegistryEntry } from '@/tools/video-editor/types/index.ts';
-import type { TimelinePatchRegistry } from '@/tools/video-editor/hooks/timeline-state-types.ts';
+import type { TimelinePatchRegistry, RegistrationSaveOwner } from '@/tools/video-editor/hooks/timeline-state-types.ts';
 import { getAssetImmediateSource } from '@/tools/video-editor/lib/asset-registry.ts';
 import type { RegisteredParser } from '../lib/assetParserRuntime';
 import { enrichRegistryEntryWithParsers } from '../lib/mediaMetadata';
@@ -21,6 +24,7 @@ export function useAssetOperations(
   registeredParsers?: readonly RegisteredParser[],
   patchRegistry?: TimelinePatchRegistry,
   resolveAssetUrl?: (file: string) => Promise<string>,
+  registrationOwner?: RegistrationSaveOwner,
 ) {
   const prepareUpload = useCallback(async (file: File) => {
     pendingOpsRef.current += 1;
@@ -79,15 +83,93 @@ export function useAssetOperations(
 
   const prepareAssetUpload = prepareUpload;
 
-  const registerAsset = useCallback(async (assetId: string, entry: AssetRegistryEntry) => {
-    pendingOpsRef.current += 1;
-    try {
-      await commitRegistryEntry(assetId, entry);
-      await queryClient.invalidateQueries({ queryKey: assetRegistryQueryKey(timelineId) });
-    } finally {
-      pendingOpsRef.current -= 1;
+  const registrationsRef = useRef(new WeakMap<object, Map<number, Map<string, {
+    signature: string;
+    entry: AssetRegistryEntry;
+    receipt?: OwnedRegistryMutation;
+    target?: TimelineSaveTarget;
+    promise?: Promise<void>;
+    acknowledged?: boolean;
+  }>>>());
+  const registerAsset = useCallback((assetId: string, entry: AssetRegistryEntry, sourceUrl?: string): Promise<void> => {
+    if (!registrationOwner) {
+      return Promise.reject(new Error('The mounted timeline durable registration owner is unavailable'));
     }
-  }, [commitRegistryEntry, pendingOpsRef, queryClient, timelineId]);
+    let initialTarget: TimelineSaveTarget;
+    try { initialTarget = registrationOwner.captureSaveTarget(); }
+    catch (error) { return Promise.reject(error); }
+    let generations = registrationsRef.current.get(initialTarget.session);
+    if (!generations) {
+      generations = new Map();
+      registrationsRef.current.set(initialTarget.session, generations);
+    }
+    let registrations = generations.get(initialTarget.generation);
+    if (!registrations) {
+      registrations = new Map();
+      generations.set(initialTarget.generation, registrations);
+    }
+    const signature = canonicalJsonStringify({ entry, sourceUrl: sourceUrl ?? null });
+    let registration = registrations.get(assetId);
+    if (registration?.acknowledged && registration.signature !== signature) {
+      registrations.delete(assetId);
+      registration = undefined;
+    }
+    if (registration && registration.signature !== signature) {
+      return Promise.reject(new Error(`Conflicting concurrent asset registration for '${assetId}'`));
+    }
+    if (registration?.promise) return registration.promise;
+    if (registration?.acknowledged) return Promise.resolve();
+    if (registration?.receipt && !registrationOwner.ownsRegistryMutation(registration.receipt)) {
+      return Promise.reject(new Error(`A newer mutation owns asset '${assetId}'`));
+    }
+    registration ??= { signature, entry: structuredClone(entry) };
+    registrations.set(assetId, registration);
+    const currentRegistration = registration;
+    pendingOpsRef.current += 1;
+    const promise = (async () => {
+      try {
+        if (!currentRegistration.receipt) {
+          const reference = sourceUrl ?? getAssetImmediateSource(currentRegistration.entry);
+          const source = reference && resolveAssetUrl ? await resolveAssetUrl(reference) : reference;
+          // Resolver work can outlive the editor. Check the original opaque
+          // session before the sole optimistic mutation, not only afterward.
+          const currentTarget = registrationOwner.captureSaveTarget();
+          if (currentTarget.session !== initialTarget.session || currentTarget.generation !== initialTarget.generation) {
+            throw new Error('Timeline session replaced before asset registration mutation');
+          }
+          const receipt = registrationOwner.patchRegistryOwned(assetId, currentRegistration.entry, source);
+          currentRegistration.receipt = receipt;
+          currentRegistration.target = registrationOwner.captureSaveTarget(receipt.editSeq);
+        }
+        await registrationOwner.flushSaveTarget(currentRegistration.target!);
+        currentRegistration.acknowledged = true;
+        try { await queryClient.invalidateQueries({ queryKey: assetRegistryQueryKey(timelineId) }); }
+        catch (refreshError) { console.warn('[AssetRegistration] durable registration refresh failed', { assetId, refreshError }); }
+      } catch (error) {
+        const receipt = currentRegistration.receipt;
+        if (!receipt) registrations!.delete(assetId);
+        else if (!currentRegistration.acknowledged) {
+          try {
+            if (registrationOwner.rollbackRegistration(receipt, currentRegistration.target!, error)) {
+              registrations!.delete(assetId);
+            }
+          } catch (rollbackError) {
+            throw Object.assign(new Error(error instanceof Error ? error.message : 'Asset registration failed'), {
+              cause: error, rollbackError,
+            });
+          }
+        }
+        // Ambiguity retains the same receipt/entry/identity for reconciliation;
+        // retry awaits its original target, without another optimistic patch.
+        throw error;
+      } finally {
+        pendingOpsRef.current -= 1;
+      }
+    })();
+    currentRegistration.promise = promise;
+    void promise.finally(() => { if (currentRegistration.promise === promise) currentRegistration.promise = undefined; }).catch(() => {});
+    return promise;
+  }, [registrationOwner, pendingOpsRef, queryClient, resolveAssetUrl, timelineId]);
 
   const uploadFiles = useCallback(async (files: File[]) => {
     if (!patchRegistry) {

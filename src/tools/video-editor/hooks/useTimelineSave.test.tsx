@@ -131,6 +131,53 @@ describe('useTimelineSave — recovered draft durability', () => {
     vi.useRealTimers();
   });
 
+  it('passes the exact owned registration target through the existing durable save pipeline', async () => {
+    let acknowledge!: (version: number) => void;
+    const harness = setup(() => new Promise<number>((resolve) => { acknowledge = resolve; }));
+    act(() => harness.hook.result.current.commitData(makeTimelineData('baseline'), { save: false }));
+    let receipt!: ReturnType<typeof harness.hook.result.current.registrationOwner.patchRegistryOwned>;
+    let target!: ReturnType<typeof harness.hook.result.current.registrationOwner.captureSaveTarget>;
+    let barrier!: Promise<number>;
+    let settled = false;
+    await act(async () => {
+      const owner = harness.hook.result.current.registrationOwner;
+      receipt = owner.patchRegistryOwned('asset-registered', { file: 'registered.png' });
+      target = owner.captureSaveTarget(receipt.editSeq);
+      barrier = owner.flushSaveTarget(target).then((version) => { settled = true; return version; });
+    });
+    expect(settled).toBe(false);
+    expect(harness.saveTimeline).toHaveBeenCalledTimes(1);
+    expect(harness.saveTimeline.mock.calls[0][3]?.assets['asset-registered'].file).toBe('registered.png');
+    await act(async () => { acknowledge(2); await barrier; });
+    expect(settled).toBe(true);
+    expect(harness.hook.result.current.registrationOwner.rollbackRegistration(receipt, target, new Error('late unknown'))).toBe(false);
+    harness.hook.unmount();
+  });
+
+  it('rolls back a proven no-write registry mutation and never sends its old queued payload', async () => {
+    const cause = new TimelineVersionConflictError('CAS denied');
+    const harness = setup(async () => { throw cause; });
+    act(() => harness.hook.result.current.commitData(makeTimelineData('baseline'), { save: false }));
+    let receipt!: ReturnType<typeof harness.hook.result.current.registrationOwner.patchRegistryOwned>;
+    let target!: ReturnType<typeof harness.hook.result.current.registrationOwner.captureSaveTarget>;
+    let failure: unknown;
+    await act(async () => {
+      const owner = harness.hook.result.current.registrationOwner;
+      receipt = owner.patchRegistryOwned('asset-registered', { file: 'registered.png' });
+      target = owner.captureSaveTarget(receipt.editSeq);
+      failure = await owner.flushSaveTarget(target).catch((error) => error);
+    });
+    expect(failure).toMatchObject({ target, certainty: 'definitely-uncommitted' });
+    act(() => { expect(harness.hook.result.current.registrationOwner.rollbackRegistration(receipt, target, failure)).toBe(true); });
+    expect(harness.hook.result.current.dataRef.current?.registry.assets['asset-registered']).toBeUndefined();
+    await act(async () => { vi.advanceTimersByTime(2000); });
+    expect(harness.saveTimeline).toHaveBeenCalledTimes(1);
+    await flush();
+    const draft = await loadTimelineDraft('timeline-1');
+    expect((draft?.draft.registry as TimelineData['registry'] | undefined)?.assets['asset-registered']).toBeUndefined();
+    harness.hook.unmount();
+  });
+
   it('silently clears a recovery slot that already matches the loaded server snapshot', async () => {
     const harness = setup(async () => 2);
     const server = makeTimelineData('already-saved');

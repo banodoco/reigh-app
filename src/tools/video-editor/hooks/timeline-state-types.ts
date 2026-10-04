@@ -1,5 +1,6 @@
+import type { TimelineSaveTarget } from './useTimelinePersistence.ts';
 import { useQueryClient } from '@tanstack/react-query';
-import type { ApplyEditOptions, TimelineEditMutation } from '@/tools/video-editor/hooks/useTimelineCommit.ts';
+import type { ApplyEditOptions, TimelineEditMutation, OwnedRegistryMutation } from '@/tools/video-editor/hooks/useTimelineCommit.ts';
 import type { CompositionMetadata } from '@/tools/video-editor/hooks/useDerivedTimeline.ts';
 import type { RenderRuntime } from '@/tools/video-editor/render/renderRuntime.ts';
 import type { AssetRegistryEntry, TrackDefinition } from '@/tools/video-editor/types/index.ts';
@@ -47,9 +48,17 @@ export type TimelinePatchRegistry = (
   src?: string,
 ) => void;
 export type TimelineUnpatchRegistry = (assetId: string) => void;
+export type RegistrationSaveOwner = {
+  captureSaveTarget: (targetSeq?: number) => TimelineSaveTarget;
+  patchRegistryOwned: (assetId: string, entry: AssetRegistryEntry, src?: string) => OwnedRegistryMutation;
+  ownsRegistryMutation: (receipt: OwnedRegistryMutation) => boolean;
+  flushSaveTarget: (target: TimelineSaveTarget) => Promise<number>;
+  rollbackRegistration: (receipt: OwnedRegistryMutation, target: TimelineSaveTarget, error: unknown) => boolean;
+};
 export type TimelineRegisterAsset = (
   assetId: string,
   entry: AssetRegistryEntry,
+  sourceUrl?: string,
 ) => Promise<void>;
 export type TimelineQueryClient = ReturnType<typeof useQueryClient>;
 export type TimelineUploadAsset = (

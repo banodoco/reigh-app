@@ -559,6 +559,7 @@ export function useTimelineState(initialTimelineData?: TimelineData): UseTimelin
     undefined,
     save.patchRegistry,
     resolveAssetUrl,
+    save.registrationOwner,
   );
   const {
     data,

@@ -1737,10 +1737,14 @@ describe('VideoEditorProvider', () => {
     });
   });
 
-  it('rolls back optimistic registry patches when public registerAsset persistence fails', async () => {
+  it('delegates owned optimistic mutation and rollback to the host on public registration failure', async () => {
     const patchRegistry = vi.fn();
     const unpatchRegistry = vi.fn();
-    const registerAsset = vi.fn(async () => {
+    const registerAsset = vi.fn(async (assetId: string, entry: unknown, sourceUrl?: string) => {
+      // The host owns both mutation and its proven-no-write rollback. The
+      // command facade must never independently patch/unpatch around it.
+      patchRegistry(assetId, entry, sourceUrl);
+      unpatchRegistry(assetId);
       throw new Error('persist failed');
     });
     const store = buildCommandTestStore({
@@ -1770,6 +1774,37 @@ describe('VideoEditorProvider', () => {
     expect(patchRegistry).toHaveBeenCalledTimes(1);
     expect(registerAsset).toHaveBeenCalledTimes(1);
     expect(unpatchRegistry).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(['generation', 'entry'] as const)('awaits exactly one host registration for the %s input form', async (form) => {
+    let acknowledge!: () => void;
+    const registerAsset = vi.fn(() => new Promise<void>((resolve) => { acknowledge = resolve; }));
+    const patchRegistry = vi.fn();
+    const store = buildCommandTestStore({ registerAsset, patchRegistry });
+    const wrapper = ({ children }: { children: ReactNode }) => <TimelineStoreProvider store={store}>{children}</TimelineStoreProvider>;
+    const { result } = renderHook(() => useTimelineCommandsService(), { wrapper });
+    let settled = false;
+    const input = form === 'generation'
+      ? { generationId: 'generation-1', imageUrl: 'https://example.com/image.png' }
+      : { assetId: 'asset-1', entry: { file: 'https://example.com/image.png' } };
+    const response = result.current.registerAsset(input).then((value) => { settled = true; return value; });
+    await Promise.resolve();
+    expect(settled).toBe(false);
+    expect(registerAsset).toHaveBeenCalledTimes(1);
+    expect(patchRegistry).not.toHaveBeenCalled();
+    acknowledge();
+    expect((await response).ok).toBe(true);
+  });
+
+  it('keeps the normalized generated asset identity on retry', async () => {
+    const registerAsset = vi.fn().mockRejectedValueOnce(new Error('ACK unknown')).mockResolvedValueOnce(undefined);
+    const store = buildCommandTestStore({ registerAsset });
+    const wrapper = ({ children }: { children: ReactNode }) => <TimelineStoreProvider store={store}>{children}</TimelineStoreProvider>;
+    const { result } = renderHook(() => useTimelineCommandsService(), { wrapper });
+    const input = { generationId: 'generation-1', imageUrl: 'https://example.com/image.png' };
+    expect((await result.current.registerAsset(input)).ok).toBe(false);
+    expect((await result.current.registerAsset({ ...input })).ok).toBe(true);
+    expect(registerAsset.mock.calls[1]).toEqual(registerAsset.mock.calls[0]);
   });
 
   // -------------------------------------------------------------------------

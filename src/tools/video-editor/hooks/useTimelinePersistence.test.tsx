@@ -10,7 +10,7 @@ vi.stubGlobal('indexedDB', createFakeIndexedDB());
 vi.mock('@/tools/video-editor/compositions/TimelineRenderer.tsx', () => ({
   invalidateReferencedTimelineCache: vi.fn(),
 }));
-import { useTimelinePersistence, type UseTimelinePersistenceResult } from './useTimelinePersistence';
+import { useTimelinePersistence, TimelineSaveBarrierError, type UseTimelinePersistenceResult } from './useTimelinePersistence';
 import { useTimelineOps } from './useTimelineOps';
 import { TimelineEventBus } from './useTimelineEventBus';
 import {
@@ -253,6 +253,78 @@ describe('useTimelinePersistence — interaction gating', () => {
   afterEach(() => {
     vi.clearAllTimers();
     vi.useRealTimers();
+  });
+
+  it('binds a preflight no-write failure and fences its queued payload before correction', async () => {
+    const harness = setup();
+    harness.interactionStateRef.current.drag = true;
+    const rejected = makeTimelineData('rejected', makeRegistry('rejected'));
+    harness.dataRef.current = rejected;
+    harness.scheduleSave(rejected);
+    const target = harness.result.current.captureSaveTarget();
+    const failure = await harness.result.current.flushSaveTarget(target).catch((error) => error);
+    expect(failure).toBeInstanceOf(TimelineSaveBarrierError);
+    expect(failure).toMatchObject({ target, certainty: 'definitely-uncommitted' });
+    expect(harness.result.current.discardUncommittedSaveTarget(target, failure)).toBe(true);
+    harness.editSeqRef.current += 1;
+    const corrected = makeTimelineData('corrected');
+    harness.dataRef.current = corrected;
+    harness.scheduleSave(corrected);
+    harness.interactionStateRef.current.drag = false;
+    await act(async () => {
+      notifyInteractionEndIfIdle(harness.interactionStateRef);
+      vi.advanceTimersByTime(1000);
+      await Promise.resolve();
+    });
+    expect(harness.saveTimeline).toHaveBeenCalledTimes(1);
+    expect(harness.saveTimeline.mock.calls[0][3]).toEqual({ assets: {} });
+    harness.unmount();
+  });
+
+  it('retains ambiguous transport state and cannot borrow an ACK from a replaced session', async () => {
+    const harness = setup({ saveTimelineImpl: async () => { throw new Error('ACK lost'); } });
+    const target = harness.result.current.captureSaveTarget();
+    let failure: unknown;
+    await act(async () => { failure = await harness.result.current.flushSaveTarget(target).catch((error) => error); });
+    expect(failure).toMatchObject({ target, certainty: 'ambiguous', cause: expect.any(Error) });
+    expect(harness.result.current.discardUncommittedSaveTarget(target, failure)).toBe(false);
+    const replacement = { ...harness.provider, saveTimeline: vi.fn(async () => 7) };
+    act(() => harness.replaceSession(replacement));
+    await expect(harness.result.current.flushSaveTarget(target)).rejects.toMatchObject({ target, certainty: 'ambiguous' });
+    expect(replacement.saveTimeline).not.toHaveBeenCalled();
+    harness.unmount();
+  });
+
+  it('assigns no-write certainty to an initial typed CAS rejection but never to unknown errors', async () => {
+    const cause = new TimelineVersionConflictError('CAS denied');
+    const harness = setup({ saveTimelineImpl: async () => { throw cause; } });
+    const target = harness.result.current.captureSaveTarget();
+    let failure: unknown;
+    await act(async () => { failure = await harness.result.current.flushSaveTarget(target).catch((error) => error); });
+    expect(failure).toMatchObject({ target, certainty: 'definitely-uncommitted', cause });
+    expect(harness.result.current.discardUncommittedSaveTarget(target, failure)).toBe(true);
+    harness.unmount();
+  });
+
+  it('fences old targets across canonical reload without blocking reused sequence numbers', async () => {
+    let calls = 0;
+    const harness = setup({ saveTimelineImpl: async () => {
+      if (calls++ === 0) throw new TimelineVersionConflictError('CAS denied');
+      return 2;
+    } });
+    const oldTarget = harness.result.current.captureSaveTarget();
+    let failure: unknown;
+    await act(async () => { failure = await harness.result.current.flushSaveTarget(oldTarget).catch((error) => error); });
+    expect(harness.result.current.discardUncommittedSaveTarget(oldTarget, failure)).toBe(true);
+    await act(async () => { await harness.reloadFromServer(); });
+    harness.editSeqRef.current += 1;
+    harness.scheduleSave(makeTimelineData('after-reload'));
+    const currentTarget = harness.result.current.captureSaveTarget();
+    expect(currentTarget.targetSeq).toBe(oldTarget.targetSeq);
+    expect(currentTarget.generation).not.toBe(oldTarget.generation);
+    await expect(harness.result.current.flushSaveTarget(oldTarget)).rejects.toMatchObject({ certainty: 'ambiguous' });
+    await act(async () => { await expect(harness.result.current.flushSaveTarget(currentTarget)).resolves.toBe(2); });
+    harness.unmount();
   });
 
   it('does NOT fire saveTimeline while a drag interaction is active', async () => {

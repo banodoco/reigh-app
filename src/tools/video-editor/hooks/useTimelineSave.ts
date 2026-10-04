@@ -1,11 +1,13 @@
+import type { RegistrationSaveOwner } from './timeline-state-types.ts';
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from 'react';
 import type { InteractionStateRef } from '@/tools/video-editor/lib/interaction-state.ts';
-import { useTimelineCommit } from '@/tools/video-editor/hooks/useTimelineCommit.ts';
+import { useTimelineCommit, type OwnedRegistryMutation } from '@/tools/video-editor/hooks/useTimelineCommit.ts';
 import { TimelineEventBus } from '@/tools/video-editor/hooks/useTimelineEventBus.ts';
 import { useTimelinePersistence } from '@/tools/video-editor/hooks/useTimelinePersistence.ts';
 import { clearTimelineDraft, loadTimelineDraft } from '@/tools/video-editor/data/timelineDraftIndexedDb.ts';
@@ -254,6 +256,36 @@ export function useTimelineSave(
     setRecoveredAsDirty(false);
   }, [reloadFromServer]);
 
+  const registrationTargetsRef = useRef(new WeakMap<OwnedRegistryMutation, { session: object; generation: number }>());
+  const registrationOwner = useMemo<RegistrationSaveOwner>(() => ({
+    captureSaveTarget: persistence.captureSaveTarget,
+    patchRegistryOwned: (assetId, entry, src) => {
+      const target = persistence.captureSaveTarget();
+      const receipt = commit.patchRegistryOwned(assetId, entry, src);
+      registrationTargetsRef.current.set(receipt, { session: target.session, generation: target.generation });
+      return receipt;
+    },
+    ownsRegistryMutation: (receipt) => {
+      const binding = registrationTargetsRef.current.get(receipt);
+      try {
+        const current = persistence.captureSaveTarget();
+        return binding?.session === current.session && binding.generation === current.generation
+          && commit.ownsRegistryMutation(receipt);
+      } catch { return false; }
+    },
+    flushSaveTarget: persistence.flushSaveTarget,
+    rollbackRegistration: (receipt, target, error) => {
+      const binding = registrationTargetsRef.current.get(receipt);
+      if (target.targetSeq !== receipt.editSeq || binding?.session !== target.session
+        || binding.generation !== target.generation) return false;
+      if (!commit.canRollbackRegistryMutation(receipt)) return false;
+      if (!persistence.discardUncommittedSaveTarget(target, error)) return false;
+      return commit.rollbackRegistryMutation(receipt);
+    },
+  }), [commit.canRollbackRegistryMutation, commit.ownsRegistryMutation, commit.patchRegistryOwned,
+    commit.rollbackRegistryMutation, persistence.captureSaveTarget, persistence.discardUncommittedSaveTarget,
+    persistence.flushSaveTarget]);
+
   return {
     data: commit.data,
     dataRef: commit.dataRef,
@@ -263,6 +295,7 @@ export function useTimelineSave(
     saveStatus: recoveredAsDirty && persistence.saveStatus === 'saved' ? 'dirty' : persistence.saveStatus,
     schemaIncompatible: persistence.schemaIncompatible,
     flushPendingSave: persistence.flushPendingSave,
+    registrationOwner,
     setSelectedTrackId: commit.setSelectedTrackId,
     applyEdit: commit.applyEdit,
     patchRegistry: commit.patchRegistry,

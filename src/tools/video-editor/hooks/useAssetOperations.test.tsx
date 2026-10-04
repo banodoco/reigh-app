@@ -1,3 +1,4 @@
+import type { RegistrationSaveOwner } from './timeline-state-types';
 // @vitest-environment jsdom
 import { QueryClient } from '@tanstack/react-query';
 import { act, renderHook } from '@testing-library/react';
@@ -32,6 +33,18 @@ function makeProvider(overrides: Partial<DataProvider> = {}): DataProvider {
   };
 }
 
+function makeRegistrationOwner(overrides: Partial<RegistrationSaveOwner> = {}): RegistrationSaveOwner {
+  const session = {};
+  return {
+    captureSaveTarget: vi.fn((targetSeq = 1) => ({ session, timelineId: 'timeline-1', targetSeq, generation: 0 })),
+    patchRegistryOwned: vi.fn((assetId) => ({ assetId, editSeq: 1 })),
+    ownsRegistryMutation: vi.fn(() => true),
+    flushSaveTarget: vi.fn(async () => 2),
+    rollbackRegistration: vi.fn(() => false),
+    ...overrides,
+  };
+}
+
 describe('useAssetOperations', () => {
   it('decrements pendingOpsRef when uploadAsset throws', async () => {
     const pendingOpsRef = { current: 0 };
@@ -58,10 +71,11 @@ describe('useAssetOperations', () => {
     const patchRegistry = vi.fn(() => {
       throw new Error('register failed');
     });
+    const owner = makeRegistrationOwner({ patchRegistryOwned: patchRegistry });
     const provider = makeProvider();
     const queryClient = new QueryClient();
     const { result } = renderHook(() => (
-      useAssetOperations(provider, 'timeline-1', 'user-1', queryClient, pendingOpsRef, undefined, patchRegistry)
+      useAssetOperations(provider, 'timeline-1', 'user-1', queryClient, pendingOpsRef, undefined, patchRegistry, undefined, owner)
     ));
 
     await expect(act(async () => {
@@ -69,6 +83,83 @@ describe('useAssetOperations', () => {
     })).rejects.toThrow('register failed');
 
     expect(pendingOpsRef.current).toBe(0);
+  });
+
+  it('coalesces identical registration, patches once, and refreshes only after its durable ACK', async () => {
+    let acknowledge!: (version: number) => void;
+    const owner = makeRegistrationOwner({ flushSaveTarget: vi.fn(() => new Promise<number>((resolve) => { acknowledge = resolve; })) });
+    const client = new QueryClient();
+    const refresh = vi.spyOn(client, 'invalidateQueries').mockResolvedValue(undefined);
+    const pending = { current: 0 };
+    const { result } = renderHook(() => useAssetOperations(makeProvider(), 'timeline-1', 'user-1', client, pending, undefined, undefined, undefined, owner));
+    const entry = { file: 'clip.mp4' };
+    let settled = false;
+    const first = result.current.registerAsset('asset-1', entry);
+    const second = result.current.registerAsset('asset-1', { ...entry });
+    expect(second).toBe(first);
+    void first.then(() => { settled = true; });
+    await Promise.resolve();
+    expect(owner.patchRegistryOwned).toHaveBeenCalledTimes(1);
+    expect(owner.flushSaveTarget).toHaveBeenCalledTimes(1);
+    expect(refresh).not.toHaveBeenCalled();
+    expect(settled).toBe(false);
+    acknowledge(2);
+    await first;
+    expect(refresh).toHaveBeenCalledTimes(1);
+    expect(pending.current).toBe(0);
+  });
+
+  it('rolls back only through the owned callback, retaining ambiguity and retry identity', async () => {
+    const cause = new Error('ACK unknown');
+    const owner = makeRegistrationOwner({ flushSaveTarget: vi.fn().mockRejectedValueOnce(cause).mockResolvedValueOnce(3) });
+    const client = new QueryClient();
+    const refresh = vi.spyOn(client, 'invalidateQueries').mockResolvedValue(undefined);
+    const { result } = renderHook(() => useAssetOperations(makeProvider(), 'timeline-1', 'user-1', client, { current: 0 }, undefined, undefined, undefined, owner));
+    await expect(result.current.registerAsset('asset-1', { file: 'clip.mp4' })).rejects.toBe(cause);
+    expect(refresh).not.toHaveBeenCalled();
+    expect(owner.rollbackRegistration).toHaveBeenCalledWith(expect.objectContaining({ assetId: 'asset-1' }), expect.objectContaining({ targetSeq: 1 }), cause);
+    await result.current.registerAsset('asset-1', { file: 'clip.mp4' });
+    expect(owner.patchRegistryOwned).toHaveBeenCalledTimes(1);
+    expect((owner.flushSaveTarget as ReturnType<typeof vi.fn>).mock.calls[1][0]).toBe((owner.flushSaveTarget as ReturnType<typeof vi.fn>).mock.calls[0][0]);
+  });
+
+  it('allows a new owned attempt after proven rollback, but preserves the initiating error if rollback fails', async () => {
+    const cause = new Error('known no-write');
+    const owner = makeRegistrationOwner({ flushSaveTarget: vi.fn().mockRejectedValueOnce(cause).mockResolvedValueOnce(2), rollbackRegistration: vi.fn(() => true) });
+    const { result } = renderHook(() => useAssetOperations(makeProvider(), 'timeline-1', 'user-1', new QueryClient(), { current: 0 }, undefined, undefined, undefined, owner));
+    await expect(result.current.registerAsset('asset-1', { file: 'clip.mp4' })).rejects.toBe(cause);
+    await result.current.registerAsset('asset-1', { file: 'clip.mp4' });
+    expect(owner.patchRegistryOwned).toHaveBeenCalledTimes(2);
+    const rollbackError = new Error('rollback failed');
+    const broken = makeRegistrationOwner({ flushSaveTarget: vi.fn().mockRejectedValue(cause), rollbackRegistration: vi.fn(() => { throw rollbackError; }) });
+    const other = renderHook(() => useAssetOperations(makeProvider(), 'timeline-1', 'user-1', new QueryClient(), { current: 0 }, undefined, undefined, undefined, broken));
+    await expect(other.result.current.registerAsset('asset-2', { file: 'clip.mp4' })).rejects.toMatchObject({ message: cause.message, cause, rollbackError });
+  });
+
+  it('rejects conflicting same-key work and protects a newer owner on an ambiguous retry', async () => {
+    let reject!: (error: Error) => void;
+    const owner = makeRegistrationOwner({ flushSaveTarget: vi.fn(() => new Promise<number>((_resolve, fail) => { reject = fail; })) });
+    const { result } = renderHook(() => useAssetOperations(makeProvider(), 'timeline-1', 'user-1', new QueryClient(), { current: 0 }, undefined, undefined, undefined, owner));
+    const first = result.current.registerAsset('asset-1', { file: 'old.mp4' }).catch((error) => error);
+    await Promise.resolve();
+    await expect(result.current.registerAsset('asset-1', { file: 'new.mp4' })).rejects.toThrow('Conflicting concurrent');
+    reject(new Error('ACK unknown'));
+    await first;
+    (owner.ownsRegistryMutation as ReturnType<typeof vi.fn>).mockReturnValue(false);
+    await expect(result.current.registerAsset('asset-1', { file: 'old.mp4' })).rejects.toThrow('newer mutation');
+    expect(owner.patchRegistryOwned).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not uncommit or fail durable registration when post-ACK refresh fails', async () => {
+    const client = new QueryClient();
+    vi.spyOn(client, 'invalidateQueries').mockRejectedValue(new Error('refresh failed'));
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const owner = makeRegistrationOwner();
+    const { result } = renderHook(() => useAssetOperations(makeProvider(), 'timeline-1', 'user-1', client, { current: 0 }, undefined, undefined, undefined, owner));
+    await expect(result.current.registerAsset('asset-1', { file: 'clip.mp4' })).resolves.toBeUndefined();
+    expect(owner.rollbackRegistration).not.toHaveBeenCalled();
+    expect(warning).toHaveBeenCalled();
+    warning.mockRestore();
   });
 
   it('prepares bytes, then commits the enriched registry entry through the save owner', async () => {

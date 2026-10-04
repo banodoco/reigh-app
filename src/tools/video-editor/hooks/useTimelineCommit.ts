@@ -164,6 +164,8 @@ interface UseTimelineCommitOptions {
   initialData?: TimelineData;
 }
 
+export type OwnedRegistryMutation = Readonly<{ assetId: string; editSeq: number }>;
+
 export interface UseTimelineCommitResult {
   data: TimelineData | null;
   dataRef: MutableRefObject<TimelineData | null>;
@@ -173,6 +175,10 @@ export interface UseTimelineCommitResult {
   applyEdit: (mutation: TimelineEditMutation, options?: ApplyEditOptions) => void;
   patchRegistry: (assetId: string, entry: AssetRegistryEntry, src?: string) => void;
   unpatchRegistry: (assetId: string) => void;
+  patchRegistryOwned: (assetId: string, entry: AssetRegistryEntry, src?: string) => OwnedRegistryMutation;
+  ownsRegistryMutation: (receipt: OwnedRegistryMutation) => boolean;
+  canRollbackRegistryMutation: (receipt: OwnedRegistryMutation) => boolean;
+  rollbackRegistryMutation: (receipt: OwnedRegistryMutation) => boolean;
   commitData: (nextData: TimelineData, options?: CommitDataOptions) => void;
   materializeData: (
     current: TimelineData,
@@ -192,6 +198,14 @@ export function useTimelineCommit({
   editability,
   initialData,
 }: UseTimelineCommitOptions): UseTimelineCommitResult {
+  const registryOwnersRef = useRef(new Map<string, OwnedRegistryMutation>());
+  const registryReceiptsRef = useRef(new WeakMap<OwnedRegistryMutation, {
+    entry: AssetRegistryEntry;
+    signature: string;
+    src: string;
+    previousEntry: AssetRegistryEntry | undefined;
+    previousResolved: TimelineData['resolvedConfig']['registry'][string] | undefined;
+  }>());
   const editSeqRef = useRef(0);
   const pendingOpsRef = useRef(0);
   const dataRef = useRef<TimelineData | null>(initialData ?? null);
@@ -276,6 +290,11 @@ export function useTimelineCommit({
   ) => {
     const shouldSave = options?.save ?? true;
     const currentData = dataRef.current;
+    if (options?.skipHistory && options?.updateLastSavedSignature) registryOwnersRef.current.clear();
+    for (const [assetId, receipt] of registryOwnersRef.current) {
+      const owned = registryReceiptsRef.current.get(receipt);
+      if (!owned || nextData.registry.assets[assetId] !== owned.entry) registryOwnersRef.current.delete(assetId);
+    }
 
     if (shouldSave && !options?.skipHistory && currentData) {
       eventBus.emit('beforeCommit', currentData, {
@@ -474,6 +493,7 @@ export function useTimelineCommit({
   }, [commitData, materializeData, withPinnedShotGroups, eventBus, editability]);
 
   const patchRegistry = useCallback((assetId: string, entry: AssetRegistryEntry, src?: string) => {
+    registryOwnersRef.current.delete(assetId);
     if (editability?.checkTimeline && !editability.checkTimeline().allowed) return;
     const current = dataRef.current;
     if (!current) {
@@ -538,6 +558,7 @@ export function useTimelineCommit({
   }, [commitData, editability, eventBus]);
 
   const unpatchRegistry = useCallback((assetId: string) => {
+    registryOwnersRef.current.delete(assetId);
     if (editability?.checkTimeline && !editability.checkTimeline().allowed) return;
     const current = dataRef.current;
     if (!current) {
@@ -593,6 +614,75 @@ export function useTimelineCommit({
     });
   }, [commitData, editability, eventBus]);
 
+  const patchRegistryOwned = useCallback((assetId: string, entry: AssetRegistryEntry, src?: string): OwnedRegistryMutation => {
+    const previous = dataRef.current;
+    const seq = editSeqRef.current;
+    const ownedEntry = structuredClone(entry);
+    patchRegistry(assetId, ownedEntry, src);
+    const current = dataRef.current;
+    if (!current || editSeqRef.current !== seq + 1 || current.registry.assets[assetId] !== ownedEntry) {
+      throw new Error('Asset registration mutation was not accepted by the mounted timeline owner');
+    }
+    const receipt = Object.freeze({ assetId, editSeq: editSeqRef.current });
+    registryReceiptsRef.current.set(receipt, {
+      entry: ownedEntry,
+      signature: JSON.stringify(ownedEntry),
+      src: current.resolvedConfig.registry[assetId].src,
+      previousEntry: previous?.registry.assets[assetId],
+      previousResolved: previous?.resolvedConfig.registry[assetId],
+    });
+    registryOwnersRef.current.set(assetId, receipt);
+    return receipt;
+  }, [patchRegistry]);
+
+  const ownsRegistryMutation = useCallback((receipt: OwnedRegistryMutation) => {
+    const owned = registryReceiptsRef.current.get(receipt);
+    const current = dataRef.current;
+    return Boolean(owned && current && registryOwnersRef.current.get(receipt.assetId) === receipt
+      && current.registry.assets[receipt.assetId] === owned.entry
+      && JSON.stringify(owned.entry) === owned.signature
+      && current.resolvedConfig.registry[receipt.assetId]?.src === owned.src);
+  }, []);
+
+  const canRollbackRegistryMutation = useCallback((receipt: OwnedRegistryMutation) => {
+    const current = dataRef.current;
+    return Boolean(ownsRegistryMutation(receipt) && current
+      && !current.config.clips.some((clip) => clip.asset === receipt.assetId)
+      && !current.config.pinnedShotGroups?.some((group) => group.videoAssetKey === receipt.assetId
+        || group.imageClipSnapshot?.some((clip) => clip.assetKey === receipt.assetId)));
+  }, [ownsRegistryMutation]);
+
+  const rollbackRegistryMutation = useCallback((receipt: OwnedRegistryMutation) => {
+    if (!canRollbackRegistryMutation(receipt)) return false;
+    const current = dataRef.current!;
+    const owned = registryReceiptsRef.current.get(receipt)!;
+    const assets = { ...current.registry.assets };
+    const resolvedRegistry = { ...current.resolvedConfig.registry };
+    if (owned.previousEntry) assets[receipt.assetId] = owned.previousEntry;
+    else delete assets[receipt.assetId];
+    if (owned.previousResolved) resolvedRegistry[receipt.assetId] = owned.previousResolved;
+    else delete resolvedRegistry[receipt.assetId];
+    const registry = { ...current.registry, assets };
+    const next = assembleTimelineData({
+      config: current.config,
+      configVersion: current.configVersion,
+      registry,
+      resolvedConfig: {
+        ...current.resolvedConfig,
+        registry: resolvedRegistry,
+        clips: current.resolvedConfig.clips.map((clip) => ({
+          ...clip, assetEntry: clip.asset ? resolvedRegistry[clip.asset] : undefined,
+        })),
+      },
+      assetMap: buildAssetReferenceMap(registry),
+      sourceItemsBySchemaRef: current.sourceItemsBySchemaRef,
+      output: current.output,
+    });
+    registryOwnersRef.current.delete(receipt.assetId);
+    commitData(preserveUploadingClips(current, next), { save: true, skipHistory: true });
+    return true;
+  }, [canRollbackRegistryMutation, commitData]);
+
   return {
     data,
     dataRef,
@@ -602,6 +692,10 @@ export function useTimelineCommit({
     applyEdit,
     patchRegistry,
     unpatchRegistry,
+    patchRegistryOwned,
+    ownsRegistryMutation,
+    canRollbackRegistryMutation,
+    rollbackRegistryMutation,
     commitData,
     materializeData,
     editSeqRef,

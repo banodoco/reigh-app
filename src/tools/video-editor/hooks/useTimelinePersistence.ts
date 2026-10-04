@@ -92,7 +92,21 @@ interface UseTimelinePersistenceOptions {
   onCanonicalReloadStart?: () => void;
 }
 
+export type TimelineSaveTarget = Readonly<{ session: object; timelineId: string; targetSeq: number; generation: number }>;
+
+/** Additive Error metadata; legacy flush callers keep their number/Error contract. */
+export class TimelineSaveBarrierError extends Error {
+  readonly cause: unknown;
+  constructor(message: string, readonly target: TimelineSaveTarget,
+    readonly certainty: 'definitely-uncommitted' | 'ambiguous', cause: unknown) {
+    super(message);
+    this.name = 'TimelineSaveBarrierError';
+    this.cause = cause;
+  }
+}
+
 interface PersistenceSession {
+  identity: object;
   provider: DataProvider;
   timelineId: string;
   dataRef: MutableRefObject<TimelineData | null>;
@@ -101,10 +115,15 @@ interface PersistenceSession {
   configVersionRef: MutableRefObject<number>;
   /** Reused host refs cannot lend an acknowledgement to a replacement. */
   acknowledgedSeq: number;
+  generation: number;
+  uncertainThroughSeq: number;
+  activeAttempts: Set<SaveAttempt>;
+  cancelledRanges: Array<{ from: number; through: number }>;
 }
 
 interface ScheduledSave {
   session: PersistenceSession;
+  generation: number;
   data: TimelineData;
   seq: number;
   draftOwnerId: string;
@@ -138,6 +157,9 @@ export interface UseTimelinePersistenceResult {
    * it can never snapshot an autosave-pending or unversioned `head`.
    */
   flushPendingSave: () => Promise<number>;
+  captureSaveTarget: (targetSeq?: number) => TimelineSaveTarget;
+  flushSaveTarget: (target: TimelineSaveTarget) => Promise<number>;
+  discardUncommittedSaveTarget: (target: TimelineSaveTarget, error: unknown) => boolean;
   saveStatus: SaveStatus;
   isConflictExhausted: boolean;
   schemaIncompatible: ReadonlyArray<TimelineSchemaIssue> | null;
@@ -213,7 +235,7 @@ export function useTimelinePersistence({
   const errorRetryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const errorRetrySessionRef = useRef<PersistenceSession | null>(null);
   const isMountedRef = useRef(true);
-  const activeTargetRef = useRef<PersistenceSession>({ provider, timelineId, dataRef, editSeqRef, savedSeqRef, configVersionRef, acknowledgedSeq: savedSeqRef.current });
+  const activeTargetRef = useRef<PersistenceSession>({ identity: {}, provider, timelineId, dataRef, editSeqRef, savedSeqRef, configVersionRef, acknowledgedSeq: savedSeqRef.current, generation: 0, uncertainThroughSeq: -1, activeAttempts: new Set(), cancelledRanges: [] });
   if (
     activeTargetRef.current.provider !== provider
     || activeTargetRef.current.timelineId !== timelineId
@@ -224,14 +246,40 @@ export function useTimelinePersistence({
   ) {
     // Object identity also protects an A -> B -> A replacement: an old
     // request's receipt must never acknowledge the new session's sequence.
-    activeTargetRef.current = { provider, timelineId, dataRef, editSeqRef, savedSeqRef, configVersionRef, acknowledgedSeq: -1 };
+    activeTargetRef.current = { identity: {}, provider, timelineId, dataRef, editSeqRef, savedSeqRef, configVersionRef, acknowledgedSeq: -1, generation: 0, uncertainThroughSeq: -1, activeAttempts: new Set(), cancelledRanges: [] };
   }
   const session = activeTargetRef.current;
+  const issuedFailuresRef = useRef(new WeakSet<TimelineSaveBarrierError>());
+  const errorRetryAttemptRef = useRef<SaveAttempt | null>(null);
+  const makeBarrierError = useCallback((target: TimelineSaveTarget, cause: unknown,
+    noWrite = false, rejectedAttempt?: SaveAttempt) => {
+    const owner = activeTargetRef.current;
+    const uncertain = target.session !== owner.identity || target.generation !== owner.generation
+      || owner.uncertainThroughSeq >= target.targetSeq
+      || [...owner.activeAttempts].some((attempt) => attempt !== rejectedAttempt && attempt.seq >= target.targetSeq);
+    const certainty = noWrite && !uncertain
+      ? 'definitely-uncommitted' : 'ambiguous';
+    const message = cause instanceof Error ? cause.message : String(cause ?? 'Timeline save acknowledgement failed.');
+    const failure = new TimelineSaveBarrierError(message, target, certainty, cause);
+    issuedFailuresRef.current.add(failure);
+    return failure;
+  }, []);
+  const captureSaveTarget = useCallback((targetSeq = editSeqRef.current): TimelineSaveTarget => {
+    if (!isMountedRef.current || session !== activeTargetRef.current) {
+      throw new Error('Timeline session is closed or replaced before registration.');
+    }
+    if (!Number.isSafeInteger(targetSeq) || targetSeq < 0 || targetSeq > editSeqRef.current) {
+      throw new Error('Invalid timeline save target sequence.');
+    }
+    return Object.freeze({ session: session.identity, timelineId, targetSeq, generation: session.generation });
+  }, [editSeqRef, session, timelineId]);
   const draftWriteChainRef = useRef<Promise<void>>(Promise.resolve());
   const doSaveRef = useRef<((save: ScheduledSave | SaveAttempt, options?: { attemptKind?: 'initial' | 'transport-retry' }) => void) | null>(null);
   const flushWaitersRef = useRef<Array<{
     session: PersistenceSession;
     targetSeq: number;
+    target: TimelineSaveTarget;
+    typed: boolean;
     resolve: (version: number) => void;
     reject: (error: Error) => void;
   }>>([]);
@@ -320,6 +368,7 @@ export function useTimelinePersistence({
       errorRetryTimer.current = null;
     }
     errorRetrySessionRef.current = null;
+    errorRetryAttemptRef.current = null;
   }, []);
 
   const clearWatchdog = useCallback(() => {
@@ -334,12 +383,12 @@ export function useTimelinePersistence({
   const resolveFlushWaiters = useCallback((attempt: SaveAttempt, acknowledgedVersion: number) => {
     const remaining: typeof flushWaitersRef.current = [];
     for (const waiter of flushWaitersRef.current) {
-      if (waiter.session !== activeTargetRef.current) {
-        waiter.reject(new Error('Timeline session replaced before durable acknowledgement.'));
+      if (waiter.session !== activeTargetRef.current || waiter.target.generation !== waiter.session.generation) {
+        waiter.reject(waiter.typed ? makeBarrierError(waiter.target, new Error('Timeline session replaced before durable acknowledgement.')) : new Error('Timeline session replaced before durable acknowledgement.'));
       } else if (!isDataProviderPersistenceEnabled(waiter.session.provider) || typeof waiter.session.provider.saveTimeline !== 'function') {
-        waiter.reject(new Error('Durable timeline persistence is unavailable.'));
+        waiter.reject(waiter.typed ? makeBarrierError(waiter.target, new Error('Durable timeline persistence is unavailable.')) : new Error('Durable timeline persistence is unavailable.'));
       } else if (!waiter.session.dataRef.current || !getDataRef().current) {
-        waiter.reject(new Error('Timeline data unloaded before durable acknowledgement.'));
+        waiter.reject(waiter.typed ? makeBarrierError(waiter.target, new Error('Timeline data unloaded before durable acknowledgement.')) : new Error('Timeline data unloaded before durable acknowledgement.'));
       } else if (waiter.session === attempt.session && waiter.targetSeq <= attempt.seq) {
         waiter.resolve(acknowledgedVersion);
       } else {
@@ -347,18 +396,18 @@ export function useTimelinePersistence({
       }
     }
     flushWaitersRef.current = remaining;
-  }, [getDataRef]);
+  }, [getDataRef, makeBarrierError]);
 
-  const rejectFlushWaiters = useCallback((error: unknown) => {
+  const rejectFlushWaiters = useCallback((error: unknown, attempt?: SaveAttempt, noWrite = false) => {
     const normalized = error instanceof Error
       ? error
       : new Error(typeof error === 'string' ? error : 'Timeline save acknowledgement failed.');
     const waiters = flushWaitersRef.current;
     flushWaitersRef.current = [];
     for (const waiter of waiters) {
-      waiter.reject(normalized);
+      waiter.reject(waiter.typed ? makeBarrierError(waiter.target, normalized, noWrite, attempt) : normalized);
     }
-  }, []);
+  }, [makeBarrierError]);
 
   /**
    * Cancel a pending watchdog trip WITHOUT clearing an already-tripped error.
@@ -448,6 +497,7 @@ export function useTimelinePersistence({
     console.log('[TimelineSave] save failed, retrying', { attempt: attempt + 1, delayMs: delay });
 
     errorRetrySessionRef.current = attemptToRetry.session;
+    errorRetryAttemptRef.current = attemptToRetry;
     errorRetryTimer.current = setTimeout(() => {
       errorRetryTimer.current = null;
       errorRetrySessionRef.current = null;
@@ -519,7 +569,9 @@ export function useTimelinePersistence({
       traceId?: string;
     },
   ) => {
-    if (scheduledOrAttempt.session !== activeTargetRef.current) return;
+    if (scheduledOrAttempt.session !== activeTargetRef.current
+      || scheduledOrAttempt.generation !== scheduledOrAttempt.session.generation
+      || scheduledOrAttempt.session.cancelledRanges.some((range) => scheduledOrAttempt.seq >= range.from && scheduledOrAttempt.seq <= range.through)) return;
     if (isSavingRef.current && !options?.bypassQueue) {
       if (!('expectedVersion' in scheduledOrAttempt)) {
         pendingSaveRef.current = scheduledOrAttempt;
@@ -546,6 +598,7 @@ export function useTimelinePersistence({
     }
     setSaveStatus('saving');
 
+    attempt.session.activeAttempts.add(attempt);
     try {
       await saveMutation.mutateAsync(
         {
@@ -634,7 +687,7 @@ export function useTimelinePersistence({
           retries: 0,
           reason: 'missing_local_data',
         });
-        rejectFlushWaiters(persistenceError);
+        rejectFlushWaiters(persistenceError, attempt, true);
         return;
       }
 
@@ -659,7 +712,7 @@ export function useTimelinePersistence({
           retries: 0,
           reason: 'max_retries',
         });
-        rejectFlushWaiters(persistenceError);
+        rejectFlushWaiters(persistenceError, attempt, true);
         return;
       }
 
@@ -669,11 +722,12 @@ export function useTimelinePersistence({
         setSaveStatus('error');
         cancelErrorRetryTimer();
         disarmWatchdog();
-        rejectFlushWaiters(error);
+        rejectFlushWaiters(error, attempt, true);
         return;
       }
 
-      rejectFlushWaiters(error);
+      attempt.session.uncertainThroughSeq = Math.max(attempt.session.uncertainThroughSeq, attempt.seq);
+      rejectFlushWaiters(error, attempt);
 
       if (attempt.data && !reloadInProgressRef.current) {
         // Recoverable transport failure (timeout, 5xx, dropped connection):
@@ -687,6 +741,7 @@ export function useTimelinePersistence({
         setSaveStatus('error');
       }
     } finally {
+      attempt.session.activeAttempts.delete(attempt);
       if (!options?.bypassQueue) {
         isSavingRef.current = false;
 
@@ -765,6 +820,7 @@ export function useTimelinePersistence({
     void draftWrite.catch(() => {});
     const scheduledSave: ScheduledSave = {
       session,
+      generation: session.generation,
       data: nextData,
       seq,
       draftOwnerId,
@@ -878,34 +934,40 @@ export function useTimelinePersistence({
     }, SAVE_DEBOUNCE_MS);
   }, [armWatchdog, createScheduledSave, disarmWatchdog, doSave, editSeqRef, getInteractionStateRef, isConflictExhausted, persistenceEnabled, schemaIncompatible]);
 
-  const flushPendingSave = useCallback((): Promise<number> => {
+  const flushSaveTarget = useCallback((target: TimelineSaveTarget, typed = true): Promise<number> => {
+    const fail = (message: string, noWrite = true) => Promise.reject(typed ? makeBarrierError(target, new Error(message), noWrite) : new Error(message));
+    if (target.session !== session.identity || target.timelineId !== timelineId || target.generation !== session.generation
+      || !Number.isSafeInteger(target.targetSeq) || target.targetSeq < 0 || target.targetSeq > editSeqRef.current) {
+      return fail('Timeline save target belongs to a different session or sequence.', false);
+    }
     if (!isMountedRef.current || session !== activeTargetRef.current) {
-      return Promise.reject(new Error('Timeline session is closed or replaced before durable acknowledgement.'));
+      return fail('Timeline session is closed or replaced before durable acknowledgement.', false);
     }
     if (!isDataProviderPersistenceEnabled(provider) || typeof provider.saveTimeline !== 'function') {
-      return Promise.reject(new Error('Durable timeline persistence is unavailable.'));
+      return fail('Durable timeline persistence is unavailable.');
     }
     if (errorRetryTimer.current && errorRetrySessionRef.current !== session) {
       clearErrorRetry();
     }
     if (reloadInProgressRef.current) {
-      return Promise.reject(new Error('Timeline is reloading before durable acknowledgement.'));
+      return fail('Timeline is reloading before durable acknowledgement.');
     }
     if (isInteractionActive(getInteractionStateRef())) {
-      return Promise.reject(new Error('Finish the current timeline interaction before rendering.'));
+      return fail('Finish the current timeline interaction before rendering.');
     }
     if (isConflictExhaustedRef.current || isConflictExhausted) {
-      return Promise.reject(new Error('Resolve the timeline version conflict before rendering.'));
+      return fail('Resolve the timeline version conflict before rendering.');
     }
     if (isSchemaIncompatibleRef.current) {
-      return Promise.reject(new Error('Resolve the incompatible timeline schema before saving.'));
+      return fail('Resolve the incompatible timeline schema before saving.');
     }
 
     const latest = getDataRef().current ?? dataRef.current;
     if (!latest) {
-      return Promise.reject(new Error('Timeline data is not loaded, so it cannot be saved for rendering.'));
+      return fail('Timeline data is not loaded, so it cannot be saved for rendering.');
     }
-    const targetSeq = editSeqRef.current;
+    const targetSeq = target.targetSeq;
+    const saveSeq = editSeqRef.current;
     if (
       session.acknowledgedSeq >= targetSeq
       && !isSavingRef.current
@@ -917,25 +979,25 @@ export function useTimelinePersistence({
     }
 
     return new Promise<number>((resolve, reject) => {
-      flushWaitersRef.current.push({ session, targetSeq, resolve, reject });
+      flushWaitersRef.current.push({ session, targetSeq, target, typed, resolve, reject });
       if (saveTimer.current) {
         clearTimeout(saveTimer.current);
         saveTimer.current = null;
       }
       if (isSavingRef.current) {
-        pendingSaveRef.current = createScheduledSave(latest, targetSeq);
+        pendingSaveRef.current = createScheduledSave(latest, saveSeq);
         return;
       }
       if (errorRetryTimer.current) {
-        pendingSaveRef.current = createScheduledSave(latest, targetSeq);
+        pendingSaveRef.current = createScheduledSave(latest, saveSeq);
         return;
       }
       const latestScheduled = latestScheduledSaveRef.current;
       const save = latestScheduled?.session === session
-        && latestScheduled.seq === targetSeq
+        && latestScheduled.seq === saveSeq
         && latestScheduled.data.stableSignature === latest.stableSignature
         ? latestScheduled
-        : createScheduledSave(latest, targetSeq);
+        : createScheduledSave(latest, saveSeq);
       void doSave(save);
     });
   }, [
@@ -951,7 +1013,38 @@ export function useTimelinePersistence({
     isConflictExhaustedRef,
     provider,
     session,
+    timelineId,
+    makeBarrierError,
   ]);
+
+  const flushPendingSave = useCallback((): Promise<number> => {
+    // Capturing legacy callers here keeps the existing latest-document barrier.
+    return flushSaveTarget(Object.freeze({ session: session.identity, timelineId, targetSeq: editSeqRef.current, generation: session.generation }), false);
+  }, [editSeqRef, flushSaveTarget, session, timelineId]);
+
+  const discardUncommittedSaveTarget = useCallback((target: TimelineSaveTarget, error: unknown) => {
+    if (!(error instanceof TimelineSaveBarrierError) || !issuedFailuresRef.current.has(error)
+      || error.target !== target || error.certainty !== 'definitely-uncommitted'
+      || target.session !== activeTargetRef.current.identity || target.generation !== session.generation || !isMountedRef.current
+      || session.uncertainThroughSeq >= target.targetSeq
+      || [...session.activeAttempts].some((attempt) => attempt.seq >= target.targetSeq)) return false;
+    const range = { from: target.targetSeq, through: editSeqRef.current };
+    session.cancelledRanges.push(range);
+    const cancelled = (save: ScheduledSave | null | undefined) => Boolean(save && save.session === session
+      && save.seq >= range.from && save.seq <= range.through);
+    if (cancelled(latestScheduledSaveRef.current)) {
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+      saveTimer.current = null;
+      latestScheduledSaveRef.current = null;
+    }
+    if (cancelled(pendingSaveRef.current)) pendingSaveRef.current = null;
+    if (cancelled(deferredSaveRef.current?.save)) deferredSaveRef.current = null;
+    if (cancelled(deferredDuringReloadRef.current?.save)) deferredDuringReloadRef.current = null;
+    if (cancelled(errorRetryAttemptRef.current)) clearErrorRetry();
+    // The commit owner synchronously schedules corrected current data next;
+    // old timer/finally/unmount closures are also fenced by doSave's range check.
+    return true;
+  }, [clearErrorRetry, editSeqRef, session]);
 
   const retryWatchdog = useCallback(() => {
     const reason = watchdogReason;
@@ -1065,6 +1158,12 @@ export function useTimelinePersistence({
         isConflictExhaustedRef.current = false;
         setSchemaIncompatible(null);
         isSchemaIncompatibleRef.current = false;
+        // Canonical replacement can reuse sequence numbers. Fence captured
+        // old payloads/targets without poisoning future edits at the same seq.
+        session.generation += 1;
+        session.cancelledRanges = [];
+        session.uncertainThroughSeq = -1;
+        latestScheduledSaveRef.current = null;
         editSeqRef.current = savedSeqRef.current;
         session.acknowledgedSeq = savedSeqRef.current;
         logConfigVersionUpdate('reload', loadedTimeline.configVersion);
@@ -1175,7 +1274,7 @@ export function useTimelinePersistence({
     const remaining: typeof flushWaitersRef.current = [];
     for (const waiter of flushWaitersRef.current) {
       if (waiter.session === session) remaining.push(waiter);
-      else waiter.reject(new Error('Timeline session replaced before durable acknowledgement.'));
+      else waiter.reject(waiter.typed ? makeBarrierError(waiter.target, new Error('Timeline session replaced before durable acknowledgement.')) : new Error('Timeline session replaced before durable acknowledgement.'));
     }
     flushWaitersRef.current = remaining;
     if (errorRetrySessionRef.current && errorRetrySessionRef.current !== session) clearErrorRetry();
@@ -1185,7 +1284,7 @@ export function useTimelinePersistence({
     }
     if (pendingSaveRef.current?.session !== session) pendingSaveRef.current = null;
     if (deferredSaveRef.current?.save.session !== session) deferredSaveRef.current = null;
-  }, [clearErrorRetry, session]);
+  }, [clearErrorRetry, makeBarrierError, session]);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -1219,6 +1318,9 @@ export function useTimelinePersistence({
   return {
     scheduleSave,
     flushPendingSave,
+    captureSaveTarget,
+    flushSaveTarget,
+    discardUncommittedSaveTarget,
     saveStatus,
     isConflictExhausted,
     schemaIncompatible,
