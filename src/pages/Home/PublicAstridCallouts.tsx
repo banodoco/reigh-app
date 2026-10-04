@@ -98,7 +98,7 @@ const APP_CALLOUTS: readonly CalloutDefinition[] = [
   {
     id: 'timeline',
     title: 'Do complex editing work with your agents',
-    body: 'Arrange, trim and layer clips by hand, or ask the agent to.',
+    body: 'Arrange, trim and layer clips by hand or with your agent.',
     // A fixed point on the timeline panel (where the first clip rests), not the clip itself, so the
     // connector holds still when the timeline is scrolled.
     target: '.astrid-timeline-surface',
