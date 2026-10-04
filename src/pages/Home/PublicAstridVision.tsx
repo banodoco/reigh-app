@@ -3,7 +3,7 @@ import { ArrowUpRight, ChevronDown } from 'lucide-react';
 import { PublicAstridSocialLinks } from './PublicAstridSocialLinks.tsx';
 import { applyPageDusk, DEFAULT_PUBLIC_ASTRID_SKY_SETTINGS, PublicAstridSky, PublicAstridSkyReview, setRootPaper, wantsPublicAstridSkyReview } from './PublicAstridSky.tsx';
 import { pageDusk, skyDarknessAt, themeForDarkness } from './publicAstridSkyRender';
-import { followInPage, GITHUB_URL } from './publicAstridLinks';
+import { followInPage, REPOSITORY_URL } from './publicAstridLinks';
 import { NORTH_STAR_ART, NorthStarMink, type NorthStarArt } from './PublicAstridNorthStarArt.tsx';
 import './PublicAstridVision.css';
 
@@ -247,7 +247,7 @@ function OpenIssues() {
       </ul>
       <p className="astrid-vision-issues-more" data-reveal>
         Hit something that isn’t listed?{' '}
-        <a href={`${GITHUB_URL}/issues`} target="_blank" rel="noreferrer">
+        <a href={`${REPOSITORY_URL}/issues`} target="_blank" rel="noreferrer">
           Open an issue on GitHub
           <ArrowUpRight size={14} strokeWidth={2} aria-hidden="true" />
         </a>
