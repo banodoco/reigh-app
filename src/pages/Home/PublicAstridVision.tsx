@@ -92,7 +92,7 @@ const VISION_ANCHORS: readonly VisionAnchor[] = [
     ],
   },
   {
-    title: 'Everything runs on your machine',
+    title: 'Everything can run on your machine',
     vision: 'Every single thing runs locally, as efficiently as your hardware allows, with no intermediary and zero setup: we handle absolutely everything.',
     today: [
       { text: '100% local today.', holds: true },
