@@ -71,6 +71,27 @@ describe('PublicAstridScriptedConversation', () => {
     expectCompletedExchange();
   });
 
+  it('preserves the reader’s scroll position when entering Agent and resizing the card', () => {
+    const renderActive = (active: boolean) => (
+      <PublicAstridExampleProvider example={LIGHT_STUDY_PUBLIC_EXAMPLE}>
+        <PublicAstridScriptedConversation onOpenVerifiedResult={vi.fn()} active={active} />
+      </PublicAstridExampleProvider>
+    );
+    const { rerender, container } = render(renderActive(false));
+    const thread = container.querySelector<HTMLDivElement>('[data-conversation-presentation] > div:nth-child(2)')!;
+    Object.defineProperty(thread, 'scrollHeight', { configurable: true, value: 900 });
+    Object.defineProperty(thread, 'clientHeight', { configurable: true, value: 250 });
+    thread.scrollTop = 80;
+    fireEvent.scroll(thread);
+
+    rerender(renderActive(true));
+    expect(thread.scrollTop).toBe(80);
+    Object.defineProperty(thread, 'clientHeight', { configurable: true, value: 400 });
+    fireEvent(window, new Event('resize'));
+    rerender(renderActive(true));
+    expect(thread.scrollTop).toBe(80);
+  });
+
   it('offers an in-chat handoff only for a verified result mapped to an exact existing clip', () => {
     const onOpenVerifiedResult = vi.fn();
     render(

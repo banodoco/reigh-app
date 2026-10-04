@@ -158,6 +158,28 @@ describe('PublicAstridShell route announcements', () => {
     announcements.disconnect();
   });
 
+  it('links each named open-source integration without switching away from Agent', async () => {
+    vi.useRealTimers();
+    render(<PublicAstridShell />);
+    fireEvent.click(screen.getByRole('button', { name: 'Agent' }));
+    for (const [name, repository] of [
+      ['ComfyUI', 'Comfy-Org/ComfyUI'],
+      ['Wan2GP', 'deepbeepmeep/Wan2GP'],
+      ['HyperFrames', 'heygen-com/hyperframes'],
+      ['AI Toolkit', 'ostris/ai-toolkit'],
+    ]) {
+      const link = await screen.findByRole('link', { name: `${name} on GitHub` }, { timeout: 4_500 });
+      expect(link).toHaveAttribute('href', `https://github.com/${repository}`);
+      expect(link).toHaveAttribute('target', '_blank');
+      link.focus();
+      expect(link).toHaveFocus();
+      fireEvent.click(link);
+      expect(screen.getByRole('main')).toHaveAttribute('data-audience', 'agent');
+    }
+    expect(screen.getByText('For example:')).toBeInTheDocument();
+    expect(screen.getByText('And you or others in the community can integrate anything.')).toBeInTheDocument();
+  });
+
   it('cancels a stale announcement when a switch is reversed mid-motion', async () => {
     render(<PublicAstridShell />);
     const announcements = observeRouteAnnouncements();

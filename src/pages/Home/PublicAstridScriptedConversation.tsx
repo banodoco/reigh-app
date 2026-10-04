@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { ArrowUp } from 'lucide-react';
 import { userSelectTimelineClip } from '@/shared/state/selectionStore.ts';
 import {
@@ -61,39 +61,13 @@ function ExampleComposer() {
 export function PublicAstridScriptedConversation({
   onReady,
   onOpenVerifiedResult,
-  active,
 }: {
   onReady?: () => void;
   onOpenVerifiedResult: () => void;
-  /** Whether the conversation is on screen, used to restore its scroll position on entry. */
+  /** Host visibility hint; the static transcript preserves its scroll position across entries. */
   active?: boolean;
 }) {
   const example = usePublicAstridExample();
-  // The thread stays pinned to its latest message (on entering Agent, while the card expands, as the
-  // layout changes) unless the reader has deliberately scrolled up.
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const pinnedRef = useRef(true);
-  useEffect(() => {
-    if (active) pinnedRef.current = true;
-  }, [active]);
-  useLayoutEffect(() => {
-    const el = scrollRef.current;
-    if (el && pinnedRef.current) el.scrollTop = el.scrollHeight;
-  });
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return undefined;
-    const pin = () => { if (pinnedRef.current) el.scrollTop = el.scrollHeight; };
-    const onScroll = () => { pinnedRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 8; };
-    el.addEventListener('scroll', onScroll, { passive: true });
-    const resizeObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(pin);
-    resizeObserver?.observe(el);
-    if (el.firstElementChild) resizeObserver?.observe(el.firstElementChild);
-    return () => {
-      el.removeEventListener('scroll', onScroll);
-      resizeObserver?.disconnect();
-    };
-  }, []);
   const presentation = useMemo(
     () => deriveScriptedReplayPresentation(example.script, createInitialScriptedReplayState()),
     [example.script],
@@ -132,7 +106,6 @@ export function PublicAstridScriptedConversation({
         hideEmptyState
         label="Astrid"
         avatarSrc="/astrid-mink-provisional.webp"
-        scrollContainerRef={scrollRef}
         scrollContainerTabIndex={0}
         footer={(
           <div className="astrid-conversation-footer">
