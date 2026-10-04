@@ -800,17 +800,19 @@ export function VideoEditorProvider({
   }) => {
     agentChatRegistry.register({
       timelineId: value.timelineId,
-      editorContext: value.timelineId
+      editorContext: value.projectId || value.timelineId
         ? {
             tool: 'video-editor',
             projectId: value.projectId,
             projectSlug: value.projectSlug ?? null,
             timelineId: value.timelineId,
             timelineName: value.timelineName ?? null,
-            timelineSummary: value.timelineSummary,
-            elementContext: value.elementContext,
-            elementOperationAdapter: value.elementOperationAdapter,
-            liveSceneOperationPort: value.liveSceneOperationPort,
+            ...(value.timelineId ? {
+              timelineSummary: value.timelineSummary,
+              elementContext: value.elementContext,
+              elementOperationAdapter: value.elementOperationAdapter,
+              ...(value.liveSceneOperationPort ? { liveSceneOperationPort: value.liveSceneOperationPort } : {}),
+            } : {}),
             deepLink: typeof globalThis.location?.href === 'string' ? globalThis.location.href : null,
           }
         : null,

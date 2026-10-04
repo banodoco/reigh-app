@@ -58,6 +58,20 @@ describe('Reigh editor context for Astrid', () => {
     expect(JSON.stringify(snapshot)).not.toContain('private-media.mp4');
   });
 
+  it('carries project-only scope on each turn and refreshes after a project switch', () => {
+    const context = { tool: 'video-editor' as const, projectId: 'project-1', projectSlug: 'first', timelineId: null, timelineName: null };
+    const first = buildReighAgentContextSnapshot(context);
+    const followup = buildReighAgentContextSnapshot(context);
+    const switched = buildReighAgentContextSnapshot({ ...context, projectId: 'project-2', projectSlug: 'second' });
+    expect(first.project).toEqual({ id: 'project-1', slug: 'first' });
+    expect(followup.project).toEqual(first.project);
+    expect(first.timeline.id).toBeNull();
+    expect(first.request_id).not.toBe(followup.request_id);
+    expect(switched.project).toEqual({ id: 'project-2', slug: 'second' });
+    expect(switched.context_revision).not.toBe(first.context_revision);
+    expect(serializeReighAgentContext(switched)).not.toContain('project-1');
+  });
+
   it('includes compact element catalog, selected cuts, and typed operations', () => {
     const snapshot = buildReighAgentContextSnapshot({
       tool: 'video-editor',

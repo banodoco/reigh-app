@@ -5,6 +5,7 @@ import type { AgentChatEditorContext } from '@/shared/contexts/AgentChatContext.
 import type { AgentTurn, AgentTurnAttachment, AgentSessionStatus } from '@/tools/video-editor/types/agent-session.ts';
 import { timelineQueryKey, assetRegistryQueryKey } from '@/tools/video-editor/hooks/useTimeline.ts';
 import type { LiveSceneScope } from '@/sdk/video/liveSceneAuthoring';
+import type { LiveSceneOperationPort } from '@/tools/video-editor/runtime/liveSceneOperationPort';
 
 type SendMessageInput = { message: string; attachments?: AgentTurnAttachment[] };
 export type TrackedAgentTurn = AgentTurn & { messageId?: string };
@@ -20,6 +21,83 @@ type AgentSessionOption = Pick<AgentSessionView, 'id' | 'status'>;
 type JsonRecord = Record<string, unknown>;
 
 const ACP_PROMPT_TIMEOUT_MS = 5 * 60_000;
+
+type CapturedAgentRequest = {
+  input: SendMessageInput;
+  sessionId: string;
+  editorContext: Omit<AgentChatEditorContext, 'elementOperationAdapter' | 'liveSceneOperationPort'>;
+  hostOperationRefs: Pick<AgentChatEditorContext, 'elementOperationAdapter' | 'liveSceneOperationPort'>;
+};
+
+type AgentSendCommand =
+  | { kind: 'send'; input: SendMessageInput }
+  | { kind: 'retry'; request: CapturedAgentRequest };
+
+function hasNonEmptyId(value: string | null | undefined): value is string {
+  return typeof value === 'string' && value.trim().length > 0;
+}
+
+function cloneAgentRequest(input: SendMessageInput, sessionId: string, context: AgentChatEditorContext): CapturedAgentRequest {
+  const timelineId = hasNonEmptyId(context.timelineId) ? context.timelineId : null;
+  const timelineSelected = timelineId !== null;
+  const summary = timelineSelected && context.timelineSummary ? { ...context.timelineSummary } : undefined;
+  const serializableContext: CapturedAgentRequest['editorContext'] = {
+    tool: 'video-editor',
+      projectId: context.projectId,
+    projectSlug: context.projectSlug,
+    timelineId,
+    timelineName: timelineSelected ? context.timelineName : null,
+    ...(context.deepLink !== undefined ? { deepLink: context.deepLink } : {}),
+    ...(summary ? { timelineSummary: summary } : {}),
+    ...(timelineSelected && context.elementContext ? { elementContext: structuredClone(context.elementContext) } : {}),
+  };
+  return {
+    input: {
+      message: input.message,
+      ...(input.attachments ? { attachments: structuredClone(input.attachments) } : {}),
+    },
+    sessionId,
+    editorContext: serializableContext,
+    hostOperationRefs: {
+      ...(timelineSelected && context.elementOperationAdapter ? { elementOperationAdapter: context.elementOperationAdapter } : {}),
+      ...(timelineSelected && context.liveSceneOperationPort ? { liveSceneOperationPort: context.liveSceneOperationPort } : {}),
+    },
+  };
+}
+
+function editorContextForRequest(request: CapturedAgentRequest): AgentChatEditorContext {
+  return { ...request.editorContext, ...request.hostOperationRefs };
+}
+
+function sceneScopeForRequest(
+  sessionId: string,
+  turnId: string,
+  context: AgentChatEditorContext,
+): { scope: LiveSceneScope; port: LiveSceneOperationPort } | null {
+  const projectId = hasNonEmptyId(context.projectId) ? context.projectId : null;
+  const timelineId = hasNonEmptyId(context.timelineId) ? context.timelineId : null;
+  const configVersion = context.timelineSummary?.configVersion;
+  const port = context.liveSceneOperationPort;
+  if (!projectId || !timelineId || !port || typeof configVersion !== 'number' || !Number.isSafeInteger(configVersion) || configVersion < 0) {
+    return null;
+  }
+  return {
+    port,
+    scope: { sessionId, turnId, projectId, timelineId, capturedTimelineVersion: configVersion },
+  };
+}
+
+function removeUnscopedLiveSceneMarkers(content: string): string {
+  const cleaned = content.replace(/<reigh_live_scene_request>[\s\S]*?(?:<\/reigh_live_scene_request>|$)/g, '')
+    .replace(/<reigh_live_scene_(?:context|result)>[\s\S]*?(?:<\/reigh_live_scene_(?:context|result)>|$)/g, '')
+    .trim();
+  if (cleaned === content.trim()) return cleaned;
+  return `${cleaned}${cleaned ? '\n\n' : ''}Live-scene request ignored because this turn has no valid selected-timeline scope.`;
+}
+
+function throwIfPromptCancelled(signal: AbortSignal): void {
+  if (signal.aborted) throw new Error('ACP prompt was cancelled before dispatch.');
+}
 
 function asRecord(value: unknown): JsonRecord | null {
   return value && typeof value === 'object' && !Array.isArray(value) ? value as JsonRecord : null;
@@ -182,17 +260,21 @@ export function appendAcpAssistantDraft(
  * for session identity and transcript persistence; this store only adapts the
  * streamed ACP notifications to the legacy chat panel's turn model.
  */
+type LiveSceneAcpModule = typeof import('../runtime/liveSceneAcpRoundtrip');
+
 export class AstridAgentSessionStore {
   constructor(private readonly client = new AstridLocalClient({
     projectSlug: 'reigh-acp',
     timeoutMs: ACP_PROMPT_TIMEOUT_MS,
-  })) {}
+  }), private readonly loadLiveSceneAcpRoundtrip: () => Promise<LiveSceneAcpModule> =
+    () => import('../runtime/liveSceneAcpRoundtrip')) {}
   private connectionId: string | null = null;
   private connectionPromise: Promise<string> | null = null;
   private eventsPromise: Promise<void> | null = null;
   private readonly sessions = new Map<string, AgentSessionView>();
   private readonly loaded = new Set<string>();
   private readonly activePrompts = new Set<string>();
+  private readonly dispatchedPrompts = new Set<string>();
   private readonly activePromptTexts = new Map<string, string>();
   private readonly promptControllers = new Map<string, AbortController>();
 
@@ -260,36 +342,6 @@ export class AstridAgentSessionStore {
     editorContext: AgentChatEditorContext,
   ): Promise<void> {
     if (this.activePrompts.has(sessionId)) throw new Error('An ACP prompt is already active for this session');
-    const connectionId = await this.connection();
-    if (!this.loaded.has(sessionId)) {
-      await this.client.acp.loadSession(connectionId, sessionId);
-      this.loaded.add(sessionId);
-    }
-
-    const isSessionConfigCommand = !input.attachments?.length
-      && /^\/(?:model|thinking)(?:\s|$)/.test(input.message.trim());
-    if (isSessionConfigCommand) {
-      if (this.activePrompts.has(sessionId)) throw new Error('An ACP prompt is already active for this session');
-      this.activePrompts.add(sessionId);
-      const session = this.state(sessionId);
-      session.status = 'processing';
-      try {
-        const { setSessionConfigOption } = await import('../runtime/agentSessionSettings');
-        const acknowledgement = await setSessionConfigOption(this.client.acp, connectionId, sessionId, input.message);
-        session.turns.push({
-          role: 'user', content: input.message, attachments: input.attachments, timestamp: timestamp(),
-          messageId: `reigh-setting-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-        });
-        this.commitAssistantDraft(session, acknowledgement);
-        await this.pullEvents();
-      } finally {
-        this.activePrompts.delete(sessionId);
-        session.status = 'waiting_user';
-      }
-      return;
-    }
-
-    if (this.activePrompts.has(sessionId)) throw new Error('An ACP prompt is already active for this session');
     const controller = new AbortController();
     const session = this.state(sessionId);
     session.status = 'processing';
@@ -299,29 +351,47 @@ export class AstridAgentSessionStore {
     this.promptControllers.set(sessionId, controller);
     this.activePromptTexts.set(sessionId, input.message);
     let sceneScope: LiveSceneScope | undefined;
+    let scenePort: LiveSceneOperationPort | undefined;
+    let dispatchStarted = false;
     try {
+      if (controller.signal.aborted) return;
+      const connectionId = await this.connection();
+      if (controller.signal.aborted) return;
+      if (!this.loaded.has(sessionId)) {
+        await this.client.acp.loadSession(connectionId, sessionId);
+        if (controller.signal.aborted) return;
+        this.loaded.add(sessionId);
+      }
+
+      const isSessionConfigCommand = !input.attachments?.length
+        && /^\/(?:model|thinking)(?:\s|$)/.test(input.message.trim());
+      if (isSessionConfigCommand) {
+        const { setSessionConfigOption } = await import('../runtime/agentSessionSettings');
+        if (controller.signal.aborted) return;
+        const acknowledgement = await setSessionConfigOption(this.client.acp, connectionId, sessionId, input.message);
+        session.turns.push({
+          role: 'user', content: input.message, attachments: input.attachments, timestamp: timestamp(),
+          messageId: `reigh-setting-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        });
+        this.commitAssistantDraft(session, acknowledgement);
+        await this.pullEvents();
+        return;
+      }
+
       const reighAgentContext = await import('@/tools/video-editor/runtime/reighAgentContext.ts');
       if (controller.signal.aborted) return;
       const contextSnapshot = reighAgentContext.buildReighAgentContextSnapshot(editorContext, input.attachments ?? []);
       const context = reighAgentContext.serializeReighAgentContext(contextSnapshot);
-      const activeSceneScope: LiveSceneScope = {
-        sessionId, turnId: contextSnapshot.request_id,
-        projectId: editorContext.projectId ?? '', timelineId: editorContext.timelineId,
-        capturedTimelineVersion: editorContext.timelineSummary?.configVersion ?? -1,
-      };
-      sceneScope = activeSceneScope;
-      session.turns.push({
-        role: 'user',
-        content: input.message,
-        attachments: input.attachments,
-        timestamp: timestamp(),
-        messageId: `reigh-prompt-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-      });
+      const sceneBinding = sceneScopeForRequest(sessionId, contextSnapshot.request_id, editorContext);
+      if (sceneBinding) {
+        sceneScope = sceneBinding.scope;
+        scenePort = sceneBinding.port;
+      }
 
-      let liveSceneAcp: typeof import('../runtime/liveSceneAcpRoundtrip') | null = null;
-      if (editorContext.liveSceneOperationPort) {
+      let liveSceneAcp: LiveSceneAcpModule | null = null;
+      if (sceneScope && scenePort) {
         try {
-          liveSceneAcp = await import('../runtime/liveSceneAcpRoundtrip');
+          liveSceneAcp = await this.loadLiveSceneAcpRoundtrip();
         } catch (error) {
           throw new Error(
             `Live-scene ACP implementation failed to load: ${error instanceof Error ? error.message : String(error)}`,
@@ -330,15 +400,27 @@ export class AstridAgentSessionStore {
       }
       if (controller.signal.aborted) return;
 
-      await this.client.acp.promptSession(connectionId, sessionId, [
+      const promptBlocks = [
         { type: 'text', text: input.message },
         { type: 'text', text: context },
-        ...(liveSceneAcp ? [{ type: 'text' as const, text: liveSceneAcp.liveScenePromptContract(activeSceneScope) }] : []),
-      ]);
+        ...(liveSceneAcp && sceneScope ? [{ type: 'text' as const, text: liveSceneAcp.liveScenePromptContract(sceneScope) }] : []),
+      ];
+      session.turns.push({
+        role: 'user',
+        content: input.message,
+        attachments: input.attachments,
+        timestamp: timestamp(),
+        messageId: `reigh-prompt-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      });
+      dispatchStarted = true;
+      this.dispatchedPrompts.add(sessionId);
+      await this.client.acp.promptSession(connectionId, sessionId, promptBlocks);
       await this.pullEvents();
       const draft = trimString(session.assistantDraft);
       const extracted = extractReighElementOperations(draft);
-      let finalContent = extracted.visibleContent;
+      let finalContent = liveSceneAcp
+        ? extracted.visibleContent
+        : removeUnscopedLiveSceneMarkers(extracted.visibleContent);
       if (extracted.parseErrors.length > 0) {
         finalContent = `${finalContent}${finalContent ? '\n\n' : ''}Element operation marker could not be parsed: ${extracted.parseErrors.join('; ')}`;
       }
@@ -347,6 +429,10 @@ export class AstridAgentSessionStore {
           finalContent = `${finalContent}${finalContent ? '\n\n' : ''}Element operations were requested, but this editor session has no host operation adapter.`;
         } else {
           for (const operation of extracted.operations) {
+            if (controller.signal.aborted) {
+              finalContent = `${finalContent}${finalContent ? '\n\n' : ''}Element operation was cancelled before host execution.`;
+              break;
+            }
             try {
               const result = await editorContext.elementOperationAdapter.execute(operation);
               finalContent = `${finalContent}${finalContent ? '\n\n' : ''}${formatElementOperationResult(result)}`;
@@ -356,11 +442,12 @@ export class AstridAgentSessionStore {
           }
         }
       }
-      if (liveSceneAcp) {
+      if (liveSceneAcp && sceneScope && scenePort) {
         finalContent = await liveSceneAcp.runLiveSceneAcpRoundtrip({
-          content: finalContent, scope: activeSceneScope, port: editorContext.liveSceneOperationPort,
+          content: finalContent, scope: sceneScope, port: scenePort,
           signal: controller.signal,
           followup: async (feedback) => {
+            throwIfPromptCancelled(controller.signal);
             session.assistantDraft = undefined;
             session.assistantDraftMessageId = undefined;
             await this.client.acp.promptSession(connectionId, sessionId, [{ type: 'text', text: feedback }]);
@@ -371,17 +458,21 @@ export class AstridAgentSessionStore {
       }
       this.commitAssistantDraft(session, finalContent);
     } finally {
-      if (sceneScope) editorContext.liveSceneOperationPort?.endTurn(sceneScope);
-      this.promptControllers.delete(sessionId);
-      this.activePrompts.delete(sessionId);
-      this.activePromptTexts.delete(sessionId);
-      session.assistantDraft = undefined;
-      session.assistantDraftMessageId = undefined;
-      // `session/prompt` resolves only after OMP has finished the turn. A
-      // concurrent polling request may have drained the final assistant chunk
-      // after the response arrived, so do not let that replay mark a completed
-      // turn as "thinking" again.
-      session.status = 'waiting_user';
+      try {
+        if (sceneScope && scenePort) scenePort.endTurn(sceneScope);
+      } finally {
+        this.promptControllers.delete(sessionId);
+        this.activePrompts.delete(sessionId);
+        this.dispatchedPrompts.delete(sessionId);
+        this.activePromptTexts.delete(sessionId);
+        session.assistantDraft = undefined;
+        session.assistantDraftMessageId = undefined;
+        // `session/prompt` resolves only after OMP has finished the turn. A
+        // concurrent polling request may have drained the final assistant chunk
+        // after the response arrived, so do not let that replay mark a completed
+        // turn as "thinking" again.
+        session.status = controller.signal.aborted && dispatchStarted ? 'cancelled' : 'waiting_user';
+      }
     }
   }
 
@@ -398,10 +489,11 @@ export class AstridAgentSessionStore {
   }
 
   async cancel(sessionId: string): Promise<void> {
+    const cancelledBeforeDispatch = this.activePrompts.has(sessionId) && !this.dispatchedPrompts.has(sessionId);
     this.promptControllers.get(sessionId)?.abort();
     const connectionId = await this.connection();
     await this.client.acp.cancelSession(connectionId, sessionId);
-    this.state(sessionId).status = 'cancelled';
+    this.state(sessionId).status = cancelledBeforeDispatch ? 'waiting_user' : 'cancelled';
     await this.pullEvents();
   }
 
@@ -500,15 +592,15 @@ export function isTimelineAgentSessionsAvailable(): boolean {
   return true;
 }
 
-export const agentSessionsQueryKey = (timelineId: string | null | undefined) =>
-  ['timeline-agent-sessions', timelineId] as const;
+export const agentSessionsQueryKey = (timelineId: string | null | undefined, projectId?: string | null) =>
+  ['timeline-agent-sessions', timelineId, projectId ?? null] as const;
 export const agentSessionQueryKey = (sessionId: string | null | undefined) =>
   ['timeline-agent-session', sessionId] as const;
 
-export function useAgentSessions(timelineId: string | null | undefined) {
+export function useAgentSessions(timelineId: string | null | undefined, projectId?: string | null) {
   return useQuery({
-    queryKey: agentSessionsQueryKey(timelineId),
-    enabled: Boolean(timelineId),
+    queryKey: agentSessionsQueryKey(timelineId, projectId),
+    enabled: Boolean(timelineId || projectId),
     queryFn: () => agentStore.list(),
     refetchInterval: 5_000,
     retry: false,
@@ -527,15 +619,15 @@ export function useAgentSession(sessionId: string | null | undefined) {
   });
 }
 
-export function useCreateSession(timelineId: string | null | undefined) {
+export function useCreateSession(timelineId: string | null | undefined, projectId?: string | null) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async () => {
-      if (!timelineId) throw new Error('timelineId is required');
+      if (!timelineId && !projectId) throw new Error('Select a project or timeline to start chatting.');
       return agentStore.create();
     },
     onSuccess: (session) => {
-      void queryClient.invalidateQueries({ queryKey: agentSessionsQueryKey(timelineId) });
+      void queryClient.invalidateQueries({ queryKey: agentSessionsQueryKey(timelineId, projectId) });
       void queryClient.invalidateQueries({ queryKey: agentSessionQueryKey(session.id) });
     },
   });
@@ -556,41 +648,85 @@ export function useSendMessage(
         timelineName: null,
       }
     : editorContextInput;
-  const lastMessageRef = useRef<SendMessageInput | null>(null);
+  const lastMessageRef = useRef<CapturedAgentRequest | null>(null);
+  const retryInFlightRef = useRef(false);
+  const sendInFlightRef = useRef(false);
   const [localError, setLocalError] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const mutation = useMutation({
-    mutationFn: async (input: SendMessageInput) => {
-      if (!sessionId) throw new Error('sessionId is required');
-      if (!editorContext?.timelineId) throw new Error('timelineId is required');
-      lastMessageRef.current = input;
-      await agentStore.prompt(sessionId, input, editorContext);
+    mutationFn: async (command: AgentSendCommand) => {
+      if (sendInFlightRef.current) throw new Error('A message is already being sent or retried.');
+      sendInFlightRef.current = true;
+      try {
+        if (!sessionId) throw new Error('sessionId is required');
+        let request: CapturedAgentRequest;
+        if (command.kind === 'retry') {
+          if (sessionId !== command.request.sessionId) {
+            throw new Error('The active session changed; the failed message can only be retried in its original session.');
+          }
+          request = command.request;
+        } else {
+          if (retryInFlightRef.current) throw new Error('A message is already being sent or retried.');
+          if (!editorContext || (!hasNonEmptyId(editorContext.projectId) && !hasNonEmptyId(editorContext.timelineId))) {
+            throw new Error('Select a project or timeline to chat.');
+          }
+          request = cloneAgentRequest(command.input, sessionId, editorContext);
+        }
+        try {
+          await agentStore.prompt(request.sessionId, request.input, editorContextForRequest(request));
+          lastMessageRef.current = null;
+          return request;
+        } catch (error) {
+          lastMessageRef.current = request;
+          throw error;
+        }
+      } finally {
+        sendInFlightRef.current = false;
+      }
     },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: agentSessionQueryKey(sessionId) });
+    onSuccess: (request) => {
+      void queryClient.invalidateQueries({ queryKey: agentSessionQueryKey(request.sessionId) });
       // Astrid writes through the workspace runtime. Let the editor's normal
       // version-aware persistence/poll path adopt the changed document instead
       // of forcing a blind local-state replacement.
-      void queryClient.invalidateQueries({ queryKey: timelineQueryKey(editorContext?.timelineId) });
-      void queryClient.invalidateQueries({ queryKey: assetRegistryQueryKey(editorContext?.timelineId) });
+      if (request.editorContext.timelineId) {
+        void queryClient.invalidateQueries({ queryKey: timelineQueryKey(request.editorContext.timelineId) });
+        void queryClient.invalidateQueries({ queryKey: assetRegistryQueryKey(request.editorContext.timelineId) });
+      }
     },
     onError: (error) => setLocalError(error instanceof Error ? error.message : String(error)),
   });
 
   const retryLastMessage = async () => {
-    if (!lastMessageRef.current) return null;
+    const request = lastMessageRef.current;
+    if (!request) return null;
+    if (retryInFlightRef.current || sendInFlightRef.current || mutation.isPending) {
+      throw new Error('A message is already being sent or retried.');
+    }
+    if (sessionId !== request.sessionId) {
+      const error = new Error('The active session changed; the failed message can only be retried in its original session.');
+      setLocalError(error.message);
+      throw error;
+    }
     setLocalError(null);
-    return await mutation.mutateAsync(lastMessageRef.current);
+    retryInFlightRef.current = true;
+    try {
+      return await mutation.mutateAsync({ kind: 'retry', request });
+    } finally {
+      retryInFlightRef.current = false;
+    }
   };
 
   return {
+    ...mutation,
+    mutate: (input: SendMessageInput) => mutation.mutate({ kind: 'send', input }),
+    mutateAsync: (input: SendMessageInput) => mutation.mutateAsync({ kind: 'send', input }),
     continuationNotice: null,
     clearContinuationNotice: () => undefined,
     localError,
     clearLocalError: () => setLocalError(null),
     hasRetryableMessage: Boolean(lastMessageRef.current),
     retryLastMessage,
-    ...mutation,
   };
 }
 

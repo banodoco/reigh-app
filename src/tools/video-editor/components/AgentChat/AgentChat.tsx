@@ -217,8 +217,8 @@ function AvailableAgentChatPanel({ isExpanded }: { isExpanded: boolean }) {
     pendingComposerPrompt,
     clearPendingComposerPrompt,
   } = useAgentChatBridge();
-  const sessions = useAgentSessions(timelineId);
-  const createSession = useCreateSession(timelineId);
+  const sessions = useAgentSessions(timelineId, editorContext?.projectId);
+  const createSession = useCreateSession(timelineId, editorContext?.projectId);
   // Engagement signal: when the pane is locked the user has clearly committed to
   // having chat visible, so auto-create can fire without an explicit click.
   const isTasksPaneLocked = usePanesStore((state) => state.isTasksPaneLocked);
@@ -237,7 +237,7 @@ function AvailableAgentChatPanel({ isExpanded }: { isExpanded: boolean }) {
   const bottomAnchorRef = useRef<HTMLDivElement | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
-  const hasTimeline = timelineId !== null;
+  const hasChatScope = Boolean(timelineId || editorContext?.projectId);
 
   useEffect(() => {
     if (!pendingComposerPrompt) return;
@@ -274,10 +274,10 @@ function AvailableAgentChatPanel({ isExpanded }: { isExpanded: boolean }) {
   const isCancelled = activeStatus === 'cancelled';
   const isProcessing = activeStatus === 'processing' || activeStatus === 'continue';
   const showKillSwitch = activeStatus === 'processing' || activeStatus === 'continue';
-  const showNoTimelineState = !hasTimeline && sessionOptions.length === 0;
+  const showNoScopeState = !hasChatScope && sessionOptions.length === 0;
   const hasQueuedMessages = queue.length > 0;
-  const inputPlaceholder = showNoTimelineState
-    ? 'Create a timeline to start chatting...'
+  const inputPlaceholder = showNoScopeState
+    ? 'Select a project to start chatting...'
     : voice.isRecording
       ? 'Recording...'
       : (isProcessing || sendMessage.isPending || hasQueuedMessages)
@@ -409,7 +409,7 @@ function AvailableAgentChatPanel({ isExpanded }: { isExpanded: boolean }) {
       || sessions.isError
       || createSession.isPending
       || sessionOptions.length > 0
-      || !hasTimeline
+      || !hasChatScope
       || !isEngaged
     ) {
       return;
@@ -423,7 +423,7 @@ function AvailableAgentChatPanel({ isExpanded }: { isExpanded: boolean }) {
         if (sessionId) setActiveSessionId(sessionId);
       },
     });
-  }, [createSession, hasTimeline, sessionOptions.length, sessions.isError, sessions.isLoading, isEngaged]);
+  }, [createSession, hasChatScope, sessionOptions.length, sessions.isError, sessions.isLoading, isEngaged]);
 
   const scrollToBottom = useCallback((smooth = true) => {
     const container = scrollContainerRef.current;
@@ -445,7 +445,7 @@ function AvailableAgentChatPanel({ isExpanded }: { isExpanded: boolean }) {
     const handleKeyDown = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key.toLowerCase() === 'r') {
         event.preventDefault();
-        if (!hasTimeline) {
+        if (!hasChatScope) {
           return;
         }
         if (voice.isRecording) {
@@ -458,7 +458,7 @@ function AvailableAgentChatPanel({ isExpanded }: { isExpanded: boolean }) {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [hasTimeline, voice]);
+  }, [hasChatScope, voice]);
 
   useEffect(() => {
     setQueue([]);
@@ -491,7 +491,7 @@ function AvailableAgentChatPanel({ isExpanded }: { isExpanded: boolean }) {
 
   const sendingRef = useRef(false);
   const sendNow = useCallback(async (item: QueuedMessage) => {
-    if (!activeSessionId || !timelineId) {
+    if (!activeSessionId || !hasChatScope) {
       return;
     }
 
@@ -520,11 +520,11 @@ function AvailableAgentChatPanel({ isExpanded }: { isExpanded: boolean }) {
     } finally {
       sendingRef.current = false;
     }
-  }, [activeSessionData?.turns.length, activeSessionId, sendMessage, timelineId]);
+  }, [activeSessionData?.turns.length, activeSessionId, sendMessage, hasChatScope]);
 
   const handleSend = useCallback(async (rawText?: string) => {
     const text = (rawText ?? draft).trim();
-    if (!text || !activeSessionId || !timelineId) return;
+    if (!text || !activeSessionId || !hasChatScope) return;
 
     const attachments: AgentTurnAttachment[] = clips.map((clip) => ({
       clipId: clip.clipId,
@@ -560,7 +560,7 @@ function AvailableAgentChatPanel({ isExpanded }: { isExpanded: boolean }) {
     }
 
     await sendNow(item);
-  }, [activeSessionId, clips, draft, isProcessing, optimisticMessage, queue.length, sendMessage.isPending, sendNow, timelineId]);
+  }, [activeSessionId, clips, draft, isProcessing, optimisticMessage, queue.length, sendMessage.isPending, sendNow, hasChatScope]);
 
   useEffect(() => {
     if (
@@ -570,7 +570,7 @@ function AvailableAgentChatPanel({ isExpanded }: { isExpanded: boolean }) {
       || optimisticMessage
       || queue.length === 0
       || !activeSessionId
-      || !timelineId
+      || !hasChatScope
     ) {
       return;
     }
@@ -588,10 +588,10 @@ function AvailableAgentChatPanel({ isExpanded }: { isExpanded: boolean }) {
         // Leave the failed head in place; pausedQueueHeadId will prevent further drains.
       }
     })();
-  }, [queue, pausedQueueHeadId, isProcessing, sendMessage.isPending, optimisticMessage, activeSessionId, timelineId, sendNow]);
+  }, [queue, pausedQueueHeadId, isProcessing, sendMessage.isPending, optimisticMessage, activeSessionId, hasChatScope, sendNow]);
 
   const handleNewSession = useCallback(async () => {
-    if (!hasTimeline) {
+    if (!hasChatScope) {
       return;
     }
     setQueue([]);
@@ -601,7 +601,7 @@ function AvailableAgentChatPanel({ isExpanded }: { isExpanded: boolean }) {
     const sessionId = readSessionId(session);
     if (sessionId) setActiveSessionId(sessionId);
     setDraft('');
-  }, [createSession, hasTimeline]);
+  }, [createSession, hasChatScope]);
 
   // ==========================================================================
   // Actions registry — exposes stable handlers the parent (TasksPane split
@@ -687,7 +687,7 @@ function AvailableAgentChatPanel({ isExpanded }: { isExpanded: boolean }) {
             variant="ghost"
             className="h-7 px-2 text-xs text-muted-foreground"
             onClick={() => void handleNewSession()}
-            disabled={createSession.isPending || !hasTimeline}
+            disabled={createSession.isPending || !hasChatScope}
           >
             New
           </Button>
@@ -709,14 +709,14 @@ function AvailableAgentChatPanel({ isExpanded }: { isExpanded: boolean }) {
                 <p>Local Astrid chat is unavailable.</p>
                 <p className="mt-1 text-xs">Start the Astrid ACP bridge, then reopen this pane.</p>
               </>
-            ) : showNoTimelineState ? (
+            ) : showNoScopeState ? (
               <>
-                <p>Create a timeline to start chatting.</p>
-                <p className="mt-1 text-xs">Open the video editor to create one.</p>
+                <p>Select a project to start chatting.</p>
+                <p className="mt-1 text-xs">Open a project in the video editor.</p>
               </>
             ) : (
               <>
-                <p>Ask me to edit your timeline.</p>
+                <p>Ask me about your project.</p>
                 <p className="mt-1 text-xs">Press <kbd className="rounded border border-border px-1 py-0.5 text-[10px]">Cmd+Shift+R</kbd> to talk</p>
               </>
             )}
@@ -894,7 +894,7 @@ function AvailableAgentChatPanel({ isExpanded }: { isExpanded: boolean }) {
               rows={isExpanded ? 8 : 4}
               placeholder={inputPlaceholder}
               className="min-h-10 w-full resize-none rounded-xl border border-border/70 bg-card px-3 py-2 pr-12 text-sm leading-5 outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-primary/50"
-              disabled={!hasTimeline || !activeSessionId || isCancelled || voice.isRecording || voice.isProcessing}
+              disabled={!hasChatScope || !activeSessionId || isCancelled || voice.isRecording || voice.isProcessing}
               onKeyDown={(event) => {
                 if (event.key === 'Enter' && !event.shiftKey) {
                   event.preventDefault();
@@ -913,7 +913,7 @@ function AvailableAgentChatPanel({ isExpanded }: { isExpanded: boolean }) {
                     ? 'relative h-full w-full rounded-xl bg-red-500 text-white transition-colors hover:bg-red-600'
                     : 'relative h-full w-full rounded-xl bg-muted/80 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground'}
                   onClick={() => voice.isRecording ? voice.stopRecording() : voice.startRecording()}
-                  disabled={!hasTimeline || !activeSessionId || isCancelled || voice.isProcessing || sendMessage.isPending}
+                  disabled={!hasChatScope || !activeSessionId || isCancelled || voice.isProcessing || sendMessage.isPending}
                   title={voice.isRecording ? 'Stop recording' : 'Voice input (Cmd+Shift+R)'}
                 >
                   {voice.isRecording ? <Square className="h-3 w-3" /> : <Mic className="h-3.5 w-3.5" />}
@@ -939,7 +939,7 @@ function AvailableAgentChatPanel({ isExpanded }: { isExpanded: boolean }) {
                   variant="default"
                   className="h-full w-full rounded-xl"
                   onClick={() => void handleSend()}
-                  disabled={!hasTimeline || !draft.trim() || !activeSessionId || isCancelled}
+                  disabled={!hasChatScope || !draft.trim() || !activeSessionId || isCancelled}
                   title="Send"
                 >
                   <Send className="h-4 w-4" />

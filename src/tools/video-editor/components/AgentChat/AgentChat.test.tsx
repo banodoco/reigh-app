@@ -279,7 +279,7 @@ describe('AgentChat', () => {
 
     renderAgentChat();
 
-    expect(await screen.findByText('Create a timeline to start chatting.')).toBeInTheDocument();
+    expect(await screen.findByText('Select a project to start chatting.')).toBeInTheDocument();
     await waitFor(() => expect(state.createSession.mutate).not.toHaveBeenCalled());
   });
 
@@ -309,6 +309,19 @@ describe('AgentChat', () => {
     renderAgentChat();
 
     await waitFor(() => expect(state.createSession.mutate).toHaveBeenCalledTimes(1));
+  });
+
+  it('keeps a pre-dispatch cancelled session eligible for normal selection', async () => {
+    const state = createState();
+    state.sessionsData = [
+      { id: 'cancelled-session', status: 'cancelled' },
+      { id: 'predispatch-cancel-session', status: 'waiting_user' },
+    ];
+    mockFromState(state);
+
+    renderAgentChat();
+
+    await waitFor(() => expect(mocks.useAgentSession).toHaveBeenCalledWith('predispatch-cancel-session'));
   });
 
   it('does not auto-create when unengaged (pane unlocked, no voice, no markEngaged)', async () => {
@@ -508,5 +521,25 @@ describe('AgentChat', () => {
 
     fireEvent.click(screen.getAllByTitle('Remove queued message')[1]);
     expect(getQueuedTexts()).toEqual(['second', 'third']);
+  });
+});
+
+
+describe('project-only Astrid chat', () => {
+  it('enables sending in a project without a timeline and forwards its explicit context', async () => {
+    const state = createState();
+    state.timelineId = null;
+    mockFromState(state);
+    const context = { tool: 'video-editor', projectId: 'project-1', projectSlug: 'first', timelineId: null, timelineName: null };
+    mocks.useAgentChatBridge.mockReturnValue({ timelineId: null, editorContext: context });
+    render(<AgentChatPanel isExpanded />);
+    const composer = screen.getByPlaceholderText('Type or press Cmd+Shift+R to talk...');
+    expect(composer).not.toBeDisabled();
+    fireEvent.change(composer, { target: { value: 'Remember model B for this project' } });
+    fireEvent.keyDown(composer, { key: 'Enter', code: 'Enter' });
+    await waitFor(() => expect(state.sendMessage.mutateAsync).toHaveBeenCalled());
+    expect(mocks.useAgentSessions).toHaveBeenCalledWith(null, 'project-1');
+    expect(mocks.useCreateSession).toHaveBeenCalledWith(null, 'project-1');
+    expect(mocks.useSendMessage).toHaveBeenCalledWith('session-1', context);
   });
 });
