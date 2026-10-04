@@ -28,7 +28,7 @@ const HIVEMIND_URL = 'https://github.com/banodoco/hivemind';
  */
 const PRINCIPLES: readonly { title: string; body: string; art: NorthStarArt }[] = [
   {
-    title: 'A fully open tool built for artistic ambition',
+    title: 'A fully open toolset built for artistic ambition',
     body: 'Everything here serves one goal: helping you realise the most ambitious creative and artistic work you can imagine, with agents and local models.',
     art: NORTH_STAR_ART.art,
   },
@@ -38,7 +38,7 @@ const PRINCIPLES: readonly { title: string; body: string; art: NorthStarArt }[] 
     art: NORTH_STAR_ART.knowledge,
   },
   {
-    title: 'A tool that’s designed to be reshaped as you use it',
+    title: 'A toolset designed to be reshaped as you use it',
     body: 'These tools should be infinitely adaptable, from the interface to the agents to how the work is executed, and you should be able to reshape them as you work, with as little friction as possible.',
     art: NORTH_STAR_ART.adapt,
   },
