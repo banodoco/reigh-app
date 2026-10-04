@@ -146,6 +146,10 @@ function sameExperience(left: ExperienceState, right: ExperienceState): boolean 
 
 export function PublicAstridShell({ onOpenVision }: { onOpenVision?: () => void } = {}) {
   const [state, setState] = useState<ExperienceState>(readExperienceState);
+  const [hasViewedAgent, setHasViewedAgent] = useState(() => state.audience === 'agent');
+  useEffect(() => {
+    if (state.audience === 'agent') setHasViewedAgent(true);
+  }, [state.audience]);
   const [transportOutlet, setTransportOutlet] = useState<HTMLDivElement | null>(null);
   const editorStageRef = useRef<HTMLDivElement>(null);
   const editorFailurePanelRef = useRef<HTMLDivElement>(null);
@@ -732,12 +736,12 @@ export function PublicAstridShell({ onOpenVision }: { onOpenVision?: () => void 
                 className="astrid-agent-launcher"
                 type="button"
                 data-astrid-agent-launcher
-                aria-label="Open Agent — 1 scripted conversation"
+                aria-label={hasViewedAgent ? 'Open Agent' : 'Open Agent — 1 scripted conversation'}
                 title="Open Agent conversation"
                 onClick={() => updateState({ audience: 'agent' })}
               >
                 <img src="/astrid-mink-provisional.webp" alt="" />
-                <span aria-hidden="true">1</span>
+                {!hasViewedAgent && <span aria-hidden="true">1</span>}
               </button>
             )}
 
