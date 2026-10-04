@@ -43,7 +43,7 @@ const PHONE_CLAMP_SELECTOR = '.astrid-chat-surface';
 const AGENT_CALLOUTS: readonly CalloutDefinition[] = [
   {
     id: 'community',
-    title: 'Access to communities and collective intelligence',
+    title: 'The community’s collective intelligence',
     body: 'Shared ideas and examples inform every edit it makes.',
     target: '.astrid-chat-surface',
     at: [0, 0.2],
