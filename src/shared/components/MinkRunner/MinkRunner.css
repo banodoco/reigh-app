@@ -1,6 +1,7 @@
 /* The mink runs in place while the ground streams beneath it: Astrid's "something is on its way". The
    sheet (astrid-mink-run.png, inlined by Vite) holds the frames side by side at 1x; it is shown small with
-   crisp pixels. Both motions are transform-only, so they run on the compositor without repainting. */
+   crisp pixels. Each frame paints inside a fixed window so adjacent frames cannot bleed through a
+   translated layer's fractional clip edge. */
 .astrid-mink-runner {
   --frame-w: 81;
   --frame-h: 44;
@@ -19,9 +20,9 @@
 }
 .astrid-mink-runner-sprite {
   display: block;
-  width: calc(var(--frame-w) * var(--frames) * var(--scale) * 1px);
+  width: 100%;
   height: 100%;
-  background: url('./astrid-mink-run.png') 0 0 / 100% 100% no-repeat;
+  background: url('./astrid-mink-run.png') 0 0 / calc(var(--frame-w) * var(--frames) * var(--scale) * 1px) 100% no-repeat;
   image-rendering: pixelated;
   animation: astrid-mink-run var(--cycle) steps(var(--frames)) infinite;
 }
@@ -41,7 +42,7 @@
   background: repeating-linear-gradient(90deg, color-mix(in srgb, var(--astrid-ink, currentColor) 28%, transparent) 0 4px, transparent 4px 12px);
   animation: astrid-mink-ground calc(var(--cycle) / 3) linear infinite;
 }
-@keyframes astrid-mink-run { to { transform: translateX(-100%); } }
+@keyframes astrid-mink-run { to { background-position-x: calc(var(--frame-w) * var(--frames) * var(--scale) * -1px); } }
 @keyframes astrid-mink-ground { to { transform: translateX(-12px); } }
 @media (prefers-reduced-motion: reduce) {
   .astrid-mink-runner-sprite,

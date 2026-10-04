@@ -130,7 +130,7 @@ function CommandBlock({ command }: { command: string }) {
 function PastePanel({ title, text, copyLabel }: { title: string; text: string; copyLabel: string }) {
   const [open, setOpen] = useState(false);
   return (
-    <div className="overflow-hidden rounded-md border text-left">
+    <div className="overflow-hidden rounded-md border bg-muted text-left">
       <div className="flex items-center justify-between gap-3 border-b bg-muted/60 px-3 py-2">
         <span className="text-xs font-medium text-muted-foreground">{title}</span>
         <CopyButton text={text} label={copyLabel} />
@@ -139,7 +139,7 @@ function PastePanel({ title, text, copyLabel }: { title: string; text: string; c
         <pre className={`verbatim-case whitespace-pre-wrap p-3 font-mono text-xs leading-relaxed [overflow-wrap:anywhere] ${open ? 'max-h-72 overflow-y-auto' : 'max-h-20 overflow-hidden'}`}>{text}</pre>
         {!open && <div className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-muted to-transparent" />}
       </div>
-      <button type="button" onClick={() => setOpen((value) => !value)} className="w-full border-t px-3 py-1.5 text-left text-xs text-muted-foreground hover:text-foreground">
+      <button type="button" onClick={() => setOpen((value) => !value)} className="w-full border-t bg-muted px-3 py-1.5 text-left text-xs text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring">
         {open ? 'Show less' : 'Show all'}
       </button>
     </div>

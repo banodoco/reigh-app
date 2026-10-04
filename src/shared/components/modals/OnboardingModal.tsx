@@ -18,6 +18,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
   mode = 'first-run',
   onClose,
 }) => {
+  const initialFocusRef = React.useRef<HTMLDivElement>(null);
   const reconnect = mode === 'reconnect';
   // Large: setup shows commands and a brief that need room to read.
   const modal = useLargeModal();
@@ -39,7 +40,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleShake}>
-      <DialogContent className={modal.className} style={modal.style}>
+      <DialogContent className={modal.className} style={modal.style} initialFocus={initialFocusRef}>
         <style>
           {`
             @keyframes shake {
@@ -58,7 +59,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
           }
         `}</style>
 
-        <div className={`flex flex-col flex-1 min-h-0 ${isShaking ? 'shake-wrapper' : ''}`}>
+        <div ref={initialFocusRef} tabIndex={-1} className={`flex flex-col flex-1 min-h-0 outline-none ${isShaking ? 'shake-wrapper' : ''}`}>
           <div className={modal.headerClass} />
 
           {/* The scroller reaches into the dialog's right padding with matching padding inside, so its

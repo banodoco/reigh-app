@@ -1,10 +1,12 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AstridCapabilityCensus } from '@/integrations/astrid/capabilityCensus.ts';
 
 const { inspectMock } = vi.hoisted(() => ({ inspectMock: vi.fn() }));
 vi.mock('@/integrations/astrid/capabilityCensus.ts', () => ({ inspectAstridCapabilities: inspectMock }));
 
+import userEvent from '@testing-library/user-event';
+import { OnboardingModal } from '@/shared/components/modals/OnboardingModal';
 import type { ReactElement } from 'react';
 import { Dialog, DialogContent } from '@/shared/components/ui/dialog';
 import { AstridSetupStep, resetSetupChecksForTests, setupChecksFrom } from './AstridSetupStep';
@@ -51,6 +53,19 @@ describe('AstridSetupStep', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     resetSetupChecksForTests();
+  });
+
+  it('opens the modal on its content and lets Tab reach the selected setup option', async () => {
+    inspectMock.mockResolvedValue(down);
+    const user = userEvent.setup();
+    render(<OnboardingModal isOpen onClose={vi.fn()} />);
+    const agentOption = await screen.findByRole('radio', { name: /give this to my agent/i });
+    await waitFor(() => {
+      expect(document.activeElement).toContainElement(screen.getByRole('heading', { name: 'Set up Astrid' }));
+      expect(agentOption).not.toHaveFocus();
+    });
+    await user.tab();
+    expect(agentOption).toHaveFocus();
   });
 
   it('offers the agent brief verbatim and copies it whole', async () => {
