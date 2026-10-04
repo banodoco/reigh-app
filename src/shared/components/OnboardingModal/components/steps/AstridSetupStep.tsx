@@ -272,19 +272,16 @@ export function AstridSetupStep({ onNext, reconnect = false }: OnboardingStepPro
         {/* The running mink heads the step while setup waits. */}
         {!checks.ready && <MinkRunner className="mx-auto text-foreground" />}
         <DialogTitle className="text-center text-2xl font-bold">Set up Astrid</DialogTitle>
-        <p className="text-center text-muted-foreground">
-          Astrid runs on your computer. Set up its Runtime once, then everything works.
-        </p>
       </DialogHeader>
 
       <div role="note" className="flex gap-3 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
         <Cpu className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" aria-hidden />
         <div className="space-y-1">
           <p>
-            <span className="font-medium">Generating currently requires a GPU.</span>
+            <span className="font-medium">Astrid currently runs locally and generating requires a GPU.</span>
           </p>
           <p className="text-xs text-muted-foreground">
-            A proper hosted version is coming soon, but you can <em>technically</em> use APIs with it right now.
+            A hosted version is coming soon, though you can <em>technically</em> use APIs with it right now.
           </p>
         </div>
       </div>
