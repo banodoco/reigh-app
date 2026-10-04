@@ -14,14 +14,6 @@ const REQUEST_TIMESTAMP = '2026-09-01T10:00:00.000Z';
 const RESPONSE_TIMESTAMP = '2026-09-01T10:00:12.000Z';
 
 /**
- * The first time the conversation becomes active it plays out a short exchange. The request and the
- * agent's "Thinking..." are already in the thread when the chat opens, and the reply arrives a moment
- * later. Once seen through to the reply, later visits show the finished exchange. Timed from activation.
- */
-type IntroPhase = 'thinking' | 'replied';
-const INTRO_REPLY_MS = 3_000;
-
-/**
  * A real-looking composer for the example. The exchange above is scripted, so sending doesn't post a
  * message; it explains how to talk to the agent for real instead.
  */
@@ -73,15 +65,12 @@ export function PublicAstridScriptedConversation({
 }: {
   onReady?: () => void;
   onOpenVerifiedResult: () => void;
-  /**
-   * Whether the conversation is on screen. When provided, the first activation plays the send → think →
-   * reply exchange (until then it waits empty). When omitted, it shows the finished exchange.
-   */
+  /** Whether the conversation is on screen, used to restore its scroll position on entry. */
   active?: boolean;
 }) {
   const example = usePublicAstridExample();
   // The thread stays pinned to its latest message (on entering Agent, while the card expands, as the
-  // reply arrives) unless the reader has deliberately scrolled up.
+  // layout changes) unless the reader has deliberately scrolled up.
   const scrollRef = useRef<HTMLDivElement>(null);
   const pinnedRef = useRef(true);
   useEffect(() => {
@@ -109,43 +98,15 @@ export function PublicAstridScriptedConversation({
     () => deriveScriptedReplayPresentation(example.script, createInitialScriptedReplayState()),
     [example.script],
   );
-  const [introPhase, setIntroPhase] = useState<IntroPhase>(active === undefined ? 'replied' : 'thinking');
-  const introSeenRef = useRef(false);
-  useEffect(() => {
-    if (introPhase === 'replied') introSeenRef.current = true;
-  }, [introPhase]);
-  useEffect(() => {
-    if (active === undefined || introSeenRef.current) return undefined;
-    // Left before the reply arrived: start over next time.
-    if (!active) {
-      setIntroPhase('thinking');
-      return undefined;
-    }
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      setIntroPhase('replied');
-      return undefined;
-    }
-    setIntroPhase('thinking');
-    const timer = window.setTimeout(() => setIntroPhase('replied'), INTRO_REPLY_MS);
-    return () => window.clearTimeout(timer);
-  }, [active]);
-  const replyVisible = introPhase === 'replied';
-  const thinking = introPhase === 'thinking';
-  const turns = useMemo<readonly ConversationTurn[]>(() => {
-    const request: ConversationTurn = {
-      role: 'user',
-      content: presentation.request,
-      timestamp: REQUEST_TIMESTAMP,
-    };
-    if (replyVisible) {
-      return [request, {
-        role: 'assistant',
-        content: presentation.response,
-        timestamp: RESPONSE_TIMESTAMP,
-      }];
-    }
-    return [request];
-  }, [presentation.request, presentation.response, replyVisible]);
+  const turns = useMemo<readonly ConversationTurn[]>(() => [{
+    role: 'user',
+    content: presentation.request,
+    timestamp: REQUEST_TIMESTAMP,
+  }, {
+    role: 'assistant',
+    content: presentation.response,
+    timestamp: RESPONSE_TIMESTAMP,
+  }], [presentation.request, presentation.response]);
   const items = useMemo(() => buildConversationItems(turns), [turns]);
 
   useEffect(() => {
@@ -167,7 +128,6 @@ export function PublicAstridScriptedConversation({
     <section className="astrid-scripted-conversation" aria-label="Scripted example conversation" tabIndex={-1}>
       <ConversationPresentation
         items={items}
-        isProcessing={thinking}
         showHeaderProcessing={false}
         hideEmptyState
         label="Astrid"
@@ -176,26 +136,23 @@ export function PublicAstridScriptedConversation({
         scrollContainerTabIndex={0}
         footer={(
           <div className="astrid-conversation-footer">
-            {/* The result is the outcome of the exchange, so it arrives with the reply. */}
-            {replyVisible && (
-              <article className="astrid-example-result" aria-label={`${example.metadata.title} example result status`}>
-                <img src={example.metadata.posterUrl} alt="" />
-                <div>
-                  <strong>{example.metadata.title}</strong>
-                  <span>{formatPublicAstridExampleDuration(example.timelineSummary.durationSeconds)} · {formatPublicAstridExampleClipCount(example.timelineSummary.clipCount)}</span>
-                  <p>{resultIsUnavailable ? 'Example result unavailable until a verified render.' : `Verified ${example.metadata.title} result available.`}</p>
-                  {verifiedResultTarget && (
-                    <button
-                      type="button"
-                      className="astrid-result-handoff-button"
-                      onClick={openVerifiedResult}
-                    >
-                      Open in Workspace Preview
-                    </button>
+            <article className="astrid-example-result" aria-label={`${example.metadata.title} example result status`}>
+              <img src={example.metadata.posterUrl} alt="" />
+              <div>
+                <strong>{example.metadata.title}</strong>
+                <span>{formatPublicAstridExampleDuration(example.timelineSummary.durationSeconds)} · {formatPublicAstridExampleClipCount(example.timelineSummary.clipCount)}</span>
+                <p>{resultIsUnavailable ? 'Example result unavailable until a verified render.' : `Verified ${example.metadata.title} result available.`}</p>
+                {verifiedResultTarget && (
+                  <button
+                    type="button"
+                    className="astrid-result-handoff-button"
+                    onClick={openVerifiedResult}
+                  >
+                    Open in Workspace Preview
+                  </button>
                 )}
               </div>
             </article>
-            )}
             <ExampleComposer />
           </div>
         )}

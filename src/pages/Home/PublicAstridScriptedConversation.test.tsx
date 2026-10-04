@@ -15,7 +15,7 @@ describe('PublicAstridScriptedConversation', () => {
     __resetSelectionStoreForTests();
   });
 
-  it('shows the authored exchange and result when not driven by activation', () => {
+  it('shows the authored exchange and result by default', () => {
     render(<PublicAstridExampleProvider example={LIGHT_STUDY_PUBLIC_EXAMPLE}><PublicAstridScriptedConversation onOpenVerifiedResult={vi.fn()} /></PublicAstridExampleProvider>);
 
     expect(screen.getByText('Astrid')).toBeInTheDocument();
@@ -49,60 +49,26 @@ describe('PublicAstridScriptedConversation', () => {
     expect(note).toHaveAttribute('data-visible', 'false');
   });
 
-  it('opens already thinking, then replies the first time the conversation becomes active', async () => {
-    vi.useFakeTimers();
+  it('shows the completed exchange before entry and keeps it complete across Agent visits', () => {
     const renderActive = (active: boolean) => (
       <PublicAstridExampleProvider example={LIGHT_STUDY_PUBLIC_EXAMPLE}>
         <PublicAstridScriptedConversation onOpenVerifiedResult={vi.fn()} active={active} />
       </PublicAstridExampleProvider>
     );
     const { rerender } = render(renderActive(false));
-    // Staged while the chat is closed, so opening it reveals the request and "Thinking..." at once.
-    expect(screen.getByText(LIGHT_STUDY_SCRIPT.request)).toBeInTheDocument();
-    expect(screen.getByText('Thinking...')).toBeInTheDocument();
-
+    const expectCompletedExchange = () => {
+      expect(screen.getByText(LIGHT_STUDY_SCRIPT.request)).toBeInTheDocument();
+      expect(screen.getByText(LIGHT_STUDY_SCRIPT.response)).toBeInTheDocument();
+      expect(screen.getByText('Example result unavailable until a verified render.')).toBeInTheDocument();
+      expect(screen.queryByText('Thinking...')).not.toBeInTheDocument();
+      expect(screen.getByRole('textbox', { name: 'Message Astrid' })).toBeInTheDocument();
+    };
+    expectCompletedExchange();
     rerender(renderActive(true));
-    expect(screen.getByText(LIGHT_STUDY_SCRIPT.request)).toBeInTheDocument();
-    expect(screen.getByText('Thinking...')).toBeInTheDocument();
-    expect(screen.queryByText(LIGHT_STUDY_SCRIPT.response)).not.toBeInTheDocument();
-    expect(screen.queryByText('Example result unavailable until a verified render.')).not.toBeInTheDocument();
-    expect(screen.getByRole('textbox', { name: 'Message Astrid' })).toBeInTheDocument();
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(3_000);
-    });
-    expect(screen.queryByText('Thinking...')).not.toBeInTheDocument();
-    expect(screen.getByText(LIGHT_STUDY_SCRIPT.response)).toBeInTheDocument();
-    expect(screen.getByText('Example result unavailable until a verified render.')).toBeInTheDocument();
-
+    expectCompletedExchange();
     rerender(renderActive(false));
     rerender(renderActive(true));
-    expect(screen.getByText(LIGHT_STUDY_SCRIPT.response)).toBeInTheDocument();
-    expect(screen.getByText('Example result unavailable until a verified render.')).toBeInTheDocument();
-    expect(screen.queryByText('Thinking...')).not.toBeInTheDocument();
-  });
-
-  it('starts the exchange over if the conversation is left before the reply', async () => {
-    vi.useFakeTimers();
-    const renderActive = (active: boolean) => (
-      <PublicAstridExampleProvider example={LIGHT_STUDY_PUBLIC_EXAMPLE}>
-        <PublicAstridScriptedConversation onOpenVerifiedResult={vi.fn()} active={active} />
-      </PublicAstridExampleProvider>
-    );
-    const { rerender } = render(renderActive(true));
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(1_200);
-    });
-    rerender(renderActive(false));
-    rerender(renderActive(true));
-    expect(screen.getByText('Thinking...')).toBeInTheDocument();
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(1_200);
-    });
-    expect(screen.queryByText(LIGHT_STUDY_SCRIPT.response)).not.toBeInTheDocument();
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(1_800);
-    });
-    expect(screen.getByText(LIGHT_STUDY_SCRIPT.response)).toBeInTheDocument();
+    expectCompletedExchange();
   });
 
   it('offers an in-chat handoff only for a verified result mapped to an exact existing clip', () => {
