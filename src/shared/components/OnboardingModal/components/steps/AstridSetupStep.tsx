@@ -281,7 +281,7 @@ export function AstridSetupStep({ onNext, reconnect = false }: OnboardingStepPro
             <span className="font-medium">Astrid currently runs locally and generating requires a GPU.</span>
           </p>
           <p className="text-xs text-muted-foreground">
-            A proper hosted version is coming soon, but you can <em>technically</em> use APIs with it right now.
+            A hosted version is coming soon, though you can <em>technically</em> use APIs with it right now.
           </p>
         </div>
       </div>
