@@ -44,7 +44,7 @@ const AGENT_CALLOUTS: readonly CalloutDefinition[] = [
   {
     id: 'community',
     title: 'The community’s collective intelligence',
-    body: 'Shared ideas and examples inform every edit it makes.',
+    body: 'Shared ideas and examples inform every decision your agent makes.',
     target: '.astrid-chat-surface',
     at: [0, 0.2],
     side: 'right',
@@ -69,7 +69,7 @@ const AGENT_CALLOUTS: readonly CalloutDefinition[] = [
   {
     id: 'tools',
     title: 'Integrated into many open-source tools',
-    body: 'Open models and project-specific tools, adapted as you go.',
+    body: 'And you or others in the community can integrate anything.',
     target: '.astrid-chat-surface',
     at: [1, 0.42],
     side: 'left',
@@ -80,6 +80,28 @@ const AGENT_CALLOUTS: readonly CalloutDefinition[] = [
     phoneSwing: 0.9,
   },
 ];
+
+const INTEGRATIONS = [
+  { id: 'comfyui', name: 'ComfyUI', href: 'https://github.com/Comfy-Org/ComfyUI' },
+  { id: 'wan2gp', name: 'Wan2GP', href: 'https://github.com/deepbeepmeep/Wan2GP' },
+  { id: 'hyperframes', name: 'HyperFrames', href: 'https://github.com/heygen-com/hyperframes' },
+  { id: 'ai-toolkit', name: 'AI Toolkit', href: 'https://github.com/ostris/ai-toolkit' },
+] as const;
+
+function IntegrationLinks() {
+  return (
+    <ul className="astrid-integration-logos" aria-label="Open-source integrations">
+      {INTEGRATIONS.map(({ id, name, href }) => (
+        <li key={id}>
+          <a href={href} target="_blank" rel="noopener noreferrer" aria-label={`${name} on GitHub`} data-integration={id}>
+            <img src={`/integration-logos/${id}.png`} alt="" width={32} height={32} />
+            <span>{name}</span>
+          </a>
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 const APP_CALLOUTS: readonly CalloutDefinition[] = [
   {
@@ -98,7 +120,7 @@ const APP_CALLOUTS: readonly CalloutDefinition[] = [
   {
     id: 'timeline',
     title: 'Do complex editing work with your agents',
-    body: 'Arrange, trim and layer clips by hand, or ask the agent to.',
+    body: 'Arrange, trim and layer clips by hand or with your agent.',
     // A fixed point on the timeline panel (where the first clip rests), not the clip itself, so the
     // connector holds still when the timeline is scrolled.
     target: '.astrid-timeline-surface',
@@ -112,7 +134,7 @@ const APP_CALLOUTS: readonly CalloutDefinition[] = [
   {
     id: 'models',
     title: 'Your agent runs your local models',
-    body: 'Hand it complex local-model work: generate, iterate, batch.',
+    body: 'It figures out how to get local models to do the job and gets it running on your machine.',
     target: '[data-astrid-agent-launcher]',
     at: [0.5, 0],
     // On phones the connector comes up from below, so it ends in the middle of the launcher; on tablets
@@ -356,6 +378,7 @@ export function PublicAstridCallouts({ stageRef, audience, reducedMotion }: Publ
           }}
         >
           <h2>{callout.title}</h2>
+          {callout.id === 'tools' && <><p>For example:</p><IntegrationLinks /></>}
           <p>{callout.body}</p>
         </article>
       ))}

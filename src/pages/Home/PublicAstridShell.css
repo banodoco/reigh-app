@@ -622,8 +622,14 @@
   opacity: 1;
   pointer-events: auto;
 }
-/* The conversation's content fades out before the card shrinks and back in once it has opened. */
-.astrid-chat-surface > * { transition: opacity 220ms ease calc(var(--astrid-surface-delay, 0ms) + var(--astrid-surface-duration, var(--astrid-motion-duration, 600ms)) * .55); }
+/* Lay out the finished conversation invisibly while the card expands. Reveal it only after both
+   its geometry (including its panel stagger) and the parent assembly have settled. */
+.astrid-chat-surface > * {
+  transition: opacity 160ms ease max(
+    calc(var(--astrid-surface-start, 0ms) + var(--astrid-surface-duration, var(--astrid-motion-duration, 600ms))),
+    calc(var(--astrid-assembly-delay, 0ms) + var(--astrid-assembly-duration, var(--astrid-motion-duration, 600ms)))
+  );
+}
 .astrid-public-site[data-audience="app"] .astrid-chat-surface > * {
   opacity: 0;
   /* Once faded out, the hidden conversation is skipped entirely, so the shrinking card doesn't re-lay
@@ -683,13 +689,15 @@
   background: var(--astrid-panel);
 }
 .astrid-scripted-conversation [data-conversation-presentation] > div:first-child { align-items: center; border-color: #e4ddd0; }
-/*
- * A short exchange sits at the bottom of the thread, just above the result and the composer, so the
- * prompt, reply and result read as one stack. The auto margin (unlike justify-content) keeps it scrollable
- * once the thread outgrows the panel.
- */
-.astrid-scripted-conversation [data-conversation-presentation] > div:nth-child(2) { display: flex; flex-direction: column; }
-.astrid-scripted-conversation [data-conversation-presentation] > div:nth-child(2) > :first-child { margin-top: auto; }
+/* Keep the finished exchange at the bottom natively, including while its card resizes.
+   Only the scroll container is reversed; the request and reply retain their DOM and visual order. */
+.astrid-scripted-conversation [data-conversation-presentation] > div:nth-child(2) {
+  display: flex;
+  flex-direction: column-reverse;
+}
+.astrid-scripted-conversation [data-conversation-presentation] > div:nth-child(2) > .flex-col {
+  flex: 0 0 auto;
+}
 .astrid-scripted-conversation [data-conversation-presentation] img { object-fit: cover; }
 .astrid-scripted-conversation [data-conversation-presentation] > div:first-child img {
   width: 25px; height: 25px; image-rendering: pixelated; transform: scale(2.25);
@@ -970,6 +978,50 @@
 }
 .astrid-callout h2 { margin: 0; color: #1d1a15; font-size: 15px; font-weight: 650; line-height: 1.25; }
 .astrid-callout p { margin: 5px 0 0; color: #57534a; font-size: 13px; line-height: 1.35; }
+.astrid-integration-logos {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px 6px;
+  margin: 9px 0 8px;
+  padding: 0;
+  list-style: none;
+}
+.astrid-integration-logos a {
+  display: flex;
+  min-height: 56px;
+  min-width: 0;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 3px 0;
+  border-radius: 5px;
+  color: var(--astrid-ink, #25241f);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: center;
+  text-decoration: none;
+  pointer-events: auto;
+}
+.astrid-integration-logos a:hover { background: color-mix(in srgb, #ed6b23 12%, transparent); }
+.astrid-integration-logos a:focus-visible { outline: 2px solid #ed6b23; outline-offset: 2px; }
+.astrid-integration-logos img {
+  display: block;
+  box-sizing: border-box;
+  width: 40px;
+  height: 40px;
+  padding: 3px;
+  border: 1px solid rgb(243 238 228 / 16%);
+  border-radius: 6px;
+  background: #080808;
+  object-fit: contain;
+}
+.astrid-integration-logos a:not([data-integration="comfyui"]) img {
+  padding: 1px;
+  filter: brightness(1.22) contrast(1.1);
+}
+.astrid-integration-logos span { max-width: 100%; overflow-wrap: anywhere; }
 /* Label layout: one card size, and every card hangs about a fifth of its width over the stage's
    left or right edge. App and Agent mirror each other: App keeps two labels on the right and one on
    the left, Agent two on the left and one on the right. */
@@ -1516,7 +1568,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .astrid-hero-cta > * { transition: none !important; }
+  .astrid-hero-cta > *,
+  .astrid-chat-surface > * { transition: none !important; }
   .astrid-editor-surfaces,
   .astrid-editor-stage { transition-duration: 0ms !important; transition-delay: 0ms !important; }
   .astrid-surface,
@@ -1547,4 +1600,19 @@
   .astrid-public-site[data-audience="agent"] .astrid-chat-surface {
     transform: translateX(-50%) !important;
   }
+}
+
+/* The taller integrations label needs room above the Agent conversation on phones. */
+@media (max-width: 640px) {
+  .astrid-editor-stage[data-audience="agent"] {
+    width: 100%;
+    min-width: 0;
+    min-height: 700px;
+    aspect-ratio: auto;
+  }
+  .astrid-editor-stage[data-audience="agent"] .astrid-editor-tilt { inset: 240px 12px 60px; }
+  .astrid-integration-logos { gap: 3px 4px; margin-block: 7px; }
+  .astrid-integration-logos a { font-size: 9.5px; letter-spacing: -.02em; min-height: 52px; }
+  .astrid-integration-logos span { white-space: nowrap; overflow-wrap: normal; }
+  .astrid-integration-logos img { width: 36px; height: 36px; }
 }
