@@ -112,9 +112,9 @@ const APP_CALLOUTS: readonly CalloutDefinition[] = [
     // The Effects tab itself, reached from above.
     target: '.astrid-inspector-surface [role="tablist"].grid-cols-4 > [role="tab"]:first-child',
     at: [0.5, 0],
-    // On phones the inspector is a strip tucked under this card's lower edge; point across at its Effects tab.
-    phoneTarget: '.astrid-inspector-surface',
-    phoneAt: [0.365, 0.55],
+    // The mobile inspector has a full-width tab row beneath the clip name.
+    phoneTarget: '.astrid-inspector-surface [role="tablist"].grid-cols-4 > [role="tab"]:first-child',
+    phoneAt: [0.5, 0],
     side: 'bottom',
     phoneSide: 'left',
   },
