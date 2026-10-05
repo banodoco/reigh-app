@@ -679,3 +679,11 @@
 @media (prefers-reduced-motion: reduce) {
   .astrid-vision-issues-list details[open] .astrid-vision-issues-detail { animation: none; }
 }
+
+/* The hero's juggling mink becomes a small section break on narrow screens. */
+.astrid-vision-mobile-juggler { display: none; }
+@media (max-width: 760px) {
+  .astrid-vision-mobile-juggler { display: grid; justify-items: center; margin-block: 32px 0; }
+  .astrid-vision-mobile-juggler .astrid-vision-juggler { display: block; --px: 2px; }
+  .astrid-vision-mobile-juggler + .astrid-vision-issues { margin-top: 32px; }
+}

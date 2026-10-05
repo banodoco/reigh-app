@@ -469,6 +469,10 @@ export function PublicAstridVision({ onGoHome }: { onGoHome?: () => void } = {})
         </ol>
       </section>
 
+      <div className="astrid-vision-mobile-juggler" aria-hidden="true" data-reveal>
+        <Juggler />
+      </div>
+
       <OpenIssues />
 
       <ToolsShift />
