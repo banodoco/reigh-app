@@ -206,9 +206,14 @@ function useQuietField(selector: string | undefined, columns: number, rows: numb
     if (!selector || !active) { setField(null); return undefined; }
     let frame = 0;
     let last = '';
+    let lastBoxes = '';
     const update = () => {
       frame = 0;
-      const next = quietField(textLineBoxes(selector), columns, rows);
+      const boxes = textLineBoxes(selector);
+      const boxKey = boxes.map((box) => [box.left, box.top, box.width, box.height].map((value) => Math.round(value)).join(',')).join(';');
+      if (boxKey === lastBoxes) return;
+      lastBoxes = boxKey;
+      const next = quietField(boxes, columns, rows);
       // Cheap identity for the field: only re-render the sky when it actually changed.
       let key = '';
       for (let i = 0; i < next.length; i += 1) if (next[i]) key += `${i}:${next[i]},`;
@@ -224,12 +229,22 @@ function useQuietField(selector: string | undefined, columns: number, rows: numb
     resizes?.observe(document.body);
     // Text rising into place moves without a scroll or a resize.
     const settle = window.setInterval(schedule, 400);
+    // Phones have no ongoing panel morph. Once the entrance has settled, scroll/resize and
+    // animation completion events cover geometry changes without polling text layout forever.
+    const stopSettling = window.matchMedia('(max-width: 640px)').matches
+      ? window.setTimeout(() => window.clearInterval(settle), 1600)
+      : undefined;
+    document.addEventListener('animationend', schedule);
+    document.addEventListener('transitionend', schedule);
     return () => {
       window.cancelAnimationFrame(frame);
       window.removeEventListener('scroll', schedule);
       window.removeEventListener('resize', schedule);
       resizes?.disconnect();
       window.clearInterval(settle);
+      window.clearTimeout(stopSettling);
+      document.removeEventListener('animationend', schedule);
+      document.removeEventListener('transitionend', schedule);
     };
   }, [selector, columns, rows, active]);
   return field;
@@ -308,7 +323,12 @@ export function PublicAstridSky({ settings, onDarkness, reducedMotion, replaySta
   // Ambient micro-motion: stepped star twinkle. Off for reduced motion.
   useEffect(() => {
     if (reducedMotion || !settings.enabled) return;
-    const timer = window.setInterval(() => setTick((value) => value + 1), AMBIENT_TICK_MS);
+    const timer = window.setInterval(() => {
+      // Keep the painted sky on phones; four full canvas renders per twinkle compete with touch
+      // interactions. Clock changes and the explicitly requested replay still repaint normally.
+      if (document.hidden || window.matchMedia('(max-width: 640px)').matches) return;
+      setTick((value) => value + 1);
+    }, AMBIENT_TICK_MS);
     return () => window.clearInterval(timer);
   }, [reducedMotion, settings.enabled]);
 
@@ -339,6 +359,7 @@ export function PublicAstridSky({ settings, onDarkness, reducedMotion, replaySta
       if (!frame) frame = window.requestAnimationFrame(step);
     };
     const onScroll = () => {
+      if (window.matchMedia('(max-width: 640px)').matches) return;
       target.y = scrollDrift();
       if (!frame) frame = window.requestAnimationFrame(step);
     };

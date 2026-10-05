@@ -1602,17 +1602,35 @@
   }
 }
 
-/* The taller integrations label needs room above the Agent conversation on phones. */
+/* Phones use a shallow full-width integration rail and balanced lower callouts. Geometry switches
+   immediately; only opacity fades, avoiding reflowing the live editor throughout a 650ms morph. */
 @media (max-width: 640px) {
   .astrid-editor-stage[data-audience="agent"] {
     width: 100%;
     min-width: 0;
-    min-height: 700px;
+    min-height: 650px;
     aspect-ratio: auto;
   }
-  .astrid-editor-stage[data-audience="agent"] .astrid-editor-tilt { inset: 240px 12px 60px; }
-  .astrid-integration-logos { gap: 3px 4px; margin-block: 7px; }
-  .astrid-integration-logos a { font-size: 9.5px; letter-spacing: -.02em; min-height: 52px; }
+  .astrid-editor-stage[data-audience="agent"] .astrid-editor-tilt { inset: 148px 12px 108px; }
+  .astrid-callout[data-callout="tools"] {
+    --astrid-callout-width: calc(100% - 16px);
+    top: -20px; left: 8px; right: 8px;
+  }
+  .astrid-callout[data-callout="community"] { top: auto; left: auto; right: 8px; bottom: -20px; }
+  .astrid-integration-logos { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin-block: 7px; }
+  .astrid-integration-logos a { font-size: 10px; letter-spacing: -.02em; min-height: 52px; }
   .astrid-integration-logos span { white-space: nowrap; overflow-wrap: normal; }
   .astrid-integration-logos img { width: 36px; height: 36px; }
+
+  .astrid-public-site .astrid-editor-stage,
+  .astrid-public-site .astrid-editor-surfaces,
+  .astrid-public-site .astrid-surface,
+  .astrid-public-site .astrid-preview-transport-outlet { transition: none; }
+  .astrid-public-site .astrid-chat-surface > * { transition: opacity 160ms ease; }
+  .astrid-public-site .astrid-callouts,
+  .astrid-public-site .astrid-callout,
+  .astrid-public-site .astrid-callout > :is(h2, p),
+  .astrid-public-site .astrid-callout-connectors :is(path, circle),
+  .astrid-public-site .astrid-agent-launcher,
+  .astrid-public-site .astrid-editor-stage[data-revealed="true"] :is(.astrid-surface, .astrid-preview-transport-outlet) { animation: none; }
 }
