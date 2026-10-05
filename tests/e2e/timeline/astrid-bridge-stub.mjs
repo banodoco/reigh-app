@@ -62,6 +62,18 @@ const timelineStates = new Map([
     configVersion: 1,
   }],
 ]);
+let projectChatDraft = { text: '', revision: 0, queued_messages: [] };
+
+function projectChatState() {
+  return {
+    project_id: PROJECT.slug,
+    scope_key: `project:${PROJECT.slug}`,
+    revision: 0,
+    selected_session_id: null,
+    sessions: [],
+    draft: projectChatDraft,
+  };
+}
 
 function stateForTimeline(timelineId) {
   const ref = decodeURIComponent(timelineId);
@@ -97,6 +109,7 @@ function resetPristineState() {
   audioState.registry = audioPristine.registry;
   audioOffsetState.config = audioOffsetPristine.config;
   audioOffsetState.registry = audioOffsetPristine.registry;
+  projectChatDraft = { text: '', revision: 0, queued_messages: [] };
   // Versions are store history, not fixture contents. Never rewind them: a
   // client holding a pre-reset version must remain stale after every reset.
   defaultState.configVersion += 1;
@@ -263,6 +276,46 @@ const server = http.createServer(async (req, res) => {
   if (path === '/health') return send(res, 200, { ok: true });
   if (path === '/projects') return send(res, 200, { projects: [PROJECT] });
 
+  // Local editor tests may render the project chat pane, which reads the
+  // project-scoped ACP state even when no chat session is active. Route only
+  // that deterministic fixture read; connection, prompt, mutation and every
+  // other ACP path remain unimplemented and therefore fail visibly.
+  if (path === `/projects/${PROJECT.slug}/chat` && req.method === 'GET') {
+    return send(res, 200, projectChatState());
+  }
+  if (path === `/projects/${PROJECT.slug}/chat/draft` && req.method === 'PATCH') {
+    const body = await readBody(req);
+    if (
+      !Number.isInteger(body?.expected_revision)
+      || body.expected_revision !== projectChatDraft.revision
+      || typeof body.text !== 'string'
+      || !Array.isArray(body.queued_messages)
+    ) {
+      return send(res, 409, { error: 'draft_conflict', detail: 'The deterministic chat draft changed; reload before saving.' });
+    }
+    projectChatDraft = {
+      text: body.text,
+      revision: projectChatDraft.revision + 1,
+      queued_messages: body.queued_messages,
+    };
+    return send(res, 200, projectChatState());
+  }
+
+  // A cold local editor can query the unscoped session list before project
+  // context settles. Give that exact read a deterministic empty connection;
+  // no prompt, session creation, or arbitrary RPC can be sent to this stub.
+  if (path === '/connect' && req.method === 'POST') {
+    return send(res, 200, { connection_id: 'local-test-connection', initialize: {} });
+  }
+  if (path === '/local-test-connection/rpc' && req.method === 'POST') {
+    const body = await readBody(req);
+    if (body?.method === 'session/list') return send(res, 200, { result: { sessions: [] } });
+    return send(res, 404, { error: 'not_found', detail: 'Only the local session/list probe is stubbed.' });
+  }
+  if (path === '/local-test-connection/events' && req.method === 'GET') {
+    return send(res, 200, { notifications: [], disconnected: false });
+  }
+
   // Test-only control plane for the deterministic stub. The real bridge never
   // exposes this route, and support.ts never calls it under REAL_BRIDGE=1.
   if (path === '/__test/reset' && req.method === 'POST') {
@@ -284,6 +337,39 @@ const server = http.createServer(async (req, res) => {
   const generationsMatch = path.match(/^\/projects\/([^/]+)\/generations$/);
   if (generationsMatch && req.method === 'GET') {
     return send(res, 200, { generations: [], next_cursor: null });
+  }
+
+  // The editor's workspace.v1 discovery calls travel through Vite's
+  // `/api/astrid` proxy, which strips that prefix before reaching this stub.
+  // Keep the local fixture honest by answering the versioned read envelopes
+  // explicitly rather than making the browser tolerate arbitrary 404s.
+  const runtimeTasksMatch = path.match(/^\/v1\/projects\/([^/]+)\/tasks$/);
+  if (runtimeTasksMatch && req.method === 'GET') {
+    return send(res, 200, { items: [], next_cursor: null });
+  }
+  const runtimeGenerationsMatch = path.match(/^\/v1\/projects\/([^/]+)\/generations$/);
+  if (runtimeGenerationsMatch && req.method === 'GET') {
+    return send(res, 200, { items: [], next_cursor: null });
+  }
+  const runtimeObjectMatch = path.match(/^\/v1\/objects\/([^/]+)$/);
+  if (runtimeObjectMatch && (req.method === 'GET' || req.method === 'HEAD')) {
+    // Local discovery may probe a managed-object URL that is not part of the
+    // timeline fixture. Serve the deterministic fixture image so the probe is
+    // a valid media response while timeline-owned assets continue to use the
+    // registry asset route below.
+    const file = new URL('example-image1.jpg', PUBLIC_DIR);
+    try {
+      const body = fs.readFileSync(file);
+      res.writeHead(200, {
+        'Content-Type': 'image/jpeg',
+        'Content-Length': body.length,
+        'Access-Control-Allow-Origin': '*',
+      });
+      if (req.method === 'HEAD') return res.end();
+      return res.end(body);
+    } catch (error) {
+      return send(res, 500, { error: 'fixture_object_read_failed', detail: String(error) });
+    }
   }
 
   const timelinesMatch = path.match(/^\/projects\/([^/]+)\/timelines$/);

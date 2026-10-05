@@ -1,6 +1,7 @@
 import { useMemo, useState, type CSSProperties, type FC, type ReactNode } from 'react';
-import { AbsoluteFill, Img, Sequence, interpolate, useCurrentFrame, useRemotionEnvironment, useVideoConfig } from 'remotion';
-import { Video } from '@remotion/media';
+import { AbsoluteFill, Sequence, interpolate, useCurrentFrame, useRemotionEnvironment, useVideoConfig } from 'remotion';
+import { ReadinessImage } from '@astrid/packs/rendering/elements/_shared/readiness-image';
+import { ReadinessVideo } from './ReadinessVideo.tsx';
 import {
   getClipDurationInFrames,
   getSanitizedMediaSrc,
@@ -15,7 +16,6 @@ import {
   useOptionalEffectRegistryContext,
   type EffectRegistrySnapshot,
 } from '@/tools/video-editor/effects/registry/index.ts';
-import { MediaErrorBoundary } from '@/tools/video-editor/compositions/MediaErrorBoundary.tsx';
 import { useOptionalPreviewMediaFailure } from '@/tools/video-editor/compositions/PreviewMediaFailureContext.tsx';
 import { computeViewportMediaLayout } from '@/tools/video-editor/lib/render-bounds.ts';
 import {
@@ -360,31 +360,26 @@ const VisualAsset: FC<VisualClipProps> = ({ clip, track, fps }) => {
     };
 
     if (isImage) {
-      return <Img src={mediaSrc} style={sharedStyle} crossOrigin="anonymous" />;
+      return <ReadinessImage src={mediaSrc} mediaId={clip.id} style={sharedStyle} crossOrigin="anonymous" />;
     }
 
     return (
-      <MediaErrorBoundary
+      <ReadinessVideo
         clipId={clip.id}
         resetKey={`${clip.id}:${mediaSrc}:${trimProps.trimBefore}:${trimProps.trimAfter ?? 'none'}:${playbackRate}:${effectiveVolume}:${retryToken}`}
         fallback={mediaFailure?.fallback(sharedStyle) ?? null}
         onError={mediaFailure?.onError}
-      >
-        <Video
-          key={retryToken}
-          src={mediaSrc}
-          trimBefore={trimProps.trimBefore}
-          trimAfter={trimProps.trimAfter}
-          playbackRate={playbackRate}
-          volume={effectiveVolume}
-          muted={effectiveVolume <= 0}
-          style={sharedStyle}
-          data-astrid-retry-token={String(retryToken)}
-          onVideoFrame={mediaFailure?.onVideoFrame}
-          onLoadedData={mediaFailure?.onLoadedData}
-          onError={mediaFailure?.onError}
-        />
-      </MediaErrorBoundary>
+        src={mediaSrc}
+        trimBefore={trimProps.trimBefore}
+        trimAfter={trimProps.trimAfter}
+        playbackRate={playbackRate}
+        volume={effectiveVolume}
+        muted={effectiveVolume <= 0}
+        style={sharedStyle}
+        data-astrid-retry-token={String(retryToken)}
+        onVideoFrame={mediaFailure?.onVideoFrame}
+        onLoadedData={mediaFailure?.onLoadedData}
+      />
     );
   }
 
@@ -440,34 +435,29 @@ const VisualAsset: FC<VisualClipProps> = ({ clip, track, fps }) => {
   if (isImage) {
     return (
       <div style={viewportStyle}>
-        <Img src={mediaSrc} style={mediaStyle} crossOrigin="anonymous" />
+        <ReadinessImage src={mediaSrc} mediaId={clip.id} style={mediaStyle} crossOrigin="anonymous" />
       </div>
     );
   }
 
   return (
     <div style={viewportStyle}>
-      <MediaErrorBoundary
+      <ReadinessVideo
         clipId={clip.id}
         resetKey={`${clip.id}:${mediaSrc}:${trimProps.trimBefore}:${trimProps.trimAfter ?? 'none'}:${playbackRate}:${effectiveVolume}:viewport:${retryToken}`}
         fallback={mediaFailure?.fallback({position: 'absolute', inset: 0}) ?? null}
         onError={mediaFailure?.onError}
-      >
-        <Video
-          key={retryToken}
-          src={mediaSrc}
-          trimBefore={trimProps.trimBefore}
-          trimAfter={trimProps.trimAfter}
-          playbackRate={playbackRate}
-          volume={effectiveVolume}
-          muted={effectiveVolume <= 0}
-          style={mediaStyle}
-          data-astrid-retry-token={String(retryToken)}
-          onVideoFrame={mediaFailure?.onVideoFrame}
-          onLoadedData={mediaFailure?.onLoadedData}
-          onError={mediaFailure?.onError}
-        />
-      </MediaErrorBoundary>
+        src={mediaSrc}
+        trimBefore={trimProps.trimBefore}
+        trimAfter={trimProps.trimAfter}
+        playbackRate={playbackRate}
+        volume={effectiveVolume}
+        muted={effectiveVolume <= 0}
+        style={mediaStyle}
+        data-astrid-retry-token={String(retryToken)}
+        onVideoFrame={mediaFailure?.onVideoFrame}
+        onLoadedData={mediaFailure?.onLoadedData}
+      />
     </div>
   );
 };
