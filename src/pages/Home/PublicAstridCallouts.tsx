@@ -48,10 +48,11 @@ const AGENT_CALLOUTS: readonly CalloutDefinition[] = [
     target: '.astrid-chat-surface',
     at: [0, 0.2],
     side: 'right',
-    phoneSide: 'bottom',
-    // On phones: the person's request.
+    phoneSide: 'top',
+    phoneSwing: 0.9,
+    // On phones: the person's request, reached along the conversation's right edge.
     phoneTarget: '.astrid-chat-surface .justify-end > .rounded-2xl',
-    phoneAt: [0.3, 0],
+    phoneAt: [1, 0],
   },
   {
     id: 'workflows',
@@ -94,7 +95,7 @@ function IntegrationLinks() {
       {INTEGRATIONS.map(({ id, name, href }) => (
         <li key={id}>
           <a href={href} target="_blank" rel="noopener noreferrer" aria-label={`${name} on GitHub`} data-integration={id}>
-            <img src={`/integration-logos/${id}.png`} alt="" width={32} height={32} />
+            <img src={`/integration-logos/${id}.webp`} alt="" decoding="async" width={32} height={32} />
             <span>{name}</span>
           </a>
         </li>
@@ -259,8 +260,15 @@ export function PublicAstridCallouts({ stageRef, audience, reducedMotion }: Publ
     const svgElement: SVGSVGElement = svg;
     const trackTransport = appView;
     let frame = 0;
+    const phoneQuery = window.matchMedia(PHONE_MEDIA_QUERY);
+    const schedule = () => {
+      if (!frame) frame = window.requestAnimationFrame(draw);
+    };
     function draw() {
-      frame = window.requestAnimationFrame(draw);
+      frame = 0;
+      // Phone panels settle immediately. Measuring and rewriting their SVG every idle frame forced
+      // layout on the entire mounted editor even when nothing moved.
+      if (!phoneQuery.matches) frame = window.requestAnimationFrame(draw);
       const stageRect = stageElement.getBoundingClientRect();
       const originX = stageRect.left + stageElement.clientLeft;
       const originY = stageRect.top + stageElement.clientTop;
@@ -341,9 +349,27 @@ export function PublicAstridCallouts({ stageRef, audience, reducedMotion }: Publ
         ping?.setAttribute('cy', ey.toFixed(1));
       }
     }
-    draw();
+    const resizeObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(schedule);
+    const observeGeometry = () => {
+      resizeObserver?.observe(stageElement);
+      stageElement.querySelectorAll('.astrid-surface, .astrid-callout').forEach((element) => resizeObserver?.observe(element));
+      schedule();
+    };
+    // The lazy editor and conversation arrive after the callouts. Observe structure, never the
+    // inline styles / SVG attributes written by draw(), so this cannot restart its own work.
+    const mutationObserver = new MutationObserver(observeGeometry);
+    mutationObserver.observe(stageElement, { childList: true, subtree: true });
+    observeGeometry();
+    stageElement.addEventListener('scroll', schedule, true);
+    window.addEventListener('resize', schedule);
+    phoneQuery.addEventListener('change', schedule);
     return () => {
       window.cancelAnimationFrame(frame);
+      resizeObserver?.disconnect();
+      mutationObserver.disconnect();
+      stageElement.removeEventListener('scroll', schedule, true);
+      window.removeEventListener('resize', schedule);
+      phoneQuery.removeEventListener('change', schedule);
       releaseTracked(stageElement.querySelector<HTMLElement>('.astrid-preview-transport-outlet'));
       releaseTracked(stageElement.querySelector<HTMLElement>('[data-astrid-agent-launcher]'));
     };

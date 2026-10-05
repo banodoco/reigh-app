@@ -122,7 +122,7 @@ function drawnAt(element: Element, x: number, y: number) {
 
 function runThemeFade(commit: () => void, reducedMotion: boolean) {
   const doc = document as ViewTransitionDocument;
-  if (reducedMotion || typeof doc.startViewTransition !== 'function') {
+  if (reducedMotion || window.matchMedia('(max-width: 640px)').matches || typeof doc.startViewTransition !== 'function') {
     commit();
     return;
   }
