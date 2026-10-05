@@ -34,7 +34,7 @@ const PreviewVideo: FC<VideoProps> = ({clipId, fallback, onError: consumerOnErro
   };
   if (failed) return failure;
   return <MediaErrorBoundary key={attempt} clipId={clipId} resetKey={String(attempt)} fallback={failure} onError={handleFailure}>
-    <Video {...props} onError={handleFailure} fallbackOffthreadVideoProps={{...fallbackOffthreadVideoProps, onError: (error) => {
+    <Video {...props} onError={consumerOnError ? handleFailure : undefined} fallbackOffthreadVideoProps={{...fallbackOffthreadVideoProps, onError: (error) => {
       // Decoder capability failures may still use the native video fallback.
       // Its terminal media error removes the subtree and releases its blockers.
       handleFailure(error);
