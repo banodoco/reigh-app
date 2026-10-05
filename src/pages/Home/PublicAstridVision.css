@@ -489,7 +489,11 @@
 }
 @media (max-width: 760px) {
   .astrid-vision-hero { grid-template-columns: minmax(0, 1fr); }
-  .astrid-vision-manifesto { padding: 20px 0 56px; }
+  /* With the hero illustration moved below, fit this opening to its copy instead of a screen. */
+  .astrid-vision-manifesto { min-height: 0; align-content: start; padding: 12px 0 36px; }
+  .astrid-vision-bar { padding-block: 16px; }
+  .astrid-vision-hero-copy > .astrid-vision-eyebrow { margin-bottom: 14px; }
+  .astrid-vision-lead { margin-top: 16px; }
   /* On a phone the headline leads; the minks further down carry the character. */
   .astrid-vision-juggler { display: none; }
   .astrid-vision-tinkerer { --px: 2px; }
