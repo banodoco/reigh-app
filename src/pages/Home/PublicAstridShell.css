@@ -1715,3 +1715,45 @@
     animation: astrid-dot-in 120ms ease-out calc(var(--astrid-mobile-connector-start) + 300ms) backwards;
   }
 }
+
+/* Mobile Agent reads as a conversation: fit the exchange rather than reserving an empty transcript. */
+@media (max-width: 640px) {
+  .astrid-public-site[data-audience="agent"] .astrid-chat-surface {
+    top: 12px; height: auto; max-height: calc(100% - 12px);
+    display: flex; flex-direction: column;
+    border-color: color-mix(in srgb, var(--astrid-ink) 24%, var(--astrid-panel));
+    border-radius: 14px;
+    box-shadow: 0 4px 12px rgb(0 0 0 / 12%), 0 14px 28px rgb(0 0 0 / 16%);
+  }
+  .astrid-public-site[data-audience="agent"] .astrid-scripted-conversation {
+    display: flex; flex-direction: column; height: auto; min-height: 0;
+  }
+  .astrid-public-site[data-audience="agent"] .astrid-scripted-conversation [data-conversation-presentation] { height: auto; min-height: 0; }
+  .astrid-public-site[data-audience="agent"] .astrid-scripted-conversation [data-conversation-presentation] > div:nth-child(2) {
+    flex: 0 1 auto; min-height: 0; padding: 12px;
+  }
+  .astrid-public-site[data-audience="agent"] .astrid-scripted-conversation [data-conversation-presentation] > div:nth-child(2) > .flex-col { gap: 12px; }
+  .astrid-public-site[data-audience="agent"] .astrid-scripted-conversation [data-conversation-presentation] > div:nth-child(2) .rounded-2xl { max-width: 85%; }
+  .astrid-public-site[data-audience="agent"] .astrid-scripted-conversation .justify-end > .rounded-2xl { border-bottom-right-radius: 4px; }
+  .astrid-public-site[data-audience="agent"] .astrid-scripted-conversation .justify-start > .rounded-2xl { border-bottom-left-radius: 4px; }
+  .astrid-public-site[data-audience="agent"] .astrid-scripted-conversation [data-conversation-presentation] > div:last-child {
+    flex-shrink: 0;
+    background: color-mix(in srgb, var(--astrid-ink) 5%, var(--astrid-panel));
+    border-color: color-mix(in srgb, var(--astrid-ink) 16%, var(--astrid-panel));
+    padding: 10px;
+  }
+  .astrid-public-site[data-audience="agent"] .astrid-conversation-footer { gap: 9px; }
+  .astrid-public-site[data-audience="agent"] .astrid-example-result { border: 0; background: transparent; padding: 0 2px; }
+  .astrid-public-site[data-audience="agent"] .astrid-composer-field { border-radius: 12px; }
+  .astrid-public-site[data-audience="agent"] :is(.astrid-player-surface, .astrid-inspector-surface, .astrid-timeline-surface) { opacity: .22; }
+}
+
+@media (min-width: 480px) and (max-width: 640px) {
+  .astrid-editor-stage[data-audience="agent"] { min-height: 570px; }
+}
+
+.astrid-workflows-title-line { display: block; white-space: nowrap; }
+
+@media (max-width: 380px) {
+  .astrid-callout[data-callout="workflows"] h2 { font-size: clamp(10.5px, calc(6.25vw - 9.5px), 13px); }
+}

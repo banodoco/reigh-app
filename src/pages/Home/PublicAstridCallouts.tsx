@@ -52,7 +52,7 @@ const AGENT_CALLOUTS: readonly CalloutDefinition[] = [
     phoneSwing: 0.9,
     // On phones: the person's request, reached along the conversation's right edge.
     phoneTarget: '.astrid-chat-surface .justify-end > .rounded-2xl',
-    phoneAt: [1, 0],
+    phoneAt: [1, 0.5],
   },
   {
     id: 'workflows',
@@ -116,7 +116,7 @@ const APP_CALLOUTS: readonly CalloutDefinition[] = [
     phoneTarget: '.astrid-inspector-surface [role="tablist"].grid-cols-4 > [role="tab"]:first-child',
     phoneAt: [0.5, 0],
     side: 'bottom',
-    phoneSide: 'left',
+    phoneSide: 'bottom',
   },
   {
     id: 'timeline',
@@ -408,7 +408,7 @@ export function PublicAstridCallouts({ stageRef, audience, reducedMotion }: Publ
             else cardRefs.current.delete(callout.id);
           }}
         >
-          <h2>{callout.title}</h2>
+          <h2>{callout.id === 'workflows' ? <><span className="astrid-workflows-title-line">Leverages reusable</span>{' '}<span className="astrid-workflows-title-line">agent workflows</span></> : callout.title}</h2>
           {callout.id === 'tools' && <><p>For example:</p><IntegrationLinks /></>}
           <p>{callout.body}</p>
         </article>
