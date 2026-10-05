@@ -1459,6 +1459,14 @@
   .astrid-button { min-height: 52px; }
   .astrid-showcase { grid-template-rows: auto; padding: 26px 0 30px; }
   .astrid-editor-stage { aspect-ratio: 390 / 552; border-radius: 16px; }
+  /* The App has one timeline row. Size its stage from the inspector, 16:9 player, row, and
+     label clearance instead of stretching a portrait aspect ratio on wider phones. */
+  .astrid-editor-stage[data-audience="app"] {
+    --astrid-app-top: 64px;
+    --astrid-app-label-space: clamp(94px, calc(280px - 42vw), 146px);
+    width: 100%; min-width: 0; min-height: 0; aspect-ratio: auto;
+    height: calc(var(--astrid-app-top) + 100px + (100vw - 62px) * .5625 + 112px + var(--astrid-app-label-space));
+  }
   /* The labels hang over the top and bottom edges; the composition tucks just under them. */
   .astrid-editor-tilt { inset: 64px 12px 40px; }
   .astrid-editor-stage[data-audience="agent"] { cursor: auto; }
@@ -1479,7 +1487,7 @@
     transform: none;
   }
   .astrid-public-site[data-audience="app"] .astrid-timeline-surface {
-    left: 0; top: calc(100px + (100vw - 62px) * .5625); bottom: 0; width: 100%; height: auto;
+    left: 0; top: calc(100px + (100vw - 62px) * .5625); bottom: auto; width: 100%; height: 112px;
     transform: none;
   }
   /* A compact clip-name row sits above evenly spaced tabs; the full inspector controls stay hidden. */
@@ -1659,7 +1667,7 @@
 @media (max-width: 380px) {
   /* Extra line wrapping makes both lower cards taller. Keep them clear of the composer. */
   .astrid-editor-stage[data-audience="agent"] { min-height: 710px; }
-  .astrid-editor-stage[data-audience="app"] { width: 100%; min-width: 0; min-height: 520px; aspect-ratio: auto; }
+  .astrid-editor-stage[data-audience="app"] { --astrid-app-top: 84px; }
 }
 
 /* A short compositor-only arrival preserves the switch's motion without resizing text layers. */
