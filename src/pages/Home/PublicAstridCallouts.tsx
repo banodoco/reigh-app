@@ -52,7 +52,7 @@ const AGENT_CALLOUTS: readonly CalloutDefinition[] = [
     phoneSwing: 0.9,
     // On phones: the person's request, reached along the conversation's right edge.
     phoneTarget: '.astrid-chat-surface .justify-end > .rounded-2xl',
-    phoneAt: [1, 0],
+    phoneAt: [1, 0.5],
   },
   {
     id: 'workflows',
