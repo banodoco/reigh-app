@@ -1667,7 +1667,6 @@
   from { opacity: .35; transform: translateY(-10px); }
   to { opacity: 1; transform: none; }
 }
-@keyframes astrid-mobile-connectors-arrive { from { opacity: 0; } to { opacity: 1; } }
 @keyframes astrid-mobile-callout-arrive {
   from { opacity: 0; translate: 0 8px; }
   to { opacity: 1; translate: 0 0; }
@@ -1687,9 +1686,21 @@
   .astrid-callout[data-callout="tools"] { --astrid-mobile-callout-order: 0; }
   .astrid-callout[data-callout="workflows"] { --astrid-mobile-callout-order: 1; }
   .astrid-callout[data-callout="community"] { --astrid-mobile-callout-order: 2; }
-  .astrid-public-site .astrid-callout-connectors {
-    /* animationend refreshes connector geometry after the final card settles at 420ms. */
-    animation: astrid-mobile-connectors-arrive 120ms ease-out 460ms both;
+  .astrid-public-site .astrid-callout-connectors g {
+    /* Each card settles before its connector starts; animationend refreshes final geometry. */
+    --astrid-mobile-connector-start: calc(340ms + var(--astrid-callout-index, 0) * 60ms);
+  }
+  .astrid-public-site[data-audience="agent"] .astrid-callout-connectors g:has([data-callout="tools"]) { --astrid-mobile-connector-start: 340ms; }
+  .astrid-public-site[data-audience="agent"] .astrid-callout-connectors g:has([data-callout="workflows"]) { --astrid-mobile-connector-start: 400ms; }
+  .astrid-public-site[data-audience="agent"] .astrid-callout-connectors g:has([data-callout="community"]) { --astrid-mobile-connector-start: 460ms; }
+  .astrid-public-site .astrid-callout-connectors path {
+    animation: astrid-connector-draw 320ms ease-out var(--astrid-mobile-connector-start) backwards;
+  }
+  .astrid-public-site .astrid-callout-connectors .astrid-callout-dot-start {
+    animation: astrid-dot-in 100ms ease-out var(--astrid-mobile-connector-start) backwards;
+  }
+  .astrid-public-site .astrid-callout-connectors .astrid-callout-dot-end {
+    animation: astrid-dot-in 120ms ease-out calc(var(--astrid-mobile-connector-start) + 300ms) backwards;
   }
 }
 
