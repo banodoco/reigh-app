@@ -116,7 +116,7 @@ const APP_CALLOUTS: readonly CalloutDefinition[] = [
     phoneTarget: '.astrid-inspector-surface [role="tablist"].grid-cols-4 > [role="tab"]:first-child',
     phoneAt: [0.5, 0],
     side: 'bottom',
-    phoneSide: 'left',
+    phoneSide: 'bottom',
   },
   {
     id: 'timeline',
