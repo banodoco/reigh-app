@@ -32,6 +32,27 @@ type ProbeStream = {
   channels?: number;
 };
 
+async function requireCanonicalShotComposition(
+  timelineUrl: string,
+  expectedTimelineId: string,
+  purpose: string,
+): Promise<Record<string, unknown>> {
+  const response = await fetch(timelineUrl);
+  expect(response.ok, `${purpose}: timeline setup returned HTTP ${response.status}`).toBe(true);
+  const payload = await response.json() as Record<string, unknown>;
+  expect(payload.timeline_id, `${purpose}: fixture timeline identity`).toBe(expectedTimelineId);
+  const composition = payload.shot_composition;
+  expect(
+    composition,
+    `${purpose}: canonical shot_composition is absent for ${expectedTimelineId}; refusing to start a browser export against an incomplete fixture. Historical v12 data is not substituted.`,
+  ).toBeDefined();
+  expect(
+    composition !== null && typeof composition === 'object' && !Array.isArray(composition),
+    `${purpose}: shot_composition must be a canonical object for ${expectedTimelineId}`,
+  ).toBe(true);
+  return payload;
+}
+
 function expectedRgb(
   frame: number,
   clipStartFrame = 0,
@@ -273,9 +294,11 @@ test.describe('audio-reactive-colour browser export proof', () => {
 
     const reset = await fetch(`${BRIDGE_ORIGIN}/__test/reset`, { method: 'POST' });
     expect(reset.ok).toBe(true);
-    const beforeResponse = await fetch(TIMELINE_URL);
-    expect(beforeResponse.ok).toBe(true);
-    const before = await beforeResponse.json() as {
+    const before = await requireCanonicalShotComposition(
+      TIMELINE_URL,
+      TIMELINE_SLUG,
+      'audio-reactive marker export',
+    ) as {
       config: Record<string, unknown>;
       registry: Record<string, unknown>;
       config_version: number;
@@ -371,9 +394,11 @@ test.describe('audio-reactive-colour browser export proof', () => {
 
     const reset = await fetch(`${BRIDGE_ORIGIN}/__test/reset`, { method: 'POST' });
     expect(reset.ok).toBe(true);
-    const beforeResponse = await fetch(OFFSET_TIMELINE_URL);
-    expect(beforeResponse.ok).toBe(true);
-    const before = await beforeResponse.json() as {
+    const before = await requireCanonicalShotComposition(
+      OFFSET_TIMELINE_URL,
+      OFFSET_TIMELINE_SLUG,
+      'offset audio-reactive marker export',
+    ) as {
       config: Record<string, unknown>;
       registry: Record<string, unknown>;
       config_version: number;
