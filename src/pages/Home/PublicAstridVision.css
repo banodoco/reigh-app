@@ -220,16 +220,23 @@
 /* Titles run the card's full width, above the mink, and settle over balanced lines. */
 .astrid-vision-principles h3 { grid-column: 1 / -1; text-wrap: balance; }
 .astrid-vision-principles li > p { grid-column: 1; grid-row: 3; }
-/*
- * A narrow card (a phone, or two-up on a tablet) has no room for the mink beside the text, so the mink
- * moves up beside the numeral and the text takes the card's full width beneath. It draws at a whole 2px
- * per art pixel so it stays crisp on every screen density.
- */
+/* Narrow cards reserve an illustration row below the copy. Match the base selector's specificity:
+   a weaker art selector left it in row 3 on top of the full-width paragraph. */
 @container (max-width: 380px) {
-  .astrid-vision-principles li::before { grid-column: 1; grid-row: 1; align-self: end; margin-bottom: 16px; }
   .astrid-vision-principles li > p { grid-column: 1 / -1; max-width: none; }
-  .astrid-vision-principle-art { grid-row: 1; margin-bottom: 16px; }
-  .astrid-vision-principles h3 { font-size: 25px; }
+  .astrid-vision-principles .astrid-vision-principle-art {
+    --px: 1px;
+    grid-column: 1 / -1; grid-row: 4;
+    justify-self: end; margin-top: 24px;
+  }
+}
+@media (max-width: 640px) {
+  .astrid-vision-principles li > p { grid-column: 1 / -1; max-width: none; }
+  .astrid-vision-principles .astrid-vision-principle-art {
+    --px: 1px;
+    grid-column: 1 / -1; grid-row: 4;
+    justify-self: end; margin-top: 24px;
+  }
 }
 .astrid-vision-principles li:nth-child(2) { --tone: #f3ead6; --tone-ink: #8a6420; --tone-night: #362f22; --tone-ink-night: #d9b26a; }
 .astrid-vision-principles li:nth-child(3) { --tone: #e6eddf; --tone-ink: #4f6a3c; --tone-night: #2a3324; --tone-ink-night: #a3c48c; }
