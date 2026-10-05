@@ -408,7 +408,7 @@ export function PublicAstridCallouts({ stageRef, audience, reducedMotion }: Publ
             else cardRefs.current.delete(callout.id);
           }}
         >
-          <h2>{callout.title}</h2>
+          <h2>{callout.id === 'workflows' ? <><span className="astrid-workflows-title-line">Leverages reusable</span>{' '}<span className="astrid-workflows-title-line">agent workflows</span></> : callout.title}</h2>
           {callout.id === 'tools' && <><p>For example:</p><IntegrationLinks /></>}
           <p>{callout.body}</p>
         </article>
