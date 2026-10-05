@@ -291,12 +291,15 @@ export function PublicAstridCallouts({ stageRef, audience, reducedMotion }: Publ
 
       const launcher = stageElement.querySelector<HTMLElement>('[data-astrid-agent-launcher]');
       const chat = stageElement.querySelector<HTMLElement>('.astrid-chat-surface');
-      if (appView && launcher && chat) {
-        const box = chat.getBoundingClientRect();
+      const launcherAnchor = phone ? stageElement.querySelector<HTMLElement>('.astrid-timeline-surface') : chat;
+      if (appView && launcher && launcherAnchor) {
+        // The mobile timeline has a fixed single-row height; use its actual edge rather than the
+        // hidden chat's desktop positioning box, which can move independently on resize.
+        const box = launcherAnchor.getBoundingClientRect();
         const size = launcher.offsetWidth;
         launcher.dataset.astridTracked = 'true';
-        launcher.style.left = `${box.left + box.width / 2 - originX - size / 2}px`;
-        launcher.style.top = `${box.top + box.height / 2 - originY - size / 2}px`;
+        launcher.style.left = `${(phone ? box.right - size - 4 : box.left + box.width / 2 - size / 2) - originX}px`;
+        launcher.style.top = `${(phone ? box.bottom - size - 4 : box.top + box.height / 2 - size / 2) - originY}px`;
         launcher.style.right = 'auto';
         launcher.style.bottom = 'auto';
       }
