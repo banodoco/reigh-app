@@ -361,6 +361,7 @@ export function PublicAstridCallouts({ stageRef, audience, reducedMotion }: Publ
     mutationObserver.observe(stageElement, { childList: true, subtree: true });
     observeGeometry();
     stageElement.addEventListener('scroll', schedule, true);
+    stageElement.addEventListener('animationend', schedule);
     window.addEventListener('resize', schedule);
     phoneQuery.addEventListener('change', schedule);
     return () => {
@@ -368,6 +369,7 @@ export function PublicAstridCallouts({ stageRef, audience, reducedMotion }: Publ
       resizeObserver?.disconnect();
       mutationObserver.disconnect();
       stageElement.removeEventListener('scroll', schedule, true);
+      stageElement.removeEventListener('animationend', schedule);
       window.removeEventListener('resize', schedule);
       phoneQuery.removeEventListener('change', schedule);
       releaseTracked(stageElement.querySelector<HTMLElement>('.astrid-preview-transport-outlet'));
