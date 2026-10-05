@@ -1471,19 +1471,18 @@
   .astrid-public-site[data-audience="app"],
   .astrid-public-site[data-audience="agent"] { --astrid-centre-x: 0%; }
   .astrid-public-site[data-audience="app"] .astrid-inspector-surface {
-    left: 0; right: auto; top: 0; width: 100%; height: 64px; padding: 4px;
+    left: 0; right: auto; top: 0; width: 100%; height: 84px; padding: 4px;
     transform: none;
   }
   .astrid-public-site[data-audience="app"] .astrid-player-surface {
-    left: 0; top: 72px; width: 100%; height: auto; aspect-ratio: 16 / 9; padding: 6px;
+    left: 0; top: 92px; width: 100%; height: auto; aspect-ratio: 16 / 9; padding: 6px;
     transform: none;
   }
   .astrid-public-site[data-audience="app"] .astrid-timeline-surface {
-    left: 0; top: calc(80px + (100vw - 62px) * .5625); bottom: 0; width: 100%; height: auto;
+    left: 0; top: calc(100px + (100vw - 62px) * .5625); bottom: 0; width: 100%; height: auto;
     transform: none;
   }
-  /* The strip keeps just the clip and its effect tabs, side by side; the outline tabs and the effect
-     controls below them are left out. */
+  /* A compact clip-name row sits above evenly spaced tabs; the full inspector controls stay hidden. */
   .astrid-public-site[data-audience="app"] .astrid-inspector-panel-frame { zoom: 1; font-size: 11px; }
   .astrid-public-site[data-audience="app"] .astrid-inspector-surface [role="tabpanel"] { margin-top: 0; gap: 0; }
   .astrid-public-site[data-audience="app"] .astrid-inspector-surface .text-sm { font-size: 11px; line-height: 1.2; }
@@ -1493,16 +1492,21 @@
   .astrid-public-site[data-audience="app"] .astrid-inspector-surface [role="tabpanel"] > div { padding: 5px; overflow: hidden; }
   .astrid-public-site[data-audience="app"] .astrid-inspector-surface [role="tabpanel"] > div > div {
     display: grid;
-    grid-template-columns: minmax(0, .8fr) minmax(0, 1.5fr);
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: 24px 30px;
     align-items: center;
-    gap: 6px;
+    gap: 4px;
     height: 100%;
   }
   .astrid-public-site[data-audience="app"] .astrid-inspector-surface [role="tabpanel"] > div > div > * { margin: 0; }
-  .astrid-public-site[data-audience="app"] .astrid-inspector-surface [role="tabpanel"] > div > div > :first-child { padding: 6px 8px; }
+  .astrid-public-site[data-audience="app"] .astrid-inspector-surface [role="tabpanel"] > div > div > :first-child {
+    height: 24px; min-width: 0; align-items: center; padding: 0 2px;
+    border: 0; border-radius: 0; background: transparent;
+  }
+  .astrid-public-site[data-audience="app"] .astrid-inspector-surface [data-clip-inspector-read-only] > :first-child button { width: 24px; height: 24px; min-height: 0; }
   .astrid-public-site[data-audience="app"] .astrid-inspector-surface [role="tablist"].grid-cols-4 {
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    height: 38px;
+    height: 30px;
     min-height: 0;
   }
   .astrid-public-site[data-audience="app"] .astrid-inspector-surface [role="tablist"].grid-cols-4 > [role="tab"] { font-size: 11px; padding-inline: 2px; }
@@ -1702,13 +1706,4 @@
   .astrid-public-site .astrid-callout-connectors .astrid-callout-dot-end {
     animation: astrid-dot-in 120ms ease-out calc(var(--astrid-mobile-connector-start) + 300ms) backwards;
   }
-}
-
-@media (max-width: 380px) {
-  .astrid-public-site[data-audience="app"] .astrid-inspector-surface [role="tabpanel"] > div > div {
-    grid-template-columns: minmax(0, .5fr) minmax(0, 1.5fr);
-    gap: 4px;
-  }
-  .astrid-public-site[data-audience="app"] .astrid-inspector-surface [role="tabpanel"] > div > div > :first-child { padding: 4px; }
-  .astrid-public-site[data-audience="app"] .astrid-inspector-surface [role="tablist"].grid-cols-4 > [role="tab"] { font-size: 10px; padding-inline: 1px; }
 }
