@@ -74,10 +74,10 @@ function emitPlayerEvent(name: string, detail: unknown = undefined) {
   }
 }
 
-function makeConfig(label: string, hold = 1): ResolvedTimelineConfig {
+function makeConfig(label: string, hold = 1, fps = 30): ResolvedTimelineConfig {
   return {
     output: {
-      fps: 30,
+      fps,
       resolution: '1280x720',
       file: `${label}.mp4`,
     },
@@ -88,6 +88,35 @@ function makeConfig(label: string, hold = 1): ResolvedTimelineConfig {
       track: 'V1',
       clipType: 'hold',
       hold,
+    }],
+    registry: {},
+  };
+}
+
+function makeMediaConfig(
+  label: string,
+  { from = 0, to = 3, speed = 1, fps = 30 }: { from?: number; to?: number; speed?: number; fps?: number } = {},
+): ResolvedTimelineConfig {
+  return {
+    output: {
+      fps,
+      resolution: '1280x720',
+      file: `${label}.mp4`,
+    },
+    tracks: [{ id: 'V1', kind: 'visual', label: 'V1' }],
+    clips: [{
+      id: `clip-${label}`,
+      at: 0,
+      track: 'V1',
+      clipType: 'media',
+      asset: `asset-${label}`,
+      assetEntry: {
+        src: `/${label}.mp4`,
+        type: 'video/mp4',
+      },
+      from,
+      to,
+      speed,
     }],
     registry: {},
   };
@@ -356,7 +385,7 @@ describe('RemotionPreview', () => {
     expect(playerPropsHistory.at(-1)?.config).toBe(configB);
   });
 
-  it('seeks the player when timeline playback context currentTime changes outside playback', () => {
+  it('keeps the timeline current-time mirror out of the Player seek path', () => {
     const onTimeUpdate = vi.fn();
     const playerContainerRef = createRef<HTMLDivElement>();
     const config = makeConfig('seek');
@@ -364,39 +393,169 @@ describe('RemotionPreview', () => {
     const { rerender } = render(
       <RemotionPreview
         config={config}
+        initialTime={0}
         currentTime={0}
         onTimeUpdate={onTimeUpdate}
         playerContainerRef={playerContainerRef}
       />,
     );
 
-    expect(playerHandles.at(-1)?.seekTo).toHaveBeenLastCalledWith(0);
+    expect(playerHandles.at(-1)?.seekTo).not.toHaveBeenCalled();
 
     rerender(
       <RemotionPreview
         config={config}
+        initialTime={0.5}
         currentTime={0.5}
         onTimeUpdate={onTimeUpdate}
         playerContainerRef={playerContainerRef}
       />,
     );
 
-    expect(playerHandles.at(-1)?.seekTo).toHaveBeenLastCalledWith(15);
+    expect(playerHandles.at(-1)?.seekTo).not.toHaveBeenCalled();
+  });
 
-    act(() => {
-      emitPlayerEvent('play');
-    });
+  it('coalesces rapid imperative seeks to one active and one latest pending target', () => {
+    const previewRef = createRef<PreviewHandle>();
+    const onTimeUpdate = vi.fn();
+    const playerContainerRef = createRef<HTMLDivElement>();
 
-    rerender(
+    render(
       <RemotionPreview
-        config={config}
-        currentTime={0.75}
+        ref={previewRef}
+        config={makeConfig('seek-coalescing', 3)}
         onTimeUpdate={onTimeUpdate}
         playerContainerRef={playerContainerRef}
       />,
     );
 
-    expect(playerHandles.at(-1)?.seekTo).not.toHaveBeenLastCalledWith(23);
+    const player = playerHandles.at(-1)!;
+    act(() => {
+      previewRef.current?.seek(0.5);
+      previewRef.current?.seek(1);
+      previewRef.current?.seek(1.5);
+    });
+
+    expect(player.seekTo).toHaveBeenCalledTimes(1);
+    expect(player.seekTo).toHaveBeenLastCalledWith(15);
+
+    act(() => {
+      vi.advanceTimersByTime(16);
+    });
+
+    expect(player.seekTo).toHaveBeenCalledTimes(2);
+    expect(player.seekTo).toHaveBeenLastCalledWith(45);
+  });
+
+  it.each([
+    ['duration shrink', makeConfig('queued-duration-long', 3), makeConfig('queued-duration-short', 0.5)],
+    ['duration expansion', makeConfig('queued-duration-short', 0.5), makeConfig('queued-duration-long', 3)],
+  ])('invalidates a queued seek when there is a %s', (_change, initialConfig, replacementConfig) => {
+    const previewRef = createRef<PreviewHandle>();
+    const playerContainerRef = createRef<HTMLDivElement>();
+
+    const { rerender } = render(
+      <RemotionPreview
+        ref={previewRef}
+        config={initialConfig}
+        onTimeUpdate={vi.fn()}
+        playerContainerRef={playerContainerRef}
+      />,
+    );
+
+    const player = playerHandles.at(-1)!;
+    act(() => {
+      previewRef.current?.seek(0.5);
+      previewRef.current?.seek(2.5);
+    });
+
+    rerender(
+      <RemotionPreview
+        ref={previewRef}
+        config={replacementConfig}
+        onTimeUpdate={vi.fn()}
+        playerContainerRef={playerContainerRef}
+      />,
+    );
+
+    act(() => {
+      vi.advanceTimersByTime(16);
+    });
+
+    expect(player.seekTo).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ['source replacement', makeMediaConfig('queued-source-a'), makeMediaConfig('queued-source-b')],
+    ['trim replacement', makeMediaConfig('queued-trim', { from: 0, to: 3 }), makeMediaConfig('queued-trim', { from: 1, to: 2 })],
+    ['playback-rate replacement', makeMediaConfig('queued-rate', { speed: 1 }), makeMediaConfig('queued-rate', { speed: 2 })],
+    ['config replacement', makeConfig('queued-config-a', 3), makeConfig('queued-config-b', 3, 60)],
+  ])('invalidates a queued seek on %s instead of using stale metadata', (_change, initialConfig, replacementConfig) => {
+    const previewRef = createRef<PreviewHandle>();
+    const playerContainerRef = createRef<HTMLDivElement>();
+
+    const { rerender } = render(
+      <RemotionPreview
+        ref={previewRef}
+        config={initialConfig}
+        onTimeUpdate={vi.fn()}
+        playerContainerRef={playerContainerRef}
+      />,
+    );
+
+    const player = playerHandles.at(-1)!;
+    act(() => {
+      previewRef.current?.seek(0.5);
+      previewRef.current?.seek(2.5);
+    });
+
+    rerender(
+      <RemotionPreview
+        ref={previewRef}
+        config={replacementConfig}
+        onTimeUpdate={vi.fn()}
+        playerContainerRef={playerContainerRef}
+      />,
+    );
+
+    act(() => {
+      vi.advanceTimersByTime(16);
+    });
+
+    expect(player.seekTo).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not resume a pending seek after an explicit pause', () => {
+    const previewRef = createRef<PreviewHandle>();
+    const onTimeUpdate = vi.fn();
+    const playerContainerRef = createRef<HTMLDivElement>();
+
+    render(
+      <RemotionPreview
+        ref={previewRef}
+        config={makeConfig('seek-pause', 3)}
+        onTimeUpdate={onTimeUpdate}
+        playerContainerRef={playerContainerRef}
+      />,
+    );
+
+    const player = playerHandles.at(-1)!;
+    player.isPlaying.mockReturnValue(true);
+    act(() => {
+      previewRef.current?.play();
+      player.play.mockClear();
+      previewRef.current?.seek(0.5);
+      previewRef.current?.seek(1.5);
+      previewRef.current?.pause();
+      vi.advanceTimersByTime(16);
+    });
+
+    expect(player.seekTo).toHaveBeenNthCalledWith(1, 15);
+    expect(player.seekTo).toHaveBeenNthCalledWith(2, 45);
+    expect(player.play).toHaveBeenCalledTimes(1);
+
+    // The first seek resumes the pre-scrub playback once. The pending target
+    // must remain paused after the explicit pause.
   });
 
   it('resumes playback when scrubbing the playhead while playing', () => {
@@ -414,11 +573,12 @@ describe('RemotionPreview', () => {
     );
 
     act(() => {
-      emitPlayerEvent('play');
+      previewRef.current?.play();
     });
 
     const player = playerHandles.at(-1)!;
     player.isPlaying.mockReturnValue(true);
+    player.play.mockClear();
 
     act(() => {
       previewRef.current?.seek(2);

@@ -247,13 +247,12 @@ const ShotClipSequence: FC<{
       key={clip.id}
       from={Math.max(0, Math.round(clip.at * fps))}
       durationInFrames={durationInFrames}
-      // Premount so the next shot's cached child config is mounted (hidden,
-      // audio muted) BEFORE the playhead crosses the boundary — the crossing
-      // renders cached content immediately instead of a dark placeholder.
-      // Canonical occurrences are half-open render intervals. Premounting a
-      // child occurrence would make the previous/next shot's content visible
-      // outside that interval, so only legacy non-canonical shells use it.
-      premountFor={clip.app?.canonicalTiming ? 0 : fps * 2}
+      // Premount the child renderer so its image/video elements are ready
+      // before the playhead reaches this shot. Remotion keeps the premounted
+      // subtree hidden until `from`, preserving canonical half-open timing.
+      // Without this, the child timeline config is cached early but its media
+      // still mounts on the boundary and can flash while loading/decoding.
+      premountFor={Math.ceil(fps * 2)}
     >
       {childConfig ? (
         <TimelineRenderer config={childConfig} astridElementHost={astridElementHost} />
@@ -473,6 +472,11 @@ const AstridEffectPreviewSequence: FC<{
       key={clip.id}
       from={Math.max(0, Math.round(clip.at * fps))}
       durationInFrames={durationInFrames}
+      // Canonical child clips are flattened into the parent preview, so they
+      // cannot rely on ShotClipSequence to prepare their media. In particular
+      // an Astrid effect replacing a still must mount its own first frame
+      // before the canonical occurrence boundary.
+      premountFor={clip.app?.canonicalTiming ? Math.ceil(fps * 2) : 0}
     >
       <ThemeProvider value={theme}>
         <Component

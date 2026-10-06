@@ -282,7 +282,6 @@ function ShotTimelineEditorSurface({
             ref={previewRef}
             config={previewConfig}
             compact
-            currentTime={currentTime}
             onTimeUpdate={onPreviewTimeUpdate}
             playerContainerRef={playerContainerRef}
           />

@@ -62,5 +62,6 @@ describe('useVideoEditorPreviewSurface', () => {
     const previewElement = (result.current.portal as unknown as { children: React.ReactElement }).children;
 
     expect(previewElement.props.config).toEqual(expectedDraftConfig);
+    expect(previewElement.props.currentTime).toBeUndefined();
   });
 });
