@@ -106,7 +106,6 @@ export function useVideoEditorPreviewSurface({
         compact={compact}
         touchChrome={touchChrome}
         initialTime={currentTime}
-        currentTime={currentTime}
         onTimeUpdate={onPreviewTimeUpdate}
         playerContainerRef={playerContainerRef}
       />,
