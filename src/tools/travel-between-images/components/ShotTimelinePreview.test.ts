@@ -41,6 +41,7 @@ const popupChrome = vi.hoisted(() => ({
   timelineLoadGate: null as Promise<void> | null,
   onTimelineLoadStarted: vi.fn(),
 }));
+const previewProps = vi.hoisted(() => ({currentTime: undefined as number | undefined}));
 
 vi.mock('@/tools/video-editor/hooks/timelineStore.ts', async () => {
   const ReactModule = await import('react');
@@ -115,7 +116,10 @@ vi.mock('@/tools/video-editor/contexts/VideoEditorProvider.tsx', async () => {
 });
 
 vi.mock('@/tools/video-editor/components/PreviewPanel/RemotionPreview.tsx', () => ({
-  RemotionPreview: () => React.createElement('div', { 'data-testid': 'preview' }),
+  RemotionPreview: (props: {currentTime?: number}) => {
+    previewProps.currentTime = props.currentTime;
+    return React.createElement('div', { 'data-testid': 'preview' });
+  },
 }));
 
 vi.mock('@/tools/video-editor/components/TimelineEditor/TimelineEditorCore.tsx', async () => {
@@ -138,7 +142,17 @@ describe('shot timeline popup persistence', () => {
     popupChrome.recoveryDraft = null;
     popupChrome.timelineLoadGate = null;
     vi.clearAllMocks();
+    previewProps.currentTime = undefined;
     popupChrome.reloadFromServer.mockResolvedValue(undefined);
+  });
+
+  it('does not pass current-time mirroring into the imperative preview seek path', async () => {
+    const composition = createShotCompositionAdapter({ load: vi.fn(), publish: vi.fn() }).prepare(fixture);
+
+    render(React.createElement(ShotTimelinePreview, { composition, occurrenceId: 'occ-1' }));
+
+    await waitFor(() => expect(screen.getByTestId('preview')).toBeTruthy());
+    expect(previewProps.currentTime).toBeUndefined();
   });
 
   it('renders recovery controls in the mounted popup surface', async () => {
