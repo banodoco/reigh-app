@@ -28,8 +28,13 @@ const TRANSPORT_BUTTON_CLASS = 'pointer-events-auto rounded-full border-[color:v
 const PREVIEW_SHARED_AUDIO_TAGS = 0;
 
 interface PendingSeek {
-  frame: number;
+  time: number;
   configGeneration: number;
+}
+
+interface TestPlayerSeekObserver {
+  onDispatch?: (event: { time: number; frame: number; configGeneration: number }) => void;
+  onAutoResume?: () => void;
 }
 
 interface RemotionPreviewProps {
@@ -51,7 +56,7 @@ const RemotionPreviewComponent = forwardRef<PreviewHandle, RemotionPreviewProps>
   const playerRef = useRef<PlayerRef>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const playbackIntentRef = useRef<'playing' | 'paused'>('paused');
-  const activeSeekFrameRef = useRef<number | null>(null);
+  const activeSeekRef = useRef<PendingSeek | null>(null);
   const pendingSeekRef = useRef<PendingSeek | null>(null);
   const seekFlushRafRef = useRef<number | null>(null);
   const configIdentityRef = useRef(config);
@@ -64,14 +69,15 @@ const RemotionPreviewComponent = forwardRef<PreviewHandle, RemotionPreviewProps>
   const markEventsEffect = useEffectDiagnostic('remotionPreview:events');
   // Throttle config updates to the Player to avoid stutter during drag operations.
   // The timeline canvas shows immediate visual feedback; the Player catches up after 150ms idle.
-  const [deferredConfig, setDeferredConfig] = useState(config);
+  const [deferredConfigState, setDeferredConfigState] = useState({ config, generation: 0 });
+  const deferredConfig = deferredConfigState.config;
   const deferTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Live-edit mailbox: while playing, timeline edits must reach the Player on
   // the next animation frame (live media updates, no pause+restart), but no
   // more than once per frame so rapid commits can't cause renderer jank.
-  const latestConfigRef = useRef<ResolvedTimelineConfig | null>(null);
+  const latestConfigRef = useRef<{ config: ResolvedTimelineConfig; generation: number } | null>(null);
   const rafRef = useRef<number | null>(null);
-  const flushDeferredConfig = (nextConfig: ResolvedTimelineConfig, delayMs: number) => {
+  const flushDeferredConfig = (nextConfig: ResolvedTimelineConfig, generation: number, delayMs: number) => {
     // Guard is load-bearing: it narrows `Timeout | null` away (this lib mix
     // rejects null) and resets the ref so a stale timer can't double-fire.
     if (deferTimerRef.current) {
@@ -79,22 +85,29 @@ const RemotionPreviewComponent = forwardRef<PreviewHandle, RemotionPreviewProps>
       deferTimerRef.current = null;
     }
     if (delayMs <= 0) {
-      setDeferredConfig(nextConfig);
+      if (generation === configGenerationRef.current) {
+        setDeferredConfigState({ config: nextConfig, generation });
+      }
       return;
     }
-    deferTimerRef.current = setTimeout(() => setDeferredConfig(nextConfig), delayMs);
+    deferTimerRef.current = setTimeout(() => {
+      deferTimerRef.current = null;
+      if (generation === configGenerationRef.current) {
+        setDeferredConfigState({ config: nextConfig, generation });
+      }
+    }, delayMs);
   };
 
   useEffect(() => {
     if (isPlaying) {
-      latestConfigRef.current = config;
+      latestConfigRef.current = { config, generation: configGenerationRef.current };
       if (rafRef.current === null) {
         rafRef.current = requestAnimationFrame(() => {
           rafRef.current = null;
           const nextConfig = latestConfigRef.current;
           latestConfigRef.current = null;
-          if (nextConfig) {
-            setDeferredConfig(nextConfig);
+          if (nextConfig && nextConfig.generation === configGenerationRef.current) {
+            setDeferredConfigState(nextConfig);
           }
         });
       }
@@ -104,10 +117,17 @@ const RemotionPreviewComponent = forwardRef<PreviewHandle, RemotionPreviewProps>
         cancelAnimationFrame(rafRef.current);
         rafRef.current = null;
       }
-      const nextConfig = latestConfigRef.current ?? config;
-      const delayMs = latestConfigRef.current ? 0 : 150;
+      const currentConfig = { config, generation: configGenerationRef.current };
+      const queuedConfig = latestConfigRef.current;
+      // A pause and a newer prop update can be committed together. Never let
+      // an older playing mailbox overwrite the current semantic generation;
+      // the generation gate would otherwise leave later seeks waiting forever.
+      const nextConfig = queuedConfig && queuedConfig.generation >= currentConfig.generation
+        ? queuedConfig
+        : currentConfig;
+      const delayMs = queuedConfig && nextConfig === queuedConfig ? 0 : 150;
       latestConfigRef.current = null;
-      flushDeferredConfig(nextConfig, delayMs);
+      flushDeferredConfig(nextConfig.config, nextConfig.generation, delayMs);
     }
     return () => {
       if (rafRef.current !== null) {
@@ -138,6 +158,8 @@ const RemotionPreviewComponent = forwardRef<PreviewHandle, RemotionPreviewProps>
   }, [deferredConfig.clips, deferredConfig.output.fps, deferredConfig.output.resolution]);
   const metadataRef = useRef(metadata);
   metadataRef.current = metadata;
+  const appliedConfigGenerationRef = useRef(deferredConfigState.generation);
+  appliedConfigGenerationRef.current = deferredConfigState.generation;
 
   useEffect(() => {
     markEventsEffect();
@@ -163,75 +185,115 @@ const RemotionPreviewComponent = forwardRef<PreviewHandle, RemotionPreviewProps>
     };
   }, [markEventsEffect, metadata.fps, onTimeUpdate]);
 
-  const requestSeek = useCallback((targetFrame: number) => {
+  const flushPendingSeekRef = useRef<() => void>(() => undefined);
+  const dispatchSeek = useCallback((pendingSeek: PendingSeek) => {
+    if (pendingSeek.configGeneration !== configGenerationRef.current) {
+      return;
+    }
+    if (pendingSeek.configGeneration !== appliedConfigGenerationRef.current) {
+      return;
+    }
+
+    const player = playerRef.current;
+    if (!player) {
+      return;
+    }
+
+    const currentMetadata = metadataRef.current;
+    const requestedFrame = Math.round(pendingSeek.time * currentMetadata.fps);
+    const frame = Math.min(Math.max(0, requestedFrame), Math.max(0, currentMetadata.durationInFrames - 1));
+    activeSeekRef.current = pendingSeek;
+    const lastFrame = currentMetadata.durationInFrames - 1;
+    const wasPlaying = player.isPlaying() && playbackIntentRef.current !== 'paused';
+    if (wasPlaying) {
+      player.pause();
+    }
+    // Narrow, opt-in browser evidence seam: the focused scrub spec installs
+    // this observer before the editor mounts. Production has no observer and
+    // the authoritative Player.seekTo path remains unchanged.
+    if (typeof window !== 'undefined') {
+      const observer = (window as Window & { __REIGH_TEST_PLAYER_SEEK__?: TestPlayerSeekObserver }).__REIGH_TEST_PLAYER_SEEK__;
+      observer?.onDispatch?.({ time: pendingSeek.time, frame, configGeneration: pendingSeek.configGeneration });
+    }
+    player.seekTo(frame);
+    if (wasPlaying && frame < lastFrame && playbackIntentRef.current !== 'paused') {
+      if (typeof window !== 'undefined') {
+        const observer = (window as Window & { __REIGH_TEST_PLAYER_SEEK__?: TestPlayerSeekObserver }).__REIGH_TEST_PLAYER_SEEK__;
+        observer?.onAutoResume?.();
+      }
+      player.play();
+    }
+
+    if (seekFlushRafRef.current === null) {
+      seekFlushRafRef.current = requestAnimationFrame(() => {
+        seekFlushRafRef.current = null;
+        activeSeekRef.current = null;
+        flushPendingSeekRef.current();
+      });
+    }
+  }, []);
+
+  const flushPendingSeek = useCallback(() => {
+    if (activeSeekRef.current !== null) {
+      return;
+    }
+    const pendingSeek = pendingSeekRef.current;
+    if (pendingSeek === null) {
+      return;
+    }
+    if (pendingSeek.configGeneration !== configGenerationRef.current) {
+      pendingSeekRef.current = null;
+      return;
+    }
+    if (pendingSeek.configGeneration !== appliedConfigGenerationRef.current) {
+      return;
+    }
+    pendingSeekRef.current = null;
+    dispatchSeek(pendingSeek);
+  }, [dispatchSeek]);
+  flushPendingSeekRef.current = flushPendingSeek;
+
+  useEffect(() => {
+    // A seek requested during the deferred-config window stays semantic until
+    // Player has rendered the matching generation, then enters the normal
+    // one-active/one-latest command window.
+    flushPendingSeek();
+  }, [deferredConfig, deferredConfigState.generation, flushPendingSeek]);
+
+  const requestSeek = useCallback((time: number) => {
     // Player.seekTo is the only authoritative editor seek path. The one-frame
     // command window keeps one active command plus one replaceable latest
     // target; it does not attempt to predict browser decode completion.
     const configGeneration = configGenerationRef.current;
-    if (activeSeekFrameRef.current !== null) {
-      if (activeSeekFrameRef.current === targetFrame) {
+    const pendingSeek = { time, configGeneration };
+    if (activeSeekRef.current !== null) {
+      if (
+        activeSeekRef.current.configGeneration === configGeneration
+        && activeSeekRef.current.time === time
+      ) {
         pendingSeekRef.current = null;
       } else {
-        pendingSeekRef.current = { frame: targetFrame, configGeneration };
+        pendingSeekRef.current = pendingSeek;
       }
       return;
     }
 
-    const dispatchSeek = ({ frame: requestedFrame, configGeneration: requestedGeneration }: PendingSeek) => {
-      if (requestedGeneration !== configGenerationRef.current) {
-        return;
-      }
-      const player = playerRef.current;
-      if (!player) {
-        return;
-      }
-
-      const currentMetadata = metadataRef.current;
-      const frame = Math.min(Math.max(0, requestedFrame), Math.max(0, currentMetadata.durationInFrames - 1));
-      activeSeekFrameRef.current = frame;
-      const lastFrame = currentMetadata.durationInFrames - 1;
-      const wasPlaying = player.isPlaying() && playbackIntentRef.current !== 'paused';
-      if (wasPlaying) {
-        player.pause();
-      }
-      player.seekTo(frame);
-      if (wasPlaying && frame < lastFrame && playbackIntentRef.current !== 'paused') {
-        player.play();
-      }
-
-      if (seekFlushRafRef.current === null) {
-        seekFlushRafRef.current = requestAnimationFrame(() => {
-          seekFlushRafRef.current = null;
-          activeSeekFrameRef.current = null;
-          const pendingSeek = pendingSeekRef.current;
-          pendingSeekRef.current = null;
-          if (pendingSeek !== null) {
-            dispatchSeek(pendingSeek);
-          }
-        });
-      }
-    };
-
-    dispatchSeek({ frame: targetFrame, configGeneration });
-  }, []);
+    pendingSeekRef.current = pendingSeek;
+    flushPendingSeek();
+  }, [flushPendingSeek]);
 
   // Live edits can shrink the timeline mid-playback; park the playhead on the
   // last frame instead of running past (or looping past) the new end. This
   // correction uses the same authoritative seek dispatcher as editor intent.
   useEffect(() => {
-    if (!isPlaying) {
-      return;
-    }
     const player = playerRef.current;
     if (player && player.getCurrentFrame() >= metadata.durationInFrames) {
-      requestSeek(Math.max(0, metadata.durationInFrames - 1));
+      requestSeek(Math.max(0, metadata.durationInFrames - 1) / metadata.fps);
     }
-  }, [isPlaying, metadata.durationInFrames, requestSeek]);
+  }, [metadata.durationInFrames, metadata.fps, requestSeek]);
 
   const seek = useCallback((time: number) => {
-    const currentMetadata = metadataRef.current;
-    const nextFrame = Math.max(0, Math.round(time * currentMetadata.fps));
-    requestSeek(Math.min(nextFrame, Math.max(0, currentMetadata.durationInFrames - 1)));
+    requestSeek(time);
   }, [requestSeek]);
 
   const play = useCallback(() => {
