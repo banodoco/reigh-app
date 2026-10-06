@@ -248,6 +248,57 @@ describe('RemotionPreview', () => {
     expect(playerPropsHistory.at(-1)?.config).toBe(nextConfig);
   });
 
+  it('does not apply an older playing mailbox over a newer config when pausing', () => {
+    const previewRef = createRef<PreviewHandle>();
+    const playerContainerRef = createRef<HTMLDivElement>();
+    const configA = makeConfig('mailbox-a', 2, 30);
+    const configB = makeConfig('mailbox-b', 2, 60);
+    const configC = makeConfig('mailbox-c', 2, 90);
+
+    const { rerender } = render(
+      <RemotionPreview
+        ref={previewRef}
+        config={configA}
+        onTimeUpdate={vi.fn()}
+        playerContainerRef={playerContainerRef}
+      />,
+    );
+
+    const player = playerHandles.at(-1)!;
+    act(() => {
+      vi.runAllTimers();
+      emitPlayerEvent('play');
+    });
+    rerender(
+      <RemotionPreview
+        ref={previewRef}
+        config={configB}
+        onTimeUpdate={vi.fn()}
+        playerContainerRef={playerContainerRef}
+      />,
+    );
+
+    // Pause and config C arrive before B's animation-frame mailbox flushes.
+    act(() => {
+      emitPlayerEvent('pause');
+      rerender(
+        <RemotionPreview
+          ref={previewRef}
+          config={configC}
+          onTimeUpdate={vi.fn()}
+          playerContainerRef={playerContainerRef}
+        />,
+      );
+    });
+    act(() => {
+      vi.runAllTimers();
+      previewRef.current?.seek(1);
+    });
+
+    expect(playerPropsHistory.at(-1)?.config).toBe(configC);
+    expect(player.seekTo).toHaveBeenLastCalledWith(90);
+  });
+
   it('disables Remotion shared audio pooling for long canonical timelines', () => {
     render(
       <RemotionPreview
@@ -344,6 +395,130 @@ describe('RemotionPreview', () => {
     // parks on the new last frame instead of looping to the start.
     expect(player.seekTo).toHaveBeenLastCalledWith(14);
     expect(player.seekTo).not.toHaveBeenLastCalledWith(0);
+  });
+
+  it('converts a seek against the config generation applied to Player', () => {
+    const previewRef = createRef<PreviewHandle>();
+    const playerContainerRef = createRef<HTMLDivElement>();
+    const initialConfig = makeConfig('generation-old', 2, 30);
+    const replacementConfig = makeConfig('generation-new', 2, 60);
+
+    const { rerender } = render(
+      <RemotionPreview
+        ref={previewRef}
+        config={initialConfig}
+        onTimeUpdate={vi.fn()}
+        playerContainerRef={playerContainerRef}
+      />,
+    );
+
+    const player = playerHandles.at(-1)!;
+    rerender(
+      <RemotionPreview
+        ref={previewRef}
+        config={replacementConfig}
+        onTimeUpdate={vi.fn()}
+        playerContainerRef={playerContainerRef}
+      />,
+    );
+
+    act(() => {
+      previewRef.current?.seek(1);
+    });
+
+    // The paused config update is still debounced, so no frame may be sent to
+    // the old 30fps Player using the new 60fps metadata.
+    expect(player.seekTo).not.toHaveBeenCalled();
+
+    act(() => {
+      vi.advanceTimersByTime(150);
+    });
+
+    expect(playerPropsHistory.at(-1)?.config).toBe(replacementConfig);
+    expect(player.seekTo).toHaveBeenLastCalledWith(60);
+  });
+
+  it('flushes a seek when a deferred config returns to the same object identity', () => {
+    const previewRef = createRef<PreviewHandle>();
+    const playerContainerRef = createRef<HTMLDivElement>();
+    const configA = makeConfig('generation-a', 2, 30);
+    const configB = makeConfig('generation-b', 2, 60);
+
+    const { rerender } = render(
+      <RemotionPreview
+        ref={previewRef}
+        config={configA}
+        onTimeUpdate={vi.fn()}
+        playerContainerRef={playerContainerRef}
+      />,
+    );
+
+    const player = playerHandles.at(-1)!;
+    act(() => {
+      vi.runAllTimers();
+    });
+
+    // A -> B -> A can preserve the deferred config object's identity while
+    // still advancing the semantic generation used by pending seeks.
+    rerender(
+      <RemotionPreview
+        ref={previewRef}
+        config={configB}
+        onTimeUpdate={vi.fn()}
+        playerContainerRef={playerContainerRef}
+      />,
+    );
+    rerender(
+      <RemotionPreview
+        ref={previewRef}
+        config={configA}
+        onTimeUpdate={vi.fn()}
+        playerContainerRef={playerContainerRef}
+      />,
+    );
+
+    act(() => {
+      previewRef.current?.seek(1);
+      vi.advanceTimersByTime(150);
+    });
+
+    expect(player.seekTo).toHaveBeenLastCalledWith(30);
+  });
+
+  it('parks a paused playhead on the last frame after a duration shrink without resuming', () => {
+    const previewRef = createRef<PreviewHandle>();
+    const playerContainerRef = createRef<HTMLDivElement>();
+    const longConfig = makeConfig('paused-shrink-long', 3);
+    const shortConfig = makeConfig('paused-shrink-short', 0.5);
+
+    const { rerender } = render(
+      <RemotionPreview
+        ref={previewRef}
+        config={longConfig}
+        onTimeUpdate={vi.fn()}
+        playerContainerRef={playerContainerRef}
+      />,
+    );
+
+    const player = playerHandles.at(-1)!;
+    player.getCurrentFrame.mockReturnValue(20);
+    player.isPlaying.mockReturnValue(false);
+
+    rerender(
+      <RemotionPreview
+        ref={previewRef}
+        config={shortConfig}
+        onTimeUpdate={vi.fn()}
+        playerContainerRef={playerContainerRef}
+      />,
+    );
+
+    act(() => {
+      vi.advanceTimersByTime(150);
+    });
+
+    expect(player.seekTo).toHaveBeenLastCalledWith(14);
+    expect(player.play).not.toHaveBeenCalled();
   });
 
   it('still debounces config updates while paused', () => {
