@@ -14,13 +14,14 @@ vi.mock('./PublicAstridMountedEditor.tsx', async () => {
     PublicAstridMountedEditor: ({
       onConversationReady,
       onOpenVerifiedResult,
+      attempt,
     }: {
-      onConversationReady: () => void;
+      onConversationReady: (attempt: number) => void;
       onOpenVerifiedResult: () => void;
       example: unknown;
     }) => {
       const [playing, setPlaying] = React.useState(false);
-      React.useEffect(() => onConversationReady(), [onConversationReady]);
+      React.useEffect(() => onConversationReady(attempt), [attempt, onConversationReady]);
       const exposeTestHandoff = new URLSearchParams(window.location.search).get('test-verified-result') === '1';
       return (
         <>

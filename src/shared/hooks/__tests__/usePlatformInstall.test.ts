@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 
 import { usePlatformInstall } from '../usePlatformInstall';
+import { __resetInstallPromptSignalsForTests } from '../platformInstall/signals';
 
 const originalMatchMedia = window.matchMedia;
 const originalUserAgent = Object.getOwnPropertyDescriptor(navigator, 'userAgent');
@@ -23,6 +24,7 @@ function setMaxTouchPoints(n: number) {
 describe('usePlatformInstall', () => {
   beforeEach(() => {
     vi.useFakeTimers();
+    __resetInstallPromptSignalsForTests();
 
     // Default: desktop Mac Chrome
     setPlatform('MacIntel');
@@ -40,6 +42,7 @@ describe('usePlatformInstall', () => {
   });
 
   afterEach(() => {
+    __resetInstallPromptSignalsForTests();
     vi.useRealTimers();
     window.matchMedia = originalMatchMedia;
     if (originalUserAgent) Object.defineProperty(navigator, 'userAgent', originalUserAgent);

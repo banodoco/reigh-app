@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { ArrowRight, Check, Link2, Monitor, Share, X } from 'lucide-react';
 import {
   APP_ENTRY_PATH,
@@ -11,7 +11,7 @@ import {
   detectSafariPwaSupport,
   isDesktopPlatform,
 } from '@/shared/hooks/platformInstall/platformDetection';
-import { useInstallPromptSignals } from '@/shared/hooks/platformInstall/signals';
+import { runInstallPrompt, useInstallPromptSignals } from '@/shared/hooks/platformInstall/signals';
 import './PublicAstridInstallDialog.css';
 
 const AVATAR_SRC = '/astrid-app-icon-192.png';
@@ -33,24 +33,40 @@ function useInstallScenario(): InstallScenario {
   return useMemo(detectInstallScenario, []);
 }
 
-function useBrowserInstall() {
-  const { deferredPrompt, isAppInstalled, setDeferredPrompt, setPromptConsumed } = useInstallPromptSignals();
+function useBrowserInstall(active: boolean) {
+  const { deferredPrompt, isAppInstalled, consumeDeferredPrompt } = useInstallPromptSignals();
+  const activeRef = useRef(active);
+  const requestRef = useRef(0);
+
+  useEffect(() => {
+    activeRef.current = active;
+    if (!active) requestRef.current += 1;
+  }, [active]);
+
+  useEffect(() => () => {
+    activeRef.current = false;
+    requestRef.current += 1;
+  }, []);
+
   // Installing from anywhere (the address bar included, not just this dialog) sends later visits
   // straight into the app.
   useEffect(() => {
     if (isAppInstalled) rememberAppEntryPreference();
   }, [isAppInstalled]);
-  const promptInstall = async () => {
-    if (!deferredPrompt) return;
+
+  const promptInstall = useCallback(async () => {
+    if (!activeRef.current || !deferredPrompt) return;
+    const promptEvent = deferredPrompt;
+    const request = ++requestRef.current;
     try {
-      await deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
+      const { outcome } = await runInstallPrompt(promptEvent);
+      if (!activeRef.current || request !== requestRef.current || !consumeDeferredPrompt(promptEvent)) return;
       if (outcome === 'accepted') rememberAppEntryPreference();
-    } finally {
-      setDeferredPrompt(null);
-      setPromptConsumed(true);
+    } catch {
+      if (activeRef.current && request === requestRef.current) consumeDeferredPrompt(promptEvent);
     }
-  };
+  }, [consumeDeferredPrompt, deferredPrompt]);
+
   return { canPrompt: Boolean(deferredPrompt), installed: isAppInstalled, promptInstall };
 }
 
@@ -103,13 +119,17 @@ function ToolbarPointer({ open, label }: { open: boolean; label: string }) {
   useEffect(() => {
     const card = svgRef.current?.parentElement;
     if (!open || !card) return;
-    const measure = () => setGeometry(pointerGeometry(card.getBoundingClientRect()));
+    let disposed = false;
+    const measure = () => {
+      if (!disposed) setGeometry(pointerGeometry(card.getBoundingClientRect()));
+    };
     measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(card);
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure);
+    observer?.observe(card);
     window.addEventListener('resize', measure);
     return () => {
-      observer.disconnect();
+      disposed = true;
+      observer?.disconnect();
       window.removeEventListener('resize', measure);
     };
   }, [open]);
@@ -206,17 +226,52 @@ const DESKTOP_COPY: Record<Exclude<InstallScenario, 'mobile'>, { lede: string; s
   },
 };
 
-function MobileContent({ onClose }: { onClose: () => void }) {
+function MobileContent({ onClose, active }: { onClose: () => void; active: boolean }) {
   const [copied, setCopied] = useState(false);
+  const activeRef = useRef(active);
+  const requestRef = useRef(0);
+  const resetRef = useRef<number | null>(null);
+
+  const clearReset = useCallback(() => {
+    if (resetRef.current !== null) {
+      window.clearTimeout(resetRef.current);
+      resetRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    activeRef.current = active;
+    if (!active) {
+      requestRef.current += 1;
+      clearReset();
+      setCopied(false);
+    }
+  }, [active, clearReset]);
+
+  useEffect(() => () => {
+    activeRef.current = false;
+    requestRef.current += 1;
+    clearReset();
+  }, [clearReset]);
+
   const sendToComputer = async () => {
+    if (!activeRef.current) return;
+    const request = ++requestRef.current;
     const url = new URL(HOME_PATH, window.location.origin).href;
     try {
       if (navigator.share) {
         await navigator.share({ title: 'Astrid', url });
         return;
       }
+      if (!navigator.clipboard?.writeText) return;
       await navigator.clipboard.writeText(url);
+      if (!activeRef.current || request !== requestRef.current) return;
       setCopied(true);
+      clearReset();
+      resetRef.current = window.setTimeout(() => {
+        if (activeRef.current && request === requestRef.current) setCopied(false);
+        resetRef.current = null;
+      }, 1_800);
     } catch {
       // The person dismissed the share sheet, or the clipboard is unavailable: nothing to do.
     }
@@ -250,15 +305,65 @@ function MobileContent({ onClose }: { onClose: () => void }) {
  */
 export function PublicAstridInstallDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const returnFocusRef = useRef<HTMLElement | null>(null);
+  const closeNotifiedRef = useRef(true);
+  const onCloseRef = useRef(onClose);
   const scenario = useInstallScenario();
-  const { canPrompt, installed, promptInstall } = useBrowserInstall();
+  const { canPrompt, installed, promptInstall } = useBrowserInstall(open);
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
+  const restoreFocus = useCallback(() => {
+    const target = returnFocusRef.current;
+    returnFocusRef.current = null;
+    if (!target || !target.isConnected || target.hasAttribute('disabled') || target.closest('[inert], [aria-hidden="true"]')) return;
+    try {
+      target.focus({ preventScroll: true });
+    } catch {
+      target.focus();
+    }
+  }, []);
+
+  const notifyClosed = useCallback(() => {
+    if (closeNotifiedRef.current) return;
+    closeNotifiedRef.current = true;
+    onCloseRef.current();
+    restoreFocus();
+  }, [restoreFocus]);
+
+  const requestClose = useCallback(() => {
+    const dialog = dialogRef.current;
+    if (dialog?.open) dialog.close();
+    notifyClosed();
+  }, [notifyClosed]);
+
+  useLayoutEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    if (open && !dialog.open) {
+      const activeElement = document.activeElement;
+      if (activeElement instanceof HTMLElement && activeElement !== document.body && !dialog.contains(activeElement)) {
+        returnFocusRef.current = activeElement;
+      }
+      closeNotifiedRef.current = false;
+      dialog.showModal();
+      closeButtonRef.current?.focus({ preventScroll: true });
+    } else if (!open) {
+      if (dialog.open) dialog.close();
+      notifyClosed();
+    }
+  }, [notifyClosed, open]);
 
   useEffect(() => {
     const dialog = dialogRef.current;
-    if (!dialog) return;
-    if (open && !dialog.open) dialog.showModal();
-    if (!open && dialog.open) dialog.close();
-  }, [open]);
+    return () => {
+      if (dialog?.open) dialog.close();
+      notifyClosed();
+    };
+  }, [notifyClosed]);
 
   const desktop = scenario !== 'mobile';
   const copy = desktop ? DESKTOP_COPY[scenario] : null;
@@ -271,17 +376,22 @@ export function PublicAstridInstallDialog({ open, onClose }: { open: boolean; on
       data-scenario={scenario}
       data-points-up={pointsUp && !installed ? '' : undefined}
       aria-labelledby="astrid-install-title"
-      onClose={onClose}
+      aria-modal="true"
+      onClose={notifyClosed}
+      onCancel={(event) => {
+        event.preventDefault();
+        requestClose();
+      }}
       onClick={(event) => {
         // A click on the backdrop (the dialog element itself, outside its card) dismisses it.
-        if (event.target === event.currentTarget) onClose();
+        if (event.target === event.currentTarget) requestClose();
       }}
     >
       <div className="astrid-install-card">
-        {pointsUp && !installed ? (
+        {open && pointsUp && !installed ? (
           <ToolbarPointer open={open} label={scenario === 'safari' ? 'Share, up here' : 'Up here'} />
         ) : null}
-        <button type="button" className="astrid-install-close" onClick={onClose} aria-label="Close">
+        <button ref={closeButtonRef} type="button" className="astrid-install-close" onClick={requestClose} aria-label="Close">
           <X size={16} strokeWidth={2} aria-hidden="true" />
         </button>
         <header className="astrid-install-header">
@@ -292,7 +402,7 @@ export function PublicAstridInstallDialog({ open, onClose }: { open: boolean; on
           </div>
         </header>
 
-        {!desktop ? <MobileContent onClose={onClose} /> : null}
+        {!desktop ? <MobileContent onClose={requestClose} active={open} /> : null}
 
         {desktop && copy ? (
           <>

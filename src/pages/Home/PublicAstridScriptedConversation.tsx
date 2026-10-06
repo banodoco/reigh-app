@@ -19,17 +19,20 @@ const RESPONSE_TIMESTAMP = '2026-09-01T10:00:12.000Z';
  */
 const COMPOSER_NOTE_MS = 3_500;
 
-function ExampleComposer() {
+function ExampleComposer({ active }: { active: boolean }) {
   const [draft, setDraft] = useState('');
   const [explained, setExplained] = useState(false);
   const [noteVisible, setNoteVisible] = useState(false);
   const hideNoteRef = useRef<number | null>(null);
-  useEffect(() => () => {
-    if (hideNoteRef.current !== null) window.clearTimeout(hideNoteRef.current);
-  }, []);
+  useEffect(() => {
+    if (!active) setNoteVisible(false);
+    return () => {
+      if (hideNoteRef.current !== null) window.clearTimeout(hideNoteRef.current);
+    };
+  }, [active]);
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!draft.trim()) return;
+    if (!active || !draft.trim()) return;
     setDraft('');
     setExplained(true);
     setNoteVisible(true);
@@ -61,6 +64,7 @@ function ExampleComposer() {
 export function PublicAstridScriptedConversation({
   onReady,
   onOpenVerifiedResult,
+  active = true,
 }: {
   onReady?: () => void;
   onOpenVerifiedResult: () => void;
@@ -84,8 +88,8 @@ export function PublicAstridScriptedConversation({
   const items = useMemo(() => buildConversationItems(turns), [turns]);
 
   useEffect(() => {
-    onReady?.();
-  }, [onReady]);
+    if (active) onReady?.();
+  }, [active, onReady]);
 
   const verifiedResultTarget = example.providerBinding.state === 'verified'
     && example.verifiedResult.state === 'verified'
@@ -126,7 +130,7 @@ export function PublicAstridScriptedConversation({
                 )}
               </div>
             </article>
-            <ExampleComposer />
+            <ExampleComposer active={active} />
           </div>
         )}
       />

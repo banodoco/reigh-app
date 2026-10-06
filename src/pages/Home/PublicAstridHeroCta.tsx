@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowDownToLine, Check, Copy } from 'lucide-react';
 import { PublicAstridInstallDialog } from './PublicAstridInstallDialog';
 import { PixelCheckIcon, PixelCopyIcon } from './PublicAstridPixelIcons';
@@ -10,18 +10,46 @@ const AGENT_INSTALL_COMMAND = 'git clone https://github.com/banodoco/reigh-app.g
 function AgentInstallCommand({ active, pixelIcons }: { active: boolean; pixelIcons: boolean }) {
   const [copied, setCopied] = useState(false);
   const resetRef = useRef<number | null>(null);
-  useEffect(() => () => {
-    if (resetRef.current !== null) window.clearTimeout(resetRef.current);
+  const activeRef = useRef(active);
+  const requestRef = useRef(0);
+
+  const clearReset = useCallback(() => {
+    if (resetRef.current !== null) {
+      window.clearTimeout(resetRef.current);
+      resetRef.current = null;
+    }
   }, []);
+
+  useEffect(() => {
+    activeRef.current = active;
+    if (!active) {
+      requestRef.current += 1;
+      clearReset();
+      setCopied(false);
+    }
+  }, [active, clearReset]);
+
+  useEffect(() => () => {
+    activeRef.current = false;
+    requestRef.current += 1;
+    clearReset();
+  }, [clearReset]);
+
   const copy = async () => {
+    if (!activeRef.current || !navigator.clipboard?.writeText) return;
+    const request = ++requestRef.current;
     try {
       await navigator.clipboard.writeText(AGENT_INSTALL_COMMAND);
     } catch {
       return;
     }
+    if (!activeRef.current || request !== requestRef.current) return;
     setCopied(true);
-    if (resetRef.current !== null) window.clearTimeout(resetRef.current);
-    resetRef.current = window.setTimeout(() => setCopied(false), 1_800);
+    clearReset();
+    resetRef.current = window.setTimeout(() => {
+      if (activeRef.current && request === requestRef.current) setCopied(false);
+      resetRef.current = null;
+    }, 1_800);
   };
   return (
     <button
@@ -46,29 +74,30 @@ function AgentInstallCommand({ active, pixelIcons }: { active: boolean; pixelIco
  * The hero's main call to action follows the audience: install the app, or copy the agent install.
  * Both stay mounted in one grid cell so a switch crossfades between them instead of swapping.
  */
-export function PublicAstridHeroCta({ audience, pixelIcons = false }: { audience: PublicAstridAudience; pixelIcons?: boolean }) {
+export function PublicAstridHeroCta({ audience, pixelIcons = false, active = true }: { audience: PublicAstridAudience; pixelIcons?: boolean; active?: boolean }) {
   const appActive = audience === 'app';
   const [installOpen, setInstallOpen] = useState(false);
+  useEffect(() => { if (!active) setInstallOpen(false); }, [active]);
   return (
     <>
       <div className="astrid-hero-cta">
         <button
           className="astrid-button astrid-button-primary"
           type="button"
-          data-active={appActive}
-          aria-hidden={!appActive}
+          data-active={appActive && active}
+          aria-hidden={!appActive || !active}
           aria-haspopup="dialog"
-          tabIndex={appActive ? undefined : -1}
+          tabIndex={appActive && active ? undefined : -1}
           onClick={() => setInstallOpen(true)}
         >
           <span>Install Astrid</span>
           {/* The app button keeps its smooth icon to match its label; pixel icons belong with the pixel-type git line. */}
           <ArrowDownToLine size={17} aria-hidden="true" />
         </button>
-        <AgentInstallCommand active={!appActive} pixelIcons={pixelIcons} />
+        <AgentInstallCommand active={!appActive && active} pixelIcons={pixelIcons} />
       </div>
       {/* Outside the crossfade grid, which stacks every child in one cell. */}
-      <PublicAstridInstallDialog open={installOpen} onClose={() => setInstallOpen(false)} />
+      <PublicAstridInstallDialog open={installOpen && active} onClose={() => setInstallOpen(false)} />
     </>
   );
 }

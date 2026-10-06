@@ -25,10 +25,10 @@ type Snapshot = Map<string, { element: HTMLElement; rect: DOMRect }>;
  * starts every piece there and glides it to its new place (FLIP), so the switch reads as the page
  * rearranging rather than breaking. Within one layout nothing animates.
  */
-export function usePublicAstridLayoutGlide(gridRef: RefObject<HTMLElement | null>, reducedMotion: boolean) {
+export function usePublicAstridLayoutGlide(gridRef: RefObject<HTMLElement | null>, reducedMotion: boolean, active = true) {
   useEffect(() => {
     const grid = gridRef.current;
-    if (!grid || reducedMotion || typeof grid.animate !== 'function') return;
+    if (!active || !grid || reducedMotion || typeof grid.animate !== 'function') return;
     const landingGrid: HTMLElement = grid;
     const stacked = window.matchMedia(STACKED_QUERY);
     const phone = window.matchMedia(PHONE_QUERY);
@@ -73,7 +73,11 @@ export function usePublicAstridLayoutGlide(gridRef: RefObject<HTMLElement | null
 
     let lastKind = layoutKind();
     let last = snapshot();
-    function onResize() {
+    let frame = 0;
+    let alive = true;
+    function measureResize() {
+      if (!alive) return;
+      frame = 0;
       const kind = layoutKind();
       if (kind !== lastKind) {
         // Measure the new places without any glide still in flight; the previous snapshot already holds
@@ -87,11 +91,16 @@ export function usePublicAstridLayoutGlide(gridRef: RefObject<HTMLElement | null
       }
       last = snapshot();
     }
+    function onResize() {
+      if (alive && !frame) frame = window.requestAnimationFrame(measureResize);
+    }
 
     window.addEventListener('resize', onResize);
     return () => {
+      alive = false;
+      window.cancelAnimationFrame(frame);
       window.removeEventListener('resize', onResize);
       cancelGlides();
     };
-  }, [gridRef, reducedMotion]);
+  }, [gridRef, reducedMotion, active]);
 }

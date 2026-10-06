@@ -71,8 +71,8 @@ describe('browser entry classification', () => {
     expect(shell).toContain('Loading the shared editor, preview and timeline');
     expect(mountedEditor).toContain("import { PublicAstridEditorProvider } from './PublicAstridEditorProvider.tsx'");
     expect(mountedEditor).toContain('<PublicAstridPreview transportOutlet={transportOutlet} />');
-    expect(mountedEditor).toContain('<PublicAstridInspector />');
-    expect(mountedEditor).toContain('<PublicAstridTimeline />');
+    expect(mountedEditor).toContain('<PublicAstridInspector active={active} onReady={markInspectorReady} />');
+    expect(mountedEditor).toContain('<PublicAstridTimeline active={active} onReady={markTimelineReady} />');
     expect(editorParts).toContain('<RemotionPreview');
     expect(editorParts).toContain('<TimelineEditorCoreBody');
     expect(editorParts).toContain('<LazyPropertiesPanelBody hostObservations');

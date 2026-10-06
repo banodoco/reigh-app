@@ -1,4 +1,4 @@
-import { Component, lazy, memo, Suspense, useEffect, useMemo, useRef, type ReactNode } from 'react';
+import { Component, lazy, memo, Suspense, useEffect, useLayoutEffect, useMemo, type ReactNode } from 'react';
 import { RemotionPreview } from '@/tools/video-editor/components/PreviewPanel/RemotionPreview.tsx';
 import { TimelineEditorCoreBody } from '@/tools/video-editor/components/TimelineEditor/TimelineEditorCoreBody.tsx';
 import { PUBLIC_TIMELINE_OBSERVATIONS } from '@/tools/video-editor/runtime/editorHostObservations.ts';
@@ -20,7 +20,26 @@ const LazyPropertiesPanelBody = lazy(async () => {
   return { default: module.PropertiesPanelBody };
 });
 
-class InspectorChunkBoundary extends Component<{children: ReactNode}, {hasError: boolean}> {
+function InspectorReadySignal({active, onReady}: {active: boolean; onReady: () => void}) {
+  useEffect(() => {
+    if (active) onReady();
+  }, [active, onReady]);
+  return null;
+}
+
+function InspectorLoadError({active, onReady}: {active: boolean; onReady: () => void}) {
+  return (
+    <>
+      <InspectorReadySignal active={active} onReady={onReady} />
+      <div className="astrid-inspector-load-error" data-astrid-inspector-ready="error" role="alert">
+        <span>The inspector could not be loaded.</span>
+        <button type="button" onClick={() => window.location.reload()}>Reload to try again</button>
+      </div>
+    </>
+  );
+}
+
+class InspectorChunkBoundary extends Component<{children: ReactNode; active: boolean; onReady: () => void}, {hasError: boolean}> {
   state = {hasError: false};
 
   static getDerivedStateFromError() {
@@ -29,14 +48,9 @@ class InspectorChunkBoundary extends Component<{children: ReactNode}, {hasError:
 
   render() {
     if (this.state.hasError) {
-      return (
-        <div className="astrid-inspector-load-error" data-astrid-inspector-ready="error" role="alert">
-          <span>The inspector could not be loaded.</span>
-          <button type="button" onClick={() => window.location.reload()}>Reload to try again</button>
-        </div>
-      );
+      return <InspectorLoadError active={this.props.active} onReady={this.props.onReady} />;
     }
-    return this.props.children;
+    return <>{this.props.children}<InspectorReadySignal active={this.props.active} onReady={this.props.onReady} /></>;
   }
 }
 
@@ -63,8 +77,11 @@ export const PublicAstridPreview = memo(function PublicAstridPreview({transportO
   );
 });
 
-export const PublicAstridTimeline = memo(function PublicAstridTimeline() {
+export const PublicAstridTimeline = memo(function PublicAstridTimeline({active, onReady}: {active: boolean; onReady: () => void}) {
   const hostObservations = usePublicAstridTimelineObservations();
+  useEffect(() => {
+    if (active) onReady();
+  }, [active, onReady]);
   // Public preview targets are touch sized; other app timelines retain the
   // shared editor's existing 36px geometry.
   return <TimelineEditorCoreBody hostObservations={hostObservations} rowHeight={52} />;
@@ -83,17 +100,15 @@ export function PublicAstridInitialSelection() {
 }
 
 /** Perspective changes pause without rewinding; returning to App waits for explicit Play. */
-export function PublicAstridPlaybackCoordinator({audience}: {audience: 'app' | 'agent'}) {
+export function PublicAstridPlaybackCoordinator({audience, active = true}: {audience: 'app' | 'agent'; active?: boolean}) {
   const {previewRef} = useTimelinePlaybackContext();
-  const previousAudience = useRef(audience);
-  useEffect(() => {
-    if (previousAudience.current === 'app' && audience === 'agent') previewRef.current?.pause();
-    previousAudience.current = audience;
-  }, [audience, previewRef]);
+  useLayoutEffect(() => {
+    if (!active || audience !== 'app') previewRef.current?.pause();
+  }, [active, audience, previewRef]);
   return null;
 }
 
-export const PublicAstridInspector = memo(function PublicAstridInspector() {
+export const PublicAstridInspector = memo(function PublicAstridInspector({active, onReady}: {active: boolean; onReady: () => void}) {
   const hostObservations = usePublicAstridTimelineObservations();
   const effectResources = useRequiredEffectCatalog();
   return (
@@ -102,7 +117,7 @@ export const PublicAstridInspector = memo(function PublicAstridInspector() {
         Loading inspector…
       </div>
     )}>
-      <InspectorChunkBoundary>
+      <InspectorChunkBoundary active={active} onReady={onReady}>
         <div className="astrid-inspector-panel-frame" data-astrid-inspector-ready="true">
         <LazyPropertiesPanelBody hostObservations={hostObservations} effectResources={effectResources} />
         </div>

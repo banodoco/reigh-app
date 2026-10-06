@@ -18,6 +18,8 @@
   pointer-events: none;
 }
 [data-astrid-page-away] * { view-transition-name: none !important; }
+/* Retained/background Home keeps its CSS animation positions without doing hidden visual work. */
+[data-astrid-visual-active="false"] * { animation-play-state: paused !important; }
 
 /* The brand and the label glide across while everything else changes around them. */
 :root[data-astrid-page-transition]::view-transition-group(astrid-brand-mink),

@@ -1,0 +1,152 @@
+// @vitest-environment jsdom
+import { useRef } from 'react';
+import { act, cleanup, fireEvent, render } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { PublicAstridCallouts } from './PublicAstridCallouts';
+import { usePublicAstridPlayerHeight } from './usePublicAstridPlayerHeight';
+
+let frames: Map<number, FrameRequestCallback>;
+let sequence: number;
+let events: string[];
+let resizeCallbacks: ResizeObserverCallback[];
+let mutationCallbacks: MutationCallback[];
+let phone: boolean;
+const originalResizeObserver = window.ResizeObserver;
+const originalMutationObserver = window.MutationObserver;
+
+function Stage({ active = true, beforeReveal = false }: { active?: boolean; beforeReveal?: boolean }) {
+  const stage = useRef<HTMLDivElement>(null);
+  usePublicAstridPlayerHeight(stage, active && beforeReveal);
+  return <div ref={stage} data-testid="stage">
+    <div className="astrid-editor-tilt"><div className="astrid-editor-surfaces">
+      <div className="astrid-player-surface astrid-surface" />
+      <div className="astrid-timeline-surface astrid-surface" />
+      <div className="astrid-chat-surface astrid-surface" />
+      <div className="astrid-inspector-surface"><div role="tablist" className="grid-cols-4"><button role="tab" /></div></div>
+    </div></div>
+    <div className="astrid-preview-transport-outlet" />
+    <button data-astrid-agent-launcher />
+    {!beforeReveal && <PublicAstridCallouts stageRef={stage} audience="app" reducedMotion={false} active={active} />}
+  </div>;
+}
+function paint() {
+  const pending = [...frames.values()];
+  frames.clear();
+  act(() => pending.forEach((callback) => callback(performance.now())));
+}
+function settle() {
+  for (let count = 0; frames.size && count < 200; count += 1) paint();
+  expect(frames.size).toBe(0);
+}
+
+beforeEach(() => {
+  frames = new Map(); sequence = 0; events = []; resizeCallbacks = []; mutationCallbacks = []; phone = false;
+  class TestResizeObserver {
+    constructor(callback: ResizeObserverCallback) { resizeCallbacks.push(callback); }
+    observe() {} disconnect() {}
+  }
+  class TestMutationObserver {
+    constructor(callback: MutationCallback) { mutationCallbacks.push(callback); }
+    observe() {} disconnect() {}
+  }
+  // The shared jsdom setup installs these as writable, non-configurable window
+  // properties, so assignment is the reversible override here.
+  window.ResizeObserver = TestResizeObserver as unknown as typeof ResizeObserver;
+  window.MutationObserver = TestMutationObserver as unknown as typeof MutationObserver;
+  vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => { frames.set(++sequence, callback); return sequence; });
+  vi.spyOn(window, 'cancelAnimationFrame').mockImplementation((id) => { frames.delete(id); });
+  vi.spyOn(window, 'matchMedia').mockImplementation((media) => ({
+    get matches() { return media.includes('640') && phone; }, media,
+    addEventListener: vi.fn(), removeEventListener: vi.fn(),
+  } as unknown as MediaQueryList));
+  vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+    events.push('read');
+    if (this.dataset.testid === 'stage') return new DOMRect(0, 0, 500, 500);
+    return new DOMRect(100, 100, 100, 80);
+  });
+  for (const name of ['clientWidth', 'clientLeft', 'clientTop', 'offsetWidth'] as const) {
+    vi.spyOn(HTMLElement.prototype, name, 'get').mockImplementation(() => { events.push('read'); return name.endsWith('Width') ? 100 : 0; });
+  }
+  const styleWrite = CSSStyleDeclaration.prototype.setProperty;
+  vi.spyOn(CSSStyleDeclaration.prototype, 'setProperty').mockImplementation(function (this: CSSStyleDeclaration, ...args) { events.push('write'); return styleWrite.apply(this, args); });
+  const attributeWrite = Element.prototype.setAttribute;
+  vi.spyOn(Element.prototype, 'setAttribute').mockImplementation(function (this: Element, ...args) { events.push('write'); return attributeWrite.apply(this, args); });
+});
+afterEach(() => {
+  cleanup();
+  window.ResizeObserver = originalResizeObserver;
+  window.MutationObserver = originalMutationObserver;
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
+
+describe('bounded stage passes', () => {
+  it('reads all callout/stage boxes before writes and stops after stable scroll/resize bursts', () => {
+    const view = render(<Stage />);
+    events = [];
+    paint();
+    expect(events.lastIndexOf('read')).toBeLessThan(events.indexOf('write'));
+    settle();
+    const stage = view.getByTestId('stage');
+    expect(stage.style.getPropertyValue('--astrid-player-height')).toBe('39.375px');
+    expect(stage.querySelector('path')!.getAttribute('d')).toMatch(/^M/);
+    events = [];
+    fireEvent.scroll(stage);
+    fireEvent.scroll(window);
+    fireEvent.resize(window);
+    expect(frames.size).toBe(1);
+    paint();
+    expect(events).toContain('read');
+    expect(events).not.toContain('write');
+    expect(frames.size).toBe(0);
+  });
+
+  it('follows pointer easing then stops, and rejects retained-page frames/observer callbacks', () => {
+    const view = render(<Stage />);
+    settle();
+    const stage = view.getByTestId('stage');
+    const pointer = new MouseEvent('pointermove', { bubbles: true, clientX: 400, clientY: 350 });
+    Object.defineProperty(pointer, 'pointerType', { value: 'mouse' });
+    fireEvent(stage, pointer);
+    expect(frames.size).toBe(1);
+    events = [];
+    paint();
+    expect(events.lastIndexOf('read')).toBeLessThan(events.indexOf('write'));
+    settle();
+    expect(stage.querySelector<HTMLElement>('.astrid-editor-tilt')!.style.transform).toContain('rotateX(-1.600deg)');
+    fireEvent.resize(window);
+    const stale = [...frames.values()];
+    const staleResize = resizeCallbacks[0];
+    const staleMutation = mutationCallbacks[0];
+    view.rerender(<Stage active={false} />);
+    events = [];
+    act(() => { stale.forEach((callback) => callback(performance.now())); staleResize([], {} as ResizeObserver); staleMutation([], {} as MutationObserver); });
+    fireEvent.resize(window);
+    fireEvent.scroll(window);
+    expect(events).toEqual([]);
+    expect(frames.size).toBe(0);
+  });
+
+  it('coalesces pre-reveal player sizing, handles the phone breakpoint, and rejects stale callbacks', () => {
+    const view = render(<Stage beforeReveal />);
+    events = [];
+    fireEvent.resize(window);
+    fireEvent.resize(window);
+    expect(frames.size).toBe(1);
+    paint();
+    expect(events.lastIndexOf('read')).toBeLessThan(events.indexOf('write'));
+    expect(frames.size).toBe(0);
+    phone = true;
+    fireEvent.resize(window);
+    paint();
+    expect(view.getByTestId('stage').style.getPropertyValue('--astrid-player-height')).toBe('');
+    fireEvent.resize(window);
+    const stale = [...frames.values()];
+    const observer = resizeCallbacks[0];
+    view.unmount();
+    events = [];
+    act(() => { stale.forEach((callback) => callback(performance.now())); observer([], {} as ResizeObserver); });
+    expect(events).toEqual([]);
+    expect(frames.size).toBe(0);
+  });
+});

@@ -1,5 +1,6 @@
 import { useEffect, useRef, type CSSProperties, type RefObject } from 'react';
 import type { PublicAstridAudience } from './publicAstridMotion';
+import { readPublicAstridPlayerHeight } from './usePublicAstridPlayerHeight';
 
 type CalloutSide = 'left' | 'right' | 'top' | 'bottom';
 
@@ -163,6 +164,7 @@ interface PublicAstridCalloutsProps {
   stageRef: RefObject<HTMLDivElement>;
   audience: PublicAstridAudience;
   reducedMotion: boolean;
+  active?: boolean;
 }
 
 const TRACKED_PROPERTIES = ['left', 'top', 'right', 'bottom', 'width', 'height'] as const;
@@ -190,63 +192,10 @@ function cardAnchor(card: DOMRect, side: CalloutSide, target: { x: number; y: nu
  * measured from the projected on-screen boxes every frame so their end dots sit
  * on both the card and the surface they describe, including under parallax.
  */
-export function PublicAstridCallouts({ stageRef, audience, reducedMotion }: PublicAstridCalloutsProps) {
+export function PublicAstridCallouts({ stageRef, audience, reducedMotion, active = true }: PublicAstridCalloutsProps) {
   const callouts = calloutsFor(audience);
   const svgRef = useRef<SVGSVGElement>(null);
   const cardRefs = useRef(new Map<string, HTMLElement>());
-
-  // Pointer parallax: the editor turns subtly toward the cursor. The tilt is written straight onto the
-  // tilt layer's transform (not as inherited custom properties, which would restyle the whole editor
-  // every frame), so it stays a cheap compositor update even mid-transition.
-  useEffect(() => {
-    const stage = stageRef.current;
-    if (!stage || reducedMotion) return undefined;
-    const stageElement: HTMLDivElement = stage;
-    const target = { x: 0, y: 0 };
-    const current = { x: 0, y: 0 };
-    let frame: number | null = null;
-    function step() {
-      current.x += (target.x - current.x) * PARALLAX_EASE;
-      current.y += (target.y - current.y) * PARALLAX_EASE;
-      const settled = Math.abs(target.x - current.x) < 0.001 && Math.abs(target.y - current.y) < 0.001;
-      if (settled) {
-        current.x = target.x;
-        current.y = target.y;
-      }
-      const tilt = stageElement.querySelector<HTMLElement>('.astrid-editor-tilt');
-      if (tilt) tilt.style.transform = `rotateX(${(current.y * -PARALLAX_TILT_X_DEG).toFixed(3)}deg) rotateY(${(current.x * PARALLAX_TILT_Y_DEG).toFixed(3)}deg)`;
-      frame = settled ? null : window.requestAnimationFrame(step);
-    }
-    const schedule = () => {
-      if (frame === null) frame = window.requestAnimationFrame(step);
-    };
-    const onPointerMove = (event: PointerEvent) => {
-      if (event.pointerType !== 'mouse') return;
-      if (window.matchMedia(PHONE_MEDIA_QUERY).matches) return;
-      const rect = stageElement.getBoundingClientRect();
-      target.x = Math.max(-1, Math.min(1, ((event.clientX - rect.left) / rect.width) * 2 - 1));
-      target.y = Math.max(-1, Math.min(1, ((event.clientY - rect.top) / rect.height) * 2 - 1));
-      schedule();
-    };
-    const onPointerLeave = (event: PointerEvent) => {
-      // Switching audience runs a page-wide View Transition whose overlay takes the pointer, firing a
-      // leave while the cursor is still over the stage. Easing back to flat then (and swinging back
-      // once the overlay is gone) made the switch stutter, so only a real exit flattens the tilt.
-      const rect = stageElement.getBoundingClientRect();
-      if (event.clientX > rect.left && event.clientX < rect.right && event.clientY > rect.top && event.clientY < rect.bottom) return;
-      target.x = 0;
-      target.y = 0;
-      schedule();
-    };
-    stageElement.addEventListener('pointermove', onPointerMove);
-    stageElement.addEventListener('pointerleave', onPointerLeave);
-    return () => {
-      stageElement.removeEventListener('pointermove', onPointerMove);
-      stageElement.removeEventListener('pointerleave', onPointerLeave);
-      if (frame !== null) window.cancelAnimationFrame(frame);
-      stageElement.querySelector<HTMLElement>('.astrid-editor-tilt')?.style.removeProperty('transform');
-    };
-  }, [reducedMotion, stageRef]);
 
   // Connectors, plus the flat App controls that must follow tilted surfaces: the
   // transport rides the player, and the agent launcher sits on the conversation
@@ -255,26 +204,64 @@ export function PublicAstridCallouts({ stageRef, audience, reducedMotion }: Publ
   useEffect(() => {
     const stage = stageRef.current;
     const svg = svgRef.current;
-    if (!stage || !svg) return undefined;
+    if (!active || !stage || !svg) return undefined;
     const stageElement: HTMLDivElement = stage;
     const svgElement: SVGSVGElement = svg;
     const trackTransport = appView;
     let frame = 0;
+    let alive = true;
+    let pointer: { x: number; y: number; leaving: boolean } | null = null;
+    const targetTilt = { x: 0, y: 0 };
+    const currentTilt = { x: 0, y: 0 };
     const phoneQuery = window.matchMedia(PHONE_MEDIA_QUERY);
+    const tabletQuery = window.matchMedia(TABLET_MEDIA_QUERY);
     const schedule = () => {
-      if (!frame) frame = window.requestAnimationFrame(draw);
+      if (alive && !frame) frame = window.requestAnimationFrame(draw);
     };
     function draw() {
+      if (!alive) return;
       frame = 0;
-      // Phone panels settle immediately. Measuring and rewriting their SVG every idle frame forced
-      // layout on the entire mounted editor even when nothing moved.
-      if (!phoneQuery.matches) frame = window.requestAnimationFrame(draw);
+      // Read every projected box before touching styles/SVG. Writes cannot force a later read in this
+      // pass. One final pass after a tilt write measures the projection at its settled transform.
+      const writes: Array<() => void> = [];
+      let trackedChanged = false;
+      const setStyle = (element: HTMLElement, name: string, value: string) => {
+        if (element.style.getPropertyValue(name) === value) return;
+        trackedChanged = true;
+        writes.push(() => element.style.setProperty(name, value));
+      };
+      const setAttribute = (element: Element, name: string, value: string) => writes.push(() => {
+        if (element.getAttribute(name) !== value) element.setAttribute(name, value);
+      });
       const stageRect = stageElement.getBoundingClientRect();
       const originX = stageRect.left + stageElement.clientLeft;
       const originY = stageRect.top + stageElement.clientTop;
       // On phones the cards hang over the stage's top and bottom edges, so connectors leave other edges.
-      const phone = window.matchMedia(PHONE_MEDIA_QUERY).matches;
-      const tablet = !phone && window.matchMedia(TABLET_MEDIA_QUERY).matches;
+      const phone = phoneQuery.matches;
+      const tablet = !phone && tabletQuery.matches;
+      setStyle(stageElement, '--astrid-player-height', readPublicAstridPlayerHeight(stageElement, phone));
+      const tilt = stageElement.querySelector<HTMLElement>('.astrid-editor-tilt');
+      if (pointer) {
+        if (pointer.leaving) {
+          // A View Transition overlay can take the pointer while it is still over the stage.
+          if (!(pointer.x > stageRect.left && pointer.x < stageRect.right && pointer.y > stageRect.top && pointer.y < stageRect.bottom)) {
+            targetTilt.x = 0;
+            targetTilt.y = 0;
+          }
+        } else if (stageRect.width && stageRect.height) {
+          targetTilt.x = Math.max(-1, Math.min(1, ((pointer.x - stageRect.left) / stageRect.width) * 2 - 1));
+          targetTilt.y = Math.max(-1, Math.min(1, ((pointer.y - stageRect.top) / stageRect.height) * 2 - 1));
+        }
+        pointer = null;
+      }
+      if (phone || reducedMotion) { targetTilt.x = 0; targetTilt.y = 0; }
+      currentTilt.x += (targetTilt.x - currentTilt.x) * PARALLAX_EASE;
+      currentTilt.y += (targetTilt.y - currentTilt.y) * PARALLAX_EASE;
+      const settled = Math.abs(targetTilt.x - currentTilt.x) < 0.001 && Math.abs(targetTilt.y - currentTilt.y) < 0.001;
+      if (settled) { currentTilt.x = targetTilt.x; currentTilt.y = targetTilt.y; }
+      const transform = reducedMotion || phone ? '' : `rotateX(${(currentTilt.y * -PARALLAX_TILT_X_DEG).toFixed(3)}deg) rotateY(${(currentTilt.x * PARALLAX_TILT_Y_DEG).toFixed(3)}deg)`;
+      const tiltChanged = !!tilt && tilt.style.transform !== transform;
+      if (tiltChanged) setStyle(tilt!, 'transform', transform);
 
       const outlet = stageElement.querySelector<HTMLElement>('.astrid-preview-transport-outlet');
       const player = stageElement.querySelector<HTMLElement>('.astrid-player-surface');
@@ -282,11 +269,11 @@ export function PublicAstridCallouts({ stageRef, audience, reducedMotion }: Publ
         const box = player.getBoundingClientRect();
         const pad = 10;
         const height = Math.min(78, box.height * 0.24);
-        outlet.dataset.astridTracked = 'true';
-        outlet.style.left = `${box.left - originX + pad}px`;
-        outlet.style.top = `${box.bottom - originY - pad - height}px`;
-        outlet.style.width = `${Math.max(0, box.width - pad * 2)}px`;
-        outlet.style.height = `${height}px`;
+        setAttribute(outlet, 'data-astrid-tracked', 'true');
+        setStyle(outlet, 'left', `${box.left - originX + pad}px`);
+        setStyle(outlet, 'top', `${box.bottom - originY - pad - height}px`);
+        setStyle(outlet, 'width', `${Math.max(0, box.width - pad * 2)}px`);
+        setStyle(outlet, 'height', `${height}px`);
       }
 
       const launcher = stageElement.querySelector<HTMLElement>('[data-astrid-agent-launcher]');
@@ -297,11 +284,13 @@ export function PublicAstridCallouts({ stageRef, audience, reducedMotion }: Publ
         // hidden chat's desktop positioning box, which can move independently on resize.
         const box = launcherAnchor.getBoundingClientRect();
         const size = launcher.offsetWidth;
-        launcher.dataset.astridTracked = 'true';
-        launcher.style.left = `${(phone ? box.right - size - 4 : box.left + box.width / 2 - size / 2) - originX}px`;
-        launcher.style.top = `${(phone ? box.bottom - size - 4 : box.top + box.height / 2 - size / 2) - originY}px`;
-        launcher.style.right = 'auto';
-        launcher.style.bottom = 'auto';
+        const left = phone ? box.right - size - 4 : box.left + box.width / 2 - size / 2;
+        const top = phone ? box.bottom - size - 4 : box.top + box.height / 2 - size / 2;
+        setAttribute(launcher, 'data-astrid-tracked', 'true');
+        setStyle(launcher, 'left', `${left - originX}px`);
+        setStyle(launcher, 'top', `${top - originY}px`);
+        setStyle(launcher, 'right', 'auto');
+        setStyle(launcher, 'bottom', 'auto');
       }
 
       for (const callout of callouts) {
@@ -311,8 +300,8 @@ export function PublicAstridCallouts({ stageRef, audience, reducedMotion }: Publ
         const target = stageElement.querySelector<HTMLElement>(phone && callout.phoneTarget ? callout.phoneTarget : callout.target);
         if (!path || dots.length !== 2) continue;
         if (!card || !target) {
-          path.removeAttribute('d');
-          dots.forEach((dot) => dot.setAttribute('r', '0'));
+          writes.push(() => path.removeAttribute('d'));
+          dots.forEach((dot) => setAttribute(dot, 'r', '0'));
           continue;
         }
         const side = phone ? callout.phoneSide : tablet ? callout.tabletSide ?? callout.side : callout.side;
@@ -340,45 +329,87 @@ export function PublicAstridCallouts({ stageRef, audience, reducedMotion }: Publ
           c1 = `${sx} ${sy + direction * Math.abs(ey - sy) * 0.9}`;
           c2 = `${ex + Math.sign(sx - ex) * Math.abs(ex - sx) * 0.9} ${ey}`;
         }
-        path.setAttribute('d', `M${sx.toFixed(1)} ${sy.toFixed(1)} C${c1} ${c2} ${ex.toFixed(1)} ${ey.toFixed(1)}`);
-        dots[0].setAttribute('cx', sx.toFixed(1));
-        dots[0].setAttribute('cy', sy.toFixed(1));
-        dots[0].setAttribute('r', '4');
-        dots[1].setAttribute('cx', ex.toFixed(1));
-        dots[1].setAttribute('cy', ey.toFixed(1));
-        dots[1].setAttribute('r', '4');
+        setAttribute(path, 'd', `M${sx.toFixed(1)} ${sy.toFixed(1)} C${c1} ${c2} ${ex.toFixed(1)} ${ey.toFixed(1)}`);
+        setAttribute(dots[0], 'cx', sx.toFixed(1));
+        setAttribute(dots[0], 'cy', sy.toFixed(1));
+        setAttribute(dots[0], 'r', '4');
+        setAttribute(dots[1], 'cx', ex.toFixed(1));
+        setAttribute(dots[1], 'cy', ey.toFixed(1));
+        setAttribute(dots[1], 'r', '4');
         const ping = svgElement.querySelector<SVGCircleElement>(`circle[data-callout-ping="${callout.id}"]`);
-        ping?.setAttribute('cx', ex.toFixed(1));
-        ping?.setAttribute('cy', ey.toFixed(1));
+        if (ping) { setAttribute(ping, 'cx', ex.toFixed(1)); setAttribute(ping, 'cy', ey.toFixed(1)); }
       }
+      // Follow only finite geometry animations, including their delays. Decorative infinite pulses
+      // and opacity-only animations cannot keep the measurement loop alive.
+      const moving = !reducedMotion && (stageElement.getAnimations?.({ subtree: true }) ?? []).some((animation) => {
+        if (animation.playState !== 'running' && !animation.pending) return false;
+        const effect = animation.effect;
+        return typeof KeyframeEffect !== 'undefined' && effect instanceof KeyframeEffect && effect.target instanceof HTMLElement
+          && effect.getTiming().iterations !== Infinity
+          && effect.getKeyframes().some((keyframe) => ['transform', 'translate', 'scale', 'rotate', ...TRACKED_PROPERTIES].some((property) => keyframe[property] !== undefined));
+      });
+      writes.forEach((write) => write());
+      if (trackedChanged || !settled || moving) schedule();
     }
     const resizeObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(schedule);
     const observeGeometry = () => {
+      if (!alive) return;
+      resizeObserver?.disconnect();
       resizeObserver?.observe(stageElement);
-      stageElement.querySelectorAll('.astrid-surface, .astrid-callout').forEach((element) => resizeObserver?.observe(element));
+      stageElement.querySelectorAll('.astrid-editor-surfaces, .astrid-surface, .astrid-callout').forEach((element) => resizeObserver?.observe(element));
       schedule();
     };
     // The lazy editor and conversation arrive after the callouts. Observe structure, never the
     // inline styles / SVG attributes written by draw(), so this cannot restart its own work.
     const mutationObserver = new MutationObserver(observeGeometry);
-    mutationObserver.observe(stageElement, { childList: true, subtree: true });
+    mutationObserver.observe(stageElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'data-revealed', 'data-audience'] });
     observeGeometry();
+    const onPointerMove = (event: PointerEvent) => {
+      if (reducedMotion || phoneQuery.matches || event.pointerType !== 'mouse') return;
+      pointer = { x: event.clientX, y: event.clientY, leaving: false };
+      schedule();
+    };
+    const onPointerLeave = (event: PointerEvent) => {
+      if (reducedMotion || phoneQuery.matches) return;
+      pointer = { x: event.clientX, y: event.clientY, leaving: true };
+      schedule();
+    };
+    stageElement.addEventListener('pointermove', onPointerMove);
+    stageElement.addEventListener('pointerleave', onPointerLeave);
     stageElement.addEventListener('scroll', schedule, true);
+    window.addEventListener('scroll', schedule, { passive: true });
+    stageElement.addEventListener('animationstart', schedule);
     stageElement.addEventListener('animationend', schedule);
+    stageElement.addEventListener('animationcancel', schedule);
+    stageElement.addEventListener('transitionrun', schedule);
+    stageElement.addEventListener('transitionend', schedule);
+    stageElement.addEventListener('transitioncancel', schedule);
     window.addEventListener('resize', schedule);
     phoneQuery.addEventListener('change', schedule);
+    tabletQuery.addEventListener('change', schedule);
     return () => {
+      alive = false;
       window.cancelAnimationFrame(frame);
       resizeObserver?.disconnect();
       mutationObserver.disconnect();
+      stageElement.removeEventListener('pointermove', onPointerMove);
+      stageElement.removeEventListener('pointerleave', onPointerLeave);
+      window.removeEventListener('scroll', schedule);
       stageElement.removeEventListener('scroll', schedule, true);
+      stageElement.removeEventListener('animationstart', schedule);
       stageElement.removeEventListener('animationend', schedule);
+      stageElement.removeEventListener('animationcancel', schedule);
+      stageElement.removeEventListener('transitionrun', schedule);
+      stageElement.removeEventListener('transitionend', schedule);
+      stageElement.removeEventListener('transitioncancel', schedule);
       window.removeEventListener('resize', schedule);
       phoneQuery.removeEventListener('change', schedule);
+      tabletQuery.removeEventListener('change', schedule);
+      stageElement.querySelector<HTMLElement>('.astrid-editor-tilt')?.style.removeProperty('transform');
       releaseTracked(stageElement.querySelector<HTMLElement>('.astrid-preview-transport-outlet'));
       releaseTracked(stageElement.querySelector<HTMLElement>('[data-astrid-agent-launcher]'));
     };
-  }, [appView, callouts, stageRef]);
+  }, [active, appView, callouts, reducedMotion, stageRef]);
 
   return (
     <div

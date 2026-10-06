@@ -37,6 +37,7 @@ export interface InstallPromptSignals {
   promptConsumed: boolean;
   setDeferredPrompt: (value: BeforeInstallPromptEvent | null) => void;
   setPromptConsumed: (value: boolean) => void;
+  consumeDeferredPrompt: (event: BeforeInstallPromptEvent) => boolean;
 }
 
 export interface InstallMethodContext {

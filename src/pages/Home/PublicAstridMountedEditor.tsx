@@ -12,6 +12,8 @@ import type { PublicAstridExampleBundle } from './publicAstridExample.tsx';
 export interface PublicAstridMountedEditorProps {
   example: PublicAstridExampleBundle;
   audience: 'app' | 'agent';
+  attempt: number;
+  active?: boolean;
   transportOutlet: HTMLDivElement | null;
   onTransportOutletChange: (outlet: HTMLDivElement | null) => void;
   playerRef: RefCallback<HTMLElement>;
@@ -19,7 +21,9 @@ export interface PublicAstridMountedEditorProps {
   timelineRef: RefCallback<HTMLElement>;
   chatRef: RefCallback<HTMLElement>;
   transportRef: RefCallback<HTMLDivElement>;
-  onConversationReady: () => void;
+  onConversationReady: (attempt: number) => void;
+  onInspectorReady: (attempt: number) => void;
+  onTimelineReady: (attempt: number) => void;
   /** Mount the Agent conversation in the background (e.g. once App has finished loading). */
   preloadConversation: boolean;
   /** The conversation is on screen (Agent, once the editor has been revealed). */
@@ -71,6 +75,8 @@ class ConversationErrorBoundary extends Component<ConversationErrorBoundaryProps
 export function PublicAstridMountedEditor({
   example,
   audience,
+  attempt,
+  active = true,
   transportOutlet,
   onTransportOutletChange,
   playerRef,
@@ -79,6 +85,8 @@ export function PublicAstridMountedEditor({
   chatRef,
   transportRef,
   onConversationReady,
+  onInspectorReady,
+  onTimelineReady,
   onOpenVerifiedResult,
   preloadConversation,
   conversationActive,
@@ -95,16 +103,18 @@ export function PublicAstridMountedEditor({
     setConversationAttempt((attempt) => attempt + 1);
     setLazyConversation(() => createLazyScriptedConversation());
   }, []);
-  const markConversationReady = useCallback(() => onConversationReady(), [onConversationReady]);
+  const markConversationReady = useCallback(() => onConversationReady(attempt), [attempt, onConversationReady]);
+  const markInspectorReady = useCallback(() => onInspectorReady(attempt), [attempt, onInspectorReady]);
+  const markTimelineReady = useCallback(() => onTimelineReady(attempt), [attempt, onTimelineReady]);
   const bindTransportOutlet = useCallback((element: HTMLDivElement | null) => {
     transportRef(element);
     onTransportOutletChange(element);
   }, [onTransportOutletChange, transportRef]);
 
   return (
-    <PublicAstridEditorProvider example={example} previewFailureEnabled={appView}>
+    <PublicAstridEditorProvider example={example} previewFailureEnabled={active && appView}>
       <PublicAstridInitialSelection />
-      <PublicAstridPlaybackCoordinator audience={audience} />
+      <PublicAstridPlaybackCoordinator audience={audience} active={active} />
       <div className="astrid-editor-tilt">
         <div className="astrid-editor-surfaces" data-astrid-editor-root>
           <section
@@ -122,7 +132,7 @@ export function PublicAstridMountedEditor({
             aria-label="Inspector"
             aria-hidden={!appView}
           >
-            <PublicAstridInspector />
+            <PublicAstridInspector active={active} onReady={markInspectorReady} />
           </aside>
           <section
             className="astrid-surface astrid-timeline-surface"
@@ -130,7 +140,7 @@ export function PublicAstridMountedEditor({
             aria-label="Timeline"
             aria-hidden={!appView}
           >
-            <PublicAstridTimeline />
+            <PublicAstridTimeline active={active} onReady={markTimelineReady} />
           </section>
           <aside
             className="astrid-surface astrid-chat-surface"

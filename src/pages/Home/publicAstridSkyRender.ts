@@ -640,12 +640,23 @@ function moonFeature(nx: number, ny: number, distance: number, outline: number, 
   const mare = MARIA.findIndex(([mx, my, mr]) => Math.hypot(nx - mx, ny - my) < mr * wobble);
   return mare >= 0 ? MARE_FEATURE + mare : 0;
 }
-let moonTextureCache: MoonTexture | null = null;
+/** One current texture/field/scratch mask, owned by the Site's renderer, never a module singleton. */
+export interface PublicAstridSkyRasterCache {
+  moon: MoonTexture | null;
+  stars: { key: string; stars: Star[] } | null;
+  mask: Uint8Array | null;
+  featureQuiet: Float32Array;
+  featureSize: Float32Array;
+}
 
-function moonTexture(radius: number, phase: number): MoonTexture {
+export function createPublicAstridSkyRasterCache(): PublicAstridSkyRasterCache {
+  return { moon: null, stars: null, mask: null, featureQuiet: new Float32Array(MARE_FEATURE + MARIA.length), featureSize: new Float32Array(MARE_FEATURE + MARIA.length) };
+}
+
+function moonTexture(radius: number, phase: number, cache: PublicAstridSkyRasterCache): MoonTexture {
   const size = Math.ceil(radius) * 2;
   const key = `${size}|${phase.toFixed(3)}`;
-  if (moonTextureCache?.key === key) return moonTextureCache;
+  if (cache.moon?.key === key) return cache.moon;
   const half = size / 2;
   const outline = 1.5 / radius;
   const tones = new Uint8Array(size * size);
@@ -660,8 +671,8 @@ function moonTexture(radius: number, phase: number): MoonTexture {
       features[ty * size + tx] = moonFeature(nx, ny, distance, outline, phase);
     }
   }
-  moonTextureCache = { key, size, tones, features };
-  return moonTextureCache;
+  cache.moon = { key, size, tones, features };
+  return cache.moon;
 }
 
 /**
@@ -687,8 +698,8 @@ const quietShare = (sum: number, count: number) => (count ? Math.round(Math.min(
 
 /** Builds the moon texture ahead of time (it takes ~100ms on large screens), so the first moon frame of
  *  a replay doesn't stutter. */
-export function preparePublicAstridSkyMoon(rows: number, phase: number, size: number, moonScale = 1): void {
-  moonTexture(size * rows * moonScale, phase);
+export function preparePublicAstridSkyMoon(rows: number, phase: number, size: number, moonScale = 1, cache = createPublicAstridSkyRasterCache()): void {
+  moonTexture(size * rows * moonScale, phase, cache);
 }
 
 /** Star shapes, smallest to largest, as [dx, dy, weight] pixel offsets. Bigger stars are drawn as
@@ -711,7 +722,6 @@ interface Star {
   /** Twinklers step through TWINKLE_LEVELS from this offset; others hold steady. */
   twinkleOffset: number | null;
 }
-let starFieldCache: { key: string; stars: Star[] } | null = null;
 
 /** Distance from the Milky Way, a soft band running from the lower left to the upper right. */
 function milkyWayDistance(x: number, y: number, columns: number, rows: number): number {
@@ -724,9 +734,9 @@ function milkyWayDistance(x: number, y: number, columns: number, rows: number): 
   return Math.abs((u - 0.05) * ny + (v - 0.95) * nx) / length;
 }
 
-function starField(columns: number, rows: number): Star[] {
+function starField(columns: number, rows: number, cache: PublicAstridSkyRasterCache): Star[] {
   const key = `${columns}x${rows}`;
-  if (starFieldCache?.key === key) return starFieldCache.stars;
+  if (cache.stars?.key === key) return cache.stars.stars;
   const stars: Star[] = [];
   for (let y = 0; y < rows; y++) {
     for (let x = 0; x < columns; x++) {
@@ -748,7 +758,7 @@ function starField(columns: number, rows: number): Star[] {
       });
     }
   }
-  starFieldCache = { key, stars };
+  cache.stars = { key, stars };
   return stars;
 }
 
@@ -762,11 +772,12 @@ const STAR_EMERGE = 0.25;
  * Paints the sky into an RGBA buffer, one entry per art pixel. Pixels outside the sky stay
  * transparent so the page background (and the Agent dot grid) shows through untouched.
  */
-export function renderPublicAstridSky(input: PublicAstridSkyRenderInput): Uint8ClampedArray {
+export function renderPublicAstridSky(input: PublicAstridSkyRenderInput, output?: Uint8ClampedArray, cache = createPublicAstridSkyRasterCache()): Uint8ClampedArray {
   const { columns, rows, state, phase, intensity } = input;
   const reveal = input.reveal ?? 1;
   const tick = input.tick ?? 0;
-  const out = new Uint8ClampedArray(columns * rows * 4);
+  const out = output?.length === columns * rows * 4 ? output : new Uint8ClampedArray(columns * rows * 4);
+  out.fill(0);
   if (intensity <= 0) return out;
 
   const palette = blendPalette(state.night);
@@ -853,8 +864,13 @@ export function renderPublicAstridSky(input: PublicAstridSkyRenderInput): Uint8C
   };
   // Stars are left out wherever a cloud passes, so on their own canvas they still sit behind the clouds.
   let cloudMask: Uint8Array | null = null;
+  const scratchMask = () => {
+    if (cache.mask?.length !== columns * rows) cache.mask = new Uint8Array(columns * rows);
+    cache.mask.fill(0);
+    return cache.mask;
+  };
   if (layer === 'stars' && cloudStrength > 0 && starStrength > 0) {
-    const mask = new Uint8Array(columns * rows);
+    const mask = scratchMask();
     const mark = (x: number, y: number) => { if (x >= 0 && y >= 0 && x < columns && y < rows) mask[y * columns + x] = 1; };
     paintClouds(FAR_CLOUDS, mark);
     paintClouds(NEAR_CLOUDS, mark);
@@ -865,7 +881,7 @@ export function renderPublicAstridSky(input: PublicAstridSkyRenderInput): Uint8C
   // cross they read as one cloud in front of another rather than a see-through outline of the far one.
   let nearMask: Uint8Array | null = null;
   if (layer === 'far' && cloudStrength > 0) {
-    const mask = new Uint8Array(columns * rows);
+    const mask = scratchMask();
     paintClouds(NEAR_CLOUDS, (x, y) => { if (x >= 0 && y >= 0 && x < columns && y < rows) mask[y * columns + x] = 1; });
     nearMask = mask;
   }
@@ -902,11 +918,12 @@ export function renderPublicAstridSky(input: PublicAstridSkyRenderInput): Uint8C
         }
       }
     } else {
-      const texture = moonTexture(radius, phase);
+      const texture = moonTexture(radius, phase, cache);
       const offset = texture.size / 2;
       // Each feature fades evenly across its shape, by how much of it is behind the text.
-      const featureQuiet = new Float32Array(MARE_FEATURE + MARIA.length);
-      const featureSize = new Float32Array(MARE_FEATURE + MARIA.length);
+      const { featureQuiet, featureSize } = cache;
+      featureQuiet.fill(0);
+      featureSize.fill(0);
       if (input.quiet) {
         for (let y = y0; y < y1; y++) {
           const ty = y - centreY + offset;
@@ -947,7 +964,7 @@ export function renderPublicAstridSky(input: PublicAstridSkyRenderInput): Uint8C
     const threshold = 1 - starStrength * 1.1;
     const fade = Math.min(1, starStrength * 1.5);
     const glow = 0.95 - 0.25 * state.night;
-    for (const star of starField(columns, rows)) {
+    for (const star of starField(columns, rows, cache)) {
       const overCopy = star.x < columns * 0.27 && star.y > rows * 0.1;
       const level = star.twinkleOffset === null ? 1 : TWINKLE_LEVELS[(tick + star.twinkleOffset) % TWINKLE_LEVELS.length];
       // Each star fades in as the sky darkens past its own brightness (and out again towards dawn), rather

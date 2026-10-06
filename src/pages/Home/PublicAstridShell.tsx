@@ -1,5 +1,4 @@
-import { Component, lazy, Suspense, useCallback, useEffect, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent, type ReactNode, type RefCallback } from 'react';
-import { flushSync } from 'react-dom';
+import { Component, lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type CSSProperties, type MouseEvent as ReactMouseEvent, type ReactNode, type RefCallback } from 'react';
 import { ArrowUpRight } from 'lucide-react';
 import { retargetMotionTiming, type PublicAstridExperience, type PublicAstridMotionClock, type PublicAstridMotionTiming } from './publicAstridMotion';
 import { ACTIVE_PUBLIC_ASTRID_EXAMPLE_METADATA, loadActivePublicAstridExample } from './publicAstridExampleSelection.ts';
@@ -10,21 +9,34 @@ import { MinkRunner } from '@/shared/components/MinkRunner/MinkRunner';
 import './PublicAstridShell.css';
 import { PublicAstridSocialLinks } from './PublicAstridSocialLinks.tsx';
 import { usePublicAstridLayoutGlide } from './usePublicAstridLayoutGlide';
+import { usePublicAstridPlayerHeight } from './usePublicAstridPlayerHeight';
 import { followInPage, VISION_PATH } from './publicAstridLinks';
+import { usePublicAstridEnvironment, type PublicAstridEnvironment, type PublicAstridLifecycle } from './publicAstridLifecycle';
+import { readPublicAstridExperience, usePublicAstridNavigation, writePublicAstridExperience } from './publicAstridNavigation';
 import {
-  DEFAULT_PUBLIC_ASTRID_SKY_SETTINGS,
+  createPublicAstridReadiness,
+  reducePublicAstridReadiness,
+  retryPublicAstridReadiness,
+  type PublicAstridReadiness,
+  type PublicAstridReadinessEvent,
+} from './publicAstridReadiness';
+import {
   PUBLIC_ASTRID_SKY_REPLAY_MS,
   PUBLIC_ASTRID_SKY_REPLAY_SETTLE_MS,
   PUBLIC_ASTRID_SKY_REPLAY_TURN_MS,
-  applyPageDusk, PublicAstridSky, PublicAstridSkyReview, setRootPaper, wantsPublicAstridSkyReview } from './PublicAstridSky.tsx';
-import { duskTokens, pageDusk, skyDarknessAt, themeForDarkness, type PublicAstridSkyTheme } from './publicAstridSkyRender';
+  PublicAstridSky,
+  PublicAstridSkyReview,
+  usePublicAstridSkyControls,
+  wantsPublicAstridSkyReview,
+} from './PublicAstridSky.tsx';
+import type { PublicAstridSkySession } from './publicAstridSkySession';
+import { usePublicAstridSkySession } from './usePublicAstridSkySession';
 
 const EDITOR_RELOAD_PENDING_KEY = 'astrid-public-editor-reload-pending';
 /** The editor stays hidden until its first frame and side panel are ready, so it assembles in one piece. */
 const EDITOR_REVEAL_TIMEOUT_MS = 2_500;
 const EDITOR_REVEAL_MEDIA_GRACE_MS = 900;
-/** Keep in step with the App player width in PublicAstridShell.css. */
-const PLAYER_WIDTH = 0.7;
+const EDITOR_LOADER_RETIRE_TIMEOUT_MS = 850;
 
 async function loadPublicAstridMountedEditor() {
   const [module, example] = await Promise.all([
@@ -84,8 +96,10 @@ class EditorChunkBoundary extends Component<EditorChunkBoundaryProps, EditorChun
   }
 }
 
-function EditorChunkReady({ attempt, onReady }: { attempt: number; onReady: (attempt: number) => void }) {
-  useEffect(() => onReady(attempt), [attempt, onReady]);
+function EditorChunkReady({ attempt, active, onReady }: { attempt: number; active: boolean; onReady: (attempt: number) => void }) {
+  useEffect(() => {
+    if (active) onReady(attempt);
+  }, [active, attempt, onReady]);
   return null;
 }
 
@@ -106,10 +120,6 @@ const HERO_SUBTITLE: Record<ExperienceState['audience'], string> = {
   agent: 'An editor-powered creative agent built to unlock the artistic potential of open-source models.',
 };
 
-type ViewTransitionDocument = Document & {
-  startViewTransition?: (update: () => void) => unknown;
-};
-
 /**
  * Switching audience also switches theme (light App, dark Agent). A root View Transition crossfades the
  * whole page in one piece — the old view stays frozen while the live new one fades in over it — so no
@@ -120,22 +130,6 @@ function drawnAt(element: Element, x: number, y: number) {
   return x >= box.left && x <= box.right && y >= box.top && y <= box.bottom;
 }
 
-function runThemeFade(commit: () => void, reducedMotion: boolean) {
-  const doc = document as ViewTransitionDocument;
-  if (reducedMotion || window.matchMedia('(max-width: 640px)').matches || typeof doc.startViewTransition !== 'function') {
-    commit();
-    return;
-  }
-  doc.startViewTransition(() => flushSync(commit));
-}
-
-function readExperienceState(): ExperienceState {
-  const search = new URLSearchParams(window.location.search);
-  return {
-    audience: search.get('experience') === 'agent' ? 'agent' : 'app',
-  };
-}
-
 function routeAnnouncement(state: ExperienceState): string {
   return state.audience === 'app' ? 'App.' : 'Agent.';
 }
@@ -144,8 +138,29 @@ function sameExperience(left: ExperienceState, right: ExperienceState): boolean 
   return left.audience === right.audience;
 }
 
-export function PublicAstridShell({ onOpenVision }: { onOpenVision?: () => void } = {}) {
-  const [state, setState] = useState<ExperienceState>(readExperienceState);
+interface PublicAstridShellProps {
+  onOpenVision?: () => void;
+  lifecycle?: PublicAstridLifecycle;
+  environment?: PublicAstridEnvironment;
+  navigation?: { experience: ExperienceState; onExperienceChange: (next: ExperienceState) => void };
+  skySession?: PublicAstridSkySession;
+}
+
+export function PublicAstridShell({ onOpenVision, lifecycle = 'active', environment: suppliedEnvironment, navigation, skySession: suppliedSkySession }: PublicAstridShellProps = {}) {
+  const environment = usePublicAstridEnvironment(suppliedEnvironment);
+  const { reducedMotion: prefersReducedMotion } = environment;
+  const visualActive = lifecycle === 'active' && environment.visible;
+  const skySession = usePublicAstridSkySession(suppliedSkySession, environment);
+  const skyControls = usePublicAstridSkyControls(skySession, visualActive);
+  const sky = skyControls.settings;
+  const palette = skyControls.palette;
+  const theme = palette.theme;
+  const visualActiveRef = useRef(visualActive);
+  visualActiveRef.current = visualActive;
+  const { run: runLocalNavigation, invalidate: invalidateLocalNavigation } = usePublicAstridNavigation(environment);
+  const [localState, setLocalState] = useState<ExperienceState>(readPublicAstridExperience);
+  const state = navigation?.experience ?? localState;
+  const standalone = navigation === undefined;
   const [hasViewedAgent, setHasViewedAgent] = useState(() => state.audience === 'agent');
   useEffect(() => {
     if (state.audience === 'agent') setHasViewedAgent(true);
@@ -155,7 +170,7 @@ export function PublicAstridShell({ onOpenVision }: { onOpenVision?: () => void 
   const editorFailurePanelRef = useRef<HTMLDivElement>(null);
   const editorAttemptRef = useRef(0);
   const editorLoadStatusRef = useRef<'initial' | 'loading' | 'failed' | 'ready'>('initial');
-  const editorShellMountedRef = useRef(false);
+  const editorShellMountedRef = useRef(true);
   const editorReloadPendingRef = useRef(false);
   const [editorAttempt, setEditorAttempt] = useState(0);
   const [editorRetryCount, setEditorRetryCount] = useState(0);
@@ -168,39 +183,49 @@ export function PublicAstridShell({ onOpenVision }: { onOpenVision?: () => void 
   const [editorRevealed, setEditorRevealed] = useState(false);
   // The loading runner unmounts once the editor has faded in, so nothing keeps animating unseen.
   const [loaderRetired, setLoaderRetired] = useState(false);
+  const initialReadiness = useRef(createPublicAstridReadiness(0)).current;
+  const readinessRef = useRef<PublicAstridReadiness>(initialReadiness);
+  const [readiness, setReadiness] = useState(initialReadiness);
   const [routeStatusMessage, setRouteStatusMessage] = useState('');
-  const [sky, setSky] = useState(DEFAULT_PUBLIC_ASTRID_SKY_SETTINGS);
-  // The page's colours follow how dark the visitor's sky is, not the App/Agent switch, and change
-  // gradually through twilight (see the dusk rules in PublicAstridShell.css).
+  // The page's colours follow the same scene snapshot as the sky renderer, including twilight boundaries.
   const mainRef = useRef<HTMLElement>(null);
-  const [theme, setTheme] = useState<PublicAstridSkyTheme>(() => themeForDarkness(skyDarknessAt(new Date())));
-  const themeRef = useRef(theme);
-  const duskRef = useRef(pageDusk(skyDarknessAt(new Date())));
-  const duskTokensRef = useRef(duskTokens(skyDarknessAt(new Date())));
+  useLayoutEffect(() => {
+    if (!visualActive) return undefined;
+    return skySession.registerPaletteTarget(mainRef.current, 'home');
+  }, [skySession, visualActive]);
   const [skyReview] = useState(wantsPublicAstridSkyReview);
   // Easter egg: clicking the mink turns her to face you, then she moves the sky through a whole day by
   // telekinesis (glowing eyes, psychic rings, a slight levitation) before turning back.
-  const [skyReplayStartedAt, setSkyReplayStartedAt] = useState<number | null>(null);
   const [minkPose, setMinkPose] = useState<'profile' | 'facing' | 'focus'>('profile');
   const minkTimers = useRef<number[]>([]);
+  const minkReplayOwnedRef = useRef(false);
+  const replayOperation = useSyncExternalStore(
+    visualActive ? skySession.subscribeRaster : () => () => {},
+    () => skySession.getSnapshot().replay?.operation ?? null,
+    () => skySession.getSnapshot().replay?.operation ?? null,
+  );
   useEffect(() => {
     for (const src of ['/astrid-mink-front.png', '/astrid-mink-focus.png', '/astrid-mink-psychic.png', '/astrid-mink-glint.png']) new Image().src = src;
-    const timers = minkTimers.current;
-    return () => timers.forEach((timer) => window.clearTimeout(timer));
+    return () => minkTimers.current.forEach((timer) => window.clearTimeout(timer));
   }, []);
   const endSkyReplay = useCallback(() => {
-    setSkyReplayStartedAt(null);
+    minkReplayOwnedRef.current = false;
+    skySession.cancelHomeReplay();
     setMinkPose('profile');
-  }, []);
+  }, [skySession]);
   const playSkyDay = () => {
-    if (minkPose !== 'profile') return;
+    if (!visualActive || minkPose !== 'profile') return;
     setMinkPose('facing');
     // With reduced motion she still turns to look, but the sky stays put.
     if (prefersReducedMotion || !sky.enabled) {
       minkTimers.current.push(window.setTimeout(endSkyReplay, 1200));
       return;
     }
-    setSkyReplayStartedAt(performance.now());
+    if (!skySession.startHomeReplay(endSkyReplay)) {
+      minkTimers.current.push(window.setTimeout(endSkyReplay, 1200));
+      return;
+    }
+    minkReplayOwnedRef.current = true;
     minkTimers.current.push(
       window.setTimeout(() => setMinkPose('focus'), PUBLIC_ASTRID_SKY_REPLAY_TURN_MS),
       window.setTimeout(() => setMinkPose('facing'), PUBLIC_ASTRID_SKY_REPLAY_MS - PUBLIC_ASTRID_SKY_REPLAY_SETTLE_MS),
@@ -208,14 +233,11 @@ export function PublicAstridShell({ onOpenVision }: { onOpenVision?: () => void 
   };
   const minkSrc = { profile: '/astrid-mink-provisional.webp', facing: '/astrid-mink-front.png', focus: '/astrid-mink-focus.png' }[minkPose];
   const [routeAnnouncementGeneration, setRouteAnnouncementGeneration] = useState(0);
-  const [prefersReducedMotion, setPrefersReducedMotion] = useState(
-    () => window.matchMedia('(prefers-reduced-motion: reduce)').matches,
-  );
   const stateRef = useRef(state);
   const motionClockRef = useRef<PublicAstridMotionClock>(null);
   const reducedMotionRef = useRef(prefersReducedMotion);
   const landingGridRef = useRef<HTMLElement>(null);
-  usePublicAstridLayoutGlide(landingGridRef, prefersReducedMotion);
+  usePublicAstridLayoutGlide(landingGridRef, prefersReducedMotion, visualActive);
   const routeAnnouncementGenerationRef = useRef(0);
   const pendingRouteAnnouncementRef = useRef<{ generation: number; state: ExperienceState } | null>(null);
   const lastAnnouncedExperienceRef = useRef<ExperienceState | null>(null);
@@ -237,7 +259,10 @@ export function PublicAstridShell({ onOpenVision }: { onOpenVision?: () => void 
   const transportRef = useInactiveSurface<HTMLDivElement>(!appView);
   const chatRef = useInactiveSurface(!agentView);
   const showTimeline = appView;
-  const onConversationReady = useCallback(() => setConversationReady(true), []);
+  const onConversationReady = useCallback((attempt: number) => {
+    if (!editorShellMountedRef.current || attempt !== editorAttemptRef.current || !visualActiveRef.current) return;
+    setConversationReady(true);
+  }, []);
   const inspectorRef = useInactiveSurface(!appView);
   const timelineRef = useInactiveSurface(!showTimeline);
 
@@ -249,27 +274,43 @@ export function PublicAstridShell({ onOpenVision }: { onOpenVision?: () => void 
   }, []);
 
   useEffect(() => {
-    const query = window.matchMedia('(prefers-reduced-motion: reduce)');
-    const onPreferenceChange = (event: MediaQueryListEvent) => {
-      reducedMotionRef.current = event.matches;
-      setPrefersReducedMotion(event.matches);
-      if (pendingRouteAnnouncementRef.current) {
-        queueRouteAnnouncement(pendingRouteAnnouncementRef.current.state);
-      }
-    };
-    if (query.addEventListener) query.addEventListener('change', onPreferenceChange);
-    else query.addListener?.(onPreferenceChange);
-    return () => {
-      if (query.removeEventListener) query.removeEventListener('change', onPreferenceChange);
-      else query.removeListener?.(onPreferenceChange);
-    };
-  }, [queueRouteAnnouncement]);
+    if (minkReplayOwnedRef.current && replayOperation === null) {
+      minkReplayOwnedRef.current = false;
+      minkTimers.current.forEach((timer) => window.clearTimeout(timer));
+      minkTimers.current = [];
+      setMinkPose('profile');
+    }
+  }, [replayOperation]);
 
   useEffect(() => {
     reducedMotionRef.current = prefersReducedMotion;
   }, [prefersReducedMotion]);
 
+  useLayoutEffect(() => {
+    if (sameExperience(stateRef.current, state)) return;
+    const previous = stateRef.current;
+    const startedAt = performance.now();
+    const timing = retargetMotionTiming(previous, state, motionClockRef.current, startedAt);
+    motionClockRef.current = timing.duration ? { startedAt, duration: timing.duration, from: previous, to: state } : null;
+    setMotionTiming(timing);
+    stateRef.current = state;
+    pendingAudienceFocusRef.current = state.audience === 'agent' ? 'agent' : 'launcher';
+    queueRouteAnnouncement(state);
+  }, [state, queueRouteAnnouncement]);
+
   useEffect(() => {
+    if (visualActive && !prefersReducedMotion) return;
+    minkTimers.current.forEach((timer) => window.clearTimeout(timer));
+    minkTimers.current = [];
+    endSkyReplay();
+    if (!visualActive) {
+      pendingAudienceFocusRef.current = null;
+      invalidateLocalNavigation();
+    }
+  }, [visualActive, prefersReducedMotion, endSkyReplay, invalidateLocalNavigation, skySession]);
+
+  useEffect(() => {
+    if (!visualActive) return;
     if (!initialRouteAnnouncementDoneRef.current) {
       initialRouteAnnouncementDoneRef.current = true;
       lastAnnouncedExperienceRef.current = state;
@@ -291,7 +332,7 @@ export function PublicAstridShell({ onOpenVision }: { onOpenVision?: () => void 
     let timeout: number | null = null;
     let frame: number | null = null;
     const publish = () => {
-      if (!active
+      if (!active || !visualActiveRef.current
         || routeAnnouncementGenerationRef.current !== generation
         || reducedMotionRef.current !== preferenceAtSchedule
         || !sameExperience(stateRef.current, pending.state)) return;
@@ -311,7 +352,7 @@ export function PublicAstridShell({ onOpenVision }: { onOpenVision?: () => void 
       if (timeout !== null) window.clearTimeout(timeout);
       if (frame !== null) window.cancelAnimationFrame(frame);
     };
-  }, [state, routeAnnouncementGeneration, prefersReducedMotion, motionTiming.duration]);
+  }, [state, routeAnnouncementGeneration, prefersReducedMotion, motionTiming.duration, visualActive]);
 
   useEffect(() => {
     try {
@@ -326,59 +367,171 @@ export function PublicAstridShell({ onOpenVision }: { onOpenVision?: () => void 
     };
   }, []);
 
+  const applyReadinessEvent = useCallback((event: PublicAstridReadinessEvent, allowRetained = false) => {
+    if (!editorShellMountedRef.current || event.attempt !== editorAttemptRef.current) return false;
+    if (!allowRetained && !visualActiveRef.current) return false;
+    const next = reducePublicAstridReadiness(readinessRef.current, event);
+    if (next === readinessRef.current) return false;
+    readinessRef.current = next;
+    setReadiness(next);
+    return true;
+  }, []);
+
+  const markEditorSignal = useCallback((type: 'inspector-ready' | 'timeline-ready', attempt: number) => {
+    applyReadinessEvent({type, attempt});
+  }, [applyReadinessEvent]);
+
+  const onEditorInspectorReady = useCallback((attempt: number) => {
+    markEditorSignal('inspector-ready', attempt);
+  }, [markEditorSignal]);
+
+  const onEditorTimelineReady = useCallback((attempt: number) => {
+    markEditorSignal('timeline-ready', attempt);
+  }, [markEditorSignal]);
+
   useEffect(() => {
     const stage = editorStageRef.current;
-    if (editorRevealed || editorLoadStatus !== 'ready' || !stage) return undefined;
+    if (!visualActive || !readiness.moduleReady || readiness.phase === 'error' || !stage) return undefined;
+    const attempt = readiness.attempt;
     const stageElement: HTMLDivElement = stage;
-    const startedAt = performance.now();
-    let frame = 0;
-    function check() {
-      const elapsed = performance.now() - startedAt;
+    let currentVideo: HTMLVideoElement | null = null;
+    let mediaTimer: number | null = null;
+    const markMedia = (fallback: boolean) => {
+      if (readinessRef.current.mediaReady) return;
+      applyReadinessEvent({type: fallback ? 'media-fallback' : 'media-ready', attempt});
+    };
+    const inspectMedia = () => {
+      if (!visualActiveRef.current || editorAttemptRef.current !== attempt) return;
       const video = stageElement.querySelector<HTMLVideoElement>('.astrid-player-surface video');
-      const mediaReady = video
-        ? video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA
-        : elapsed > EDITOR_REVEAL_MEDIA_GRACE_MS;
-      const panelReady = stateRef.current.audience === 'app'
-        ? stageElement.querySelector('[data-astrid-inspector-ready="true"], [data-astrid-inspector-ready="error"]') !== null
-        : conversationReady;
-      if ((mediaReady && panelReady) || elapsed > EDITOR_REVEAL_TIMEOUT_MS) {
-        setEditorRevealed(true);
-        return;
+      if (video !== currentVideo) {
+        currentVideo?.removeEventListener('loadeddata', onMediaReady);
+        currentVideo?.removeEventListener('canplay', onMediaReady);
+        currentVideo?.removeEventListener('error', onMediaError);
+        currentVideo = video;
+        currentVideo?.addEventListener('loadeddata', onMediaReady);
+        currentVideo?.addEventListener('canplay', onMediaReady);
+        currentVideo?.addEventListener('error', onMediaError);
       }
-      frame = window.requestAnimationFrame(check);
-    }
-    frame = window.requestAnimationFrame(check);
-    return () => window.cancelAnimationFrame(frame);
-  }, [conversationReady, editorLoadStatus, editorRevealed]);
+      if (!video || video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) markMedia(!video);
+    };
+    const onMediaReady = () => markMedia(false);
+    const onMediaError = () => markMedia(true);
+    const observer = typeof MutationObserver === 'undefined' ? null : new MutationObserver(inspectMedia);
+    observer?.observe(stageElement, {childList: true, subtree: true});
+    mediaTimer = window.setTimeout(() => markMedia(true), EDITOR_REVEAL_MEDIA_GRACE_MS);
+    inspectMedia();
+    return () => {
+      observer?.disconnect();
+      if (mediaTimer !== null) window.clearTimeout(mediaTimer);
+      currentVideo?.removeEventListener('loadeddata', onMediaReady);
+      currentVideo?.removeEventListener('canplay', onMediaReady);
+      currentVideo?.removeEventListener('error', onMediaError);
+    };
+  }, [applyReadinessEvent, readiness.attempt, readiness.moduleReady, readiness.phase, visualActive]);
 
-  const onEditorChunkFailure = useCallback((attempt: number) => {
+  useEffect(() => {
+    const stage = editorStageRef.current;
+    if (!visualActive || !readiness.moduleReady || readiness.phase === 'error' || !stage) return undefined;
+    const attempt = readiness.attempt;
+    const revealTimer = window.setTimeout(() => {
+      if (!visualActiveRef.current || editorAttemptRef.current !== attempt) return;
+      const current = readinessRef.current;
+      if (!current.inspectorReady) applyReadinessEvent({type: 'inspector-fallback', attempt});
+      if (!current.timelineReady) applyReadinessEvent({type: 'timeline-fallback', attempt});
+      if (!current.mediaReady) applyReadinessEvent({type: 'media-fallback', attempt});
+    }, EDITOR_REVEAL_TIMEOUT_MS);
+    return () => window.clearTimeout(revealTimer);
+  }, [applyReadinessEvent, readiness.attempt, readiness.moduleReady, readiness.phase, visualActive]);
+
+  useEffect(() => {
+    if (!visualActive || readiness.phase !== 'usable') return undefined;
+    const attempt = readiness.attempt;
+    if (applyReadinessEvent({type: 'present', attempt})) setEditorRevealed(true);
+    return undefined;
+  }, [applyReadinessEvent, readiness.attempt, readiness.phase, visualActive]);
+
+  const retireEditorLoader = useCallback((attempt: number) => {
+    if (!visualActiveRef.current || editorAttemptRef.current !== attempt || readinessRef.current.phase !== 'presenting') return;
+    setLoaderRetired(true);
+    applyReadinessEvent({type: 'settled', attempt});
+  }, [applyReadinessEvent]);
+
+  useEffect(() => {
+    if (!visualActive || readiness.phase !== 'presenting' || loaderRetired) return undefined;
+    const attempt = readiness.attempt;
+    const timeout = window.setTimeout(() => retireEditorLoader(attempt), EDITOR_LOADER_RETIRE_TIMEOUT_MS);
+    return () => window.clearTimeout(timeout);
+  }, [loaderRetired, readiness.attempt, readiness.phase, retireEditorLoader, visualActive]);
+
+  useEffect(() => {
+    if (!visualActive || readiness.phase === 'error' || !readiness.moduleReady) return undefined;
+    const stage = editorStageRef.current;
+    if (!stage) return undefined;
+    const checkSurfaceFallbacks = () => {
+      const attempt = readinessRef.current.attempt;
+      if (editorAttemptRef.current !== attempt || !visualActiveRef.current) return;
+      if (!readinessRef.current.inspectorReady
+        && stage.querySelector('[data-astrid-inspector-ready="true"], [data-astrid-inspector-ready="error"]')) {
+        applyReadinessEvent({type: 'inspector-ready', attempt});
+      }
+      if (!readinessRef.current.timelineReady && stage.querySelector('.astrid-timeline-surface')) {
+        applyReadinessEvent({type: 'timeline-ready', attempt});
+      }
+    };
+    const observer = typeof MutationObserver === 'undefined' ? null : new MutationObserver(checkSurfaceFallbacks);
+    observer?.observe(stage, {childList: true, subtree: true});
+    checkSurfaceFallbacks();
+    return () => observer?.disconnect();
+  }, [applyReadinessEvent, readiness.moduleReady, readiness.phase, visualActive]);
+
+  const onEditorChunkFailure = useCallback((attempt: number, error: Error) => {
     if (!editorShellMountedRef.current || attempt !== editorAttemptRef.current) return;
     const followedReload = editorReloadPendingRef.current;
     editorReloadPendingRef.current = false;
     setEditorReloadFollowup(followedReload);
     editorLoadStatusRef.current = 'failed';
     setEditorLoadStatus('failed');
-  }, []);
+    setEditorRevealed(false);
+    setLoaderRetired(false);
+    applyReadinessEvent({type: 'error', attempt, message: error.message}, true);
+  }, [applyReadinessEvent]);
 
   const onEditorChunkReady = useCallback((attempt: number) => {
-    if (!editorShellMountedRef.current || attempt !== editorAttemptRef.current) return;
+    if (!editorShellMountedRef.current || attempt !== editorAttemptRef.current || !visualActiveRef.current) return;
     const restoreFocus = editorFailurePanelRef.current?.contains(document.activeElement) ?? false;
     editorReloadPendingRef.current = false;
     setEditorReloadFollowup(false);
     editorLoadStatusRef.current = 'ready';
     setEditorLoadStatus('ready');
-    if (restoreFocus) {
-      window.requestAnimationFrame(() => editorStageRef.current?.focus({ preventScroll: true }));
-    }
-  }, []);
+    applyReadinessEvent({type: 'module-ready', attempt});
+    if (restoreFocus) pendingEditorFocusRef.current = attempt;
+  }, [applyReadinessEvent]);
+  const pendingEditorFocusRef = useRef<number | null>(null);
+  useEffect(() => {
+    const attempt = pendingEditorFocusRef.current;
+    pendingEditorFocusRef.current = null;
+    if (!visualActive || attempt === null) return;
+    const frame = window.requestAnimationFrame(() => {
+      if (visualActiveRef.current && editorShellMountedRef.current && editorAttemptRef.current === attempt) {
+        editorStageRef.current?.focus({preventScroll: true});
+      }
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [editorLoadStatus, visualActive]);
 
   const retryEditorChunk = useCallback(() => {
     if (editorLoadStatusRef.current === 'loading') return;
     const nextAttempt = editorAttemptRef.current + 1;
     editorAttemptRef.current = nextAttempt;
+    const nextReadiness = retryPublicAstridReadiness(readinessRef.current);
+    readinessRef.current = nextReadiness;
+    setReadiness(nextReadiness);
     editorLoadStatusRef.current = 'loading';
     setEditorRetryCount((count) => count + 1);
     setEditorLoadStatus('loading');
+    setEditorRevealed(false);
+    setLoaderRetired(false);
+    setConversationReady(false);
     setEditorAttempt(nextAttempt);
     setLazyPublicAstridMountedEditor(() => lazy(loadPublicAstridMountedEditor));
   }, []);
@@ -392,43 +545,17 @@ export function PublicAstridShell({ onOpenVision }: { onOpenVision?: () => void 
     window.location.reload();
   }, []);
 
-  useEffect(() => {
-    const stage = editorStageRef.current;
-    if (!stage) return;
-    const stageElement: HTMLDivElement = stage;
-    let surfaces: HTMLElement | null = null;
-    const resizeObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(updatePlayerHeight);
-    function updatePlayerHeight() {
-      const nextSurfaces = stageElement.querySelector<HTMLElement>('.astrid-editor-surfaces');
-      if (nextSurfaces !== surfaces) {
-        resizeObserver?.disconnect();
-        surfaces = nextSurfaces;
-        if (surfaces) resizeObserver?.observe(surfaces);
-      }
-      if (!surfaces || window.matchMedia('(max-width: 640px)').matches) {
-        stageElement.style.removeProperty('--astrid-player-height');
-        return;
-      }
-      const width = surfaces.clientWidth * PLAYER_WIDTH;
-      stageElement.style.setProperty('--astrid-player-height', `${width * 9 / 16}px`);
-    }
-    const mutationObserver = new MutationObserver(updatePlayerHeight);
-    mutationObserver.observe(stageElement, { childList: true, subtree: true });
-    window.addEventListener('resize', updatePlayerHeight);
-    updatePlayerHeight();
-    return () => {
-      mutationObserver.disconnect();
-      resizeObserver?.disconnect();
-      window.removeEventListener('resize', updatePlayerHeight);
-    };
-  }, []);
+  // Before callouts mount, size the preview for readiness. Once revealed, their stage pass owns it.
+  usePublicAstridPlayerHeight(editorStageRef, visualActive && !editorRevealed);
 
   useEffect(() => {
+    if (!visualActive) return;
     const focusTarget = pendingAudienceFocusRef.current;
     if (!focusTarget) return;
     if (focusTarget === 'agent' && !conversationReady) return;
     pendingAudienceFocusRef.current = null;
     const frame = window.requestAnimationFrame(() => {
+      if (!visualActiveRef.current) return;
       if (focusTarget === 'agent') {
         document.querySelector<HTMLElement>('.astrid-scripted-conversation, .astrid-conversation-load-error')?.focus({ preventScroll: true });
       } else {
@@ -436,54 +563,36 @@ export function PublicAstridShell({ onOpenVision }: { onOpenVision?: () => void 
       }
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [conversationReady, state.audience]);
+  }, [conversationReady, state.audience, visualActive]);
 
   useEffect(() => {
+    if (!standalone) return;
     const syncFromHistory = () => {
       // Vision & Issues opens over the home page; its history entries carry no App/Agent state.
       if (window.location.pathname === VISION_PATH) return;
-      const next = readExperienceState();
-      const previous = stateRef.current;
-      if (sameExperience(previous, next)) return;
-      if (previous.audience !== next.audience) pendingAudienceFocusRef.current = next.audience === 'agent' ? 'agent' : 'launcher';
-      const startedAt = performance.now();
-      const timing = retargetMotionTiming(previous, next, motionClockRef.current, startedAt);
-      motionClockRef.current = timing.duration ? { startedAt, duration: timing.duration, from: previous, to: next } : null;
-      setMotionTiming(timing);
-      stateRef.current = next;
-      queueRouteAnnouncement(next);
+      const next = readPublicAstridExperience();
       lastHistoryChangeRef.current = 0;
-      runThemeFade(() => setState(next), reducedMotionRef.current);
+      runLocalNavigation(() => setLocalState(next));
     };
     window.addEventListener('popstate', syncFromHistory);
     return () => window.removeEventListener('popstate', syncFromHistory);
-  }, [queueRouteAnnouncement]);
+  }, [standalone, runLocalNavigation]);
 
   const updateState = (next: Partial<ExperienceState>) => {
-    const previousState = stateRef.current;
-    const nextState = { ...previousState, ...next };
-    if (previousState.audience === nextState.audience) return;
-    pendingAudienceFocusRef.current = nextState.audience === 'agent' ? 'agent' : 'launcher';
-    const url = new URL(window.location.href);
-    if (nextState.audience === 'agent') url.searchParams.set('experience', 'agent');
-    else url.searchParams.delete('experience');
-    url.searchParams.delete('view');
-    const startedAt = performance.now();
-    const timing = retargetMotionTiming(previousState, nextState, motionClockRef.current, startedAt);
-    motionClockRef.current = timing.duration ? { startedAt, duration: timing.duration, from: previousState, to: nextState } : null;
-    setMotionTiming(timing);
-    stateRef.current = nextState;
-    queueRouteAnnouncement(nextState);
+    if (!visualActiveRef.current || window.location.pathname === VISION_PATH) return;
+    const nextState = { ...stateRef.current, ...next };
+    if (navigation) {
+      navigation.onExperienceChange(nextState);
+      return;
+    }
+    const current = readPublicAstridExperience();
     const now = Date.now();
     const coalesce = now - lastHistoryChangeRef.current < 350;
-    const currentEntry = window.history.state && typeof window.history.state === 'object'
-      ? window.history.state as Record<string, unknown>
-      : {};
-    const historyEntry = { ...currentEntry, astridExperience: nextState };
-    if (coalesce) window.history.replaceState(historyEntry, '', url);
-    else window.history.pushState(historyEntry, '', url);
-    lastHistoryChangeRef.current = now;
-    runThemeFade(() => setState(nextState), reducedMotionRef.current);
+    if (!sameExperience(current, nextState)) {
+      writePublicAstridExperience(nextState, coalesce);
+      lastHistoryChangeRef.current = now;
+    }
+    runLocalNavigation(() => setLocalState(nextState));
   };
 
   // In Agent, the editor recedes behind the conversation; clicking that background brings App forward.
@@ -505,6 +614,7 @@ export function PublicAstridShell({ onOpenVision }: { onOpenVision?: () => void 
   // While the side-switch colour fade runs, the browser hit-tests clicks to the document root instead of
   // the stage, so a click on the stage during the switch would otherwise be lost.
   useEffect(() => {
+    if (!visualActive) return;
     const onDocumentClick = (event: MouseEvent) => {
       if (event.target !== document.documentElement) return;
       const stage = editorStageRef.current;
@@ -515,37 +625,19 @@ export function PublicAstridShell({ onOpenVision }: { onOpenVision?: () => void 
     };
     document.addEventListener('click', onDocumentClick);
     return () => document.removeEventListener('click', onDocumentClick);
-  }, []);
+  }, [visualActive]);
 
   const openVerifiedResult = () => {
     updateState({ audience: 'app' });
-  };
-
-  const onSkyDarkness = (darkness: number) => {
-    applyPageDusk(() => applySkyDarkness(darkness));
-  };
-  const applySkyDarkness = (darkness: number) => {
-    duskRef.current = pageDusk(darkness);
-    duskTokensRef.current = duskTokens(darkness);
-    const main = mainRef.current;
-    main?.style.setProperty('--astrid-paper', duskRef.current.paper);
-    setRootPaper(duskRef.current.paper);
-    main?.style.setProperty('--astrid-dusk', String(duskRef.current.dusk));
-    main?.style.setProperty('--astrid-dusk-ink', String(duskRef.current.ink));
-    main?.style.setProperty('--astrid-dusk-firm', String(duskRef.current.firm));
-    main?.style.setProperty('--astrid-dusk-ink-page', String(duskRef.current.inkPage));
-    for (const [name, value] of Object.entries(duskTokensRef.current)) main?.style.setProperty(name, value);
-    // Only shadows and the browser's control colours still switch, at mid-twilight.
-    const next = themeForDarkness(darkness);
-    if (next === themeRef.current) return;
-    themeRef.current = next;
-    setTheme(next);
   };
 
   return (
     <main
       ref={mainRef}
       className="astrid-public-site"
+      tabIndex={-1}
+      data-astrid-lifecycle={lifecycle}
+      data-astrid-visual-active={visualActive}
       data-astrid-public-entry="astrid-public-v1"
       data-audience={state.audience}
       data-theme={theme}
@@ -562,12 +654,12 @@ export function PublicAstridShell({ onOpenVision }: { onOpenVision?: () => void 
         '--astrid-surface-duration': `${motionTiming.surfaceDuration}ms`,
         '--astrid-label-delay': `${motionTiming.labelDelay}ms`,
         '--astrid-label-duration': `${motionTiming.labelDuration}ms`,
-        '--astrid-paper': duskRef.current.paper,
-        '--astrid-dusk': duskRef.current.dusk,
-        '--astrid-dusk-ink': duskRef.current.ink,
-        '--astrid-dusk-firm': duskRef.current.firm,
-        '--astrid-dusk-ink-page': duskRef.current.inkPage,
-        ...duskTokensRef.current,
+        '--astrid-paper': palette.paper,
+        '--astrid-dusk': palette.dusk,
+        '--astrid-dusk-ink': palette.ink,
+        '--astrid-dusk-firm': palette.firm,
+        '--astrid-dusk-ink-page': palette.inkPage,
+        ...palette.tokens,
       } as CSSProperties}
     >
       <div
@@ -579,15 +671,15 @@ export function PublicAstridShell({ onOpenVision }: { onOpenVision?: () => void 
       >
         {routeStatusMessage}
       </div>
-      <PublicAstridSky
-        settings={sky}
-        onDarkness={onSkyDarkness}
+      {visualActive && <PublicAstridSky
+        session={skySession}
+        active={visualActive}
+        geometryRoot={mainRef}
+        geometryOwner="home"
         reducedMotion={prefersReducedMotion}
-        replayStartedAt={skyReplayStartedAt}
-        onReplayEnd={endSkyReplay}
         quietBehind=".astrid-hero-copy h1, .astrid-hero-subtitle"
-      />
-      {skyReview && <PublicAstridSkyReview theme={theme} settings={sky} onChange={setSky} />}
+      />}
+      {skyReview && visualActive && <PublicAstridSkyReview session={skySession} active={visualActive} />}
       <section className="astrid-landing-grid" ref={landingGridRef} aria-labelledby="astrid-hero-title">
         <div className="astrid-hero-copy">
           <div className="astrid-brand">
@@ -628,7 +720,7 @@ export function PublicAstridShell({ onOpenVision }: { onOpenVision?: () => void 
           <div className="astrid-hero-detail">
             <p className="astrid-hero-subtitle">{HERO_SUBTITLE[state.audience]}</p>
             <div className="astrid-hero-actions">
-              <PublicAstridHeroCta audience={state.audience} pixelIcons={sky.details.pixelIcons} />
+              <PublicAstridHeroCta audience={state.audience} pixelIcons={sky.details.pixelIcons} active={visualActive} />
             </div>
           </div>
           <div className="astrid-hero-note">
@@ -642,6 +734,11 @@ export function PublicAstridShell({ onOpenVision }: { onOpenVision?: () => void 
             ref={editorStageRef}
             data-astrid-surface-owner={ACTIVE_PUBLIC_ASTRID_EXAMPLE_METADATA.id}
             data-editor-load-state={editorLoadStatus}
+            data-astrid-readiness={readiness.phase}
+            data-astrid-readiness-attempt={readiness.attempt}
+            data-astrid-media-ready={readiness.mediaReady}
+            data-astrid-inspector-ready={readiness.inspectorReady}
+            data-astrid-timeline-ready={readiness.timelineReady}
             data-revealed={editorRevealed}
             data-audience={state.audience}
             role="group"
@@ -655,9 +752,13 @@ export function PublicAstridShell({ onOpenVision }: { onOpenVision?: () => void 
               role="status"
               aria-hidden={editorRevealed}
               data-hidden={editorRevealed || editorLoadStatus === 'failed' || editorLoadStatus === 'loading'}
-              onTransitionEnd={() => { if (editorRevealed) setLoaderRetired(true); }}
+              onTransitionEnd={(event) => {
+                if (event.target === event.currentTarget && event.propertyName === 'opacity') {
+                  retireEditorLoader(editorAttempt);
+                }
+              }}
             >
-              {!loaderRetired && (
+              {!loaderRetired && visualActive && (
                 <MinkRunner />
               )}
               <span className="astrid-visually-hidden">Loading the shared editor, preview and timeline…</span>
@@ -670,6 +771,8 @@ export function PublicAstridShell({ onOpenVision }: { onOpenVision?: () => void 
               <Suspense fallback={null}>
                 <LazyPublicAstridMountedEditor
                   audience={state.audience}
+                  attempt={editorAttempt}
+                  active={visualActive}
                   transportOutlet={transportOutlet}
                   onTransportOutletChange={setTransportOutlet}
                   playerRef={playerRef}
@@ -678,11 +781,13 @@ export function PublicAstridShell({ onOpenVision }: { onOpenVision?: () => void 
                   chatRef={chatRef}
                   transportRef={transportRef}
                   onConversationReady={onConversationReady}
+                  onInspectorReady={onEditorInspectorReady}
+                  onTimelineReady={onEditorTimelineReady}
                   onOpenVerifiedResult={openVerifiedResult}
                   preloadConversation={editorRevealed}
-                  conversationActive={agentView && editorRevealed}
+                  conversationActive={visualActive && agentView && editorRevealed}
                 />
-                <EditorChunkReady attempt={editorAttempt} onReady={onEditorChunkReady} />
+                <EditorChunkReady attempt={editorAttempt} active={visualActive} onReady={onEditorChunkReady} />
               </Suspense>
             </EditorChunkBoundary>
 
@@ -747,6 +852,7 @@ export function PublicAstridShell({ onOpenVision }: { onOpenVision?: () => void 
                 stageRef={editorStageRef}
                 audience={state.audience}
                 reducedMotion={prefersReducedMotion}
+                active={visualActive}
               />
             )}
           </div>
