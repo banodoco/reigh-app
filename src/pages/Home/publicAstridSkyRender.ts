@@ -92,10 +92,8 @@ export function pageDarkness(darkness: number): number {
 
 /** Page colour stops through twilight: day cream, a dusky taupe at mid-twilight, the near-black of night. */
 const PAPER_STOPS: readonly Rgb[] = [[247, 244, 237], [124, 113, 101], [14, 13, 11]];
-/** Text and icons have to cross the tone of the page behind them at some point; they do it quickly (over
- *  this much darkness, a few minutes of real dusk) and a little before mid-twilight, where dark text on
- *  the dimming page and light text after it both keep the most contrast. */
-const INK_WINDOW = 0.03;
+/** Text and icons switch with the paper at mid-twilight. Blending them independently would create a
+ *  muddy dark-on-dark interval while the paper has already moved to its night state. */
 const INK_CENTRE = 0.46;
 /** Panels are always lighter than the page, so they start turning a little earlier and the page a little
  *  later: that way both pass their mid-tone together, and every piece of text turns at the same moment. */
@@ -126,11 +124,14 @@ export function pageDusk(skyDarkness: number): { paper: string; dusk: number; in
   const [a, b] = p < 0.5 ? [PAPER_STOPS[0], PAPER_STOPS[1]] : [PAPER_STOPS[1], PAPER_STOPS[2]];
   const [r, g, bl] = mix(a, b, p < 0.5 ? p / 0.5 : (p - 0.5) / 0.5).map(Math.round);
   const near = clamp01(1 - Math.abs(clamp01(darkness) - INK_CENTRE) / FIRM_SPAN);
+  // Paper and ink must cross together. The sky and paper may keep changing live, but the reading palette
+  // is a two-state contract: dark ink on light paper before the switch, light ink on dark paper after it.
+  const ink = skyDarkness < DUSK_SWITCH.at ? 0 : 1;
   return {
     paper: `rgb(${r}, ${g}, ${bl})`,
     dusk: d,
-    ink: clamp01((clamp01(darkness) - (INK_CENTRE - INK_WINDOW / 2)) / INK_WINDOW),
-    inkPage: clamp01((clamp01(darkness) - (INK_CENTRE - INK_WINDOW / 2)) / INK_WINDOW),
+    ink,
+    inkPage: ink,
     firm: near * near * (3 - 2 * near),
   };
 }
@@ -139,7 +140,8 @@ export function pageDusk(skyDarkness: number): { paper: string; dusk: number; in
  * Astrid's palette as the app's design tokens, by day and by night, as the "H S% L%" triples its CSS
  * reads through hsl(). One source for the public site's editor and the app itself: warm paper and ink,
  * the orange accent, and the North Star cards' four tints (peach, sand, sage, slate) for the app's
- * pastel accents. Text tokens follow the ink window; the rest follow the whole of twilight.
+ * pastel accents. Text tokens follow the same atomic reading-palette switch; the rest follow the whole of
+ * twilight.
  */
 const DUSK_TOKENS: ReadonlyArray<readonly [string, string, string, 'ink' | 'surface']> = [
   ['--background', '40 33% 97%', '30 11% 7%', 'surface'],

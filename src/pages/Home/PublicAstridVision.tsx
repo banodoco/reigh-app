@@ -361,12 +361,9 @@ export function PublicAstridVision({ onGoHome }: { onGoHome?: () => void } = {})
   const [skyReview] = useState(wantsPublicAstridSkyReview);
   const [sky, setSky] = useState(DEFAULT_PUBLIC_ASTRID_SKY_SETTINGS);
   const [skyTheme, setSkyTheme] = useState(() => themeForDarkness(skyDarknessAt(new Date())));
-  const lastSkyDarknessRef = useRef<number | null>(null);
   const onSkyDarkness = useCallback((darkness: number) => {
-    const previous = lastSkyDarknessRef.current;
-    lastSkyDarknessRef.current = darkness;
     setSkyTheme(themeForDarkness(darkness));
-    applyPageDusk(pageRef.current, previous, darkness, () => {
+    applyPageDusk(() => {
       for (const [name, value] of Object.entries(duskProperties(darkness))) pageRef.current?.style.setProperty(name, value);
       setRootPaper(pageDusk(darkness).paper);
     });

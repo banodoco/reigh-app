@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { blendHslToken, moonPhase, moonPhaseName, pagePaperFor, renderPublicAstridSky, skyState, themeForDarkness } from './publicAstridSkyRender';
+import { blendHslToken, DUSK_SWITCH, moonPhase, moonPhaseName, pageDusk, pagePaperFor, renderPublicAstridSky, skyState, themeForDarkness } from './publicAstridSkyRender';
 
 const OCTOBER = { sunrise: 7.25, sunset: 19 };
 
@@ -116,6 +116,16 @@ describe('public Astrid sky', () => {
     expect(lightness(0)).toBeGreaterThan(lightness(0.3));
     expect(lightness(0.3)).toBeGreaterThan(lightness(0.49));
     expect(lightness(0.6)).toBeGreaterThan(lightness(1));
+  });
+
+  it('switches paper and ink together at dusk so the page never enters dark-on-dark', () => {
+    const before = pageDusk(DUSK_SWITCH.at - 0.001);
+    const after = pageDusk(DUSK_SWITCH.at);
+    expect(before.ink).toBe(0);
+    expect(before.inkPage).toBe(0);
+    expect(after.ink).toBe(1);
+    expect(after.inkPage).toBe(1);
+    expect(before.paper).not.toBe(after.paper);
   });
 
   it('paints each depth layer on its own', () => {

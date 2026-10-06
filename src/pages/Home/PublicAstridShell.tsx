@@ -521,11 +521,8 @@ export function PublicAstridShell({ onOpenVision }: { onOpenVision?: () => void 
     updateState({ audience: 'app' });
   };
 
-  const lastSkyDarknessRef = useRef<number | null>(null);
   const onSkyDarkness = (darkness: number) => {
-    const previous = lastSkyDarknessRef.current;
-    lastSkyDarknessRef.current = darkness;
-    applyPageDusk(mainRef.current, previous, darkness, () => applySkyDarkness(darkness));
+    applyPageDusk(() => applySkyDarkness(darkness));
   };
   const applySkyDarkness = (darkness: number) => {
     duskRef.current = pageDusk(darkness);

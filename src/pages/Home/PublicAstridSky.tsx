@@ -1,10 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { flushSync } from 'react-dom';
 import { setThemeColor } from '@/shared/lib/themeColor';
 import {
   ARC_RADIUS,
   describeSky,
-  DUSK_SWITCH,
   moonPhase,
   moonPhaseName,
   preparePublicAstridSkyMoon,
@@ -278,21 +276,12 @@ export function setRootPaper(paper: string) {
 }
 
 /**
- * Applies a page's dusk colours for a new sky darkness. The page skips the middle of twilight in one
- * switch (see DUSK_SWITCH), so when an update crosses it the whole page crossfades instead of jumping.
- * A page set aside (home while Vision & Issues is open) just updates.
+ * Applies a page's dusk colours as one synchronous update. The sky and paper remain live, but the reading
+ * palette changes atomically with the dusk boundary; a whole-page View Transition would blend two readable
+ * endpoints into an unreadable dark-on-dark frame.
  */
-export function applyPageDusk(page: HTMLElement | null, previous: number | null, darkness: number, apply: () => void) {
-  const crossed = previous !== null && (previous < DUSK_SWITCH.at) !== (darkness < DUSK_SWITCH.at);
-  const doc = document as Document & { startViewTransition?: (update: () => void) => unknown };
-  const quiet = !crossed
-    || typeof doc.startViewTransition !== 'function'
-    || window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    || !page || page.closest('[data-astrid-page-away]')
-    || document.documentElement.dataset.astridPageTransition;
-  if (quiet) apply();
-  // The transition's update runs outside React's own work, so React state set in it lands in the new view.
-  else doc.startViewTransition(() => flushSync(apply));
+export function applyPageDusk(apply: () => void) {
+  apply();
 }
 
 export function PublicAstridSky({ settings, onDarkness, reducedMotion, replayStartedAt, onReplayEnd, quietBehind }: PublicAstridSkyProps) {
