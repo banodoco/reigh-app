@@ -143,7 +143,7 @@ describe('PublicAstridShell route announcements', () => {
     announcements.ignoreCurrent();
 
     fireEvent.click(screen.getByRole('button', { name: 'Agent' }));
-    await advance(649);
+    await advance(719);
     await flushAnnouncementObserver();
     expect(readRouteStatus()).toBe('App.');
     expect(announcements.messages).toEqual([]);
@@ -152,7 +152,7 @@ describe('PublicAstridShell route announcements', () => {
     expect(readRouteStatus()).toBe('Agent.');
 
     fireEvent.click(screen.getByRole('button', { name: 'App' }));
-    await advance(650);
+    await advance(720);
     await flushAnnouncementObserver();
     expect(readRouteStatus()).toBe('App.');
     expect(announcements.messages).toEqual(['Agent.', 'App.']);
@@ -206,21 +206,21 @@ describe('PublicAstridShell route announcements', () => {
       window.history.replaceState({}, '', '/home?experience=agent');
       window.dispatchEvent(new PopStateEvent('popstate'));
     });
-    await advance(650);
+    await advance(720);
     expect(readRouteStatus()).toBe('Agent.');
 
     act(() => {
       window.history.replaceState({}, '', '/home?experience=agent');
       window.dispatchEvent(new PopStateEvent('popstate'));
     });
-    await advance(650);
+    await advance(720);
 
     act(() => {
       window.history.replaceState({}, '', '/home');
       window.dispatchEvent(new PopStateEvent('popstate'));
     });
     expect(window.location.search).toBe('');
-    await advance(650);
+    await advance(720);
     await flushAnnouncementObserver();
     expect(readRouteStatus()).toBe('App.');
     expect(announcements.messages).toEqual(['Agent.', 'App.']);

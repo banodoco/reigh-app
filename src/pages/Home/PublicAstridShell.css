@@ -1328,7 +1328,7 @@
 /* Theme switch: where View Transitions exist the whole page crossfades as one (see runThemeFade), so
    nothing may crossfade underneath it. Elsewhere, flat elements crossfade on their own. */
 ::view-transition-old(root),
-::view-transition-new(root) { animation-duration: 650ms; animation-timing-function: cubic-bezier(.4, 0, .2, 1); } /* THEME_WASH_MS */
+::view-transition-new(root) { animation-duration: 720ms; animation-timing-function: cubic-bezier(.4, 0, .2, 1); } /* THEME_WASH_MS */
 /* The moving panels are left out of the page's colour crossfade: a snapshot of them would ghost over
    their live selves as they travel. They show live throughout and change colour on their own. */
 .astrid-editor-tilt { view-transition-name: astrid-panels; }
@@ -1631,7 +1631,7 @@
 }
 
 /* Phones use a shallow full-width integration rail and balanced lower callouts. Geometry switches
-   immediately; only opacity fades, avoiding reflowing the live editor throughout a 650ms morph. */
+   immediately; only opacity fades, avoiding reflowing the live editor throughout a 720ms morph. */
 @media (max-width: 640px) {
   .astrid-editor-stage[data-audience="agent"] {
     width: 100%;

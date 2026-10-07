@@ -1,7 +1,7 @@
 export type PublicAstridAudience = 'app' | 'agent';
 
 /** Length of the colour crossfade when switching sides; mirrored by the ::view-transition rule in PublicAstridShell.css. */
-export const THEME_WASH_MS = 650;
+export const THEME_WASH_MS = 720;
 export type PublicAstridExperience = { audience: PublicAstridAudience };
 
 export type PublicAstridMotionTiming = {
@@ -38,7 +38,9 @@ export function routeMotionTiming(from: PublicAstridExperience, to: PublicAstrid
 
   // The page's colours wash over (THEME_WASH_MS, the view transition) for the same time the panels
   // travel. The panels and labels are kept out of that crossfade, so nothing ghosts as it moves.
-  const travel = 650;
+  // The corner Agent handoff remains visible through the launcher's final settle; let the main
+  // surfaces travel for that same perceived interval instead of landing first.
+  const travel = 720;
   timing.surfaceDelay = 0;
   timing.surfaceDuration = travel;
   timing.assemblyDelay = 0;

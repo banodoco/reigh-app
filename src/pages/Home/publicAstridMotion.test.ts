@@ -9,15 +9,15 @@ describe('public Astrid route motion', () => {
     for (const [from, to] of [[app, agent], [agent, app]] as const) {
       const timing = routeMotionTiming(from, to);
       expect(timing.surfaceDelay).toBe(0);
-      expect(timing.surfaceDuration).toBe(650);
-      expect(timing.duration).toBe(650);
-      expect(timing.labelDelay).toBe(455);
-      expect(timing.labelDelay + timing.labelDuration).toBe(650);
+      expect(timing.surfaceDuration).toBe(720);
+      expect(timing.duration).toBe(720);
+      expect(timing.labelDelay).toBe(504);
+      expect(timing.labelDelay + timing.labelDuration).toBe(720);
     }
   });
 
   it('scales an early retarget with the remaining displayed travel', () => {
-    const timing = retargetMotionTiming(app, agent, { startedAt: 1000, duration: 650, from: agent, to: app }, 1120);
+    const timing = retargetMotionTiming(app, agent, { startedAt: 1000, duration: 720, from: agent, to: app }, 1120);
     expect(timing.duration).toBe(120);
     expect(timing.surfaceDuration).toBe(timing.duration);
     expect(timing.surfaceDelay).toBe(0);
@@ -27,18 +27,18 @@ describe('public Astrid route motion', () => {
   });
 
   it('uses the 120 ms floor for a late retarget and never exceeds normal travel', () => {
-    const late = retargetMotionTiming(app, agent, { startedAt: 1000, duration: 650, from: agent, to: app }, 1580);
+    const late = retargetMotionTiming(app, agent, { startedAt: 1000, duration: 720, from: agent, to: app }, 1580);
     expect(late.duration).toBe(580);
-    const continued = retargetMotionTiming(app, agent, { startedAt: 1000, duration: 650, from: app, to: agent }, 1600);
+    const continued = retargetMotionTiming(app, agent, { startedAt: 1000, duration: 720, from: app, to: agent }, 1600);
     expect(continued.duration).toBe(120);
   });
 
   it('restores normal timing when the previous route has already settled', () => {
-    expect(retargetMotionTiming(app, agent, { startedAt: 1000, duration: 650, from: agent, to: app }, 1700).duration).toBe(650);
+    expect(retargetMotionTiming(app, agent, { startedAt: 1000, duration: 720, from: agent, to: app }, 1800).duration).toBe(720);
   });
 
   it('returns immediate stable values when there is no destination change', () => {
-    expect(retargetMotionTiming(app, app, { startedAt: 1000, duration: 650, from: agent, to: app }, 1120)).toEqual({
+    expect(retargetMotionTiming(app, app, { startedAt: 1000, duration: 720, from: agent, to: app }, 1120)).toEqual({
       duration: 0,
       assemblyDelay: 0,
       assemblyDuration: 0,
