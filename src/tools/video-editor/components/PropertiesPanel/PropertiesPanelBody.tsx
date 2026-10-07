@@ -434,7 +434,10 @@ function PropertiesPanelComponent({
         </TabsContent>
         <TabsContent value="inspector" className="mt-3 flex min-h-0 flex-1 flex-col gap-3">
           {!readOnly && showInspectorActions && (
-        <div className="rounded-xl border border-[color:var(--video-editor-accent-border)] bg-[var(--video-editor-accent-bg)] p-3">
+        <div
+          className="rounded-xl border border-[color:var(--video-editor-accent-border)] bg-[var(--video-editor-accent-bg)] p-3"
+          data-astrid-inspector-actions="selection"
+        >
           <div className="flex items-start justify-between gap-3">
             <div>
               <div className="text-sm font-medium text-foreground">Selection actions</div>

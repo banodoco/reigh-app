@@ -37,7 +37,10 @@ export function ClipInspectorActions({
   onDelete?: () => void;
 }) {
   return (
-    <div className="rounded-xl border border-sky-400/40 bg-sky-500/10 p-3">
+    <div
+      className="rounded-xl border border-sky-400/40 bg-sky-500/10 p-3"
+      data-astrid-inspector-actions="clip"
+    >
       <div className="flex items-start justify-between gap-3">
         <div>
           <div className="text-sm font-medium text-foreground">Inspector-first actions</div>

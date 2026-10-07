@@ -919,6 +919,9 @@
   opacity: 1;
   pointer-events: auto;
 }
+.astrid-public-site[data-audience="app"] .astrid-inspector-surface [data-astrid-inspector-actions] {
+  display: none;
+}
 .astrid-public-site[data-audience="agent"] .astrid-inspector-surface {
   visibility: visible;
   opacity: .48;
