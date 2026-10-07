@@ -1,4 +1,6 @@
 import { randomUUID } from 'node:crypto';
+import { ApiError } from '../src/integrations/runtime/generated.ts';
+import { ChatError, ProjectChatRegistry, chatClaimIdentity, chatStoreIdentity, projectChatClaimDirectory, runtimeChatClient, type QueuedChatMessage } from './reigh-project-chat.ts';
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { pathToFileURL } from 'node:url';
@@ -30,6 +32,7 @@ const REQUEST_METHODS = new Set([
   'session/fork',
   'session/close',
   'session/prompt',
+  'session/set_config_option',
 ]);
 
 type JsonRecord = Record<string, unknown>;
@@ -49,6 +52,8 @@ type Connection = {
   readonly host: AcpProcessHost;
   readonly notifications: unknown[];
   readonly terminals: Map<string, TerminalRecord>;
+  readonly sessions: Set<string>;
+  readonly configOptions: Map<string, Map<string, Set<string>>>;
   disconnected: boolean;
 };
 
@@ -68,6 +73,7 @@ type TerminalRecord = {
 };
 
 type BridgeOptions = {
+  readonly chatRegistry?: ProjectChatRegistry;
   readonly config: ReighAcpBridgeConfig;
   readonly hostFactory?: (options: AstridAcpLauncherOptions) => AcpProcessHost;
   readonly idFactory?: () => string;
@@ -96,6 +102,27 @@ function requiredAbsolute(env: Readonly<Record<string, string | undefined>>, key
 
 function isRecord(value: unknown): value is JsonRecord {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function advertisedConfigOptions(value: unknown): Map<string, Set<string>> {
+  const record = asRecord(value);
+  if (!Array.isArray(record?.configOptions)) return new Map();
+  const result = new Map<string, Set<string>>();
+  for (const candidate of record.configOptions) {
+    if (!isRecord(candidate) || typeof candidate.id !== 'string' || !Array.isArray(candidate.options)) continue;
+    const values = new Set<string>();
+    for (const option of candidate.options) {
+      if (isRecord(option) && typeof option.value === 'string') values.add(option.value);
+    }
+    if (values.size > 0) result.set(candidate.id, values);
+  }
+  return result;
+}
+
+function sessionIdFrom(value: unknown): string | null {
+  const record = asRecord(value);
+  const sessionId = record?.sessionId ?? record?.session_id ?? record?.id;
+  return typeof sessionId === 'string' && sessionId ? sessionId : null;
 }
 
 function isPathWithin(root: string, candidate: string): boolean {
@@ -249,6 +276,9 @@ async function readJson(request: IncomingMessage): Promise<unknown> {
 }
 
 function hostError(error: unknown): { status: number; body: JsonRecord } {
+  if (error instanceof ChatError || error instanceof ApiError) {
+    return { status: error.status, body: { error: error.code, detail: error.message } };
+  }
   if (error instanceof AcpProcessHostError) {
     return { status: 502, body: { error: error.code, detail: error.message } };
   }
@@ -263,11 +293,14 @@ export class ReighAcpBridge {
   private readonly hostFactory: (options: AstridAcpLauncherOptions) => AcpProcessHost;
   private readonly idFactory: () => string;
   private readonly connections = new Map<string, Connection>();
+  private readonly chatRegistry?: ProjectChatRegistry;
 
   constructor(options: BridgeOptions) {
     this.config = options.config;
     this.hostFactory = options.hostFactory ?? createAstridAcpProcessHost;
     this.idFactory = options.idFactory ?? randomUUID;
+    const runtime = options.chatRegistry ? undefined : runtimeChatClient();
+    this.chatRegistry = options.chatRegistry ?? (runtime ? new ProjectChatRegistry(runtime, chatStoreIdentity(this.config), Date.now, projectChatClaimDirectory(this.config), chatClaimIdentity(this.config)) : undefined);
   }
 
   async handle(request: IncomingMessage, response: ServerResponse): Promise<void> {
@@ -294,6 +327,12 @@ export class ReighAcpBridge {
       }
       if (request.method === 'POST' && url.pathname === '/connect') {
         await this.connect(response);
+        return;
+      }
+
+      const projectChat = url.pathname.match(/^\/projects\/([^/]+)\/chat(?:\/(sessions|unassigned|associate|draft|prompt))?$/);
+      if (projectChat) {
+        await this.projectChat(decodeURIComponent(projectChat[1]), projectChat[2], request, response);
         return;
       }
 
@@ -337,7 +376,7 @@ export class ReighAcpBridge {
     } catch (error) {
       const result = error instanceof Error && error.message.includes('128 KiB')
         ? { status: 413, body: { error: 'payload_too_large', detail: error.message } }
-        : error instanceof Error && (error.message.includes('request body') || error.message.includes('method') || error.message.includes('sessionId'))
+      : error instanceof Error && (error.message.includes('request body') || error.message.includes('method') || error.message.includes('sessionId') || error.message.includes('config option'))
           ? { status: 400, body: { error: 'invalid_body', detail: error.message } }
           : hostError(error);
       jsonResponse(response, result.status, result.body);
@@ -412,7 +451,7 @@ export class ReighAcpBridge {
       command: this.config.command,
       callbacks,
     });
-    connection = { host, notifications, terminals, disconnected: false };
+    connection = { host, notifications, terminals, sessions: new Set(), configOptions: new Map(), disconnected: false };
     this.connections.set(connectionId, connection);
     try {
       const initialize = await host.initialize({
@@ -429,6 +468,81 @@ export class ReighAcpBridge {
     }
   }
 
+  private async projectChat(projectId: string, action: string | undefined, request: IncomingMessage, response: ServerResponse): Promise<void> {
+    const registry = this.chatRegistry;
+    if (!registry) throw new ChatError(503, 'chat_storage_unavailable', 'Project chat requires the configured Workspace Runtime endpoint and credential');
+    if (!action && request.method === 'GET') {
+      jsonResponse(response, 200, await registry.get(projectId));
+      return;
+    }
+    if (action === 'unassigned' && request.method === 'GET') {
+      const connectionId = new URL(request.url ?? '/', 'http://localhost').searchParams.get('connection_id');
+      const connection = connectionId ? this.connections.get(connectionId) : undefined;
+      if (!connection || connection.disconnected) throw new ChatError(404, 'connection_not_found', 'ACP connection is unavailable; reconnect');
+      const result = await connection.host.request('session/list', { cwd: this.config.cwd });
+      const root = asRecord(result) ?? {};
+      const items = Array.isArray(result) ? result : Array.isArray(root.sessions) ? root.sessions : Array.isArray(root.items) ? root.items : [];
+      const candidates = items.flatMap(item => {
+        const session = asRecord(item);
+        const id = typeof session?.sessionId === 'string' ? session.sessionId : typeof session?.session_id === 'string' ? session.session_id : typeof session?.id === 'string' ? session.id : null;
+        if (!id) return [];
+        const title = typeof session?.title === 'string' ? session.title : undefined;
+        return [{ id, ...(title ? { title } : {}) }];
+      });
+      jsonResponse(response, 200, { sessions: await registry.unassigned(projectId, candidates) });
+      return;
+    }
+    const body = asRecord(await readJson(request));
+    if (!body) throw new ChatError(400, 'invalid_body', 'Expected a JSON object');
+    if (request.method === 'PATCH' && (!action || action === 'draft')) {
+      if (!Number.isInteger(body.expected_revision) || (body.expected_revision as number) < 0) throw new ChatError(400, 'invalid_body', 'expected_revision must be a nonnegative integer');
+      if (action === 'draft') {
+        if (typeof body.text !== 'string' || body.text.length > 100_000) throw new ChatError(400, 'invalid_body', 'Draft text must be a string of at most 100000 characters');
+        if (body.queued_messages !== undefined && (!Array.isArray(body.queued_messages) || body.queued_messages.length > 100 || !body.queued_messages.every(item => isRecord(item) && typeof item.id === 'string' && typeof item.text === 'string' && typeof item.session_id === 'string' && (item.attachments === undefined || Array.isArray(item.attachments))))) throw new ChatError(400, 'invalid_body', 'queued_messages must contain scoped message records');
+        jsonResponse(response, 200, await registry.draft(projectId, body.expected_revision as number, body.text, body.queued_messages as QueuedChatMessage[] | undefined));
+      } else {
+        if (body.selected_session_id !== null && typeof body.selected_session_id !== 'string') throw new ChatError(400, 'invalid_body', 'selected_session_id is required');
+        jsonResponse(response, 200, await registry.select(projectId, body.expected_revision as number, body.selected_session_id as string | null));
+      }
+      return;
+    }
+    if (request.method === 'POST' && (action === 'sessions' || action === 'prompt' || action === 'associate')) {
+      const connection = typeof body.connection_id === 'string' ? this.connections.get(body.connection_id) : undefined;
+      if (!connection || connection.disconnected) throw new ChatError(404, 'connection_not_found', 'ACP connection is unavailable; reconnect');
+      if (action === 'sessions') {
+        if ((body.mode !== 'ensure' && body.mode !== 'new') || typeof body.operation_id !== 'string' || !body.operation_id || body.operation_id.length > 200) throw new ChatError(400, 'invalid_body', 'mode and operation_id are required');
+        jsonResponse(response, 200, await registry.create(projectId, body.mode, body.operation_id, () => connection.host.request('session/new', { cwd: this.config.cwd, mcpServers: [] }), async sessionId => {
+          try {
+            await connection.host.request('session/resume', { sessionId, cwd: this.config.cwd, mcpServers: [] });
+            return true;
+          } catch (error) {
+            if (error instanceof AcpProcessHostError && error.code === 'acp_transport' && error.message === `ACP request "session/resume" failed: ACP session not found: ${sessionId}`) return false;
+            throw error;
+          }
+        }));
+      } else if (action === 'associate') {
+        if (typeof body.session_id !== 'string' || !Number.isInteger(body.expected_revision)) throw new ChatError(400, 'invalid_body', 'session_id and expected_revision are required');
+        const state = await registry.associate(projectId, body.expected_revision as number, body.session_id, async sessionId => {
+          try {
+            await connection.host.request('session/resume', { sessionId, cwd: this.config.cwd, mcpServers: [] });
+            return true;
+          } catch (error) {
+            if (error instanceof AcpProcessHostError && error.code === 'acp_transport' && error.message === `ACP request "session/resume" failed: ACP session not found: ${sessionId}`) return false;
+            throw error;
+          }
+        });
+        jsonResponse(response, 200, state);
+      } else {
+        if (typeof body.session_id !== 'string' || !Array.isArray(body.prompt)) throw new ChatError(400, 'invalid_body', 'session_id and prompt are required');
+        await registry.assertOwned(projectId, body.session_id);
+        const result = await connection.host.request('session/prompt', { sessionId: body.session_id, prompt: body.prompt });
+        jsonResponse(response, 200, { result });
+      }
+      return;
+    }
+    throw new ChatError(404, 'not_found', 'Unknown project chat operation');
+  }
+
   private async rpc(connection: Connection, request: IncomingMessage, response: ServerResponse): Promise<void> {
     const body = asRecord(await readJson(request));
     const method = body?.method;
@@ -441,7 +555,44 @@ export class ReighAcpBridge {
       // The host owns the process cwd; the browser cannot redirect the ACP session.
       params = { ...input, cwd: this.config.cwd, mcpServers: input.mcpServers ?? [] };
     }
+    if (method === 'session/set_config_option') {
+      const input = asRecord(params);
+      if (!input || Object.keys(input).some((key) => !['sessionId', 'configId', 'value'].includes(key))) {
+        throw new Error('config option request accepts only sessionId, configId, and value');
+      }
+      if (typeof input.sessionId !== 'string' || !input.sessionId) throw new Error('sessionId is required for config option updates');
+      if (!connection.sessions.has(input.sessionId)) throw new Error('config option sessionId is not owned by this ACP connection');
+      if (input.configId !== 'model' && input.configId !== 'thinking') throw new Error('config option id must be model or thinking');
+      if (typeof input.value !== 'string' || !input.value) throw new Error('config option value is required');
+      const allowedValues = connection.configOptions.get(input.sessionId)?.get(input.configId);
+      if (!allowedValues?.has(input.value)) throw new Error('config option value was not advertised for this session');
+    }
     const result = await connection.host.request(method, params);
+    if (method === 'session/new' || method === 'session/load' || method === 'session/resume' || method === 'session/fork') {
+      const input = asRecord(params);
+      const sessionId = sessionIdFrom(result) ?? (method === 'session/load' || method === 'session/resume' ? sessionIdFrom(input) : null);
+      if (sessionId) {
+        connection.sessions.add(sessionId);
+        const options = advertisedConfigOptions(result);
+        if (options.size > 0) connection.configOptions.set(sessionId, options);
+      }
+    } else if (method === 'session/list') {
+      const items = Array.isArray(result) ? result : isRecord(result) && Array.isArray(result.sessions) ? result.sessions : [];
+      for (const item of items) {
+        const sessionId = sessionIdFrom(item);
+        if (sessionId) connection.sessions.add(sessionId);
+      }
+    } else if (method === 'session/set_config_option') {
+      const input = asRecord(params)!;
+      const options = advertisedConfigOptions(result);
+      if (options.size > 0) connection.configOptions.set(input.sessionId as string, options);
+    } else if (method === 'session/close') {
+      const sessionId = sessionIdFrom(params);
+      if (sessionId) {
+        connection.sessions.delete(sessionId);
+        connection.configOptions.delete(sessionId);
+      }
+    }
     jsonResponse(response, 200, { result });
   }
 

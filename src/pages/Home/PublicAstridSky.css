@@ -1,0 +1,141 @@
+/* The pixel sky sits behind the whole landing grid and never takes input. Its three layers are drawn a
+   little larger than the window so their parallax shift never reveals an edge. */
+.astrid-sky {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.astrid-sky canvas {
+  position: absolute;
+  image-rendering: pixelated;
+  will-change: transform;
+}
+.astrid-public-site .astrid-landing-grid { position: relative; z-index: 1; }
+
+/* With the sky on, the stage frame turns slightly see-through so the sun or moon is a hint behind it;
+   the editor windows themselves stay solid. */
+.astrid-public-site[data-sky-frame="open"] .astrid-editor-stage {
+  background: color-mix(in srgb, var(--astrid-panel) 80%, transparent);
+}
+
+/* Review panel (only with ?sky-review). */
+.astrid-sky-review,
+.astrid-sky-review-pill {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 60;
+  border: 1px solid var(--astrid-line);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--astrid-panel) 92%, transparent);
+  color: var(--astrid-ink);
+  box-shadow: 0 18px 50px rgba(30, 24, 16, .18);
+  backdrop-filter: blur(10px);
+  font: 12px/1.4 Inter, ui-sans-serif, system-ui, sans-serif;
+}
+.astrid-sky-review { width: 300px; padding: 12px 14px 14px; }
+.astrid-sky-review-pill { padding: 8px 12px; cursor: pointer; font-variant-numeric: tabular-nums; }
+.astrid-sky-review header { display: flex; align-items: center; justify-content: space-between; }
+.astrid-sky-review header strong { font-size: 13px; }
+.astrid-sky-review-close { border: 0; background: none; color: var(--astrid-muted); font-size: 18px; line-height: 1; cursor: pointer; }
+.astrid-sky-review-status { margin: 6px 0 10px; font-weight: 600; min-height: 2.8em; }
+.astrid-sky-review-buttons { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.astrid-sky-review button:not(.astrid-sky-review-close) {
+  border: 1px solid var(--astrid-line);
+  border-radius: 7px;
+  background: transparent;
+  color: var(--astrid-ink);
+  padding: 4px 9px;
+  font: inherit;
+  cursor: pointer;
+}
+.astrid-sky-review button[aria-pressed="true"] { border-color: #ed6b23; background: color-mix(in srgb, #ed6b23 14%, transparent); }
+.astrid-sky-review label { display: grid; grid-template-columns: 62px 1fr 48px; align-items: center; gap: 8px; margin: 4px 0; }
+.astrid-sky-review label span { color: var(--astrid-muted); }
+.astrid-sky-review input[type="range"] { width: 100%; accent-color: #ed6b23; }
+.astrid-sky-review output { text-align: right; font-variant-numeric: tabular-nums; }
+.astrid-sky-review-phase { margin: 6px 0 8px; color: var(--astrid-muted); }
+.astrid-sky-review-place select {
+  grid-column: 2 / 4;
+  min-width: 0;
+  padding: 4px 6px;
+  border: 1px solid var(--astrid-line);
+  border-radius: 7px;
+  background: transparent;
+  color: var(--astrid-ink);
+  font: inherit;
+}
+.astrid-sky-review-sun { margin: 0 0 8px; color: var(--astrid-muted); }
+.astrid-sky-review-times { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.astrid-sky-review-times button { display: grid; justify-items: center; }
+.astrid-sky-review-times small { color: var(--astrid-muted); font-variant-numeric: tabular-nums; }
+
+/* Easter egg: the brand mink is a button that turns her to face you and plays a day across the sky. */
+.astrid-brand-mink-button {
+  position: relative;
+  display: grid;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  cursor: pointer;
+}
+/* The rings sit behind her, so they radiate from around her head rather than across her face. */
+.astrid-brand-mink-button .astrid-brand-mink-frame { position: relative; z-index: 1; }
+.astrid-brand-mink-button:focus-visible { outline: 2px solid #ed6b23; outline-offset: 2px; }
+/* Hover: her eye pulses slowly, once each time the pointer arrives. The glow is a copy of the logo
+   file with only the eye recoloured, stacked in the same grid cell with the same size and scale, so it
+   lines up pixel for pixel at any screen density. */
+.astrid-brand-mink-button .astrid-brand-mink { grid-area: 1 / 1; }
+.astrid-brand-mink-glint { opacity: 0; pointer-events: none; }
+.astrid-brand-mink-button:hover .astrid-brand-mink-glint { animation: astrid-mink-glint 2.6s ease-in-out 1; }
+@keyframes astrid-mink-glint { 50% { opacity: 1; } }
+
+/* A one-art-pixel hop as she turns. */
+.astrid-brand-mink-button[data-pose="facing"] .astrid-brand-mink { animation: astrid-mink-hop 260ms steps(2, jump-none) both; }
+@keyframes astrid-mink-hop { 50% { translate: 0 -1.6px; } }
+/* Telekinesis: she levitates one art pixel, bobbing in steps, while psychic rings pulse from her head.
+   Art pixels are drawn at the logo's size (31px × 2.2 scale over a 43-pixel grid ≈ 1.59px). */
+.astrid-brand-mink-button[data-pose="focus"] .astrid-brand-mink { animation: astrid-mink-levitate 1.1s steps(1) infinite; }
+@keyframes astrid-mink-levitate { 0% { translate: 0 -1.6px; } 50% { translate: 0 -3.2px; } }
+.astrid-brand-mink-psychic {
+  --px: 1.59px;
+  position: absolute;
+  /* Centred on her head: 43-grid cell (21.5, 15) inside the 36px frame. */
+  left: calc(18px - 16 * var(--px));
+  top: calc(18px - 6.5 * var(--px) - 16 * var(--px));
+  width: calc(32 * var(--px));
+  height: calc(32 * var(--px));
+  pointer-events: none;
+  image-rendering: pixelated;
+  background: url("/astrid-mink-psychic.png") 0 0 / calc(32 * 5 * var(--px)) 100% no-repeat;
+  animation: astrid-mink-psychic 900ms steps(5) infinite;
+}
+@keyframes astrid-mink-psychic { to { background-position-x: calc(-32 * 5 * var(--px)); } }
+@media (prefers-reduced-motion: reduce) {
+  .astrid-brand-mink-button .astrid-brand-mink { animation: none !important; }
+  .astrid-brand-mink-psychic { display: none; }
+}
+
+
+/* Pixel type, used sparingly for the page's "system" voice: the install line and the BETA tag. Departure
+   Mono (SIL Open Font License, public/fonts/departure-mono) is drawn on an 11px grid, so it is set at 11px. */
+@font-face {
+  font-family: "Departure Mono";
+  src: url("/fonts/departure-mono/DepartureMono-Regular.woff2") format("woff2");
+  font-display: swap;
+}
+.astrid-public-site[data-pixel-mono] .astrid-install-command code {
+  font-family: "Departure Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  letter-spacing: 0;
+}
+.astrid-public-site[data-pixel-beta] .astrid-beta-tag {
+  font-family: "Departure Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: .04em;
+}
+.astrid-pixel-icon { flex: 0 0 auto; }

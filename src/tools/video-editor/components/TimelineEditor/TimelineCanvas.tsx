@@ -120,6 +120,7 @@ export interface TimelineCanvasProps {
   minScaleCount: number;
   maxScaleCount: number;
   selectedTrackId: string | null;
+  readOnly?: boolean;
   getActionRender?: (action: TimelineAction, row: TimelineRow, width: number) => ReactNode;
   /** Selects action kinds that need vertical hit-target lanes when their minimum widths overlap. */
   shouldStackOverlappingActions?: (action: TimelineAction, row: TimelineRow) => boolean;
@@ -331,6 +332,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
   minScaleCount,
   maxScaleCount,
   selectedTrackId,
+  readOnly = false,
   getActionRender,
   shouldStackOverlappingActions,
   onSelectTrack,
@@ -1281,6 +1283,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
             onRemoveTrack={onRemoveTrack}
             onTrackDragEnd={onTrackDragEnd}
             trackSensors={trackSensors}
+            readOnly={readOnly}
           />
           {/* dataKind V1: duration-neutral lane rows below the track rows —
               same scroller and startLeft/pixelsPerSecond mapping, outside the

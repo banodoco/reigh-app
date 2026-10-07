@@ -19,10 +19,8 @@ import {
   planGenerationAssetRegistration,
 } from '@/tools/video-editor/lib/timeline-asset-plans.ts';
 import type { DragCoordinator } from '@/tools/video-editor/hooks/useDragCoordinator.ts';
-import {
-  buildAssetDropEdit,
-  type UseAssetManagementResult,
-} from '@/tools/video-editor/hooks/useAssetManagement.ts';
+import { buildAssetDropEdit } from '@/tools/video-editor/lib/timeline-asset-plans.ts';
+import type { UseAssetManagementResult } from '@/tools/video-editor/hooks/useAssetManagement.ts';
 import { useVideoEditorRuntime } from '@/tools/video-editor/contexts/VideoEditorRuntimeContext.tsx';
 import type {
   TimelineApplyEdit,
@@ -616,6 +614,14 @@ export function useExternalDrop({
   }, [clearExternalDragState]);
 
   const onTimelineDrop = useCallback(async (event: React.DragEvent<HTMLDivElement>) => {
+    const permission = runtime.timelineEditability?.checkTimeline?.();
+    if (permission?.allowed === false) {
+      event.preventDefault();
+      event.stopPropagation();
+      delete event.currentTarget.dataset.dragOver;
+      clearExternalDragState();
+      return;
+    }
     const dropPosition = finalizeExternalDrop({
       event,
       coordinator,
@@ -653,6 +659,7 @@ export function useExternalDrop({
     onSeekToTime?.(dropPosition.time);
   }, [
     coordinator,
+    clearExternalDragState,
     dropAsset,
     getApplyEdit,
     getDataRef,
@@ -665,6 +672,7 @@ export function useExternalDrop({
     resolveAssetUrl,
     directAssetUploadAllFiles,
     mediaImportForImageVideo,
+    runtime.timelineEditability,
     runtime.toast,
     shots,
     finalVideoMap,

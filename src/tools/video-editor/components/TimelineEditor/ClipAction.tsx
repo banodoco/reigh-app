@@ -3,7 +3,7 @@ import React, { useCallback, useContext, useEffect, useLayoutEffect, useRef, use
 import { createPortal } from 'react-dom';
 import { ArrowRight, Clapperboard, Copy, Ellipsis, Film, FolderPlus, ImageIcon, Layers, Loader2, MapPin, MapPinOff, Music2, RefreshCw, Scissors, Sparkles, Trash2, Type, X } from 'lucide-react';
 import { cn } from '@/shared/components/ui/contracts/cn.ts';
-import { MediaVariantPicker } from '@/shared/components/MediaVariantPicker.tsx';
+import type { EditorVariantPicker } from '@/tools/video-editor/runtime/editorHostObservations.ts';
 import type { GenerationVariant } from '@/shared/hooks/variants/useVariants.ts';
 import type { Shot } from '@/domains/generation/types/index.ts';
 import { usePortalMousedownGuard } from '@/shared/hooks/usePortalMousedownGuard.ts';
@@ -31,6 +31,7 @@ interface ContextMenuState {
 }
 
 interface ClipActionProps {
+  VariantPicker?: EditorVariantPicker;
   action: TimelineAction;
   clipMeta: ClipMeta;
   /** Display name for clips projected from a canonical shot occurrence. */
@@ -403,6 +404,7 @@ function ClipActionComponent({
   onUpdateVariant,
   onDismissStale,
   variantPickerGenerationId,
+  VariantPicker,
   variantPickerCurrentVariantId,
   onApplyVariant,
   onAddVariantAsGeneration,
@@ -640,7 +642,7 @@ function ClipActionComponent({
             </div>
           )}
         </div>
-        {variantPickerGenerationId && (
+        {VariantPicker && variantPickerGenerationId && (
           <div
             className={cn(
               'absolute z-20',
@@ -649,7 +651,7 @@ function ClipActionComponent({
             data-no-clip-drag
             onMouseDown={(e) => e.stopPropagation()}
           >
-            <MediaVariantPicker
+            <VariantPicker
               generationId={variantPickerGenerationId}
               currentVariantId={variantPickerCurrentVariantId ?? null}
               onVariantApplied={onApplyVariant}
@@ -852,6 +854,7 @@ function areClipActionPropsEqual(prev: ClipActionProps, next: ClipActionProps): 
     && prev.onAddVariantAsGeneration === next.onAddVariantAsGeneration
     && prev.isAddingVariantAsGeneration === next.isAddingVariantAsGeneration
     && prev.onNavigateToSource === next.onNavigateToSource
+    && prev.VariantPicker === next.VariantPicker
   );
 }
 

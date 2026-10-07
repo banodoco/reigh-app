@@ -12,6 +12,7 @@ import { asRecord } from '@/shared/lib/typeCoercion';
 
 const RUNTIME_TASK_PAGE_LIMIT = 200;
 const RUNTIME_TASK_REFRESH_MS = 2_000;
+const RUNTIME_TASK_IDLE_REFRESH_MS = 10_000;
 
 export type RuntimeTaskAction = 'cancel' | 'retry';
 
@@ -233,7 +234,21 @@ export function useRuntimeTasks(projectId: string | null) {
     queryFn: () => listAllRuntimeTasks(client, projectId!),
     enabled: Boolean(projectId),
     ...QUERY_PRESETS.realtimeBacked,
-    refetchInterval: projectId ? RUNTIME_TASK_REFRESH_MS : false,
+    refetchInterval: (currentQuery) => {
+      if (!projectId) return false;
+
+      // Missing data, an unsuccessful refresh, or any non-terminal state must
+      // keep the faster cadence. This also treats an unexpected future state
+      // conservatively instead of mistaking it for an idle task list.
+      if (currentQuery.state.status !== 'success' || currentQuery.state.data === undefined) {
+        return RUNTIME_TASK_REFRESH_MS;
+      }
+
+      const hasNonTerminalTask = currentQuery.state.data.some(({ state }) => (
+        state !== 'succeeded' && state !== 'failed' && state !== 'cancelled'
+      ));
+      return hasNonTerminalTask ? RUNTIME_TASK_REFRESH_MS : RUNTIME_TASK_IDLE_REFRESH_MS;
+    },
   });
 
   const transitionMutation = useMutation<

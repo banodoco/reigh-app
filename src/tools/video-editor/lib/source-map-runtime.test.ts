@@ -77,6 +77,7 @@ function makeMockTimelineOps(store: ReturnType<typeof makeMockStore>, version: {
       return { version: version.current, entries: [], affectedObjectIds: [] } as TimelineDiff;
     }),
     checkpoint: vi.fn(),
+    flush: async () => { throw new Error('Durable persistence is unavailable in this test host.'); },
     rollback: vi.fn(),
     setAllTracksMuted: vi.fn(),
   };

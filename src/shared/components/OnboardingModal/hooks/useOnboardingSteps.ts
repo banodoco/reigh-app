@@ -1,15 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
+import { AstridSetupStep } from '@/shared/components/OnboardingModal/components/steps/AstridSetupStep';
 import { CommunityStep } from '@/shared/components/OnboardingModal/components/steps/CommunityStep';
-import { IntroductionStep } from '@/shared/components/OnboardingModal/components/steps/IntroductionStep';
-import { SetupCompleteStep } from '@/shared/components/OnboardingModal/components/steps/SetupCompleteStep';
-import { ThemeStep } from '@/shared/components/OnboardingModal/components/steps/ThemeStep';
+import { TextCaseStep } from '@/shared/components/OnboardingModal/components/steps/TextCaseStep';
+import { TimeOfDayStep } from '@/shared/components/OnboardingModal/components/steps/TimeOfDayStep';
 import type { OnboardingStepDefinition } from '@/shared/components/OnboardingModal/types';
 
+/** First run: get the local Runtime going (blocking until it is), two quick appearance choices, then an
+ *  optional invitation to the community that finishes on its own. */
 const ONBOARDING_STEPS: OnboardingStepDefinition[] = [
-  { id: 1, title: 'Welcome', component: IntroductionStep },
-  { id: 2, title: 'Community', component: CommunityStep },
-  { id: 3, title: 'Theme', component: ThemeStep },
-  { id: 4, title: 'Complete', component: SetupCompleteStep },
+  { id: 1, title: 'Set up', component: AstridSetupStep },
+  { id: 2, title: 'Time of day', component: TimeOfDayStep },
+  { id: 3, title: 'Text', component: TextCaseStep },
+  { id: 4, title: 'Community', component: CommunityStep },
 ];
 
 export function useOnboardingSteps(isOpen: boolean) {

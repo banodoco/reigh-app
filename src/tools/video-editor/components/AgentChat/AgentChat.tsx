@@ -3,6 +3,7 @@ import { ChevronDown, ChevronUp, Loader2, Mic, Send, Square, X } from 'lucide-re
 import type { GenerationRow } from '@/domains/generation/types/index.ts';
 import { MediaLightbox } from '@/domains/media-lightbox/MediaLightbox.tsx';
 import { Button } from '@/shared/components/ui/button.tsx';
+import { ConversationPresentation, buildConversationItems } from '@/shared/components/conversation/index.ts';
 import { useAgentChatBridge, useAgentChatActionsRegistry, type AgentChatActionsHandlers } from '@/shared/contexts/AgentChatContext.tsx';
 import { composerClearAttachments, composerRemoveAttachment } from '@/shared/state/selectionStore.ts';
 import { useCurrentAttachmentSet } from '@/shared/state/currentAttachmentSet.ts';
@@ -11,6 +12,9 @@ import {
   isTimelineAgentSessionsAvailable,
   useAgentSession,
   useAgentSessions,
+  useProjectChat,
+  useSaveProjectDraft,
+  useSelectProjectSession,
   useCancelSession,
   useCreateSession,
   useSendMessage,
@@ -23,20 +27,18 @@ import type {
   AgentTurn,
   AgentTurnAttachment,
 } from '@/tools/video-editor/types/agent-session.ts';
-import { AgentChatAttachmentStrip, AgentChatMessage, AgentChatToolGroup, type AgentChatAttachmentPreviewItem } from './AgentChatMessage.tsx';
+import { useChatScroll } from './useChatScroll';
+import { AgentChatAttachmentStrip, type AgentChatAttachmentPreviewItem } from './AgentChatMessage.tsx';
 
-export type ToolCallPair = {
-  call: AgentTurn;
-  result: AgentTurn | null;
-};
-
-export type RenderedTurn =
-  | { kind: 'message'; key: string; turn: AgentTurn }
-  | { kind: 'tool_group'; key: string; pairs: ToolCallPair[] };
+export type {
+  ConversationToolCallPair as ToolCallPair,
+  ConversationItem as RenderedTurn,
+} from '@/shared/components/conversation/contracts.ts';
 
 type QueuedMessage = {
   id: string;
   text: string;
+  sessionId: string;
   attachments: AgentTurnAttachment[];
 };
 
@@ -44,6 +46,8 @@ type OptimisticMessage = QueuedMessage & {
   sentAtMs: number;
   priorTurnCount: number;
 };
+
+const unsavedProjectChatDrafts = new Map<string, { text: string; queue: QueuedMessage[]; dirty: boolean }>();
 
 type AgentSessionView = {
   id: string;
@@ -117,61 +121,6 @@ function readSessionId(value: unknown): string | undefined {
   return undefined;
 }
 
-function buildRenderedTurns(turns: AgentTurn[]): RenderedTurn[] {
-  const items: RenderedTurn[] = [];
-  let pendingToolPairs: ToolCallPair[] = [];
-  let toolGroupStartIndex = 0;
-
-  const flushToolGroup = () => {
-    if (pendingToolPairs.length === 0) return;
-    items.push({
-      kind: 'tool_group',
-      key: `tool-group:${toolGroupStartIndex}`,
-      pairs: pendingToolPairs,
-    });
-    pendingToolPairs = [];
-  };
-
-  for (let index = 0; index < turns.length; index += 1) {
-    const turn = turns[index];
-
-    if (turn.role === 'tool_result') {
-      continue;
-    }
-
-    if (turn.role === 'tool_call') {
-      const nextTurn = turns[index + 1];
-      const pairedResult = nextTurn?.role === 'tool_result' ? nextTurn : null;
-
-      if (pendingToolPairs.length === 0) {
-        toolGroupStartIndex = index;
-      }
-      pendingToolPairs.push({ call: turn, result: pairedResult });
-      if (pairedResult) index += 1;
-      continue;
-    }
-
-    flushToolGroup();
-
-    // Skip assistant messages that duplicate a preceding message_user result
-    if (turn.role === 'assistant' && items.length > 0) {
-      const prev = items[items.length - 1];
-      if (prev.kind === 'message' && prev.turn.content === turn.content) {
-        continue;
-      }
-    }
-
-    items.push({
-      kind: 'message',
-      key: `${turn.timestamp}:${turn.role}:${index}`,
-      turn,
-    });
-  }
-
-  flushToolGroup();
-  return items;
-}
-
 function createMessageId() {
   return globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
 }
@@ -188,6 +137,7 @@ interface AgentChatPanelProps {
 
 export function AgentChatPanel({ isExpanded = false }: AgentChatPanelProps) {
   useRenderDiagnostic('AgentChatPanel');
+  const scope = useAgentChatBridge();
 
   if (!isTimelineAgentSessionsAvailable()) {
     return (
@@ -206,7 +156,7 @@ export function AgentChatPanel({ isExpanded = false }: AgentChatPanelProps) {
     );
   }
 
-  return <AvailableAgentChatPanel isExpanded={isExpanded} />;
+  return <AvailableAgentChatPanel key={scope.editorContext?.projectId ?? 'unscoped'} isExpanded={isExpanded} />;
 }
 
 function AvailableAgentChatPanel({ isExpanded }: { isExpanded: boolean }) {
@@ -217,13 +167,19 @@ function AvailableAgentChatPanel({ isExpanded }: { isExpanded: boolean }) {
     pendingComposerPrompt,
     clearPendingComposerPrompt,
   } = useAgentChatBridge();
-  const sessions = useAgentSessions(timelineId);
-  const createSession = useCreateSession(timelineId);
+  const projectId = editorContext?.projectId ?? null;
+  const sessions = useAgentSessions(projectId);
+  const projectChat = useProjectChat(projectId);
+  const saveDraft = useSaveProjectDraft(projectId);
+  const selectSession = useSelectProjectSession(projectId);
+  const createSession = useCreateSession(projectId);
+  const createNewSession = useCreateSession(projectId, 'new');
   // Engagement signal: when the pane is locked the user has clearly committed to
   // having chat visible, so auto-create can fire without an explicit click.
   const isTasksPaneLocked = usePanesStore((state) => state.isTasksPaneLocked);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
+  const [draftSaveError, setDraftSaveError] = useState<string | null>(null);
   const [queue, setQueue] = useState<QueuedMessage[]>([]);
   const [pausedQueueHeadId, setPausedQueueHeadId] = useState<string | null>(null);
   const [optimisticMessage, setOptimisticMessage] = useState<OptimisticMessage | null>(null);
@@ -233,11 +189,11 @@ function AvailableAgentChatPanel({ isExpanded }: { isExpanded: boolean }) {
   // setIsTasksPaneOpenProgrammatic approach can't recur.
   const [userEngaged, setUserEngaged] = useState(false);
   const hasAutoCreatedSessionRef = useRef(false);
+  const autoCreateOperationIdRef = useRef<string | null>(null);
+  const manualCreateOperationIdRef = useRef<string | null>(null);
   const lightboxRequestIdRef = useRef(0);
-  const bottomAnchorRef = useRef<HTMLDivElement | null>(null);
-  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
-  const hasTimeline = timelineId !== null;
+  const hasProject = Boolean(projectId);
 
   useEffect(() => {
     if (!pendingComposerPrompt) return;
@@ -253,31 +209,116 @@ function AvailableAgentChatPanel({ isExpanded }: { isExpanded: boolean }) {
   const sendMessage = useSendMessage(activeSessionId, editorContext ?? timelineId);
   const cancelSession = useCancelSession(activeSessionId);
   const sessionOptions = useMemo(() => readAgentSessions(sessions.data), [sessions.data]);
+  const hydratedProjectDraftRef = useRef(false);
+  const draftRevisionRef = useRef<number | null>(null);
+  const draftSaveChainRef = useRef<Promise<unknown>>(Promise.resolve());
+  useEffect(() => {
+    if (!projectChat.data || hydratedProjectDraftRef.current) return;
+    hydratedProjectDraftRef.current = true;
+    draftRevisionRef.current = projectChat.data.draft.revision;
+    const restored = projectChat.data.draft.queued_messages ?? [];
+    const savedQueue = restored.map((item) => ({ id: item.id, text: item.text, sessionId: item.session_id, attachments: Array.isArray(item.attachments) ? item.attachments as AgentTurnAttachment[] : [] }));
+    const local = unsavedProjectChatDrafts.get(projectId!);
+    if (local?.dirty) {
+      setDraft(local.text);
+      setQueue(local.queue);
+    } else {
+      setDraft(projectChat.data.draft.text);
+      setQueue(savedQueue);
+    }
+  }, [projectChat.data, projectId]);
+  const draftSnapshotRef = useRef({ text: draft, queue });
+  draftSnapshotRef.current = { text: draft, queue };
+  const flushDraftRef = useRef<() => Promise<void>>(async () => undefined);
+  flushDraftRef.current = async () => {
+    if (!projectId || !hydratedProjectDraftRef.current || draftRevisionRef.current === null) return;
+    const snapshot = draftSnapshotRef.current;
+    const queuePayload = snapshot.queue.map((item) => ({ id: item.id, text: item.text, session_id: item.sessionId, attachments: item.attachments }));
+    draftSaveChainRef.current = draftSaveChainRef.current.catch(() => undefined).then(async () => {
+      try {
+        const result = await saveDraft.mutateAsync({ expectedRevision: draftRevisionRef.current!, text: snapshot.text, queuedMessages: queuePayload });
+        draftRevisionRef.current = result.draft.revision;
+        setDraftSaveError(null);
+        const current = unsavedProjectChatDrafts.get(projectId);
+        if (current && current.text === snapshot.text && JSON.stringify(current.queue) === JSON.stringify(snapshot.queue)) {
+          unsavedProjectChatDrafts.set(projectId, { ...current, dirty: false });
+        }
+      } catch (error) {
+        setDraftSaveError(error instanceof Error ? error.message : String(error));
+        throw error;
+      }
+    });
+    await draftSaveChainRef.current;
+  };
+  useEffect(() => {
+    if (!projectId || !hydratedProjectDraftRef.current) return;
+    const timer = window.setTimeout(() => { void flushDraftRef.current().catch(() => undefined); }, 350);
+    return () => window.clearTimeout(timer);
+  }, [projectId, draft, queue]);
+  useEffect(() => {
+    if (!projectId || !hydratedProjectDraftRef.current) return;
+    unsavedProjectChatDrafts.set(projectId, { text: draft, queue, dirty: true });
+  }, [projectId, draft, queue]);
+  useEffect(() => () => { void flushDraftRef.current().catch(() => undefined); }, []);
+  const restoreSavedDraft = useCallback(async () => {
+    const result = await projectChat.refetch();
+    if (!result.data) return;
+    draftRevisionRef.current = result.data.draft.revision;
+    setDraft(result.data.draft.text);
+    setQueue((result.data.draft.queued_messages ?? []).map((item) => ({ id: item.id, text: item.text, sessionId: item.session_id, attachments: Array.isArray(item.attachments) ? item.attachments as AgentTurnAttachment[] : [] })));
+    unsavedProjectChatDrafts.set(projectId!, { text: result.data.draft.text, queue: (result.data.draft.queued_messages ?? []).map((item) => ({ id: item.id, text: item.text, sessionId: item.session_id, attachments: Array.isArray(item.attachments) ? item.attachments as AgentTurnAttachment[] : [] })), dirty: false });
+    setDraftSaveError(null);
+  }, [projectChat, projectId]);
+  const overwriteSavedDraft = useCallback(async () => {
+    const result = await projectChat.refetch();
+    if (!result.data) return;
+    draftRevisionRef.current = result.data.draft.revision;
+    setDraftSaveError(null);
+    await flushDraftRef.current();
+  }, [projectChat]);
   const activeSessionData = readAgentSession(activeSession.data);
+  useEffect(() => {
+    const selected = projectChat.data?.selected_session_id;
+    if (!selected) return;
+    setActiveSessionId(selected);
+  }, [projectChat.data?.selected_session_id]);
+  const { scrollContainerRef, scrollContentRef, onScroll } = useChatScroll(
+    activeSessionId,
+    !activeSession.isLoading && activeSessionId !== null && activeSessionData?.id === activeSessionId,
+    activeSessionData?.turns.length ?? 0,
+  );
   const { clips, summary } = useCurrentAttachmentSet();
 
   const voice = useAgentVoice({
     onTranscription: (text) => {
-      void handleSend(text);
+      if (isPanelMountedRef.current) void handleSend(text);
     },
   });
   // Stable ref so registered handlers always invoke the current voice closure
   // without re-registering when useVoiceRecording returns new function identities.
   const voiceRef = useRef(voice);
   voiceRef.current = voice;
+  const isPanelMountedRef = useRef(true);
+  useEffect(() => {
+    isPanelMountedRef.current = true;
+    return () => {
+      isPanelMountedRef.current = false;
+      voiceRef.current.cancelRecording();
+    };
+  }, []);
 
   const renderedTurns = useMemo(
-    () => buildRenderedTurns(activeSessionData?.turns ?? []),
+    () => buildConversationItems(activeSessionData?.turns ?? []),
     [activeSessionData?.turns],
   );
   const activeStatus = activeSessionData?.status;
   const isCancelled = activeStatus === 'cancelled';
   const isProcessing = activeStatus === 'processing' || activeStatus === 'continue';
   const showKillSwitch = activeStatus === 'processing' || activeStatus === 'continue';
-  const showNoTimelineState = !hasTimeline && sessionOptions.length === 0;
-  const hasQueuedMessages = queue.length > 0;
-  const inputPlaceholder = showNoTimelineState
-    ? 'Create a timeline to start chatting...'
+  const showNoProjectState = !hasProject && sessionOptions.length === 0;
+  const hasQueuedMessages = queue.some((item) => item.sessionId === activeSessionId);
+  const inputPlaceholder = showNoProjectState
+    ? 'Select a project to start chatting...'
     : voice.isRecording
       ? 'Recording...'
       : (isProcessing || sendMessage.isPending || hasQueuedMessages)
@@ -409,43 +450,30 @@ function AvailableAgentChatPanel({ isExpanded }: { isExpanded: boolean }) {
       || sessions.isError
       || createSession.isPending
       || sessionOptions.length > 0
-      || !hasTimeline
+      || !hasProject
       || !isEngaged
     ) {
       return;
     }
 
     hasAutoCreatedSessionRef.current = true;
-    createSession.mutate(undefined, {
+    autoCreateOperationIdRef.current ??= createMessageId();
+    createSession.mutate(autoCreateOperationIdRef.current, {
       onError: () => { hasAutoCreatedSessionRef.current = false; },
       onSuccess: (session) => {
+        autoCreateOperationIdRef.current = null;
         const sessionId = readSessionId(session);
         if (sessionId) setActiveSessionId(sessionId);
       },
     });
-  }, [createSession, hasTimeline, sessionOptions.length, sessions.isError, sessions.isLoading, isEngaged]);
-
-  const scrollToBottom = useCallback((smooth = true) => {
-    const container = scrollContainerRef.current;
-    if (!container) return;
-    requestAnimationFrame(() => {
-      container.scrollTo({
-        top: container.scrollHeight,
-        behavior: smooth ? 'smooth' : 'instant',
-      });
-    });
-  }, []);
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [renderedTurns, isProcessing, optimisticMessage, scrollToBottom]);
+  }, [createSession, hasProject, sessionOptions.length, sessions.isError, sessions.isLoading, isEngaged]);
 
   // Cmd+Shift+R global shortcut — kept verbatim per plan_v5 Step 4.7.
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key.toLowerCase() === 'r') {
         event.preventDefault();
-        if (!hasTimeline) {
+        if (!hasProject) {
           return;
         }
         if (voice.isRecording) {
@@ -458,10 +486,9 @@ function AvailableAgentChatPanel({ isExpanded }: { isExpanded: boolean }) {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [hasTimeline, voice]);
+  }, [hasProject, voice]);
 
   useEffect(() => {
-    setQueue([]);
     setPausedQueueHeadId(null);
     setOptimisticMessage(null);
   }, [activeSessionId]);
@@ -491,7 +518,7 @@ function AvailableAgentChatPanel({ isExpanded }: { isExpanded: boolean }) {
 
   const sendingRef = useRef(false);
   const sendNow = useCallback(async (item: QueuedMessage) => {
-    if (!activeSessionId || !timelineId) {
+    if (!activeSessionId || !projectId || !editorContext || item.sessionId !== activeSessionId) {
       return;
     }
 
@@ -501,6 +528,7 @@ function AvailableAgentChatPanel({ isExpanded }: { isExpanded: boolean }) {
     sendingRef.current = true;
     setOptimisticMessage({
       id: item.id,
+      sessionId: item.sessionId,
       text: item.text,
       attachments: item.attachments,
       sentAtMs,
@@ -509,10 +537,11 @@ function AvailableAgentChatPanel({ isExpanded }: { isExpanded: boolean }) {
 
     try {
       await sendMessage.mutateAsync({
-        message: item.text,
-        attachments: item.attachments,
+        input: { message: item.text, attachments: item.attachments },
+        projectId,
+        sessionId: item.sessionId,
+        context: editorContext,
       });
-      composerClearAttachments();
     } catch (error) {
       setPausedQueueHeadId(item.id);
       setOptimisticMessage((prev) => (prev && prev.id === item.id ? null : prev));
@@ -520,11 +549,11 @@ function AvailableAgentChatPanel({ isExpanded }: { isExpanded: boolean }) {
     } finally {
       sendingRef.current = false;
     }
-  }, [activeSessionData?.turns.length, activeSessionId, sendMessage, timelineId]);
+  }, [activeSessionData?.turns.length, activeSessionId, editorContext, projectId, sendMessage]);
 
   const handleSend = useCallback(async (rawText?: string) => {
     const text = (rawText ?? draft).trim();
-    if (!text || !activeSessionId || !timelineId) return;
+    if (!text || !activeSessionId || !projectId || !editorContext) return;
 
     const attachments: AgentTurnAttachment[] = clips.map((clip) => ({
       clipId: clip.clipId,
@@ -545,22 +574,24 @@ function AvailableAgentChatPanel({ isExpanded }: { isExpanded: boolean }) {
     const item: QueuedMessage = {
       id: createMessageId(),
       text,
+      sessionId: activeSessionId,
       attachments,
     };
+    composerClearAttachments();
 
     if (
       sendingRef.current
       || isProcessing
       || sendMessage.isPending
       || optimisticMessage
-      || queue.length > 0
+      || queue.some((item) => item.sessionId === activeSessionId)
     ) {
       setQueue((prev) => [...prev, item]);
       return;
     }
 
     await sendNow(item);
-  }, [activeSessionId, clips, draft, isProcessing, optimisticMessage, queue.length, sendMessage.isPending, sendNow, timelineId]);
+  }, [activeSessionId, clips, draft, editorContext, isProcessing, optimisticMessage, projectId, queue, sendMessage.isPending, sendNow]);
 
   useEffect(() => {
     if (
@@ -570,12 +601,12 @@ function AvailableAgentChatPanel({ isExpanded }: { isExpanded: boolean }) {
       || optimisticMessage
       || queue.length === 0
       || !activeSessionId
-      || !timelineId
+      || !projectId
     ) {
       return;
     }
 
-    const next = queue[0];
+    const next = queue.find((item) => item.sessionId === activeSessionId);
     if (!next || next.id === pausedQueueHeadId) {
       return;
     }
@@ -583,25 +614,25 @@ function AvailableAgentChatPanel({ isExpanded }: { isExpanded: boolean }) {
     void (async () => {
       try {
         await sendNow(next);
-        setQueue((prev) => (prev[0]?.id === next.id ? prev.slice(1) : prev));
+        setQueue((prev) => prev.filter((item) => item.id !== next.id));
       } catch {
         // Leave the failed head in place; pausedQueueHeadId will prevent further drains.
       }
     })();
-  }, [queue, pausedQueueHeadId, isProcessing, sendMessage.isPending, optimisticMessage, activeSessionId, timelineId, sendNow]);
+  }, [queue, pausedQueueHeadId, isProcessing, sendMessage.isPending, optimisticMessage, activeSessionId, projectId, sendNow]);
 
   const handleNewSession = useCallback(async () => {
-    if (!hasTimeline) {
+    if (!hasProject) {
       return;
     }
-    setQueue([]);
     setPausedQueueHeadId(null);
     setOptimisticMessage(null);
-    const session = await createSession.mutateAsync();
+    manualCreateOperationIdRef.current ??= createMessageId();
+    const session = await createNewSession.mutateAsync(manualCreateOperationIdRef.current);
+    manualCreateOperationIdRef.current = null;
     const sessionId = readSessionId(session);
     if (sessionId) setActiveSessionId(sessionId);
-    setDraft('');
-  }, [createSession, hasTimeline]);
+  }, [createNewSession, hasProject]);
 
   // ==========================================================================
   // Actions registry — exposes stable handlers the parent (TasksPane split
@@ -647,122 +678,73 @@ function AvailableAgentChatPanel({ isExpanded }: { isExpanded: boolean }) {
   }, [actionsRegistry, voice.isRecording, voice.isProcessing]);
 
   return (
-    // No background of its own — sits on the parent pane's bg so the only
-    // visible color change between halves is the divider line itself.
-    <div className="flex h-full w-full flex-col overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center justify-between border-b border-border/70 px-4 py-3">
-        <div className="flex items-end gap-2">
-          <img
-            src="/astrid-avatar.png"
-            alt=""
-            aria-hidden="true"
-            className="h-5 w-5 rounded-full object-cover"
-          />
-          <span className="text-sm font-medium">Astrid</span>
-          {isProcessing && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
-        </div>
-        <div className="flex items-center gap-1">
-          {showKillSwitch && (
-            <Button
-              type="button"
-              size="icon"
-              variant="destructive"
-              className="h-7 w-7"
-              onClick={() => {
-                setQueue([]);
-                setPausedQueueHeadId(null);
-                setOptimisticMessage(null);
-                cancelSession.mutate();
-              }}
-              disabled={cancelSession.isPending}
-              title="Stop agent"
-            >
-              <Square className="h-3.5 w-3.5" />
-            </Button>
-          )}
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            className="h-7 px-2 text-xs text-muted-foreground"
-            onClick={() => void handleNewSession()}
-            disabled={createSession.isPending || !hasTimeline}
-          >
-            New
-          </Button>
-        </div>
-      </div>
-      {/* Messages */}
-      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto overscroll-contain px-4 py-3">
-        {activeSession.isLoading && (
-          <div className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Loading...
-          </div>
-        )}
-
-        {!activeSession.isLoading && renderedTurns.length === 0 && !isProcessing && !sendMessage.isPending && (
+    <>
+      <ConversationPresentation
+        items={renderedTurns}
+        isLoading={activeSession.isLoading}
+        isProcessing={isProcessing}
+        hasPendingWork={sendMessage.isPending || hasQueuedMessages}
+        hideEmptyState={sendMessage.isPending}
+        optimisticMessage={optimisticMessage}
+        optimisticMaterialized={optimisticTurnAlreadyMaterialized}
+        onAttachmentClick={handleAttachmentPreviewClick}
+        scrollContainerRef={scrollContainerRef}
+        scrollContentRef={scrollContentRef}
+        onScroll={onScroll}
+        emptyState={(
           <div className="py-8 text-center text-sm text-muted-foreground">
             {sessions.isError ? (
               <>
                 <p>Local Astrid chat is unavailable.</p>
                 <p className="mt-1 text-xs">Start the Astrid ACP bridge, then reopen this pane.</p>
               </>
-            ) : showNoTimelineState ? (
+            ) : showNoProjectState ? (
               <>
-                <p>Create a timeline to start chatting.</p>
-                <p className="mt-1 text-xs">Open the video editor to create one.</p>
+                <p>Select a project to start chatting.</p>
+                <p className="mt-1 text-xs">Open a project to create a conversation.</p>
               </>
             ) : (
               <>
-                <p>Ask me to edit your timeline.</p>
+                <p>✨ I can do almost anything</p>
                 <p className="mt-1 text-xs">Press <kbd className="rounded border border-border px-1 py-0.5 text-[10px]">Cmd+Shift+R</kbd> to talk</p>
               </>
             )}
           </div>
         )}
-
-        <div className="flex flex-col gap-2.5">
-          {renderedTurns.map((item) =>
-            item.kind === 'message' ? (
-              <AgentChatMessage
-                key={item.key}
-                turn={item.turn}
-                onAttachmentClick={handleAttachmentPreviewClick}
-              />
-            ) : (
-              <AgentChatToolGroup key={item.key} pairs={item.pairs} />
-            ),
-          )}
-
-          {optimisticMessage && !optimisticTurnAlreadyMaterialized && (
-            <div className="flex w-full justify-end">
-              <div className="max-w-[85%] rounded-2xl bg-primary px-4 py-2.5 text-sm leading-relaxed text-primary-foreground shadow-sm">
-                <div>{optimisticMessage.text}</div>
-                {optimisticMessage.attachments.length > 0 && (
-                  <AgentChatAttachmentStrip
-                    attachments={optimisticMessage.attachments}
-                    isUser
-                  />
-                )}
-              </div>
-            </div>
-          )}
-
-          {(isProcessing || sendMessage.isPending || optimisticMessage || hasQueuedMessages) && (
-            <div className="flex items-center gap-2 py-1 text-xs text-muted-foreground">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              Thinking...
-            </div>
-          )}
-        </div>
-
-        <div ref={bottomAnchorRef} />
-      </div>
-
-      {/* Input bar */}
-      <div className="border-t border-border/70 px-3 py-3">
+        headerActions={(
+          <>
+            {showKillSwitch && (
+              <Button
+                type="button"
+                size="icon"
+                variant="destructive"
+                className="h-7 w-7"
+                onClick={() => {
+                  setQueue([]);
+                  setPausedQueueHeadId(null);
+                  setOptimisticMessage(null);
+                  cancelSession.mutate();
+                }}
+                disabled={cancelSession.isPending}
+                title="Stop agent"
+              >
+                <Square className="h-3.5 w-3.5" />
+              </Button>
+            )}
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              className="h-7 px-2 text-xs text-muted-foreground"
+              onClick={() => void handleNewSession()}
+              disabled={createSession.isPending || !hasProject}
+            >
+              New
+            </Button>
+          </>
+        )}
+        footer={(
+          <>
         {queue.length > 0 && (
           <div className="mb-2 flex flex-col gap-2">
             {queue.map((item, index) => (
@@ -894,7 +876,7 @@ function AvailableAgentChatPanel({ isExpanded }: { isExpanded: boolean }) {
               rows={isExpanded ? 8 : 4}
               placeholder={inputPlaceholder}
               className="min-h-10 w-full resize-none rounded-xl border border-border/70 bg-card px-3 py-2 pr-12 text-sm leading-5 outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-primary/50"
-              disabled={!hasTimeline || !activeSessionId || isCancelled || voice.isRecording || voice.isProcessing}
+              disabled={!hasProject || !activeSessionId || isCancelled || voice.isRecording || voice.isProcessing}
               onKeyDown={(event) => {
                 if (event.key === 'Enter' && !event.shiftKey) {
                   event.preventDefault();
@@ -913,7 +895,7 @@ function AvailableAgentChatPanel({ isExpanded }: { isExpanded: boolean }) {
                     ? 'relative h-full w-full rounded-xl bg-red-500 text-white transition-colors hover:bg-red-600'
                     : 'relative h-full w-full rounded-xl bg-muted/80 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground'}
                   onClick={() => voice.isRecording ? voice.stopRecording() : voice.startRecording()}
-                  disabled={!hasTimeline || !activeSessionId || isCancelled || voice.isProcessing || sendMessage.isPending}
+                  disabled={!hasProject || !activeSessionId || isCancelled || voice.isProcessing || sendMessage.isPending}
                   title={voice.isRecording ? 'Stop recording' : 'Voice input (Cmd+Shift+R)'}
                 >
                   {voice.isRecording ? <Square className="h-3 w-3" /> : <Mic className="h-3.5 w-3.5" />}
@@ -939,7 +921,7 @@ function AvailableAgentChatPanel({ isExpanded }: { isExpanded: boolean }) {
                   variant="default"
                   className="h-full w-full rounded-xl"
                   onClick={() => void handleSend()}
-                  disabled={!hasTimeline || !draft.trim() || !activeSessionId || isCancelled}
+                  disabled={!hasProject || !draft.trim() || !activeSessionId || isCancelled}
                   title="Send"
                 >
                   <Send className="h-4 w-4" />
@@ -948,7 +930,9 @@ function AvailableAgentChatPanel({ isExpanded }: { isExpanded: boolean }) {
             </div>
           </div>
         </div>
-      </div>
+          </>
+        )}
+      />
 
       {attachmentLightboxMedia && (
         <MediaLightbox
@@ -958,6 +942,6 @@ function AvailableAgentChatPanel({ isExpanded }: { isExpanded: boolean }) {
           features={{ showDownload: true, showTaskDetails: true }}
         />
       )}
-    </div>
+    </>
   );
 }

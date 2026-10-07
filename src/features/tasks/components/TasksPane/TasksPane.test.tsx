@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { TasksPane } from './TasksPane';
 
@@ -309,6 +309,105 @@ describe('TasksPane', () => {
     }));
   });
 
+  it('defaults to the status strip above expanded chat and peeks without remounting chat', () => {
+    const { container } = renderTasksPane();
+    const chat = screen.getByTestId('agent-chat-panel');
+    const strip = container.querySelector('[data-task-peek-surface="header"]')!;
+    expect(chat).toHaveAttribute('data-expanded', 'true');
+    expect(screen.queryByTestId('task-list')).toBeNull();
+    expect(screen.getAllByRole('button', { name: 'Lock tasks open' })[0]).toBeTruthy();
+    expect(paneControlProps.actions.thirdButton.ariaLabel).toBe('Open Action pane (2 active tasks)');
+
+    fireEvent.mouseEnter(strip);
+    expect(screen.getByTestId('task-list')).toBeTruthy();
+    const taskPanel = container.querySelector('[data-task-peek-surface="tasks"]')!;
+    expect(taskPanel.classList.contains('relative')).toBe(true);
+    expect(taskPanel.classList.contains('absolute')).toBe(false);
+    expect(taskPanel.classList.contains('h-[calc(50%_-_5rem)]')).toBe(true);
+    expect(chat).toHaveAttribute('data-expanded', 'false');
+    fireEvent.mouseLeave(strip, { relatedTarget: taskPanel });
+    fireEvent.mouseEnter(taskPanel);
+    expect(screen.getByTestId('task-list')).toBeTruthy();
+    const popupView = render(<div role="listbox" />);
+    const popup = screen.getByRole('listbox');
+    fireEvent.mouseLeave(taskPanel, { relatedTarget: popup });
+    expect(screen.getByTestId('task-list')).toBeTruthy();
+    popupView.unmount();
+    fireEvent.mouseLeave(taskPanel, { relatedTarget: chat });
+    expect(screen.queryByTestId('task-list')).toBeNull();
+    expect(screen.getByTestId('agent-chat-panel')).toBe(chat);
+    expect(chat).toHaveAttribute('data-expanded', 'true');
+    expect(toggleLockMock).not.toHaveBeenCalled();
+  });
+
+  it('status clicks and keyboard focus peek tasks; pinning restores the persistent split', () => {
+    renderTasksPane();
+    const processing = screen.getByRole('button', { name: 'Show processing tasks (2)' });
+    fireEvent.focus(processing);
+    expect(screen.getByTestId('task-list')).toBeTruthy();
+    fireEvent.blur(processing, { relatedTarget: document.body });
+    expect(screen.queryByTestId('task-list')).toBeNull();
+    for (const filter of ['Processing', 'Succeeded', 'Failed']) {
+      fireEvent.click(screen.getByRole('button', { name: new RegExp(`Show ${filter.toLowerCase()} tasks`) }));
+      expect(handleFilterChangeMock).toHaveBeenLastCalledWith(filter);
+      expect(screen.getByTestId('task-list')).toBeTruthy();
+    }
+    fireEvent.click(screen.getAllByRole('button', { name: 'Lock tasks open' })[0]);
+    expect(screen.getByTestId('agent-chat-panel')).toHaveAttribute('data-expanded', 'false');
+    expect(screen.getByTestId('task-list')).toBeTruthy();
+    expect(window.localStorage.setItem).toHaveBeenCalledWith('tasksPane:expandedHalf', 'split');
+  });
+
+  it('the sole header lock reserves half the pane including its header, and unlock restores compact mode', () => {
+    const { container } = renderTasksPane();
+    const chat = screen.getByTestId('agent-chat-panel');
+    fireEvent.click(screen.getByRole('button', { name: 'Show processing tasks (2)' }));
+    const panel = container.querySelector<HTMLElement>('[data-task-peek-surface="tasks"]')!;
+    const header = container.querySelector<HTMLElement>('[data-task-peek-surface="header"]')!;
+    // The 5rem header is included in the task half, not added on top of it.
+    expect(header.classList.contains('h-20')).toBe(true);
+    expect(panel.classList.contains('h-[calc(50%_-_5rem)]')).toBe(true);
+    expect(screen.getAllByRole('button', { name: 'Lock tasks open' })).toHaveLength(1);
+    expect(within(panel).queryByRole('button', { name: 'Lock tasks open' })).toBeNull();
+    const lock = within(header).getByRole('button', { name: 'Lock tasks open' });
+    expect(lock.className).toContain('group-hover/tasks-header:opacity-100');
+    expect(lock.className).toContain('focus-visible:opacity-100');
+    fireEvent.click(lock);
+    expect(panel.classList.contains('h-[calc(50%_-_5rem)]')).toBe(true);
+    expect(panel.classList.contains('absolute')).toBe(false);
+    fireEvent.mouseLeave(panel, { relatedTarget: chat });
+    expect(screen.getByTestId('task-list')).toBeTruthy();
+    expect(screen.getByTestId('agent-chat-panel')).toBe(chat);
+    expect(within(header).getByRole('button', { name: 'Unlock tasks' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.queryByRole('button', { name: 'Expand chat to fill pane' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Expand tasks to fill pane' })).toBeNull();
+    fireEvent.click(within(header).getByRole('button', { name: 'Unlock tasks' }));
+    expect(screen.queryByTestId('task-list')).toBeNull();
+    expect(screen.getByTestId('agent-chat-panel')).toBe(chat);
+    expect(window.localStorage.setItem).toHaveBeenCalledWith('tasksPane:expandedHalf', 'chat');
+  });
+
+  it('migrates the old tasks-full preference into pinned half-height with chat visible', () => {
+    (window.localStorage.getItem as ReturnType<typeof vi.fn>).mockImplementation((key: string) => key === 'tasksPane:expandedHalf' ? 'tasks' : null);
+    renderTasksPane();
+    expect(screen.getByTestId('agent-chat-panel')).toBeTruthy();
+    expect(screen.getByTestId('task-list')).toBeTruthy();
+    expect(window.localStorage.setItem).toHaveBeenCalledWith('tasksPane:expandedHalf', 'split');
+  });
+
+  it('preserves an explicit split preference and shows tasks on non-tool routes', () => {
+    (window.localStorage.getItem as ReturnType<typeof vi.fn>).mockImplementation((key: string) => key === 'tasksPane:expandedHalf' ? 'split' : null);
+    const view = renderTasksPane();
+    expect(screen.getByTestId('agent-chat-panel')).toHaveAttribute('data-expanded', 'false');
+    expect(screen.getByTestId('task-list')).toBeTruthy();
+    view.unmount();
+    useLocationMock.mockReturnValue({ pathname: '/projects' });
+    (window.localStorage.getItem as ReturnType<typeof vi.fn>).mockReturnValue('chat');
+    renderTasksPane();
+    expect(screen.queryByTestId('agent-chat-panel')).toBeNull();
+    expect(screen.getByTestId('task-list')).toBeTruthy();
+  });
+
   it('keeps the split button hidden until AgentChatPanel registers actions', () => {
     useAgentChatActionsMock.mockReturnValue(null);
 
@@ -360,8 +459,8 @@ describe('TasksPane', () => {
 
     expect(screen.getByTestId('agent-chat-panel')).toHaveAttribute('data-expanded', 'true');
     expect(window.localStorage.setItem).toHaveBeenCalledWith('tasksPane:expandedHalf', 'chat');
-    fireEvent.click(screen.getByRole('button', { name: 'Restore split layout' }));
-    expect(window.localStorage.removeItem).toHaveBeenCalledWith('tasksPane:expandedHalf');
+    fireEvent.click(screen.getAllByRole('button', { name: 'Lock tasks open' })[0]);
+    expect(window.localStorage.setItem).toHaveBeenCalledWith('tasksPane:expandedHalf', 'split');
   });
 
   it('routes the explicit Runtime editor identity to the Runtime task list', () => {
@@ -384,6 +483,7 @@ describe('TasksPane', () => {
     expect(useTasksPaneControllerMock).toHaveBeenCalledWith(expect.objectContaining({
       runtimeProjectId: 'runtime-project',
     }));
+    fireEvent.click(screen.getByRole('button', { name: 'Show processing tasks (2)' }));
     expect(screen.getByTestId('runtime-task-list')).toHaveAttribute('data-runtime-task-id', 'runtime-task-1');
     expect(screen.queryByTestId('task-list')).not.toBeInTheDocument();
   });

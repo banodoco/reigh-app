@@ -1,4 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import type { JsonRpcProcessLike } from './jsonRpcStdioTransport.ts';
 import {
   ASTRID_ACP_COMMAND,
@@ -9,6 +12,8 @@ import {
   resolveReighAcpBridgeConfig,
   type ReighAcpBridgeConfig,
 } from '../../../../../scripts/reigh-acp-bridge.ts';
+import { ProjectChatRegistry } from '../../../../../scripts/reigh-project-chat.ts';
+import { ApiError, type Project } from '@/integrations/runtime/generated.ts';
 
 type Listener = (...args: unknown[]) => void;
 
@@ -100,6 +105,59 @@ function headers(token = 'test-token'): Record<string, string> {
 }
 
 describe('Reigh ACP HTTP bridge', () => {
+  it('routes project session creation, selection, draft persistence, and ownership-checked prompts', async () => {
+    const fakeProcess = new FakeProcess();
+    const storedProject: Project = { project_id: 'p1', realm_id: 'realm-a', slug: 'p1', name: 'P1', metadata: {}, version: 1, created_at: '', updated_at: '' };
+    const projectStore = {
+      getProject: async () => structuredClone(storedProject),
+      listProjects: async () => ({ items: [structuredClone(storedProject)], next_cursor: null }),
+      updateProject: async (_id: string, _key: string, expected: number, _name?: string, metadata?: Record<string, unknown>) => {
+        if (expected !== storedProject.version) throw new ApiError(409, 'version_conflict', 'changed');
+        storedProject.metadata = structuredClone(metadata ?? storedProject.metadata);
+        storedProject.version += 1;
+        return structuredClone(storedProject);
+      },
+    };
+    const { bridge, server } = createReighAcpHttpServer({
+      config: { token: 'test-token', port: 0, cwd: '/tmp/reigh-project', profile: 'astrid', systemPromptFile: '/tmp/astrid.md', command: ASTRID_ACP_COMMAND },
+      idFactory: () => 'connection-1',
+      chatRegistry: new ProjectChatRegistry(projectStore as never, 'omp-store', Date.now, mkdtempSync(join(tmpdir(), 'reigh-bridge-chat-'))),
+      hostFactory: options => createAstridAcpProcessHost({ ...options, fileIsRegularFile: () => true, spawnProcess: () => fakeProcess.asProcess() }),
+    });
+    const base = `http://127.0.0.1:${await listen(server)}`;
+    const connecting = fetch(`${base}/connect`, { method: 'POST', headers: headers(), body: '{}' });
+    await waitForRequest(fakeProcess);
+    respond(fakeProcess, lastRequest(fakeProcess).id, { agentCapabilities: { loadSession: true } });
+    await connecting;
+
+    const read = async () => fetch(`${base}/projects/p1/chat`, { headers: headers() });
+    expect(await (await read()).json()).toMatchObject({ selected_session_id: null, sessions: [] });
+    const beforeCreate = fakeProcess.stdin.writes.length;
+    const creating = fetch(`${base}/projects/p1/chat/sessions`, { method: 'POST', headers: headers(), body: JSON.stringify({ connection_id: 'connection-1', mode: 'new', operation_id: 'new-op' }) });
+    await waitForRequest(fakeProcess, beforeCreate);
+    const createRequest = lastRequest(fakeProcess);
+    expect(createRequest).toMatchObject({ method: 'session/new', params: { cwd: '/tmp/reigh-project', mcpServers: [] } });
+    respond(fakeProcess, createRequest.id, { sessionId: 'session-1' });
+    const created = await (await creating).json() as { selected_session_id: string };
+    expect(created.selected_session_id).toBe('session-1');
+
+    const savedDraft = await fetch(`${base}/projects/p1/chat/draft`, { method: 'PATCH', headers: headers(), body: JSON.stringify({ expected_revision: 0, text: 'draft', queued_messages: [{ id: 'q1', text: 'queued', session_id: 'session-1' }] }) });
+    expect(await savedDraft.json()).toMatchObject({ draft: { text: 'draft', queued_messages: [{ id: 'q1' }] } });
+    const foreignPrompt = await fetch(`${base}/projects/p1/chat/prompt`, { method: 'POST', headers: headers(), body: JSON.stringify({ connection_id: 'connection-1', session_id: 'foreign', prompt: [] }) });
+    expect(foreignPrompt.status).toBe(403);
+
+    const beforePrompt = fakeProcess.stdin.writes.length;
+    const prompting = fetch(`${base}/projects/p1/chat/prompt`, { method: 'POST', headers: headers(), body: JSON.stringify({ connection_id: 'connection-1', session_id: 'session-1', prompt: [{ type: 'text', text: 'hello' }] }) });
+    await waitForRequest(fakeProcess, beforePrompt);
+    const prompt = lastRequest(fakeProcess);
+    expect(prompt).toMatchObject({ method: 'session/prompt', params: { sessionId: 'session-1' } });
+    respond(fakeProcess, prompt.id, { stopReason: 'end_turn' });
+    await expect((await prompting).json()).resolves.toEqual({ result: { stopReason: 'end_turn' } });
+
+    await bridge.close();
+    await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
+  });
+
   it('defaults to OMP canonical session storage when no override is configured', () => {
     expect(resolveReighAcpBridgeConfig({
       ASTRID_BRIDGE_TOKEN: 'test-token',
@@ -116,6 +174,85 @@ describe('Reigh ACP HTTP bridge', () => {
       ASTRID_ACP_PROFILE: 'astrid',
       ASTRID_ACP_SESSION_DIR: '/tmp/reigh-legacy-sessions',
     }).sessionDir).toBe('/tmp/reigh-legacy-sessions');
+  });
+
+  it('limits session config changes to advertised model/thinking values on an owned session', async () => {
+    const fakeProcess = new FakeProcess();
+    const { bridge, server } = createReighAcpHttpServer({
+      config: {
+        token: 'test-token', port: 0, cwd: '/tmp/reigh-project', profile: 'astrid',
+        systemPromptFile: '/tmp/astrid.md', command: ASTRID_ACP_COMMAND,
+      },
+      hostFactory: (options) => createAstridAcpProcessHost({
+        ...options,
+        fileIsRegularFile: () => true,
+        spawnProcess: () => fakeProcess.asProcess(),
+      }),
+    });
+    const port = await listen(server);
+    const base = `http://127.0.0.1:${port}`;
+    const connecting = fetch(`${base}/connect`, { method: 'POST', headers: headers(), body: '{}' });
+    await waitForRequest(fakeProcess);
+    const initialize = lastRequest(fakeProcess);
+    respond(fakeProcess, initialize.id, { agentCapabilities: { loadSession: true } });
+    const { connection_id: connectionId } = await (await connecting).json() as { connection_id: string };
+
+    const options = [
+      { id: 'model', currentValue: 'openai-codex/gpt-5.6-sol', options: [
+        { value: 'openai-codex/gpt-5.6-sol' }, { value: 'openai-codex/gpt-5.6-luna' },
+      ] },
+      { id: 'thinking', currentValue: 'high', options: [{ value: 'high' }, { value: 'xhigh' }] },
+    ];
+    const afterInitialize = fakeProcess.stdin.writes.length;
+    const resuming = fetch(`${base}/${connectionId}/rpc`, {
+      method: 'POST', headers: headers(),
+      body: JSON.stringify({ method: 'session/resume', params: { sessionId: 'owned-session' } }),
+    });
+    await waitForRequest(fakeProcess, afterInitialize);
+    const resume = lastRequest(fakeProcess);
+    respond(fakeProcess, resume.id, { sessionId: 'owned-session', configOptions: options });
+    await resuming;
+
+    const afterResume = fakeProcess.stdin.writes.length;
+    const setting = fetch(`${base}/${connectionId}/rpc`, {
+      method: 'POST', headers: headers(),
+      body: JSON.stringify({ method: 'session/set_config_option', params: {
+        sessionId: 'owned-session', configId: 'model', value: 'openai-codex/gpt-5.6-luna',
+      } }),
+    });
+    await waitForRequest(fakeProcess, afterResume);
+    const setModel = lastRequest(fakeProcess);
+    expect(setModel).toMatchObject({
+      method: 'session/set_config_option',
+      params: { sessionId: 'owned-session', configId: 'model', value: 'openai-codex/gpt-5.6-luna' },
+    });
+    const updatedOptions = [
+      { ...options[0], currentValue: 'openai-codex/gpt-5.6-luna' }, options[1],
+    ];
+    respond(fakeProcess, setModel.id, { configOptions: updatedOptions });
+    await expect((await setting).json()).resolves.toEqual({ result: { configOptions: updatedOptions } });
+
+    const afterSet = fakeProcess.stdin.writes.length;
+    const rejected = await fetch(`${base}/${connectionId}/rpc`, {
+      method: 'POST', headers: headers(),
+      body: JSON.stringify({ method: 'session/set_config_option', params: {
+        sessionId: 'owned-session', configId: 'model', value: 'openai-codex/gpt-5.6-sol', persist: true,
+      } }),
+    });
+    expect(rejected.status).toBe(400);
+    expect(fakeProcess.stdin.writes).toHaveLength(afterSet);
+
+    const foreign = await fetch(`${base}/${connectionId}/rpc`, {
+      method: 'POST', headers: headers(),
+      body: JSON.stringify({ method: 'session/set_config_option', params: {
+        sessionId: 'other-session', configId: 'thinking', value: 'xhigh',
+      } }),
+    });
+    expect(foreign.status).toBe(400);
+    expect(fakeProcess.stdin.writes).toHaveLength(afterSet);
+
+    await bridge.close();
+    await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
   });
 
   it('forwards browser lifecycle controls with host-owned cwd and ephemeral connection identity', async () => {

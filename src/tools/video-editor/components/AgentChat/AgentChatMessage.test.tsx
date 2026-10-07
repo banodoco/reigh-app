@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
+import { buildAttachedSummary } from '@/tools/video-editor/hooks/useSelectedMediaClips.ts';
 import { AgentChatAttachmentStrip, AgentChatMessage } from './AgentChatMessage';
 
 describe('AgentChatMessage', () => {
@@ -98,6 +99,54 @@ describe('AgentChatMessage', () => {
     );
 
     expect(screen.getByText('1 shot (4 images) and 2 more images attached')).toBeInTheDocument();
+  });
+
+  it('excludes every attachment from a completed shot summary when siblings omit selection metadata', () => {
+    render(
+      <AgentChatMessage
+        turn={{
+          role: 'user',
+          content: 'Use these',
+          timestamp: '2026-09-27T00:00:00.000Z',
+          attachments: [
+            { clipId: 'shot-a', url: 'https://example.com/a.png', mediaType: 'image', shotId: 'shot-1', shotSelectionClipCount: 2 },
+            { clipId: 'shot-b', url: 'https://example.com/b.png', mediaType: 'image', shotId: 'shot-1', shotSelectionClipCount: 2 },
+            { clipId: 'shot-extra', url: 'https://example.com/c.mp4', mediaType: 'video', shotId: 'shot-1' },
+            { clipId: 'outside', url: 'https://example.com/d.mp4', mediaType: 'video' },
+          ],
+        }}
+      />,
+    );
+
+    expect(screen.getByText('1 shot (2 images) and 1 more video attached')).toBeInTheDocument();
+    expect(screen.queryByText('1 shot (2 images) and 2 more videos attached')).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ['uniform negative', [-2, -2]],
+    ['uniform fractional', [1.5, 1.5]],
+    ['mixed negative and valid', [-2, 1]],
+    ['mixed fractional and valid', [1.5, 1]],
+  ])('matches the original app summary for %s shot selection metadata', (_label, counts) => {
+    const attachments = [
+      { clipId: 'shot-a', url: 'https://example.com/a.png', mediaType: 'image' as const, shotId: 'shot-1', shotSelectionClipCount: counts[0] },
+      { clipId: 'shot-b', url: 'https://example.com/b.mp4', mediaType: 'video' as const, shotId: 'shot-1', shotSelectionClipCount: counts[1] },
+    ];
+    const baseline = buildAttachedSummary(attachments);
+    expect(baseline).not.toBeNull();
+
+    render(
+      <AgentChatMessage
+        turn={{
+          role: 'user',
+          content: 'Use these malformed metadata fixtures',
+          timestamp: '2026-09-27T00:00:00.000Z',
+          attachments,
+        }}
+      />,
+    );
+
+    expect(screen.getByText(baseline!)).toBeInTheDocument();
   });
 
   it('calls the attachment click handler for clickable previews', () => {

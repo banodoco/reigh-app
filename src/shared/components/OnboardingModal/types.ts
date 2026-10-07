@@ -1,5 +1,7 @@
 export interface OnboardingModalProps {
   isOpen: boolean;
+  /** `reconnect` shows only the "start your Runtime" step (see useOnboarding). */
+  mode?: 'first-run' | 'reconnect';
   onClose: () => void;
 }
 

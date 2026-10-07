@@ -72,7 +72,12 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     include: ['src/**/*.test.{ts,tsx}'],
-    exclude: ['supabase/functions/**'],
+    exclude: [
+      'supabase/functions/**',
+      // This suite imports Astrid's selected Remotion composition and has its
+      // own config so its linked workspace aliases resolve to Astrid's pack.
+      'src/tools/video-editor/runtime/astridSceneComposition.test.tsx',
+    ],
     setupFiles: [path.resolve(projectRoot, 'src/test/setup.ts')],
   },
 });

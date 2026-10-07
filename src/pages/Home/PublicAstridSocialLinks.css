@@ -1,0 +1,12 @@
+.astrid-social-links { display: flex; gap: 2px; }
+.astrid-social-links a {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: 8px;
+  color: var(--astrid-muted);
+  transition: color 160ms ease, background-color 160ms ease;
+}
+.astrid-social-links a:hover { color: var(--astrid-ink); background: color-mix(in srgb, var(--astrid-ink) 6%, transparent); }
+.astrid-social-links a:focus-visible { outline: 2px solid #a94714; outline-offset: 2px; }

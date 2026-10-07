@@ -42,6 +42,30 @@ describe('Astrid boot capability census', () => {
     });
   });
 
+  it('accepts historical task identities during the GET capability probe', async () => {
+    const router = createFakeBridgeRouter();
+    installFetch(async (request) => {
+      if (new URL(request.url).pathname.endsWith('/tasks')) {
+        return Response.json({
+          items: [{
+            task_id: 'historical-task', run_id: 'historical-run', project_id: 'demo',
+            state: 'succeeded', version: 1, capability_id: 'render_export',
+            capability_digest: 'a'.repeat(64), schema_version: '1',
+            input_object_ids: [`sha256:${'b'.repeat(64)}`], spec: {}, idempotency_key: 'historical-task',
+            created_at: '2026-09-24T10:00:00Z', updated_at: '2026-09-24T10:01:00Z',
+            attempt_id: null, runtime_epoch: 1,
+          }],
+          next_cursor: null,
+        });
+      }
+      return router.handle(request);
+    });
+
+    await expect(inspectAstridCapabilities()).resolves.toMatchObject({
+      health: 'available', readiness: 'ready', capabilities: { tasks: 'supported' },
+    });
+  });
+
   it('reports a healthy older bridge as degraded and probes each absent route only once', async () => {
     const router = createFakeBridgeRouter();
     installFetch(async (request) => {

@@ -13,7 +13,6 @@ import {
   bridgeTaskAdmissionResponseSchema,
   runtimeMutationSchema,
   runtimeEventPageSchema,
-  runtimeTaskPageSchema,
   runtimeTaskResourceSchema,
   type BridgeCancelRequest,
   type BridgeCancelResponse,
@@ -26,6 +25,7 @@ import {
   runtimeTaskToDetail,
   runtimeTaskToSummary,
 } from './runtimeReadModels.ts';
+import { runtimeTaskReadPageSchema, runtimeTaskReadResourceSchema } from './taskReadSchemas.ts';
 
 const runtimeTaskMutationSchema = runtimeMutationSchema(runtimeTaskResourceSchema);
 
@@ -133,7 +133,7 @@ export class AstridLocalTaskRoutes {
     const page = await this.request(() => this.transport.requestJson(
       this.projectTasksPath() + query,
       {},
-      runtimeTaskPageSchema,
+      runtimeTaskReadPageSchema,
       'task list',
     ));
     return {
@@ -148,7 +148,7 @@ export class AstridLocalTaskRoutes {
     const resource = await this.request(() => this.transport.requestJson(
       `/v1/tasks/${encodeURIComponent(taskId)}`,
       {},
-      runtimeTaskResourceSchema,
+      runtimeTaskReadResourceSchema,
       'task detail',
     ));
     return runtimeTaskToDetail(resource, this.projectSlug);

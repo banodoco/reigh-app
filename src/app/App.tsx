@@ -1,4 +1,5 @@
 import React, { Suspense } from 'react';
+import { useApplyDarkModeTheme } from '@/app/hooks/useApplyDarkModeTheme';
 import { BrowserRouter } from 'react-router-dom';
 import { TooltipProvider } from '@/shared/components/ui/tooltip';
 import { Toaster as Sonner } from '@/shared/components/ui/runtime/sonner';
@@ -57,6 +58,9 @@ const AppInternalContent: React.FC = () => {
       coordinateGetter: sortableKeyboardCoordinates,
     })
   );
+
+  // Astrid's palette for the time of day, across every screen of the app.
+  useApplyDarkModeTheme();
 
   return (
     <TooltipProvider>

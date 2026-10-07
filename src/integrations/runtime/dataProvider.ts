@@ -367,7 +367,7 @@ export class RuntimeDataProvider implements DataProvider {
     if (bundle !== undefined && bundle !== null) parseTimelineBundle(bundle);
     const { bundle: _storedBundle, ...configWithoutBundle } = configRecord;
     return {
-      config: withDefaultTimelineOutput(configWithoutBundle as Partial<TimelineConfig>),
+      config: { ...configWithoutBundle, ...withDefaultTimelineOutput(configWithoutBundle as Partial<TimelineConfig>) },
       configVersion: runtimeVersion(record),
       ...(bundle === null ? { bundle: null } : bundle === undefined ? {} : { bundle: bundle as TimelineBundleEnvelope }),
     };
@@ -390,7 +390,7 @@ export class RuntimeDataProvider implements DataProvider {
     const { bundle: _storedBundle, ...configWithoutBundle } = configRecord;
     return {
       timeline: {
-        config: withDefaultTimelineOutput(configWithoutBundle as Partial<TimelineConfig>),
+        config: { ...configWithoutBundle, ...withDefaultTimelineOutput(configWithoutBundle as Partial<TimelineConfig>) },
         configVersion: runtimeVersion(record),
         ...(bundle === null ? { bundle: null } : bundle === undefined ? {} : { bundle: bundle as TimelineBundleEnvelope }),
       },
@@ -443,6 +443,9 @@ export class RuntimeDataProvider implements DataProvider {
     const parentComposition: RuntimeRecord = {
       ...current.parentComposition,
       config: configForWire,
+      // Runtime inspection/admission accept either clip location, but reject
+      // divergent non-empty lists. Publish both together, including deletions.
+      clips: config.clips,
       registry: nextRegistry,
     };
     const idempotencyKey = await stableTimelinePublicationKey(
@@ -681,6 +684,7 @@ export class RuntimeDataProvider implements DataProvider {
       if (!config) {
         throw new TimelineSchemaIncompatibleError('Workspace Runtime canonical timeline has no config object');
       }
+      const clips = canonicalParentClips(parentComposition, config);
       const previous = this.canonicalTimelineState.get(timelineId);
       const version = previous && previous.headRevisionId === headRevisionId
         ? previous.version
@@ -694,7 +698,7 @@ export class RuntimeDataProvider implements DataProvider {
         project_id: this.projectId,
         timeline_id: timelineId,
         version,
-        config,
+        config: { ...config, clips },
         registry: parentComposition.registry ?? { assets: {} },
       };
     } catch (error) {
@@ -769,6 +773,7 @@ function normalizeRegistry(value: unknown): AssetRegistry {
   const assets = asRecord(record?.assets);
   if (!assets) return { assets: {} };
   return {
+    ...record,
     assets: Object.fromEntries(Object.entries(assets).map(([assetKey, rawEntry]) => {
       const entry = asRecord(rawEntry) as AssetRegistryEntry | null;
       if (!entry || entry.media_id || typeof entry.content_sha256 !== 'string') {
@@ -990,6 +995,20 @@ function canonicalArray(value: unknown, fallback: unknown[] = []): unknown[] {
   return Array.isArray(value) ? value : fallback;
 }
 
+function canonicalParentClips(parent: RuntimeRecord, config: RuntimeRecord): unknown[] {
+  // Match Runtime's _canonical_parent_clips: absent lists are empty, malformed
+  // lists fail closed, and only two non-empty authorities can conflict.
+  const parentClips = parent.clips === undefined ? [] : parent.clips;
+  const configClips = config.clips === undefined ? [] : config.clips;
+  if (!Array.isArray(parentClips) || !Array.isArray(configClips)) {
+    throw new TimelineSchemaIncompatibleError('Workspace Runtime canonical parent composition clips are invalid');
+  }
+  if (parentClips.length && configClips.length && stableJson(parentClips) !== stableJson(configClips)) {
+    throw new TimelineSchemaIncompatibleError('Workspace Runtime canonical parent clips and config.clips disagree');
+  }
+  return parentClips.length ? parentClips : configClips;
+}
+
 function stableJson(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(stableJson).join(',')}]`;
   if (value !== null && typeof value === 'object') {
@@ -1060,94 +1079,14 @@ function canonicalAudio(payload: RuntimeRecord): RuntimeRecord | undefined {
   return audio;
 }
 
-const SHA256_DIGEST = /^sha256:[0-9a-f]{64}$/i;
-
-function canonicalAssetDigest(rawAsset: RuntimeRecord, objectId: string, label: string): string {
-  const candidate = [rawAsset.digest, rawAsset.content_sha256, rawAsset.sha256, objectId]
-    .find((value): value is string => typeof value === 'string' && value.length > 0);
-  if (!candidate) {
-    throw new Error(`Workspace Runtime ${label} has no immutable asset digest`);
-  }
-  if (SHA256_DIGEST.test(candidate)) return candidate.toLowerCase();
-  if (/^[0-9a-f]{64}$/i.test(candidate)) return `sha256:${candidate.toLowerCase()}`;
-  throw new Error(`Workspace Runtime ${label} has an invalid immutable asset digest`);
-}
-
-function canonicalAssetRole(rawAsset: RuntimeRecord, fallback?: string): string {
-  const source = asRecord(rawAsset.source);
-  const role = [rawAsset.role, rawAsset.media_type, rawAsset.type, source?.media_type, source?.type]
-    .find((value): value is string => typeof value === 'string' && value.length > 0);
-  return role ?? fallback ?? 'source';
-}
-
-/**
- * Normalize all media declarations for one pinned shot revision at the
- * Runtime boundary. A child timeline can carry an immutable registry even when
- * the older shot manifest omitted the same declaration; after this boundary
- * the canonical contract has one revision-scoped asset list and projection
- * does not need to understand transport-specific fallbacks.
- */
-function normalizeShotRevisionAssets(
-  projectId: string,
-  shotId: string,
-  revisionId: string,
-  shotPayload: RuntimeRecord,
-  timelinePayload: RuntimeRecord,
-): RuntimeRecord[] {
-  const assets = new Map<string, RuntimeRecord>();
-  const add = (assetId: string, rawAsset: RuntimeRecord, sourceLabel: string): void => {
-    const objectId = typeof rawAsset.object_id === 'string' && rawAsset.object_id.length > 0
-      ? rawAsset.object_id
-      : typeof rawAsset.media_id === 'string' && rawAsset.media_id.length > 0
-        ? rawAsset.media_id
-        : undefined;
-    if (!objectId) return;
-    const label = `${sourceLabel} ${shotId}/${revisionId} asset ${assetId}`;
-    const normalized: RuntimeRecord = {
-      ...rawAsset,
-      asset_id: assetId,
-      object_id: objectId,
-      digest: canonicalAssetDigest(rawAsset, objectId, label),
-      role: canonicalAssetRole(rawAsset, typeof assets.get(assetId)?.role === 'string' ? String(assets.get(assetId)?.role) : undefined),
-      scope: { ...(asRecord(rawAsset.scope) ?? {}), project_id: projectId },
-    };
-    const existing = assets.get(assetId);
-    if (existing && existing.object_id !== objectId) {
-      throw new Error(
-        `Workspace Runtime ${label} conflicts with object ${String(existing.object_id)}`,
-      );
-    }
-    assets.set(assetId, { ...existing, ...normalized });
-  };
-
-  for (const rawAsset of canonicalArray(shotPayload.assets)) {
-    const asset = asRecord(rawAsset);
-    const assetId = typeof asset?.asset_id === 'string' && asset.asset_id.length > 0 ? asset.asset_id : undefined;
-    if (asset && assetId) add(assetId, asset, 'shot revision');
-  }
-
-  const childAssetMaps = [
-    asRecord(timelinePayload.assets),
-    asRecord(asRecord(timelinePayload.registry)?.assets),
-  ];
-  for (const assetMap of childAssetMaps) {
-    if (!assetMap) continue;
-    for (const [assetId, rawAsset] of Object.entries(assetMap)) {
-      const asset = asRecord(rawAsset);
-      if (asset) add(assetId, asset, 'internal timeline');
-    }
-  }
-
-  return [...assets.values()];
-}
-
-function runtimeGraphToContract(
+async function runtimeGraphToContract(
   projectId: string,
   timelineId: string,
   timeline: RuntimeRecord,
   parent: RuntimeRecord,
   resolved: Array<{ shot: RuntimeRecord; internal: RuntimeRecord }>,
-): RuntimeRecord {
+): Promise<RuntimeRecord> {
+  const { normalizeShotRevisionAssets } = await import('./runtimePlaybackAssets.ts');
   const parentPayload = requiredRecord(parent.payload, 'parent composition revision.payload');
   const parentOccurrences = array(parentPayload.occurrences, 'parent composition.occurrences');
   const resolvedByKey = new Map(resolved.map(({ shot, internal }) => [
@@ -1185,7 +1124,9 @@ function runtimeGraphToContract(
         timeline: timelinePayload,
       },
       dependencies: canonicalArray(shotPayload.dependencies),
-      assets,
+      // Keep immutable payload declarations byte-for-byte represented as read;
+      // this derived view is only for playback/projection and is never published.
+      runtime_playback_assets: assets,
       generation_inputs: canonicalArray(shotPayload.generation_inputs),
       timing,
       ...(audio ? { audio } : {}),
@@ -1253,7 +1194,7 @@ function runtimeGraphToContract(
 }
 
 function runtimePayloadWithoutCanonicalEnvelope(revision: RuntimeRecord): RuntimeRecord {
-  const { shot_id: _shotId, revision_id: _revisionId, document_role: _role, content_digest: _digest, internal_timeline_revision: _internal, publish: _publish, ...payload } = revision;
+  const { shot_id: _shotId, revision_id: _revisionId, document_role: _role, content_digest: _digest, internal_timeline_revision: _internal, runtime_playback_assets: _playbackAssets, publish: _publish, ...payload } = revision;
   return payload;
 }
 

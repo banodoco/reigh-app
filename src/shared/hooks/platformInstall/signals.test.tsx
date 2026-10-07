@@ -1,6 +1,11 @@
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { useInstallPromptSignals, useStandaloneStatus } from './signals';
+import {
+  __resetInstallPromptSignalsForTests,
+  runInstallPrompt,
+  useInstallPromptSignals,
+  useStandaloneStatus,
+} from './signals';
 
 const originalMatchMedia = window.matchMedia;
 const originalStandalone = Object.getOwnPropertyDescriptor(navigator, 'standalone');
@@ -13,6 +18,7 @@ describe('platform install signals', () => {
 
   beforeEach(() => {
     vi.useFakeTimers();
+    __resetInstallPromptSignalsForTests();
     standaloneMatches = false;
     fullscreenMatches = false;
     standaloneListeners = new Set();
@@ -56,6 +62,7 @@ describe('platform install signals', () => {
   });
 
   afterEach(() => {
+    __resetInstallPromptSignalsForTests();
     vi.useRealTimers();
     window.matchMedia = originalMatchMedia;
     if (originalStandalone) {
@@ -123,5 +130,36 @@ describe('platform install signals', () => {
     expect(result.current.promptTimedOut).toBe(true);
     expect(result.current.isAppInstalled).toBe(true);
     expect(getInstalledRelatedApps).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps capture document-lifetime, single-flights by event identity, and ignores replacement results', async () => {
+    let resolveChoiceA!: (choice: { outcome: 'accepted' | 'dismissed' }) => void;
+    const choiceA = new Promise<{ outcome: 'accepted' | 'dismissed' }>((resolve) => { resolveChoiceA = resolve; });
+    const promptA = Object.assign(new Event('beforeinstallprompt', { cancelable: true }), {
+      prompt: vi.fn().mockResolvedValue(undefined),
+      userChoice: choiceA,
+    });
+    const promptB = Object.assign(new Event('beforeinstallprompt', { cancelable: true }), {
+      prompt: vi.fn().mockResolvedValue(undefined),
+      userChoice: Promise.resolve({ outcome: 'dismissed' as const }),
+    });
+
+    const first = renderHook(() => useInstallPromptSignals());
+    act(() => window.dispatchEvent(promptA));
+    first.unmount();
+
+    const second = renderHook(() => useInstallPromptSignals());
+    expect(second.result.current.deferredPrompt).toBe(promptA);
+    const firstFlight = runInstallPrompt(promptA);
+    expect(runInstallPrompt(promptA)).toBe(firstFlight);
+    expect(promptA.prompt).toHaveBeenCalledTimes(1);
+
+    act(() => window.dispatchEvent(promptB));
+    resolveChoiceA({ outcome: 'accepted' });
+    await act(async () => { await firstFlight; });
+
+    expect(second.result.current.deferredPrompt).toBe(promptB);
+    expect(second.result.current.consumeDeferredPrompt(promptA)).toBe(false);
+    expect(second.result.current.consumeDeferredPrompt(promptB)).toBe(true);
   });
 });

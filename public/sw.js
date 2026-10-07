@@ -4,7 +4,7 @@ const EXTENSION_RELEASE_CONFIG_PATH = '/runtime-config/v1/extensions.json';
 // Only cache essential static assets, not dynamic content
 const urlsToCache = [
   '/manifest.json',
-  '/favicon-192x192.png',
+  '/astrid-app-icon-192.png',
   '/lovable-uploads/e2fca7b4-10e4-4ee5-bc85-34d85d75e502.png'
 ];
 

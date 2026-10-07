@@ -1,0 +1,80 @@
+/* Home ⇄ Vision & Issues (see PublicAstridSite.tsx). The shared-element names only exist while this
+   transition runs, so the App/Agent colour fade keeps its single whole-page crossfade. */
+/* The mink morphs image to image (the same picture on both pages, only scaled), not via home's cropping
+   frame, so it resizes in one move rather than overshooting. */
+:root[data-astrid-page-transition] :is(.astrid-brand-mink:not(.astrid-brand-mink-glint), .astrid-vision-brand img) { view-transition-name: astrid-brand-mink; }
+:root[data-astrid-page-transition] :is(.astrid-brand-name, .astrid-vision-brand span) { view-transition-name: astrid-brand-name; }
+:root[data-astrid-page-transition] :is(.astrid-beta, .astrid-vision-hero .astrid-vision-eyebrow) { view-transition-name: astrid-vision-label; }
+/* Vision's label is a block; sized to its text, it morphs to and from the stamp without stretching. */
+.astrid-vision-hero .astrid-vision-eyebrow { width: fit-content; }
+/* Home while Vision is open: folded to no height and clipped, so it takes no room and nothing of it shows
+   (paint containment also clips its fixed sky). Its own layout, visibility and animations are left exactly
+   as they were, so nothing inside it reflows, fades or replays when it comes back. It is also left out of
+   the transition's shared elements. */
+[data-astrid-page-away] {
+  height: 0;
+  overflow: hidden;
+  contain: strict;
+  pointer-events: none;
+}
+[data-astrid-page-away] * { view-transition-name: none !important; }
+/* Retained/background Home keeps its CSS animation positions without doing hidden visual work. */
+[data-astrid-visual-active="false"] * { animation-play-state: paused !important; }
+
+/* The brand and the label glide across while everything else changes around them. */
+:root[data-astrid-page-transition]::view-transition-group(astrid-brand-mink),
+:root[data-astrid-page-transition]::view-transition-group(astrid-brand-name),
+:root[data-astrid-page-transition]::view-transition-group(astrid-vision-label) {
+  animation-duration: 900ms;
+  animation-timing-function: cubic-bezier(.65, 0, .35, 1);
+}
+
+/* The mink and the name are the same on both pages, only resized, so the incoming one simply travels;
+   crossfading two copies drawn at different sizes would leave a double image. */
+:root[data-astrid-page-transition]::view-transition-old(astrid-brand-mink),
+:root[data-astrid-page-transition]::view-transition-old(astrid-brand-name) { animation: none; opacity: 0; }
+:root[data-astrid-page-transition]::view-transition-new(astrid-brand-mink),
+:root[data-astrid-page-transition]::view-transition-new(astrid-brand-name) { animation: none; }
+
+/* Each page's content moves as one piece: into Vision the home page steps back as the vision rises into
+   place, and coming home reverses it. The page itself (paper and sky) is the same on both, so its plain
+   crossfade reads as nothing changing behind them. */
+:root[data-astrid-page-transition] .astrid-landing-grid { view-transition-name: astrid-home-content; }
+:root[data-astrid-page-transition] .astrid-vision-manifesto { view-transition-name: astrid-vision-content; }
+@keyframes astrid-page-recede { to { opacity: 0; transform: scale(.98); } }
+@keyframes astrid-page-rise { from { opacity: 0; transform: translateY(14px); } }
+@keyframes astrid-page-sink { to { opacity: 0; transform: translateY(10px); } }
+@keyframes astrid-page-return { from { opacity: 0; transform: translateY(10px); } }
+:root[data-astrid-page-transition]::view-transition-group(astrid-home-content),
+:root[data-astrid-page-transition]::view-transition-group(astrid-vision-content) { animation: none; }
+/* One page clears before the other arrives, so the two never show through each other. */
+:root[data-astrid-page-transition="vision"]::view-transition-old(astrid-home-content) { animation: astrid-page-recede 320ms cubic-bezier(.4, 0, 1, 1) both; }
+:root[data-astrid-page-transition="vision"]::view-transition-new(astrid-vision-content) { animation: astrid-page-rise 640ms cubic-bezier(.22, .61, .36, 1) 280ms both; }
+:root[data-astrid-page-transition="home"]::view-transition-old(astrid-vision-content) { animation: astrid-page-sink 320ms cubic-bezier(.4, 0, 1, 1) both; }
+:root[data-astrid-page-transition="home"]::view-transition-new(astrid-home-content) { animation: astrid-page-return 640ms cubic-bezier(.22, .61, .36, 1) 280ms both; }
+/* The editor's panels and labels keep their own layers (the tilted editor is drawn as one; taking its
+   name away flattens it until the transition ends, so it would jump), and move with the rest of home. */
+/* The player controls and the Agent launcher float above the panels, so they get layers of their own too;
+   left in the page's layer they would sit under the panels until the transition ends, then pop in. */
+:root[data-astrid-page-transition] .astrid-preview-transport-outlet { view-transition-name: astrid-transport; }
+:root[data-astrid-page-transition] .astrid-agent-launcher { view-transition-name: astrid-launcher; }
+:root[data-astrid-page-transition]::view-transition-group(astrid-panels),
+:root[data-astrid-page-transition]::view-transition-group(astrid-labels),
+:root[data-astrid-page-transition]::view-transition-group(astrid-transport),
+:root[data-astrid-page-transition]::view-transition-group(astrid-launcher) { animation: none; }
+:root[data-astrid-page-transition="vision"]::view-transition-old(astrid-panels),
+:root[data-astrid-page-transition="vision"]::view-transition-old(astrid-labels),
+:root[data-astrid-page-transition="vision"]::view-transition-old(astrid-transport),
+:root[data-astrid-page-transition="vision"]::view-transition-old(astrid-launcher) { display: block; animation: astrid-page-recede 320ms cubic-bezier(.4, 0, 1, 1) both; }
+:root[data-astrid-page-transition="home"]::view-transition-new(astrid-panels),
+:root[data-astrid-page-transition="home"]::view-transition-new(astrid-labels),
+:root[data-astrid-page-transition="home"]::view-transition-new(astrid-transport),
+:root[data-astrid-page-transition="home"]::view-transition-new(astrid-launcher) { animation: astrid-page-return 640ms cubic-bezier(.22, .61, .36, 1) 280ms both; }
+:root[data-astrid-page-transition]::view-transition-old(root),
+:root[data-astrid-page-transition]::view-transition-new(root) { animation-duration: 640ms; }
+
+/* Past the page's edges (an overscroll at the top or bottom) the browser shows the root's background, which
+   the app theme paints a pale green. On the public pages it takes the page's paper instead, so at night
+   the overscroll is as dark as the page. */
+:root:has(:is(.astrid-public-site, .astrid-vision)),
+:root:has(:is(.astrid-public-site, .astrid-vision)) body { background-color: var(--astrid-root-paper, #f7f4ed); }

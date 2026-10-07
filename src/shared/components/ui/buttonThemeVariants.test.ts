@@ -30,7 +30,9 @@ describe('buttonThemeVariants', () => {
         'theme-lg',
       ]),
     );
-    expect(APP_BUTTON_SIZES['retro-default']).toContain('font-heading');
+    // Buttons are set in the text face, as on the public site, not the heading serif.
+    expect(APP_BUTTON_SIZES['retro-default']).toContain('font-medium');
+    expect(APP_BUTTON_SIZES['retro-default']).not.toContain('font-heading');
     expect(APP_BUTTON_SIZES['theme-lg']).toContain('rounded-2xl');
   });
 });

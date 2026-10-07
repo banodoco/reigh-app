@@ -1,0 +1,34 @@
+{
+  "treatment": "ComfyUI is an unchanged raster rendering of the official monochrome SVG. The other three icons are AI-generated cream-and-orange pixel treatments based on the official marks, not official brand variants.",
+  "assets": [
+    {
+      "file": "comfyui.png",
+      "repository": "https://github.com/Comfy-Org/ComfyUI",
+      "source": "https://raw.githubusercontent.com/Comfy-Org/ComfyUI_frontend/main/public/assets/images/comfy-logo-mono.svg",
+      "license": "licenses/ComfyUI.txt",
+      "web_file": "comfyui.webp"
+    },
+    {
+      "file": "wan2gp.png",
+      "repository": "https://github.com/deepbeepmeep/Wan2GP",
+      "source": "https://raw.githubusercontent.com/deepbeepmeep/Wan2GP/main/favicon.png",
+      "license": "licenses/WanGP.txt",
+      "web_file": "wan2gp.webp"
+    },
+    {
+      "file": "hyperframes.png",
+      "repository": "https://github.com/heygen-com/hyperframes",
+      "source": "https://raw.githubusercontent.com/heygen-com/hyperframes/main/docs/logo/symbol-dark.svg",
+      "license": "licenses/HyperFrames.txt",
+      "web_file": "hyperframes.webp"
+    },
+    {
+      "file": "ai-toolkit.png",
+      "repository": "https://github.com/ostris/ai-toolkit",
+      "source": "https://raw.githubusercontent.com/ostris/ai-toolkit/main/ui/public/ostris_logo.png",
+      "license": "licenses/AI-Toolkit.txt",
+      "web_file": "ai-toolkit.webp"
+    }
+  ],
+  "web_delivery": "Each logo has a 120\u00d7120 lossless WebP derivative for the 36\u201340 CSS-pixel display (up to 3\u00d7 pixel density). PNG originals are retained as source assets."
+}

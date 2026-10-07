@@ -1,10 +1,12 @@
 import * as React from "react"
 import { X } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipTrigger } from "./tooltip"
-import { AIInputButton } from "@/shared/components/ai-input"
 import { useIsMobile } from "@/shared/hooks/mobile"
-import { useAIInputMode } from "@/shared/contexts/AIInputModeContext"
 import { cn } from "@/shared/components/ui/contracts/cn"
+
+// The installed voice action is loaded only for a field that enables it.
+// Ordinary editor inputs remain independent of account and recording hooks.
+const AIInputButton = React.lazy(() => import("@/shared/components/ai-input").then((module) => ({ default: module.AIInputButton })))
 
 export type VoiceTaskType = "transcribe_only" | "transcribe_and_write"
 
@@ -58,13 +60,12 @@ export function useTextFieldActions({
   const [isHovered, setIsHovered] = React.useState(false)
   const [isAIInputActive, setIsAIInputActive] = React.useState(false)
   const isMobile = useIsMobile()
-  const { mode: aiInputMode } = useAIInputMode()
 
   const existingValue = getTextFieldExistingValue(value, defaultValue)
   const hasValue = existingValue.length > 0
   const showClear = Boolean(clearable && onClear && hasValue)
   const showVoice = Boolean(
-    voiceInput && onVoiceResult && (aiInputMode === "voice" || aiInputMode === "text")
+    voiceInput && onVoiceResult
   )
   const hasActions = showClear || showVoice
   const showButtons =
@@ -130,7 +131,7 @@ export function TextFieldActionButtons({
   return (
     <div className={containerClassName}>
       {showVoice && onVoiceResult && (
-        <AIInputButton
+        <React.Suspense fallback={null}><AIInputButton
           onResult={onVoiceResult}
           onError={onVoiceError}
           onActiveStateChange={onVoiceActiveStateChange}
@@ -140,7 +141,7 @@ export function TextFieldActionButtons({
           existingValue={existingValue}
           disabled={disabled}
           className={voiceButtonClassName}
-        />
+        /></React.Suspense>
       )}
       {showClear && (
         <Tooltip>

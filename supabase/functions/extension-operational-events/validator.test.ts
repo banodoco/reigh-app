@@ -30,6 +30,22 @@ describe('extension operational telemetry server validator', () => {
     });
   });
 
+  it('accepts fixed operational events from the reviewed Live Scenes extension', () => {
+    expect(validateOperationalEvent({
+      event: 'extension.activation',
+      outcome: 'success',
+      releaseRevision: 'rc1',
+      extensionId: 'com.reigh.astrid.live-scenes',
+      extensionVersion: '1.0.0',
+    })).toEqual({
+      event: 'extension.activation',
+      outcome: 'success',
+      release_revision: 'rc1',
+      extension_id: 'com.reigh.astrid.live-scenes',
+      extension_version: '1.0.0',
+    });
+  });
+
   it('fails closed for unknown fields and content/identity fields', () => {
     expect(validateOperationalEvent({ ...valid, prompt: 'secret' })).toBeNull();
     expect(validateOperationalEvent({ ...valid, projectId: 'private' })).toBeNull();

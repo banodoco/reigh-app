@@ -25,6 +25,9 @@ const mockExtractVideoMetadataFromUrl = vi.fn();
 const mockToastError = vi.fn();
 const mockRuntime = {
   provider: { persistenceEnabled: true },
+  timelineEditability: undefined as {
+    checkTimeline?: () => { allowed: boolean; reason?: 'timeline_read_only' };
+  } | undefined,
   toast: {
     error: mockToastError,
     success: vi.fn(),
@@ -174,6 +177,7 @@ afterEach(() => {
   mockExtractVideoMetadataFromUrl.mockReset();
   mockToastError.mockReset();
   mockRuntime.provider = { persistenceEnabled: true };
+  mockRuntime.timelineEditability = undefined;
 });
 
 describe('useExternalDrop', () => {
@@ -1517,5 +1521,121 @@ describe('useExternalDrop', () => {
     expect(applyEdit).not.toHaveBeenCalled();
     expect(dataRef.current.tracks).toEqual([{ id: 'V1', kind: 'visual', label: 'V1' }]);
     expect(dataRef.current.rows).toEqual([{ id: 'V1', actions: [] }]);
+  });
+
+  it.each([
+    ['file', () => createFileDropEvent([new File(['blocked'], 'blocked.mp4', { type: 'video/mp4' })])],
+    ['text tool', () => createDropEvent({}, ['text-tool'])],
+    ['effect layer', () => createDropEvent({}, ['effect-layer'])],
+    ['generation', () => createDropEvent(createStoredDragPayload([{
+      generationId: 'blocked-generation',
+      variantType: 'image',
+      imageUrl: 'https://example.com/blocked.png',
+    }]))],
+  ])('blocks public read-only %s drops before preparation, upload, registration, or mutation', async (_label, eventFactory) => {
+    mockRuntime.timelineEditability = {
+      checkTimeline: () => ({ allowed: false, reason: 'timeline_read_only' }),
+    };
+    const dataRef = { current: makeDropTestData() } as React.MutableRefObject<DropTestData>;
+    const before = structuredClone(dataRef.current);
+    const pendingOpsRef = { current: 0 } as React.MutableRefObject<number>;
+    const calls = {
+      applyEdit: vi.fn(),
+      prepareAssetUpload: vi.fn(),
+      invalidateAssetRegistry: vi.fn(),
+      resolveAssetUrl: vi.fn(),
+      registerGenerationAsset: vi.fn(),
+      prepareGenerationAsset: vi.fn(),
+      uploadImageGeneration: vi.fn(),
+      uploadVideoGeneration: vi.fn(),
+      handleAssetDrop: vi.fn(),
+      handleAddTextAt: vi.fn(),
+      onSeekToTime: vi.fn(),
+    };
+    const coordinator = {
+      update: vi.fn(),
+      showSecondaryGhosts: vi.fn(),
+      end: vi.fn(),
+      lastPosition: {
+        time: 12,
+        rowIndex: 0,
+        trackId: 'V1',
+        trackKind: 'visual',
+        trackName: 'V1',
+        isNewTrack: false,
+        isNewTrackTop: false,
+        isReject: false,
+        newTrackKind: null,
+        screenCoords: { rowTop: 0, rowLeft: 0, rowWidth: 0, rowHeight: 0, clipLeft: 0, clipWidth: 0, ghostCenter: 0 },
+      },
+      editAreaRef: { current: null },
+    };
+    const { result } = renderHook(() => useExternalDrop({
+      dataRef,
+      pendingOpsRef,
+      scale: 1,
+      scaleWidth: 1,
+      selectedTrackId: null,
+      coordinator,
+      finalVideoMap: new Map(),
+      ...calls,
+    }));
+
+    const event = eventFactory();
+    await act(async () => {
+      await result.current.onTimelineDrop(event);
+    });
+
+    expect(event.preventDefault).toHaveBeenCalled();
+    expect(event.stopPropagation).toHaveBeenCalled();
+    expect(Object.values(calls).every((spy) => spy.mock.calls.length === 0)).toBe(true);
+    expect(pendingOpsRef.current).toBe(0);
+    expect(dataRef.current).toEqual(before);
+  });
+
+  it('keeps editable-default text drops available', async () => {
+    const dataRef = { current: makeDropTestData() } as React.MutableRefObject<DropTestData>;
+    const handleAddTextAt = vi.fn();
+    const coordinator = {
+      update: vi.fn(),
+      showSecondaryGhosts: vi.fn(),
+      end: vi.fn(),
+      lastPosition: {
+        time: 12,
+        rowIndex: 0,
+        trackId: 'V1',
+        trackKind: 'visual',
+        trackName: 'V1',
+        isNewTrack: false,
+        isNewTrackTop: false,
+        isReject: false,
+        newTrackKind: null,
+        screenCoords: { rowTop: 0, rowLeft: 0, rowWidth: 0, rowHeight: 0, clipLeft: 0, clipWidth: 0, ghostCenter: 0 },
+      },
+      editAreaRef: { current: null },
+    };
+    const { result } = renderHook(() => useExternalDrop({
+      dataRef,
+      pendingOpsRef: { current: 0 },
+      scale: 1,
+      scaleWidth: 1,
+      selectedTrackId: null,
+      applyEdit: vi.fn(),
+      invalidateAssetRegistry: vi.fn(),
+      resolveAssetUrl: vi.fn(),
+      coordinator,
+      registerGenerationAsset: vi.fn(),
+      uploadImageGeneration: vi.fn(),
+      uploadVideoGeneration: vi.fn(),
+      handleAssetDrop: vi.fn(),
+      handleAddTextAt,
+      finalVideoMap: new Map(),
+    }));
+
+    await act(async () => {
+      await result.current.onTimelineDrop(createDropEvent({}, ['text-tool']));
+    });
+
+    expect(handleAddTextAt).toHaveBeenCalledWith('V1', 12);
   });
 });

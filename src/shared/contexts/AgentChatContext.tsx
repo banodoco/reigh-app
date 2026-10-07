@@ -9,7 +9,7 @@ export type AgentChatEditorContext = {
   tool: 'video-editor';
   projectId: string | null;
   projectSlug: string | null;
-  timelineId: string;
+  timelineId: string | null;
   timelineName: string | null;
   deepLink?: string | null;
   /** Compact, host-owned timeline facts for agent scope display and prompts. */
