@@ -161,6 +161,13 @@ export function PublicAstridShell({ onOpenVision, lifecycle = 'active', environm
   const [localState, setLocalState] = useState<ExperienceState>(readPublicAstridExperience);
   const state = navigation?.experience ?? localState;
   const standalone = navigation === undefined;
+  const [directEntryAudience, setDirectEntryAudience] = useState<ExperienceState['audience'] | null>(() => state.audience);
+  const previousAudienceRef = useRef(state.audience);
+  useEffect(() => {
+    if (state.audience === previousAudienceRef.current) return;
+    previousAudienceRef.current = state.audience;
+    setDirectEntryAudience(null);
+  }, [state.audience]);
   const [hasViewedAgent, setHasViewedAgent] = useState(() => state.audience === 'agent');
   useEffect(() => {
     if (state.audience === 'agent') setHasViewedAgent(true);
@@ -651,6 +658,7 @@ export function PublicAstridShell({ onOpenVision, lifecycle = 'active', environm
       data-astrid-lifecycle={lifecycle}
       data-astrid-visual-active={visualActive}
       data-astrid-public-entry="astrid-public-v1"
+      data-astrid-direct-entry={directEntryAudience ?? undefined}
       data-audience={state.audience}
       data-theme={theme}
       data-dusk

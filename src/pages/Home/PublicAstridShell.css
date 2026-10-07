@@ -1141,6 +1141,26 @@
 .astrid-editor-stage[data-revealed="true"] .astrid-inspector-surface { animation-delay: 220ms; }
 .astrid-editor-stage[data-revealed="true"] .astrid-chat-surface { animation-delay: 260ms; }
 .astrid-editor-stage[data-revealed="true"] .astrid-preview-transport-outlet { animation: astrid-rise 500ms ease 500ms backwards; }
+/* A direct page URL is already in its final editor geometry. Keep the initial render static; the same
+   choreography remains available after a real App <-> Agent audience switch. */
+.astrid-public-site[data-astrid-direct-entry] .astrid-editor-stage,
+.astrid-public-site[data-astrid-direct-entry] .astrid-editor-surfaces,
+.astrid-public-site[data-astrid-direct-entry] .astrid-surface,
+.astrid-public-site[data-astrid-direct-entry] .astrid-preview-transport-outlet,
+.astrid-public-site[data-astrid-direct-entry] .astrid-chat-surface {
+  animation: none;
+  transition: none;
+}
+.astrid-public-site[data-astrid-direct-entry="agent"] .astrid-chat-surface > * {
+  opacity: 1;
+  transition: none;
+}
+.astrid-public-site[data-astrid-direct-entry] .astrid-callouts,
+.astrid-public-site[data-astrid-direct-entry] .astrid-callout,
+.astrid-public-site[data-astrid-direct-entry] .astrid-callout > :is(h2, p),
+.astrid-public-site[data-astrid-direct-entry] .astrid-callout-connectors :is(g, path, circle) {
+  animation: none;
+}
 /* Each label is presented, not just shown: the card tips up out of a slight backward lean and a soft
    blur, lifting off the stage as its shadow deepens; its title and then its body follow; the connector
    draws out to the panel; and the far dot lands with a single soft ring, pointing at the spot.
