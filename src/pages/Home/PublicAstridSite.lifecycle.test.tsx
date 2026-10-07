@@ -5,6 +5,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PublicAstridSite } from './PublicAstridSite';
 import { PUBLIC_ASTRID_SHARE_PAGES } from './publicAstridShare';
 
+const conversationLoad = vi.hoisted(() => ({ defer: false, ready: null as null | (() => void) }));
+
 vi.mock('./PublicAstridSky.tsx', async (original) => ({
   ...await original<typeof import('./PublicAstridSky')>(),
   PublicAstridSky: ({ reducedMotion }: { reducedMotion: boolean }) => <div data-testid="sky" data-reduced={reducedMotion} />,
@@ -14,8 +16,9 @@ vi.mock('./PublicAstridMountedEditor.tsx', async () => {
   return { PublicAstridMountedEditor: ({ active, attempt, conversationActive, onConversationReady }: { active: boolean; attempt: number; conversationActive: boolean; onConversationReady: (attempt: number) => void }) => {
     const [selection, setSelection] = React.useState('first');
     React.useEffect(() => {
-      if (conversationActive) onConversationReady(attempt);
-    }, [attempt, conversationActive, onConversationReady]);
+      conversationLoad.ready = () => onConversationReady(attempt);
+      if (!conversationLoad.defer) conversationLoad.ready();
+    }, [attempt, onConversationReady]);
     return <div data-testid="editor" data-active={active}>
       <button onClick={() => setSelection('second')}>Select second clip</button>
       <span data-testid="selection">{selection}</span>
@@ -134,6 +137,8 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  conversationLoad.defer = false;
+  conversationLoad.ready = null;
   cleanup();
   delete (document as Document & { startViewTransition?: unknown }).startViewTransition;
   delete (HTMLDialogElement.prototype as Partial<HTMLDialogElement>).showModal;
@@ -143,7 +148,8 @@ afterEach(() => {
 });
 
 describe('public Site lifecycle and navigation ownership', () => {
-  it('reveals direct Agent entry before its conversation becomes active', async () => {
+  it('reveals direct Agent entry only after the conversation has mounted', async () => {
+    conversationLoad.defer = true;
     window.history.replaceState(null, '', '/home?experience=agent');
     const view = render(<PublicAstridSite />);
     await vi.waitFor(async () => {
@@ -154,6 +160,9 @@ describe('public Site lifecycle and navigation ownership', () => {
     await paint();
     await paint();
     const stage = document.querySelector('.astrid-editor-stage');
+    expect(stage).toHaveAttribute('data-revealed', 'false');
+    act(() => conversationLoad.ready?.());
+    await act(async () => { await vi.advanceTimersByTimeAsync(900); });
     expect(stage).toHaveAttribute('data-astrid-readiness', 'settled');
     expect(stage).toHaveAttribute('data-revealed', 'true');
     view.unmount();

@@ -1100,12 +1100,8 @@
     0 60px 100px -32px rgba(60, 45, 25, .3);
 }
 
-/* Entrance: the hero copy rises in sequence while the empty stage settles. The editor stays hidden
-   until its first frame and side panel are ready (data-revealed), then its surfaces float forward
-   out of depth one after another, and finally the labels pop in and draw their connectors.
-   Surfaces animate the independent translate property so their positioning transforms stay free. */
-@keyframes astrid-rise { from { opacity: 0; translate: 0 14px; } }
-@keyframes astrid-surface-in { from { opacity: 0; translate: 0 14px -90px; } }
+/* Direct entry reveals the ready editor in place. Only audience switches animate its geometry
+   and present new labels; removing the direct-entry guard must never replay a page intro. */
 @keyframes astrid-callout-in {
   from {
     opacity: 0;
@@ -1124,23 +1120,13 @@
 @keyframes astrid-dot-in { from { opacity: 0; } }
 .astrid-hero-copy > *,
 .astrid-hero-detail > *,
-.astrid-hero-actions > * { animation: astrid-rise 560ms cubic-bezier(.22,.61,.36,1) backwards; }
-.astrid-hero-copy > .astrid-brand { animation-delay: 0ms; }
-.astrid-hero-copy > .astrid-audience-switch { animation-delay: 70ms; }
-.astrid-hero-copy > h1 { animation-delay: 130ms; }
-.astrid-hero-detail > .astrid-hero-subtitle { animation-delay: 220ms; }
-.astrid-hero-actions > * { animation-delay: 300ms; }
-.astrid-hero-copy > .astrid-hero-note { animation-delay: 420ms; }
+.astrid-hero-actions > * { animation: none; }
 .astrid-hero-copy > .astrid-hero-detail,
 .astrid-hero-detail > .astrid-hero-actions { animation: none; }
-.astrid-editor-stage { animation: astrid-rise 700ms cubic-bezier(.22,.61,.36,1) 120ms backwards; }
+.astrid-editor-stage { animation: none; }
 .astrid-editor-stage:not([data-revealed="true"]) :is(.astrid-editor-tilt, .astrid-preview-transport-outlet) { opacity: 0; }
-.astrid-editor-stage[data-revealed="true"] .astrid-surface { animation: astrid-surface-in 900ms cubic-bezier(.16,1,.3,1) backwards; }
-.astrid-editor-stage[data-revealed="true"] .astrid-player-surface { animation-delay: 0ms; }
-.astrid-editor-stage[data-revealed="true"] .astrid-timeline-surface { animation-delay: 110ms; }
-.astrid-editor-stage[data-revealed="true"] .astrid-inspector-surface { animation-delay: 220ms; }
-.astrid-editor-stage[data-revealed="true"] .astrid-chat-surface { animation-delay: 260ms; }
-.astrid-editor-stage[data-revealed="true"] .astrid-preview-transport-outlet { animation: astrid-rise 500ms ease 500ms backwards; }
+.astrid-editor-stage[data-revealed="true"] .astrid-surface { animation: none; }
+.astrid-editor-stage[data-revealed="true"] .astrid-preview-transport-outlet { animation: none; }
 /* A direct page URL is already in its final editor geometry. Keep the initial render static; the same
    choreography remains available after a real App <-> Agent audience switch. */
 .astrid-public-site[data-astrid-direct-entry] .astrid-editor-stage,
@@ -1156,10 +1142,17 @@
   transition: none;
 }
 .astrid-public-site[data-astrid-direct-entry] .astrid-callouts,
+.astrid-public-site[data-astrid-direct-entry] .astrid-agent-launcher,
 .astrid-public-site[data-astrid-direct-entry] .astrid-callout,
 .astrid-public-site[data-astrid-direct-entry] .astrid-callout > :is(h2, p),
 .astrid-public-site[data-astrid-direct-entry] .astrid-callout-connectors :is(g, path, circle) {
   animation: none;
+}
+.astrid-public-site[data-astrid-direct-entry] .astrid-hero-copy > *,
+.astrid-public-site[data-astrid-direct-entry] .astrid-hero-detail > *,
+.astrid-public-site[data-astrid-direct-entry] .astrid-hero-actions > * {
+  animation: none;
+  transition: none;
 }
 /* Each label is presented, not just shown: the card tips up out of a slight backward lean and a soft
    blur, lifting off the stage as its shadow deepens; its title and then its body follow; the connector
@@ -1673,6 +1666,7 @@
   .astrid-public-site .astrid-editor-stage,
   .astrid-public-site .astrid-editor-surfaces,
   .astrid-public-site .astrid-surface,
+  .astrid-public-site[data-audience] .astrid-chat-surface,
   .astrid-public-site .astrid-preview-transport-outlet { transition: none; }
   .astrid-public-site .astrid-chat-surface > * { transition: opacity 160ms ease; }
   .astrid-public-site .astrid-callouts,
@@ -1707,10 +1701,10 @@
   to { opacity: 1; translate: 0 0; }
 }
 @media (max-width: 640px) and (prefers-reduced-motion: no-preference) {
-  .astrid-public-site[data-audience="app"] .astrid-editor-surfaces {
+  .astrid-public-site[data-audience="app"]:not([data-astrid-direct-entry]) .astrid-editor-surfaces {
     animation: astrid-mobile-app-arrive 220ms ease-out both;
   }
-  .astrid-public-site[data-audience="agent"] .astrid-editor-surfaces {
+  .astrid-public-site[data-audience="agent"]:not([data-astrid-direct-entry]) .astrid-editor-surfaces {
     animation: astrid-mobile-agent-arrive 220ms ease-out both;
   }
   /* Callouts remount for each audience and first appear when the editor reveals. Bring the whole

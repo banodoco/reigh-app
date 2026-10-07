@@ -88,8 +88,9 @@ export function PublicAstridScriptedConversation({
   const items = useMemo(() => buildConversationItems(turns), [turns]);
 
   useEffect(() => {
-    if (active) onReady?.();
-  }, [active, onReady]);
+    // Readiness means the static transcript has mounted, even while its host waits to reveal it.
+    onReady?.();
+  }, [onReady]);
 
   const verifiedResultTarget = example.providerBinding.state === 'verified'
     && example.verifiedResult.state === 'verified'

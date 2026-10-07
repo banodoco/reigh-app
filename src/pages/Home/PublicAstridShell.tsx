@@ -163,7 +163,7 @@ export function PublicAstridShell({ onOpenVision, lifecycle = 'active', environm
   const standalone = navigation === undefined;
   const [directEntryAudience, setDirectEntryAudience] = useState<ExperienceState['audience'] | null>(() => state.audience);
   const previousAudienceRef = useRef(state.audience);
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (state.audience === previousAudienceRef.current) return;
     previousAudienceRef.current = state.audience;
     setDirectEntryAudience(null);
@@ -267,7 +267,7 @@ export function PublicAstridShell({ onOpenVision, lifecycle = 'active', environm
   const chatRef = useInactiveSurface(!agentView);
   const showTimeline = appView;
   const onConversationReady = useCallback((attempt: number) => {
-    if (!editorShellMountedRef.current || attempt !== editorAttemptRef.current || !visualActiveRef.current) return;
+    if (!editorShellMountedRef.current || attempt !== editorAttemptRef.current) return;
     setConversationReady(true);
   }, []);
   const inspectorRef = useInactiveSurface(!appView);
@@ -464,10 +464,13 @@ export function PublicAstridShell({ onOpenVision, lifecycle = 'active', environm
 
   useEffect(() => {
     if (!visualActive || readiness.phase !== 'usable') return undefined;
+    // The separately loaded conversation determines Agent's mobile card height. Reveal it together
+    // with the editor, rather than showing a short loading card that expands after first paint.
+    if (state.audience === 'agent' && !conversationReady) return undefined;
     const attempt = readiness.attempt;
     if (applyReadinessEvent({type: 'present', attempt})) setEditorRevealed(true);
     return undefined;
-  }, [applyReadinessEvent, readiness.attempt, readiness.phase, visualActive]);
+  }, [applyReadinessEvent, readiness.attempt, readiness.phase, visualActive, state.audience, conversationReady]);
 
   const retireEditorLoader = useCallback((attempt: number) => {
     if (!visualActiveRef.current || editorAttemptRef.current !== attempt || readinessRef.current.phase !== 'presenting') return;

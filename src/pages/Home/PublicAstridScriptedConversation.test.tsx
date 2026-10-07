@@ -9,6 +9,13 @@ import { createVerifiedPublicAstridExampleForTest, TEST_OUTPUT_CLIP_ID } from '.
 import { __getSelectionStateForTests, __resetSelectionStoreForTests } from '@/shared/state/selectionStore.ts';
 
 describe('PublicAstridScriptedConversation', () => {
+  it('reports mounted readiness before the host reveals and activates the conversation', () => {
+    const onReady = vi.fn();
+    render(<PublicAstridExampleProvider example={LIGHT_STUDY_PUBLIC_EXAMPLE}><PublicAstridScriptedConversation onReady={onReady} active={false} onOpenVerifiedResult={vi.fn()} /></PublicAstridExampleProvider>);
+    expect(onReady).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('textbox', { name: 'Message Astrid' })).toBeInTheDocument();
+  });
+
   afterEach(() => {
     vi.useRealTimers();
     vi.restoreAllMocks();
