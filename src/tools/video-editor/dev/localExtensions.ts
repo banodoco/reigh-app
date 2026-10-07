@@ -3,8 +3,9 @@
  *
  * `VideoEditorPage` filters this array through deployment-owned parent/child
  * release flags. Production defaults closed; DEV defaults open and also honors
- * the Extension Manager's local disabled-ID store. Pack-owned entries arrive
- * through the generated Astrid catalog; local examples remain authored here.
+ * the Extension Manager's local disabled-ID store. The public Astrid browser
+ * bundle ships the rendering element catalog, while editor extensions remain
+ * runtime-owned; local examples remain authored here.
  * Scaffold: copy `src/examples/hello-world-extension.ts`, rename the manifest id.
  * Sanity check: `?extensionSmoke=1` on the editor URL loads the host's own smoke
  * extension — if its status contribution appears, the host wiring is fine and
@@ -23,14 +24,12 @@
  * lane under the timeline tracks.
  */
 import type { ReighExtension } from '@reigh/editor-sdk';
-import { ASTRID_EDITOR_EXTENSIONS } from '@astrid/packs/rendering/editor/catalog';
 import { scenePhaseMarkersExtension } from './scene-phase-markers/extension';
 import { transcriptLaneExtension } from './transcript-lane/extension';
 import { creativeLabExtensions } from '../examples/extensions/creative-lab';
 import { runawayTimelineExtension } from './runaway-timeline/extension';
 
 export const devLocalExtensions: ReighExtension[] = [
-  ...ASTRID_EDITOR_EXTENSIONS,
   scenePhaseMarkersExtension,
   transcriptLaneExtension,
   runawayTimelineExtension,

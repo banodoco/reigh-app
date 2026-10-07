@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AstridLocalClient } from '@/integrations/astrid/client.ts';
+import type { ProjectChatState } from '@/integrations/astrid/acpRoutes.ts';
 import type { AgentChatEditorContext } from '@/shared/contexts/AgentChatContext.tsx';
 import type { AgentTurn, AgentTurnAttachment, AgentSessionStatus } from '@/tools/video-editor/types/agent-session.ts';
 import { timelineQueryKey, assetRegistryQueryKey } from '@/tools/video-editor/hooks/useTimeline.ts';
@@ -199,6 +200,27 @@ export class AstridAgentSessionStore {
   private readonly activePrompts = new Set<string>();
   private readonly activePromptTexts = new Map<string, string>();
   private readonly promptControllers = new Map<string, AbortController>();
+
+  async projectChat(projectId: string): Promise<ProjectChatState> {
+    return this.client.acp.projectChat(projectId);
+  }
+
+  async saveProjectDraft(
+    projectId: string,
+    expectedRevision: number,
+    text: string,
+    queuedMessages: ProjectChatState['draft']['queued_messages'] = [],
+  ): Promise<ProjectChatState> {
+    return this.client.acp.saveProjectDraft(projectId, expectedRevision, text, queuedMessages);
+  }
+
+  async selectProjectSession(
+    projectId: string,
+    expectedRevision: number,
+    selectedSessionId: string | null,
+  ): Promise<ProjectChatState> {
+    return this.client.acp.selectProjectSession(projectId, expectedRevision, selectedSessionId);
+  }
 
   private async connection(): Promise<string> {
     if (this.connectionId) return this.connectionId;
@@ -481,6 +503,8 @@ export const agentSessionsQueryKey = (timelineId: string | null | undefined) =>
   ['timeline-agent-sessions', timelineId] as const;
 export const agentSessionQueryKey = (sessionId: string | null | undefined) =>
   ['timeline-agent-session', sessionId] as const;
+export const projectChatQueryKey = (projectId: string | null | undefined) =>
+  ['project-chat', projectId] as const;
 
 export function useAgentSessions(timelineId: string | null | undefined) {
   return useQuery({
@@ -501,6 +525,38 @@ export function useAgentSession(sessionId: string | null | undefined) {
     // assistant text and tool activity paint while a long turn is running.
     refetchInterval: 500,
     retry: false,
+  });
+}
+
+export function useProjectChat(projectId: string | null | undefined) {
+  return useQuery({
+    queryKey: projectChatQueryKey(projectId),
+    enabled: Boolean(projectId),
+    queryFn: () => agentStore.projectChat(projectId!),
+    refetchInterval: 5_000,
+    retry: false,
+  });
+}
+
+export function useSaveProjectDraft(projectId: string | null | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { expectedRevision: number; text: string; queuedMessages: ProjectChatState['draft']['queued_messages'] }) => {
+      if (!projectId) throw new Error('projectId is required');
+      return agentStore.saveProjectDraft(projectId, input.expectedRevision, input.text, input.queuedMessages);
+    },
+    onSuccess: (chat) => queryClient.setQueryData(projectChatQueryKey(projectId), chat),
+  });
+}
+
+export function useSelectProjectSession(projectId: string | null | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { expectedRevision: number; sessionId: string | null }) => {
+      if (!projectId) throw new Error('projectId is required');
+      return agentStore.selectProjectSession(projectId, input.expectedRevision, input.sessionId);
+    },
+    onSuccess: (chat) => queryClient.setQueryData(projectChatQueryKey(projectId), chat),
   });
 }
 

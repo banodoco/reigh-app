@@ -54,6 +54,7 @@ import {
 import { SequenceComponentRegistryProvider } from '@/tools/video-editor/sequences/SequenceComponentRegistryContext.tsx';
 import { TimelineStoreProvider } from '@/tools/video-editor/hooks/timelineStore.ts';
 import { useTimelineState } from '@/tools/video-editor/hooks/useTimelineState.ts';
+import { PUBLIC_TIMELINE_SERVICE_HOOKS } from '@/tools/video-editor/runtime/timelineHostServiceHooks.ts';
 import type { UseTimelineStateResult } from '@/tools/video-editor/hooks/useTimelineState.types.ts';
 import type { TimelineData } from '@/tools/video-editor/lib/timeline-data.ts';
 import { useVideoEditorRuntime } from '@/tools/video-editor/contexts/VideoEditorRuntimeContext.tsx';
@@ -586,7 +587,7 @@ export function useEditorRuntimeSync({
     sequenceComponentCatalog,
   );
 
-  const { store, editor, chrome } = useTimelineState(initialTimelineData);
+  const { store, editor, chrome } = useTimelineState(PUBLIC_TIMELINE_SERVICE_HOOKS, initialTimelineData);
   const diagnosticCollection = useVideoEditorRuntime().diagnosticCollection;
   const activeExtensionIds = useMemo(
     () => new Set(extensionRuntime.extensions.map((ext) => ext.manifest.id as string)),

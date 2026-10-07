@@ -387,6 +387,34 @@ const RemotionPreviewComponent = forwardRef<PreviewHandle, RemotionPreviewProps>
     return () => window.clearTimeout(timeout);
   }, [failedMedia, failedMediaRetryToken, previewMediaFailure]);
 
+  useEffect(() => {
+    const container = playerContainerRef.current;
+    if (!container) return undefined;
+
+    let pollFrame: number | null = null;
+    let readyFrame: number | null = null;
+    const markPreviewFrameReady = () => {
+      // Remotion's browser preview is canvas-backed, so a native video
+      // readyState probe cannot tell the public shell that the first frame is
+      // actually visible. Mark the container on the frame after the canvas
+      // appears instead of exposing its initial black clear.
+      container.dataset.astridPreviewFrameReady = 'true';
+    };
+    const waitForCanvas = () => {
+      if (container.querySelector('canvas')) {
+        readyFrame = requestAnimationFrame(markPreviewFrameReady);
+        return;
+      }
+      pollFrame = requestAnimationFrame(waitForCanvas);
+    };
+    pollFrame = requestAnimationFrame(waitForCanvas);
+    return () => {
+      if (pollFrame !== null) cancelAnimationFrame(pollFrame);
+      if (readyFrame !== null) cancelAnimationFrame(readyFrame);
+      delete container.dataset.astridPreviewFrameReady;
+    };
+  }, [playerContainerRef]);
+
   const transport = (
     <div
       className="astrid-preview-transport pointer-events-none absolute inset-x-0 bottom-0 z-10 flex items-center justify-center gap-2 px-3 py-3"

@@ -412,12 +412,24 @@ export function PublicAstridShell({ onOpenVision, lifecycle = 'active', environm
         currentVideo?.addEventListener('canplay', onMediaReady);
         currentVideo?.addEventListener('error', onMediaError);
       }
-      if (!video || video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) markMedia(!video);
+      if (video) {
+        if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) markMedia(false);
+      } else if (stageElement.querySelector('[data-astrid-preview-frame-ready="true"]')) {
+        // The Remotion preview is canvas-backed in the browser; wait for its
+        // first frame event rather than revealing the canvas while it still
+        // contains the composition's black clear.
+        markMedia(false);
+      }
     };
     const onMediaReady = () => markMedia(false);
     const onMediaError = () => markMedia(true);
     const observer = typeof MutationObserver === 'undefined' ? null : new MutationObserver(inspectMedia);
-    observer?.observe(stageElement, {childList: true, subtree: true});
+    observer?.observe(stageElement, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['data-astrid-preview-frame-ready'],
+    });
     mediaTimer = window.setTimeout(() => markMedia(true), EDITOR_REVEAL_MEDIA_GRACE_MS);
     inspectMedia();
     return () => {

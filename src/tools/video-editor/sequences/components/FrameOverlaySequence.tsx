@@ -1,6 +1,6 @@
 import type { ComponentProps, ReactElement } from 'react';
-import FrameOverlay from '@astrid/packs/local/rendering/elements/effects/frame-overlay/component.tsx';
-import frame from '@astrid/packs/local/rendering/elements/effects/frame-overlay/assets/frame.png?url';
+import FrameOverlay from '@astrid/packs/local/elements/effects/frame-overlay/component.tsx';
+import frame from '@astrid/packs/local/elements/effects/frame-overlay/assets/frame.png?url';
 
 type FrameOverlayProps = ComponentProps<typeof FrameOverlay>;
 

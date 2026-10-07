@@ -60,7 +60,7 @@ declare module '@astrid/packs/rendering/editor/catalog' {
   export const ASTRID_EDITOR_EXTENSIONS: readonly ReighExtension[];
 }
 
-declare module '@astrid/packs/local/rendering/elements/effects/end-spanning-layer/component.tsx' {
+declare module '@astrid/packs/local/elements/effects/end-spanning-layer/component.tsx' {
   const EndSpanningLayer: (props: {
     clip: unknown;
     params?: Record<string, unknown>;
@@ -71,32 +71,32 @@ declare module '@astrid/packs/local/rendering/elements/effects/end-spanning-laye
   export default EndSpanningLayer;
 }
 
-declare module '@astrid/packs/local/rendering/elements/effects/end-spanning-layer/assets/card-0.png?url' {
+declare module '@astrid/packs/local/elements/effects/end-spanning-layer/assets/card-0.png?url' {
   const cardUrl: string;
   export default cardUrl;
 }
 
-declare module '@astrid/packs/local/rendering/elements/effects/end-spanning-layer/assets/card-1.png?url' {
+declare module '@astrid/packs/local/elements/effects/end-spanning-layer/assets/card-1.png?url' {
   const cardUrl: string;
   export default cardUrl;
 }
 
-declare module '@astrid/packs/local/rendering/elements/effects/end-spanning-layer/assets/card-2.png?url' {
+declare module '@astrid/packs/local/elements/effects/end-spanning-layer/assets/card-2.png?url' {
   const cardUrl: string;
   export default cardUrl;
 }
 
-declare module '@astrid/packs/local/rendering/elements/effects/end-spanning-layer/assets/card-3.png?url' {
+declare module '@astrid/packs/local/elements/effects/end-spanning-layer/assets/card-3.png?url' {
   const cardUrl: string;
   export default cardUrl;
 }
 
-declare module '@astrid/packs/local/rendering/elements/effects/end-spanning-layer/assets/card-4.png?url' {
+declare module '@astrid/packs/local/elements/effects/end-spanning-layer/assets/card-4.png?url' {
   const cardUrl: string;
   export default cardUrl;
 }
 
-declare module '@astrid/packs/local/rendering/elements/effects/end-spanning-layer/assets/card-5.png?url' {
+declare module '@astrid/packs/local/elements/effects/end-spanning-layer/assets/card-5.png?url' {
   const cardUrl: string;
   export default cardUrl;
 }

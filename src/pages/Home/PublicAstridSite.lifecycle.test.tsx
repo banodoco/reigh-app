@@ -20,7 +20,7 @@ vi.mock('./PublicAstridMountedEditor.tsx', async () => {
       <button onClick={() => setSelection('second')}>Select second clip</button>
       <span data-testid="selection">{selection}</span>
       <div className="astrid-editor-tilt"><div className="astrid-editor-surfaces">
-        <div className="astrid-player-surface" />
+        <div className="astrid-player-surface" data-astrid-preview-frame-ready="true" />
         <div className="astrid-timeline-surface" />
         <div className="astrid-chat-surface" />
         <div data-astrid-inspector-ready="true" />

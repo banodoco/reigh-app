@@ -2,7 +2,7 @@ import { cleanup, render } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ComponentProps } from 'react';
 import { ASTRID_RENDERING_ELEMENTS } from '@astrid/packs/rendering/elements/catalog.ts';
-import frameUrl from '@astrid/packs/local/rendering/elements/effects/frame-overlay/assets/frame.png?url';
+import frameUrl from '@astrid/packs/local/elements/effects/frame-overlay/assets/frame.png?url';
 import FrameOverlaySequence from '@/tools/video-editor/sequences/components/FrameOverlaySequence';
 import { resolveAstridElementComponent } from './astrid-element-components';
 
