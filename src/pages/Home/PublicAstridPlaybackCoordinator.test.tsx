@@ -20,7 +20,7 @@ describe('public preview activity policy', () => {
     view.rerender(<PublicAstridPlaybackCoordinator audience="app" active />);
     expect(playback.previewRef.current.pause).toHaveBeenCalledTimes(1);
     view.rerender(<PublicAstridPlaybackCoordinator audience="agent" active />);
-    expect(playback.previewRef.current.pause).toHaveBeenCalledTimes(2);
+    expect(playback.previewRef.current.pause).toHaveBeenCalledTimes(1);
     view.rerender(<PublicAstridPlaybackCoordinator audience="app" active />);
     expect(playback.previewRef.current.play).not.toHaveBeenCalled();
     expect(playback.previewRef.current.seek).not.toHaveBeenCalled();

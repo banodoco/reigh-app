@@ -99,12 +99,12 @@ export function PublicAstridInitialSelection() {
   return null;
 }
 
-/** Perspective changes pause without rewinding; returning to App waits for explicit Play. */
-export function PublicAstridPlaybackCoordinator({audience, active = true}: {audience: 'app' | 'agent'; active?: boolean}) {
+/** The preview stays live across App/Agent; only an inactive page lifecycle pauses it. */
+export function PublicAstridPlaybackCoordinator({active = true}: {audience: 'app' | 'agent'; active?: boolean}) {
   const {previewRef} = useTimelinePlaybackContext();
   useLayoutEffect(() => {
-    if (!active || audience !== 'app') previewRef.current?.pause();
-  }, [active, audience, previewRef]);
+    if (!active) previewRef.current?.pause();
+  }, [active, previewRef]);
   return null;
 }
 

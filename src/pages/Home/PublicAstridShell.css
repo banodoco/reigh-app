@@ -1746,6 +1746,16 @@
 
 /* Mobile Agent reads as a conversation: fit the exchange rather than reserving an empty transcript. */
 @media (max-width: 640px) {
+  /* Direct Agent entry already has its final conversation geometry. Do not replay the desktop
+     surface/stage arrival on top of that layout; it reads as a second upward shuffle on phones. */
+  .astrid-public-site[data-audience="agent"] .astrid-editor-stage,
+  .astrid-public-site[data-audience="agent"] .astrid-editor-surfaces {
+    animation: none;
+  }
+  .astrid-public-site[data-audience="agent"] .astrid-chat-surface > * {
+    opacity: 1;
+    transition: none;
+  }
   .astrid-public-site[data-audience="agent"] .astrid-chat-surface {
     top: 12px; height: auto; max-height: calc(100% - 12px);
     display: flex; flex-direction: column;
