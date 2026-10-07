@@ -1717,6 +1717,31 @@
   .astrid-public-site .astrid-callout-connectors .astrid-callout-dot-end {
     animation: astrid-dot-in 120ms ease-out calc(var(--astrid-mobile-connector-start) + 300ms) backwards;
   }
+
+  /* App's mobile labels switch with the foreground editor. The desktop stagger left the bottom-right
+     Models card and its connector visibly trailing the 220ms surface handoff. */
+  .astrid-public-site[data-audience="app"] .astrid-callout,
+  .astrid-public-site[data-audience="app"] .astrid-callout > :is(h2, p) {
+    animation-delay: 0ms;
+    animation-duration: 220ms;
+  }
+  .astrid-public-site[data-audience="app"] .astrid-callout-connectors g {
+    --astrid-mobile-connector-start: 0ms;
+  }
+  .astrid-public-site[data-audience="app"] .astrid-callout-connectors path {
+    animation-duration: 220ms;
+  }
+  .astrid-public-site[data-audience="app"] .astrid-callout-connectors .astrid-callout-dot-start {
+    animation-delay: 0ms;
+    animation-duration: 100ms;
+  }
+  .astrid-public-site[data-audience="app"] .astrid-callout-connectors .astrid-callout-dot-end {
+    animation-delay: 100ms;
+    animation-duration: 120ms;
+  }
+  .astrid-public-site[data-audience="app"] .astrid-callout-connectors .astrid-callout-ping {
+    animation: none;
+  }
 }
 
 /* Mobile Agent reads as a conversation: fit the exchange rather than reserving an empty transcript. */
