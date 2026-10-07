@@ -35,6 +35,8 @@ import type {
 import type { AssetRegistryEntry, TimelineClip, TrackKind, PinnedShotGroup } from '@/tools/video-editor/types/index.ts';
 import type { ManagedObjectGuard, ManagedObjectInfo } from '@/tools/video-editor/lib/managed-object-guard';
 import { detachManagedApp } from '@/tools/video-editor/lib/managed-object-guard';
+import type { TimelineEditability } from '@/tools/video-editor/lib/timeline-editability';
+import { useOptionalVideoEditorRuntime } from '@/tools/video-editor/contexts/VideoEditorRuntimeContext';
 import {
   applyPreparedMediaCommand,
   type PlacePreparedMediaCommand,
@@ -52,6 +54,7 @@ export type TimelineCommandErrorCode =
   | 'pinned_group_edit_blocked'
   | 'managed_object_blocked'
   | 'mutation_failed'
+  | 'timeline_read_only'
   | 'asset_registration_failed';
 
 export interface TimelineCommandError {
@@ -344,6 +347,8 @@ const applyValidatedMutation = <T,>(
 export interface CreateTimelineCommandsOptions {
   /** Optional ManagedObjectGuard for intercepting edits on managed clips. */
   managedObjectGuard?: ManagedObjectGuard | null;
+  /** Optional host permission, checked before every command that can mutate data. */
+  timelineEditability?: TimelineEditability | null;
 }
 
 /**
@@ -367,6 +372,17 @@ export function createTimelineCommands(
       return null;
     }
     return state;
+  };
+
+  const checkTimelineEditable = (): TimelineCommandResult<never> | null => {
+    const permission = options?.timelineEditability?.checkTimeline?.();
+    if (permission?.allowed === false) {
+      return failure(
+        'timeline_read_only',
+        'Timeline editing is disabled for this view.',
+      );
+    }
+    return null;
   };
 
   /**
@@ -424,6 +440,8 @@ export function createTimelineCommands(
       if (!state) {
         return failure('editor_not_mounted', 'Timeline commands are only available in a mounted editor.');
       }
+      const permissionBlock = checkTimelineEditable();
+      if (permissionBlock) return permissionBlock;
 
       const current = getCurrentData(state);
       if (!current) {
@@ -450,13 +468,13 @@ export function createTimelineCommands(
           type: 'place-prepared-media',
           payload: {
             asset: input.preparedAsset,
-            trackId: preparedTrackId,
             selectedTrackId: state.data.selectedTrackId,
             at: Math.max(0, preparedAt),
+            ...(preparedTrackId !== undefined ? { trackId: preparedTrackId } : {}),
             ...(input.afterClipId !== undefined ? { afterClipId: input.afterClipId } : {}),
             forceNewTrack: input.forceNewTrack ?? false,
             insertAtTop: input.insertAtTop ?? false,
-            clipSpanSeconds: input.clipSpanSeconds,
+            ...(input.clipSpanSeconds !== undefined ? { clipSpanSeconds: input.clipSpanSeconds } : {}),
             ...(input.clipId !== undefined ? { clipId: input.clipId } : {}),
             ...(input.removeClipId !== undefined ? { removeClipId: input.removeClipId } : {}),
             ...(input.removeClipIds !== undefined ? { removeClipIds: input.removeClipIds } : {}),
@@ -582,6 +600,8 @@ export function createTimelineCommands(
       if (!state) {
         return failure('editor_not_mounted', 'Timeline commands are only available in a mounted editor.');
       }
+      const permissionBlock = checkTimelineEditable();
+      if (permissionBlock) return permissionBlock;
 
       const current = getCurrentData(state);
       if (!current) {
@@ -634,6 +654,8 @@ export function createTimelineCommands(
       if (!state) {
         return failure('editor_not_mounted', 'Timeline commands are only available in a mounted editor.');
       }
+      const permissionBlock = checkTimelineEditable();
+      if (permissionBlock) return permissionBlock;
 
       const current = getCurrentData(state);
       if (!current) {
@@ -694,6 +716,8 @@ export function createTimelineCommands(
       if (!state) {
         return failure('editor_not_mounted', 'Timeline commands are only available in a mounted editor.');
       }
+      const permissionBlock = checkTimelineEditable();
+      if (permissionBlock) return permissionBlock;
 
       const current = getCurrentData(state);
       if (!current) {
@@ -766,6 +790,8 @@ export function createTimelineCommands(
       if (!state) {
         return failure('editor_not_mounted', 'Timeline commands are only available in a mounted editor.');
       }
+      const permissionBlock = checkTimelineEditable();
+      if (permissionBlock) return permissionBlock;
 
       const current = getCurrentData(state);
       if (!current) {
@@ -810,6 +836,8 @@ export function createTimelineCommands(
       if (!state) {
         return failure('editor_not_mounted', 'Timeline commands are only available in a mounted editor.');
       }
+      const permissionBlock = checkTimelineEditable();
+      if (permissionBlock) return permissionBlock;
 
       const current = getCurrentData(state);
       if (!current) {
@@ -851,6 +879,8 @@ export function createTimelineCommands(
       if (!state) {
         return failure('editor_not_mounted', 'Timeline commands are only available in a mounted editor.');
       }
+      const permissionBlock = checkTimelineEditable();
+      if (permissionBlock) return permissionBlock;
 
       const current = getCurrentData(state);
       if (!current) {
@@ -884,6 +914,8 @@ export function createTimelineCommands(
       if (!state) {
         return failure('editor_not_mounted', 'Timeline commands are only available in a mounted editor.');
       }
+      const permissionBlock = checkTimelineEditable();
+      if (permissionBlock) return permissionBlock;
 
       const current = getCurrentData(state);
       if (!current) {
@@ -929,6 +961,8 @@ export function createTimelineCommands(
       if (!state) {
         return failure('editor_not_mounted', 'Timeline commands are only available in a mounted editor.');
       }
+      const permissionBlock = checkTimelineEditable();
+      if (permissionBlock) return permissionBlock;
 
       if ('entry' in input) {
         state.ops.patchRegistry(input.assetId, input.entry, input.sourceUrl ?? input.entry.file);
@@ -954,6 +988,8 @@ export function createTimelineCommands(
     },
 
     setClipParams(input) {
+      const permissionBlock = checkTimelineEditable();
+      if (permissionBlock) return permissionBlock;
       // --- M3 managed-object guard ---
       const managedBlock = checkManagedClip(input.clipId);
       if (managedBlock) return managedBlock;
@@ -971,6 +1007,8 @@ export function createTimelineCommands(
       if (!state) {
         return failure('editor_not_mounted', 'Timeline commands are only available in a mounted editor.');
       }
+      const permissionBlock = checkTimelineEditable();
+      if (permissionBlock) return permissionBlock;
 
       const current = getCurrentData(state);
       if (!current) {
@@ -1021,7 +1059,11 @@ export function createTimelineCommands(
  */
 export function useTimelineCommandsService(): TimelineCommands {
   const store = useTimelineStoreApi();
-  return useMemo(() => createTimelineCommands(store), [store]);
+  const runtime = useOptionalVideoEditorRuntime();
+  return useMemo(
+    () => createTimelineCommands(store, { timelineEditability: runtime?.timelineEditability }),
+    [runtime?.timelineEditability, store],
+  );
 }
 
 /**
@@ -1033,11 +1075,12 @@ export function useTimelineCommandsService(): TimelineCommands {
 export function useTimelineCommandsServiceSafe(): TimelineCommands | null {
   const store = useTimelineStoreApiSafe();
   const availability = useTimelineAvailabilityState();
+  const runtime = useOptionalVideoEditorRuntime();
 
   return useMemo(() => {
     if (!store || !hasMountedTimelineAvailability(availability)) {
       return null;
     }
-    return createTimelineCommands(store);
-  }, [availability.hasProvider, availability.mounted, store]);
+    return createTimelineCommands(store, { timelineEditability: runtime?.timelineEditability });
+  }, [availability.hasProvider, availability.mounted, runtime?.timelineEditability, store]);
 }

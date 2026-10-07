@@ -70,6 +70,8 @@ export interface VideoEditorShotsHost {
   dismissFinalVideo: (finalVideoId: string) => void;
   shotComposition?: ShotCompositionAdapter | null;
   canonicalOccurrences?: readonly CanonicalShotOccurrence[];
+  /** Runtime-owned source-frame thumbnails keyed by canonical occurrence. */
+  canonicalThumbnailUrls?: ReadonlyMap<string, string>;
   canonicalComposition?: PreparedShotComposition | null;
   canonicalCompositionError?: Error | null;
   canonicalDraft?: CanonicalShotTimelineDraft | null;

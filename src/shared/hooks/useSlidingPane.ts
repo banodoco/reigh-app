@@ -188,12 +188,14 @@ export const useSlidingPane = ({ side, isLocked, onToggleLock, additionalRefs, p
     if (isSmallMobile) return;
 
     if (isLocked) return;
-    // Ignore leaves during the open animation grace period — the tab
-    // CSS-transitions away from the cursor which fires a spurious mouseLeave.
-    if (openGracePeriodRef.current) return;
+    // Defer leaves during the animation rather than dropping them: entering
+    // the pane cancels this timer, but a pointer that left the whole rail/pane
+    // must still close the peek after the transition.
+    if (leaveTimeoutRef.current) clearTimeout(leaveTimeoutRef.current);
     leaveTimeoutRef.current = setTimeout(() => {
+      if (paneRef.current?.contains(document.activeElement)) return;
       setOpen(false);
-    }, PANE_CONFIG.timing.HOVER_DELAY);
+    }, PANE_CONFIG.timing.HOVER_DELAY + (openGracePeriodRef.current ? PANE_CONFIG.timing.ANIMATION_DURATION : 0));
   };
 
   const handlePaneEnter = () => {
@@ -260,6 +262,10 @@ export const useSlidingPane = ({ side, isLocked, onToggleLock, additionalRefs, p
     ref: paneRef,
     onMouseEnter: handlePaneEnter,
     onMouseLeave: handlePaneLeave,
+    onFocus: handlePaneEnter,
+    onBlur: (event: React.FocusEvent<HTMLDivElement>) => {
+      if (!event.currentTarget.contains(event.relatedTarget as Node | null)) handlePaneLeave();
+    },
   };
 
   // Should show a backdrop overlay that captures all touches

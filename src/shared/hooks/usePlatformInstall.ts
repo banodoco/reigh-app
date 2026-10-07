@@ -1,4 +1,4 @@
-import { useMemo, useCallback } from 'react';
+import { useMemo, useCallback, useEffect, useRef } from 'react';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import {
   detectPlatform,
@@ -14,6 +14,7 @@ import {
 import {
   useStandaloneStatus,
   useInstallPromptSignals,
+  runInstallPrompt,
 } from './platformInstall/signals';
 import type {
   Browser,
@@ -46,9 +47,12 @@ export function usePlatformInstall(): PlatformInstallState {
     promptTimedOut,
     isAppInstalled,
     promptConsumed,
-    setDeferredPrompt,
-    setPromptConsumed,
+    consumeDeferredPrompt,
   } = useInstallPromptSignals();
+  const mountedRef = useRef(true);
+  useEffect(() => () => {
+    mountedRef.current = false;
+  }, []);
 
   const isDesktopChromium = useMemo<boolean>(
     () => (browser === 'chrome' || browser === 'edge') && isDesktopPlatform(platform),
@@ -124,18 +128,17 @@ export function usePlatformInstall(): PlatformInstallState {
       return false;
     }
 
+    const promptEvent = deferredPrompt;
     try {
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      setDeferredPrompt(null);
-      setPromptConsumed(true);
+      const { outcome } = await runInstallPrompt(promptEvent);
+      if (!mountedRef.current || !consumeDeferredPrompt(promptEvent)) return false;
       return outcome === 'accepted';
     } catch (error) {
       normalizeAndPresentError(error, { context: 'usePlatformInstall', showToast: false });
-      setPromptConsumed(true);
+      if (mountedRef.current) consumeDeferredPrompt(promptEvent);
       return false;
     }
-  }, [installMethod, deferredPrompt, setDeferredPrompt, setPromptConsumed]);
+  }, [installMethod, deferredPrompt, consumeDeferredPrompt]);
 
   return {
     platform,

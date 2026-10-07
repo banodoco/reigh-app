@@ -12,7 +12,6 @@ import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { useIsMobile } from "@/shared/hooks/mobile";
 import { useLargeModal } from '@/shared/hooks/useModal';
 import { useScrollFade } from "@/shared/hooks/useScrollFade";
-import { useDarkMode } from "@/shared/hooks/core/useDarkMode";
 import { useAIInputMode } from "@/shared/contexts/AIInputModeContext";
 import { PreferencesSection } from "./sections/PreferencesSection";
 import type { SettingsModalProps } from "./types";
@@ -32,9 +31,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     debug: false,
     preloadFade: modal.isMobile
   });
-
-  // Dark mode
-  const { darkMode, setDarkMode } = useDarkMode();
 
   // AI input mode (voice vs text)
   const { mode: aiInputMode, setMode: setAIInputMode } = useAIInputMode();
@@ -77,8 +73,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
         >
           <PreferencesSection
             isMobile={isMobile}
-            darkMode={darkMode}
-            setDarkMode={setDarkMode}
             preserveUserText={preserveUserText}
             setPreserveUserText={setPreserveUserText}
             aiInputMode={aiInputMode}

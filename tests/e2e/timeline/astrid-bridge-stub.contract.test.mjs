@@ -113,6 +113,77 @@ test('deterministic Astrid stub serves the typed Runaway contract', async () => 
     assert.equal(generations.status, 200);
     assert.deepEqual(await generations.json(), { generations: [], next_cursor: null });
 
+    // Browser workspace.v1 discovery is proxied through these versioned
+    // aliases after Vite strips /api/astrid. Keep them distinct from the
+    // legacy unversioned bridge endpoints above so a contract regression
+    // cannot pass by silently falling through to an empty legacy response.
+    const versionedTasks = await fetch(`${origin}/v1/projects/demo-project/tasks?limit=1`);
+    assert.equal(versionedTasks.status, 200);
+    assert.equal(versionedTasks.headers.get('X-Astrid-Bridge-Version'), 'v1');
+    assert.deepEqual(await versionedTasks.json(), { items: [], next_cursor: null });
+    const versionedGenerations = await fetch(`${origin}/v1/projects/demo-project/generations?limit=1`);
+    assert.equal(versionedGenerations.status, 200);
+    assert.equal(versionedGenerations.headers.get('X-Astrid-Bridge-Version'), 'v1');
+    assert.deepEqual(await versionedGenerations.json(), { items: [], next_cursor: null });
+
+    // The runtime can probe the same managed object with GET and HEAD. Verify
+    // both methods receive a real, deterministic image response; HEAD must
+    // preserve the GET representation headers without sending the body.
+    const objectUrl = `${origin}/v1/objects/deterministic-contract-fixture`;
+    const objectGet = await fetch(objectUrl);
+    assert.equal(objectGet.status, 200);
+    assert.equal(objectGet.headers.get('content-type'), 'image/jpeg');
+    const objectBytes = Buffer.from(await objectGet.arrayBuffer());
+    assert.ok(objectBytes.length > 0);
+    assert.equal(Number(objectGet.headers.get('content-length')), objectBytes.length);
+    const objectHead = await fetch(objectUrl, { method: 'HEAD' });
+    assert.equal(objectHead.status, 200);
+    assert.equal(objectHead.headers.get('content-type'), 'image/jpeg');
+    assert.equal(objectHead.headers.get('content-length'), String(objectBytes.length));
+    assert.equal((await objectHead.arrayBuffer()).byteLength, 0);
+
+    const projectChat = await fetch(`${origin}/projects/demo-project/chat`);
+    assert.equal(projectChat.status, 200);
+    assert.deepEqual(await projectChat.json(), {
+      project_id: 'demo-project',
+      scope_key: 'project:demo-project',
+      revision: 0,
+      selected_session_id: null,
+      sessions: [],
+      draft: { text: '', revision: 0, queued_messages: [] },
+    });
+    const savedProjectDraft = await fetch(`${origin}/projects/demo-project/chat/draft`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ expected_revision: 0, text: '', queued_messages: [] }),
+    });
+    assert.equal(savedProjectDraft.status, 200);
+    assert.equal((await savedProjectDraft.json()).draft.revision, 1);
+    const staleProjectDraft = await fetch(`${origin}/projects/demo-project/chat/draft`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ expected_revision: 0, text: 'stale', queued_messages: [] }),
+    });
+    assert.equal(staleProjectDraft.status, 409);
+    const otherProjectChat = await fetch(`${origin}/projects/other-project/chat`);
+    assert.equal(otherProjectChat.status, 404);
+    const acpConnect = await fetch(`${origin}/connect`, { method: 'POST', body: '{}' });
+    assert.equal(acpConnect.status, 200);
+    assert.deepEqual(await acpConnect.json(), { connection_id: 'local-test-connection', initialize: {} });
+    const acpSessionList = await fetch(`${origin}/local-test-connection/rpc`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ method: 'session/list', params: {} }),
+    });
+    assert.equal(acpSessionList.status, 200);
+    assert.deepEqual(await acpSessionList.json(), { result: { sessions: [] } });
+    const acpPrompt = await fetch(`${origin}/local-test-connection/rpc`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ method: 'session/prompt', params: {} }),
+    });
+    assert.equal(acpPrompt.status, 404);
+
     const timelineUrl = `${origin}/projects/demo-project/timelines/demo-timeline`;
     const pristine = createTimelineFixtures({ assetSrcBaseUrl: origin });
     const initialTimeline = await (await fetch(timelineUrl)).json();

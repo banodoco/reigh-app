@@ -31,12 +31,6 @@ import {
   useTheme,
   type RuntimeTheme,
 } from '@banodoco/timeline-composition/theme-api';
-import {
-  describeClipCapabilityWith,
-  resolveSequenceClipEntry,
-  SEQUENCE_COMPONENT_REGISTRY,
-  type DynamicSequenceComponentEntry,
-} from '@/tools/video-editor/sequences/registry.ts';
 import { useSequenceComponentRegistrySnapshot } from '@/tools/video-editor/sequences/SequenceComponentRegistryContext.tsx';
 import { useClipTypeRegistrySnapshot } from '@/tools/video-editor/clip-types/ClipTypeRegistryContext.tsx';
 import type {
@@ -58,8 +52,16 @@ import type { LiveChannelDescriptor, LiveChannelMetadata, LiveSample, LiveSource
 import { PostprocessShaderPreviewCanvas } from '@/tools/video-editor/shaders/preview/PostprocessShaderPreviewCanvas.tsx';
 import { useShaderEffectRegistrySnapshot } from '@/tools/video-editor/shaders/registry/index.ts';
 import { tryCompileSequenceComponentAsync } from '@/tools/video-editor/sequences/compileSequenceComponent.tsx';
-import { resolveAstridElementComponent } from '@/tools/video-editor/runtime/astrid-element-components.tsx';
+import {
+  requireAstridElementHost,
+  type AstridDynamicSequenceEntry,
+  type AstridElementHost,
+} from '@/tools/video-editor/runtime/astrid-element-host.ts';
 import { boundCanonicalConfigClips } from '@/tools/video-editor/lib/canonicalRenderBounds.ts';
+import {
+  PreviewMediaFailurePolicyProvider,
+  type PreviewMediaFailurePolicy,
+} from '@/tools/video-editor/compositions/PreviewMediaFailureContext.tsx';
 
 // Phase 4d (Sprint 5): EFFECT_REGISTRY dispatch.
 //
@@ -88,11 +90,12 @@ const isBuiltinClipType = (value: string | undefined): boolean => {
 // capability descriptor.
 const isSequenceComponentClipType = (
   value: string | undefined,
-  dynamicEntries: readonly DynamicSequenceComponentEntry[],
+  dynamicEntries: readonly AstridDynamicSequenceEntry[],
+  astridElementHost: AstridElementHost,
 ): boolean => {
   if (typeof value !== 'string') return false;
-  if (resolveSequenceClipEntry(value, dynamicEntries)) return true;
-  return Object.prototype.hasOwnProperty.call(SEQUENCE_COMPONENT_REGISTRY, value);
+  if (astridElementHost.resolveSequenceClipEntry(value, dynamicEntries)) return true;
+  return Object.prototype.hasOwnProperty.call(astridElementHost.sequenceRegistry, value);
 };
 
 const isRecord = (value: unknown): value is Record<string, unknown> => (
@@ -203,7 +206,11 @@ const getShotChildSnapshot = (entry: ShotChildCacheEntry | null): ResolvedTimeli
   entry?.settled ? entry.resolved : null
 );
 
-const ShotClipSequence: FC<{ clip: ResolvedTimelineClip; fps: number }> = ({ clip, fps }) => {
+const ShotClipSequence: FC<{
+  clip: ResolvedTimelineClip;
+  fps: number;
+  astridElementHost: AstridElementHost;
+}> = ({ clip, fps, astridElementHost }) => {
   const runtime = useContext(VideoEditorRuntimeContext);
   const timelineDocumentId = isRecord(clip.params) && typeof clip.params.timeline_document_id === 'string'
     ? clip.params.timeline_document_id
@@ -249,7 +256,7 @@ const ShotClipSequence: FC<{ clip: ResolvedTimelineClip; fps: number }> = ({ cli
       premountFor={Math.ceil(fps * 2)}
     >
       {childConfig ? (
-        <TimelineRenderer config={childConfig} />
+        <TimelineRenderer config={childConfig} astridElementHost={astridElementHost} />
       ) : (
         <AbsoluteFill
           data-testid="shot-preview-loading"
@@ -278,7 +285,8 @@ type ThemeEffectSequenceProps = {
   clip: ResolvedTimelineClip;
   fps: number;
   theme: RuntimeTheme;
-  dynamicEntries: readonly DynamicSequenceComponentEntry[];
+  dynamicEntries: readonly AstridDynamicSequenceEntry[];
+  astridElementHost: AstridElementHost;
 };
 
 const resolveAstridComponentAssetEntry = (
@@ -308,11 +316,11 @@ const ThemePackageComponent: FC<{
   return <Component clip={clip} params={clip.params} theme={theme} fps={fps} assetEntry={assetEntry} />;
 };
 
-const ThemeEffectSequence: FC<ThemeEffectSequenceProps> = ({ clip, fps, theme, dynamicEntries }) => {
+const ThemeEffectSequence: FC<ThemeEffectSequenceProps> = ({ clip, fps, theme, dynamicEntries, astridElementHost }) => {
   // Dynamic-aware lookup: prefer DB-stored components for `custom:` clipTypes;
   // fall back to the static SEQUENCE_COMPONENT_REGISTRY for built-ins.
-  const dynamicEntry = resolveSequenceClipEntry(clip.clipType, dynamicEntries);
-  const staticEntry = SEQUENCE_COMPONENT_REGISTRY[clip.clipType as keyof typeof SEQUENCE_COMPONENT_REGISTRY];
+  const dynamicEntry = astridElementHost.resolveSequenceClipEntry(clip.clipType, dynamicEntries);
+  const staticEntry = astridElementHost.sequenceRegistry[clip.clipType ?? ''];
   const Component = (dynamicEntry?.component ?? staticEntry?.component) as
     | FC<{
       clip: ResolvedTimelineClip;
@@ -453,9 +461,10 @@ const AstridEffectPreviewSequence: FC<{
     fps: number;
     assetEntry?: ResolvedTimelineClip['assetEntry'];
   }>;
-}> = ({ clip, fps, theme, assetEntry, component }) => {
+  astridElementHost: AstridElementHost;
+}> = ({ clip, fps, theme, assetEntry, component, astridElementHost }) => {
   const Component = component ?? (clip.elementRef
-    ? resolveAstridElementComponent(clip.elementRef.id, clip.elementRef.kind)
+    ? astridElementHost.resolveComponent(clip.elementRef.id, clip.elementRef.kind)
     : undefined);
   const durationInFrames = getClipDurationInFrames(clip, fps);
   if (!Component) return null;
@@ -489,9 +498,10 @@ const AstridAnimationPreviewSequence: FC<{
   fps: number;
   theme: RuntimeTheme;
   predecessor?: ResolvedTimelineClip | null;
-}> = ({ clip, track, fps, theme, predecessor }) => {
+  astridElementHost: AstridElementHost;
+}> = ({ clip, track, fps, theme, predecessor, astridElementHost }) => {
   const Component = clip.elementRef
-    ? resolveAstridElementComponent(clip.elementRef.id, clip.elementRef.kind)
+    ? astridElementHost.resolveComponent(clip.elementRef.id, clip.elementRef.kind)
     : undefined;
   const durationInFrames = getClipDurationInFrames(clip, fps);
   const transitionFrames = predecessor && clip.transition
@@ -1334,6 +1344,7 @@ const ExtensionClipSequence: FC<ExtensionClipSequenceProps> = ({
 };
 
 interface VisualTrackProps {
+  astridElementHost: AstridElementHost;
   track: TrackDefinition;
   clips: ResolvedTimelineClip[];
   renderConfig: ResolvedTimelineConfig;
@@ -1350,6 +1361,7 @@ interface VisualTrackProps {
 // once per visual track. Keeps the dynamic-registry subscription out of the
 // per-clip dispatch loop.
 const VisualTrack: FC<VisualTrackProps> = ({
+  astridElementHost,
   track,
   clips,
   renderConfig,
@@ -1423,7 +1435,7 @@ const VisualTrack: FC<VisualTrackProps> = ({
 
         // Dynamic-aware capability lookup (FLAG-001/002). DB-stored sequence
         // components surface workerRender:false through this path.
-        const descriptor = describeClipCapabilityWith(clip, dynamicEntries);
+        const descriptor = astridElementHost.describeClipCapability(clip, dynamicEntries);
 
         if (clip.elementRef && clip.elementRef.kind !== 'transition') {
           const source = getPinnedElementSource(clip, renderConfig);
@@ -1439,7 +1451,7 @@ const VisualTrack: FC<VisualTrackProps> = ({
               />
             );
           }
-          const astridComponent = resolveAstridElementComponent(
+          const astridComponent = astridElementHost.resolveComponent(
             clip.elementRef.id,
             clip.elementRef.kind,
           );
@@ -1451,6 +1463,7 @@ const VisualTrack: FC<VisualTrackProps> = ({
                 fps={fps}
                 theme={theme}
                 assetEntry={clip.assetEntry}
+                astridElementHost={astridElementHost}
               />
             );
           }
@@ -1463,6 +1476,7 @@ const VisualTrack: FC<VisualTrackProps> = ({
                 fps={fps}
                 theme={theme}
                 predecessor={index > 0 ? sortedClips[index - 1] : null}
+                astridElementHost={astridElementHost}
               />
             );
           }
@@ -1513,7 +1527,14 @@ const VisualTrack: FC<VisualTrackProps> = ({
         }
 
         if (clip.clipType === 'shot') {
-          return <ShotClipSequence key={clip.id} clip={clip} fps={fps} />;
+          return (
+            <ShotClipSequence
+              key={clip.id}
+              clip={clip}
+              fps={fps}
+              astridElementHost={astridElementHost}
+            />
+          );
         }
 
         // First-party Astrid parity renderer. This is deliberately dispatched
@@ -1530,7 +1551,7 @@ const VisualTrack: FC<VisualTrackProps> = ({
         // scrolling-guide fall through to the unsupported placeholder even
         // though their checked-out Astrid component was bundled.
         if (!clip.elementRef && clip.clipType) {
-          const astridEffect = resolveAstridElementComponent(clip.clipType, 'effect');
+          const astridEffect = astridElementHost.resolveComponent(clip.clipType, 'effect');
           if (astridEffect) {
             return (
               <AstridEffectPreviewSequence
@@ -1540,6 +1561,7 @@ const VisualTrack: FC<VisualTrackProps> = ({
                 theme={theme}
                 assetEntry={clip.assetEntry}
                 component={astridEffect}
+                astridElementHost={astridElementHost}
               />
             );
           }
@@ -1549,7 +1571,7 @@ const VisualTrack: FC<VisualTrackProps> = ({
         // is provided by an installed theme package OR a DB-stored
         // sequence component, render via the dynamic-aware registry entry.
         // Mirrors HypeComposition.tsx:58-64 with DB augmentation.
-        if (isSequenceComponentClipType(clip.clipType, dynamicEntries)) {
+        if (isSequenceComponentClipType(clip.clipType, dynamicEntries, astridElementHost)) {
           return (
             <ThemeEffectSequence
               key={clip.id}
@@ -1557,6 +1579,7 @@ const VisualTrack: FC<VisualTrackProps> = ({
               fps={fps}
               theme={theme}
               dynamicEntries={dynamicEntries}
+              astridElementHost={astridElementHost}
             />
           );
         }
@@ -1662,8 +1685,15 @@ const VisualTrack: FC<VisualTrackProps> = ({
   );
 };
 
-export const TimelineRenderer: FC<{ config: ResolvedTimelineConfig }> = memo(({ config }) => {
+export const TimelineRenderer: FC<{
+  config: ResolvedTimelineConfig;
+  astridElementHost?: AstridElementHost;
+  previewMediaFailurePolicy?: PreviewMediaFailurePolicy | null;
+}> = memo(({ config, astridElementHost: explicitAstridElementHost, previewMediaFailurePolicy = null }) => {
   const runtime = useContext(VideoEditorRuntimeContext);
+  const astridElementHost = requireAstridElementHost(
+    explicitAstridElementHost ?? runtime?.astridElementHost,
+  );
   const environment = useRemotionEnvironment();
   const frame = useCurrentFrame();
   const liveDataRegistry = runtime?.liveDataRegistry;
@@ -1757,6 +1787,7 @@ export const TimelineRenderer: FC<{ config: ResolvedTimelineConfig }> = memo(({ 
       const trackContent: ReactNode = trackClips.length > 0
         ? (
             <VisualTrack
+              astridElementHost={astridElementHost}
               key={track.id}
               track={track}
               clips={trackClips}
@@ -1798,11 +1829,13 @@ export const TimelineRenderer: FC<{ config: ResolvedTimelineConfig }> = memo(({ 
     renderConfig,
     runtimeTheme,
     visualTracks,
+    astridElementHost,
   ]);
 
   return (
-    <AudioAnalysisProvider clips={audioClips} fps={fps} totalDurationInFrames={totalDurationInFrames}>
-      <AbsoluteFill style={{ backgroundColor: 'black', overflow: 'hidden' }}>
+    <PreviewMediaFailurePolicyProvider policy={previewMediaFailurePolicy}>
+      <AudioAnalysisProvider clips={audioClips} fps={fps} totalDurationInFrames={totalDurationInFrames}>
+        <AbsoluteFill style={{ backgroundColor: 'black', overflow: 'hidden' }}>
         <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center' }}>
           <AbsoluteFill style={{ position: 'relative', overflow: 'hidden' }}>
             {visualContent}
@@ -1836,7 +1869,8 @@ export const TimelineRenderer: FC<{ config: ResolvedTimelineConfig }> = memo(({ 
             fps={fps}
           />
         ))}
-      </AbsoluteFill>
-    </AudioAnalysisProvider>
+        </AbsoluteFill>
+      </AudioAnalysisProvider>
+    </PreviewMediaFailurePolicyProvider>
   );
 });

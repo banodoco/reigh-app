@@ -23,6 +23,7 @@ import { VideoEditorLightboxOverlay } from '@/tools/video-editor/components/Vide
 import { useReighShotsHost } from '@/tools/video-editor/adapters/reigh/useReighShotsHost.ts';
 import type { DataProvider } from '@/tools/video-editor/data/DataProvider.ts';
 import type { TimelineData } from '@/tools/video-editor/lib/timeline-data.ts';
+import { INSTALLED_ASTRID_ELEMENT_HOST } from '@/tools/video-editor/runtime/astrid-element-components.tsx';
 import {
   VideoEditorRuntimeProvider,
   useVideoEditorRuntime,
@@ -52,6 +53,10 @@ import { getClipTimelineDuration } from '@/tools/video-editor/lib/config-utils.t
 import { useTimelineConfigVersion, useTimelineEditorData } from '@/tools/video-editor/hooks/timelineStore.ts';
 import { useEffectResources } from '@/tools/video-editor/hooks/useEffectResources.ts';
 import { useSequenceResources } from '@/tools/video-editor/hooks/useSequenceResources.ts';
+import { useResolvedEffectCatalog } from '@/tools/video-editor/hooks/useEffectResources.ts';
+import { useResolvedSequenceComponentCatalog } from '@/tools/video-editor/hooks/useSequenceResources.ts';
+import { useEffects } from '@/tools/video-editor/hooks/useEffects.ts';
+import { INSTALLED_TIMELINE_SERVICE_HOOKS } from '@/tools/video-editor/runtime/installedTimelineHostServiceHooks.ts';
 import { buildReighAgentElementContext } from '@/tools/video-editor/runtime/element-contract.ts';
 import { AstridElementOperationAdapter } from '@/tools/video-editor/runtime/element-adapter.ts';
 import {
@@ -345,6 +350,9 @@ function InnerProvider({
 }) {
   useRenderDiagnostic('VideoEditorProvider');
   const runtime = useVideoEditorRuntime();
+  const effectsQuery = useEffects(runtime.auth.userId, {enabled: !effectCatalog && Boolean(runtime.auth.userId)});
+  const resolvedEffectCatalog = useResolvedEffectCatalog(runtime.auth.userId, effectCatalog);
+  const resolvedSequenceCatalog = useResolvedSequenceComponentCatalog(runtime.auth.userId, sequenceComponentCatalog);
 
   // ── M3: Provider-backed proposal persistence bridge ─────────────────────
   // App-shell strategy: resolved synchronously on first render, without the
@@ -364,13 +372,13 @@ function InnerProvider({
 
   const sync = useEditorRuntimeSync({
     assembly,
+    timelineServices: INSTALLED_TIMELINE_SERVICE_HOOKS,
     projectId: runtime.project.projectId,
     timelineId: runtime.timelineId,
     projectObjects: runtime.provider.projectObjects,
-    catalogUserId: runtime.auth.userId,
-    effectsQueryEnabled: !effectCatalog && Boolean(runtime.auth.userId),
-    effectCatalog,
-    sequenceComponentCatalog,
+    effectsQueryData: effectsQuery.data,
+    effectCatalog: resolvedEffectCatalog,
+    sequenceComponentCatalog: resolvedSequenceCatalog,
     proposalPersistenceProvider: proposalPersistenceRef.current,
     eagerProposalRetry: true,
     initialTimelineData,
@@ -800,7 +808,7 @@ export function VideoEditorProvider({
   }) => {
     agentChatRegistry.register({
       timelineId: value.timelineId,
-      editorContext: value.timelineId
+      editorContext: value.projectId
         ? {
             tool: 'video-editor',
             projectId: value.projectId,
@@ -941,6 +949,7 @@ export function VideoEditorProvider({
   ]);
 
   const runtimeValue = useMemo(() => ({
+    astridElementHost: INSTALLED_ASTRID_ELEMENT_HOST,
     provider: dataProvider,
     assetResolver: {
       resolveAssetUrl: dataProvider.resolveAssetUrl.bind(dataProvider),

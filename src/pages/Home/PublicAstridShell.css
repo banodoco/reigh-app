@@ -1,0 +1,1759 @@
+.astrid-public-site {
+  --background: 40 33% 97%;
+  --foreground: 32 14% 14%;
+  --card: 48 100% 99%;
+  --card-foreground: 32 14% 14%;
+  --popover: 48 100% 99%;
+  --popover-foreground: 32 14% 14%;
+  --primary: 20 70% 41%;
+  --primary-foreground: 40 33% 97%;
+  --secondary: 38 28% 92%;
+  --secondary-foreground: 32 14% 20%;
+  --muted: 38 22% 94%;
+  --muted-foreground: 34 9% 41%;
+  --accent: 28 76% 93%;
+  --accent-foreground: 24 55% 25%;
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 40 33% 97%;
+  --border: 38 18% 84%;
+  --input: 38 18% 84%;
+  --ring: 20 70% 41%;
+  --radius: .6rem;
+  --astrid-paper: #f7f4ed;
+  --astrid-panel: #fffefa;
+  --astrid-ink: #25241f;
+  --astrid-muted: #615e55;
+  --astrid-line: #d5d0c5;
+  --astrid-accent: #a94714;
+  box-sizing: border-box;
+  min-height: 100vh;
+  padding: 0 clamp(40px, calc(15vw - 152px), 64px);
+  /* Clipped both ways: the tilted editor's 3D box reaches past the foot of the page, which otherwise lets
+     the window scroll on past the page onto bare background. Nothing visible is cut. */
+  overflow: clip;
+  color: var(--astrid-ink);
+  color-scheme: light;
+  background-color: var(--astrid-paper);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.astrid-public-site *,
+.astrid-public-site *::before,
+.astrid-public-site *::after { box-sizing: border-box; }
+
+.astrid-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.astrid-brand { color: var(--astrid-ink); cursor: default; user-select: none; }
+.astrid-brand { display: inline-flex; align-items: center; gap: 12px; }
+/* Beta: a small tracked-out mark raised beside the wordmark, part of the lockup rather than a badge. */
+/* The beta stamp is also the link to the Vision & Issue page: a split pill, the orange BETA tag and
+   then the page name, which warms to the accent on hover as the arrow nudges out. */
+.astrid-beta {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  margin: 3px 0 0 -6px;
+  border: 1px solid color-mix(in srgb, #ed6b23 45%, transparent);
+  border-radius: 999px;
+  color: #b8521b;
+  line-height: 1;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 180ms ease, border-color 180ms ease;
+}
+.astrid-beta-tag {
+  padding: 3px 6px 2px 7px;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: .14em;
+}
+.astrid-beta-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  padding: 2px 5px 2px 4px;
+  border-left: 1px solid color-mix(in srgb, #ed6b23 30%, transparent);
+  color: var(--astrid-muted);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: .01em;
+  white-space: nowrap;
+  transition: color 180ms ease;
+}
+.astrid-beta-link svg { color: #b8521b; transition: translate 180ms ease; }
+/* At rest only the arrow shows; the page name slides out of it on hover or keyboard focus. */
+.astrid-beta-link-text {
+  display: inline-block;
+  max-width: 0;
+  overflow: hidden;
+  opacity: 0;
+  vertical-align: bottom;
+  transition: max-width 320ms cubic-bezier(.22, .61, .36, 1), opacity 200ms ease, margin-right 320ms cubic-bezier(.22, .61, .36, 1);
+}
+/* Only with a real pointer and room beside it: on phones the stamp sits against the toggle, and a tap
+   simply opens the page. */
+@media (hover: hover) and (min-width: 641px) {
+  .astrid-beta:is(:hover, :focus-visible) .astrid-beta-link-text { max-width: 110px; margin-right: 2px; opacity: 1; transition-delay: 0s, 80ms, 0s; }
+}
+.astrid-beta:hover { border-color: color-mix(in srgb, #ed6b23 70%, transparent); background: color-mix(in srgb, #ed6b23 7%, transparent); }
+.astrid-beta:hover .astrid-beta-link { color: var(--astrid-ink); }
+.astrid-beta:hover .astrid-beta-link svg { translate: 1px -1px; }
+.astrid-beta:focus-visible { outline: 2px solid #a94714; outline-offset: 2px; }
+.astrid-brand-mink-frame { display: grid; width: 36px; height: 36px; flex: 0 0 36px; overflow: hidden; place-items: center; }
+.astrid-brand-mink { display: block; width: 31px; height: 31px; object-fit: contain; image-rendering: pixelated; transform: scale(2.2); }
+
+.astrid-brand-name {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 27px;
+  letter-spacing: -0.04em;
+}
+
+.astrid-audience-switch {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  min-width: 176px;
+  padding: 3px;
+  border: 1px solid #c9c1b5;
+  border-radius: 999px;
+  background: var(--astrid-panel);
+}
+.astrid-audience-switch button {
+  min-height: 34px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--astrid-ink);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+/* The selected side is marked in the brand orange, like the calls to action, the same day and night. */
+.astrid-audience-switch button[aria-pressed="true"],
+.astrid-public-site[data-dusk] .astrid-audience-switch button[aria-pressed="true"] { background: #ed6b23; color: #1d1914; }
+
+.astrid-landing-grid {
+  width: min(100%, 1312px);
+  margin: 0 auto;
+  /* No separate header: the brand and App/Agent toggle live in the hero column so the whole
+     editor fits a 14–16" laptop viewport without scrolling. */
+  padding: 20px 0;
+  /* Fill the viewport but keep the hero column exactly as tall as the stage, centred. */
+  min-height: 100svh;
+  align-content: center;
+  display: grid;
+  grid-template-columns: 296px minmax(0, 1fr);
+  align-items: stretch;
+  /* Wide enough for labels that hang over the stage's left edge. */
+  column-gap: 64px;
+}
+.astrid-hero-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  align-self: stretch;
+  max-width: 296px;
+  padding: 0;
+}
+.astrid-hero-copy .astrid-brand { margin-bottom: clamp(32px, 8vh, 88px); }
+.astrid-hero-copy .astrid-audience-switch { margin-bottom: 22px; }
+.astrid-hero-detail, .astrid-hero-actions { align-self: stretch; }
+.astrid-hero-copy h1 {
+  max-width: 296px;
+  margin: 0 0 24px;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(56px, 4.17vw, 64px);
+  font-weight: 400;
+  letter-spacing: -.065em;
+  line-height: .99;
+}
+.astrid-hero-detail { max-width: 296px; }
+.astrid-hero-subtitle { max-width: 296px; margin: 0 0 22px; color: #33312c; font-size: 18px; line-height: 1.4; }
+.astrid-hero-actions { display: flex; flex-direction: column; align-items: stretch; gap: 8px; max-width: 296px; }
+.astrid-button {
+  display: inline-flex;
+  min-height: 54px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 0 18px;
+  border: 1px solid var(--astrid-ink);
+  border-radius: 11px;
+  color: var(--astrid-ink);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+}
+.astrid-button:focus-visible,
+.astrid-audience-switch button:focus-visible,
+.astrid-button-primary { border-color: #ed6b23; background: #ed6b23; color: #1d1914; }
+.astrid-button-primary:hover { background: #f17b35; }
+/* Agent CTA: a copyable install line in place of the app download, in the same orange as App's button
+   so the two calls to action match, day and night. */
+.astrid-install-command {
+  width: 100%;
+  min-width: 0;
+  border-color: #ed6b23;
+  background: #ed6b23;
+  color: #1d1914;
+}
+.astrid-install-command:hover { background: #f17b35; }
+.astrid-install-command code {
+  overflow: hidden;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.astrid-install-command code span { color: rgba(29, 25, 20, .55); }
+.astrid-install-command svg { flex: 0 0 auto; }
+.astrid-hero-cta { display: grid; }
+.astrid-hero-cta > * {
+  grid-area: 1 / 1;
+  transition:
+    opacity 280ms ease,
+    translate 420ms cubic-bezier(.22,.61,.36,1),
+    scale 420ms cubic-bezier(.22,.61,.36,1),
+    filter 280ms ease,
+    visibility 0s linear 420ms;
+}
+.astrid-hero-cta > [data-active="false"] {
+  visibility: hidden;
+  opacity: 0;
+  translate: 0 6px;
+  scale: .98;
+  filter: blur(4px);
+  pointer-events: none;
+}
+/* The outgoing button sinks and blurs away; the incoming one follows a beat later, rising into place. */
+.astrid-hero-cta > [data-active="true"] { transition-delay: 70ms, 70ms, 70ms, 70ms, 0s; }
+.astrid-hero-note {
+  /* Pinned to the bottom of the hero column, level with the stage's bottom edge: a quiet signature
+     line of muted social icons. */
+  display: flex;
+  align-items: center;
+  margin-top: auto;
+  padding-top: 20px;
+}
+.astrid-hero-note .astrid-social-links { margin-left: -8px; }
+
+.astrid-showcase {
+  min-width: 0;
+  display: grid;
+  grid-template-rows: clamp(520px, calc(100svh - 40px), 680px);
+  height: auto;
+  perspective: 1500px;
+}
+.astrid-editor-stage {
+  position: relative;
+  min-height: 0;
+  border: 1px solid var(--astrid-line);
+  border-radius: 12px;
+  background: var(--astrid-panel);
+  box-shadow: 0 2px 8px rgba(50, 40, 25, .06);
+  transition: box-shadow var(--astrid-motion-duration, 600ms) cubic-bezier(.22,.61,.36,1);
+  /* Flat, so the callout layer always stacks above the tilted editor by z-index. The perspective
+     property still applies to the direct tilt child. */
+  transform-style: flat;
+  perspective: 1400px;
+  isolation: isolate;
+}
+.astrid-editor-stage[data-audience="agent"] { cursor: pointer; }
+.astrid-editor-stage[data-audience="agent"] .astrid-chat-surface { cursor: auto; }
+.astrid-editor-loading {
+  position: absolute;
+  inset: 16px;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 8px;
+  color: var(--astrid-ink);
+  text-align: center;
+  pointer-events: none;
+  transition: opacity 400ms ease;
+}
+.astrid-editor-loading[data-hidden="true"] { opacity: 0; }
+/* The loading mink is the shared MinkRunner (src/shared/components/MinkRunner). */
+.astrid-editor-load-failure {
+  position: absolute;
+  z-index: 20;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: inherit;
+  background: #e8e2d7;
+}
+.astrid-editor-load-failure-poster {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+.astrid-editor-load-failure-card {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  width: min(440px, calc(100% - 36px));
+  padding: 28px 30px;
+  border: 1px solid rgba(104, 89, 67, .3);
+  border-radius: 12px;
+  background: rgba(251, 249, 243, .97);
+  box-shadow: 0 12px 38px rgba(39, 31, 20, .18);
+  color: var(--astrid-ink);
+  text-align: center;
+}
+.astrid-editor-load-failure-card strong {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(21px, 2.4vw, 28px);
+  font-weight: 400;
+  line-height: 1.2;
+}
+.astrid-editor-load-failure-card span { max-width: 34ch; color: var(--astrid-muted); font-size: 14px; line-height: 1.5; }
+.astrid-editor-load-retry,
+.astrid-editor-load-reload {
+  min-height: 48px;
+  padding: 0 20px;
+  border: 1px solid #db631f;
+  border-radius: 7px;
+  background: #ed6b23;
+  color: #1d1914;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 650;
+  cursor: pointer;
+}
+.astrid-editor-load-retry:hover,
+.astrid-editor-load-reload:hover { background: #f17b35; }
+.astrid-editor-load-retry:focus-visible,
+.astrid-editor-load-reload:focus-visible { outline: 3px solid #a94714; outline-offset: 3px; }
+.astrid-editor-load-retry[aria-disabled="true"] { cursor: progress; opacity: .82; }
+.astrid-editor-load-reload { border-color: #8b8171; background: #fbf9f3; }
+.astrid-editor-load-reload:hover { background: #f0ece4; }
+.astrid-editor-tilt {
+  position: absolute;
+  inset: 24px;
+  transform-style: preserve-3d;
+  /* Pointer parallax: PublicAstridCallouts writes this layer's transform directly as the cursor moves.
+     Perspective comes from the stage's perspective property, not a perspective() function here:
+     Chrome mis-maps hit tests through perspective() in a preserve-3d chain, which offset clicks on
+     the conversation's controls by ~30px. */
+}
+.astrid-editor-surfaces {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  transform-origin: 35% 42%;
+  /* The tilt swings the composition off to one side; this shift (measured per layout, set below) brings
+     the panels back to the middle of the stage. */
+  translate: var(--astrid-centre-x, 0) 0;
+  transition-property: transform, translate;
+  transition-duration: var(--astrid-assembly-duration, var(--astrid-motion-duration, 600ms));
+  transition-timing-function: cubic-bezier(.22,.61,.36,1);
+  transition-delay: var(--astrid-assembly-delay, 0ms);
+}
+.astrid-public-site[data-audience="app"] { --astrid-centre-x: 2.1%; }
+.astrid-public-site[data-audience="agent"] { --astrid-centre-x: 2.7%; }
+.astrid-surface {
+  /* Switching sides moves every panel on one long, soft ease-in-out, lightly staggered by panel so the
+     composition shifts as layers rather than as one block. */
+  --astrid-surface-ease: cubic-bezier(.5, 0, .15, 1);
+  --astrid-surface-start: calc(var(--astrid-surface-delay, 0ms) + var(--astrid-surface-stagger, 0ms));
+  position: absolute;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid #ded6ca;
+  border-radius: 9px;
+  background: var(--astrid-panel);
+  box-shadow: 0 2px 8px rgba(50, 40, 25, .06);
+  transform-style: preserve-3d;
+  transition:
+    left var(--astrid-surface-duration, var(--astrid-motion-duration, 600ms)) var(--astrid-surface-ease) var(--astrid-surface-start),
+    top var(--astrid-surface-duration, var(--astrid-motion-duration, 600ms)) var(--astrid-surface-ease) var(--astrid-surface-start),
+    right var(--astrid-surface-duration, var(--astrid-motion-duration, 600ms)) var(--astrid-surface-ease) var(--astrid-surface-start),
+    bottom var(--astrid-surface-duration, var(--astrid-motion-duration, 600ms)) var(--astrid-surface-ease) var(--astrid-surface-start),
+    width var(--astrid-surface-duration, var(--astrid-motion-duration, 600ms)) var(--astrid-surface-ease) var(--astrid-surface-start),
+    height var(--astrid-surface-duration, var(--astrid-motion-duration, 600ms)) var(--astrid-surface-ease) var(--astrid-surface-start),
+    transform var(--astrid-surface-duration, var(--astrid-motion-duration, 600ms)) var(--astrid-surface-ease) var(--astrid-surface-start),
+    opacity calc(var(--astrid-surface-duration, var(--astrid-motion-duration, 600ms)) * .7) ease var(--astrid-surface-start),
+    box-shadow var(--astrid-surface-duration, var(--astrid-motion-duration, 600ms)) var(--astrid-surface-ease) var(--astrid-surface-start),
+    visibility 0s linear var(--astrid-motion-duration, 600ms);
+}
+
+.astrid-player-surface {
+  z-index: 2;
+  left: 1.5%;
+  top: 1.5%;
+  width: 60%;
+  height: 59%;
+  padding: 9px;
+  transform: translateZ(35px);
+}
+.astrid-player-surface > div {
+  width: 100% !important;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: 6px;
+}
+.astrid-preview-transport-outlet {
+  position: absolute;
+  z-index: 30;
+  left: 4.5%;
+  top: 47.8%;
+  width: 55.3%;
+  height: 11.5%;
+  overflow: visible;
+  pointer-events: none;
+  transform: none;
+  transform-style: flat;
+  transition:
+    left var(--astrid-surface-duration, 360ms) cubic-bezier(.22,.61,.36,1) var(--astrid-surface-delay, 240ms),
+    top var(--astrid-surface-duration, 360ms) cubic-bezier(.22,.61,.36,1) var(--astrid-surface-delay, 240ms),
+    width var(--astrid-surface-duration, 360ms) cubic-bezier(.22,.61,.36,1) var(--astrid-surface-delay, 240ms),
+    height var(--astrid-surface-duration, 360ms) cubic-bezier(.22,.61,.36,1) var(--astrid-surface-delay, 240ms);
+}
+.astrid-public-site[data-audience="app"] .astrid-preview-transport-outlet {
+  left: 11.2%;
+  top: 47%;
+  width: 44.4%;
+  height: 12%;
+}
+.astrid-public-site[data-audience="agent"] .astrid-preview-transport-outlet { visibility: hidden; }
+.astrid-preview-media-failure-poster {
+  position: absolute;
+  z-index: 15;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: inherit;
+  background: #fffefa;
+  pointer-events: none;
+}
+.astrid-preview-media-failure-poster img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.astrid-preview-media-failure {
+  position: absolute;
+  z-index: 40;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  width: min(360px, calc(100vw - 40px));
+  padding: 13px 15px 11px;
+  transform: translateX(-50%);
+  border: 1px solid #d8cdbb;
+  border-radius: 10px;
+  background: #fffefa;
+  box-shadow: 0 8px 22px rgba(43, 36, 25, .16);
+  color: #29271f;
+  font-size: 13px;
+  line-height: 1.4;
+  pointer-events: auto;
+}
+.astrid-preview-media-failure strong { display: block; font-size: 14px; font-weight: 650; }
+.astrid-preview-media-failure p { margin: 3px 0 8px; color: #5c584e; }
+.astrid-preview-media-failure button {
+  min-width: 128px;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid #a94714;
+  border-radius: 7px;
+  background: #a94714;
+  color: #fffefa;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.astrid-preview-media-failure button:hover:not(:disabled) { background: #87370f; }
+.astrid-preview-media-failure button:focus-visible { outline: 3px solid #282720; outline-offset: 3px; }
+.astrid-preview-media-failure button:disabled { cursor: wait; opacity: .72; }
+
+.astrid-inspector-surface {
+  z-index: 3;
+  right: 1.5%;
+  top: 1.5%;
+  width: 30%;
+  height: 59%;
+  padding: 8px;
+  visibility: visible;
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateZ(0);
+}
+.astrid-inspector-surface > div { width: 100%; height: 100%; }
+.astrid-inspector-panel-frame,
+.astrid-inspector-loading,
+.astrid-inspector-load-error {
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+.astrid-inspector-panel-frame > * { width: 100%; height: 100%; min-height: 0; }
+.astrid-inspector-loading,
+.astrid-inspector-load-error {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 8px;
+  padding: 18px;
+  border: 1px solid #e3ded3;
+  background: #fffdf8;
+  color: #625b50;
+  font-size: 12px;
+  text-align: center;
+}
+.astrid-inspector-load-error { color: #8c3e27; }
+.astrid-inspector-load-error button {
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid #9b593c;
+  border-radius: 999px;
+  background: #fffaf3;
+  color: #683a27;
+  font: inherit;
+}
+
+.astrid-timeline-surface {
+  z-index: 2;
+  left: 1.5%;
+  bottom: 1.5%;
+  width: 97%;
+  height: 35%;
+  transform: translateZ(15px);
+}
+.astrid-chat-surface {
+  z-index: 5;
+  right: 0;
+  top: 0;
+  width: 300px;
+  height: 100%;
+  visibility: visible;
+  opacity: 1;
+  transform: translateZ(55px);
+}
+.astrid-conversation-loading,
+.astrid-conversation-load-error {
+  display: grid;
+  min-height: 160px;
+  align-content: center;
+  justify-items: center;
+  gap: 12px;
+  padding: 24px;
+  color: #49463f;
+  text-align: center;
+}
+.astrid-conversation-load-error p { margin: 0; }
+.astrid-conversation-load-error button {
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid #b6a996;
+  border-radius: 999px;
+  background: #fffdf8;
+  color: #25241f;
+  font: inherit;
+  cursor: pointer;
+}
+/* In App the conversation bundles itself into the corner launcher (and expands back out of it).
+   PublicAstridCallouts pins the flat launcher button onto this circle's projected position. */
+.astrid-public-site .astrid-chat-surface {
+  transition:
+    left var(--astrid-surface-duration, var(--astrid-motion-duration, 600ms)) var(--astrid-surface-ease) var(--astrid-surface-start),
+    top var(--astrid-surface-duration, var(--astrid-motion-duration, 600ms)) var(--astrid-surface-ease) var(--astrid-surface-start),
+    width var(--astrid-surface-duration, var(--astrid-motion-duration, 600ms)) var(--astrid-surface-ease) var(--astrid-surface-start),
+    height var(--astrid-surface-duration, var(--astrid-motion-duration, 600ms)) var(--astrid-surface-ease) var(--astrid-surface-start),
+    transform var(--astrid-surface-duration, var(--astrid-motion-duration, 600ms)) var(--astrid-surface-ease) var(--astrid-surface-start),
+    border-radius var(--astrid-surface-duration, var(--astrid-motion-duration, 600ms)) var(--astrid-surface-ease) var(--astrid-surface-start),
+    box-shadow var(--astrid-surface-duration, var(--astrid-motion-duration, 600ms)) var(--astrid-surface-ease) var(--astrid-surface-start),
+    opacity 80ms linear,
+    visibility 0s;
+}
+.astrid-public-site[data-audience="app"] .astrid-chat-surface {
+  z-index: 5;
+  left: calc(100% - 56px);
+  right: auto;
+  top: calc(100% - 56px);
+  bottom: auto;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate3d(0, 0, 55px) rotateY(0deg);
+  transition:
+    left var(--astrid-surface-duration, var(--astrid-motion-duration, 600ms)) var(--astrid-surface-ease) var(--astrid-surface-start),
+    top var(--astrid-surface-duration, var(--astrid-motion-duration, 600ms)) var(--astrid-surface-ease) var(--astrid-surface-start),
+    width var(--astrid-surface-duration, var(--astrid-motion-duration, 600ms)) var(--astrid-surface-ease) var(--astrid-surface-start),
+    height var(--astrid-surface-duration, var(--astrid-motion-duration, 600ms)) var(--astrid-surface-ease) var(--astrid-surface-start),
+    transform var(--astrid-surface-duration, var(--astrid-motion-duration, 600ms)) var(--astrid-surface-ease) var(--astrid-surface-start),
+    border-radius var(--astrid-surface-duration, var(--astrid-motion-duration, 600ms)) var(--astrid-surface-ease) var(--astrid-surface-start),
+    box-shadow var(--astrid-surface-duration, var(--astrid-motion-duration, 600ms)) var(--astrid-surface-ease) var(--astrid-surface-start),
+    /* The mirror of opening: the card stays solid all the way into the corner and only hands over to the
+       launcher (which arrives at 80% of the travel) in the last moments. */
+    opacity calc(var(--astrid-surface-duration, var(--astrid-motion-duration, 600ms)) * .16) ease calc(var(--astrid-surface-start) + var(--astrid-surface-duration, var(--astrid-motion-duration, 600ms)) * .84),
+    visibility 0s linear calc(var(--astrid-surface-start) + var(--astrid-surface-duration, var(--astrid-motion-duration, 600ms)));
+}
+.astrid-public-site[data-audience="agent"] .astrid-chat-surface {
+  visibility: visible;
+  opacity: 1;
+  pointer-events: auto;
+}
+/* Lay out the finished conversation invisibly while the card expands. Reveal it only after both
+   its geometry (including its panel stagger) and the parent assembly have settled. */
+.astrid-chat-surface > * {
+  transition: opacity 160ms ease max(
+    calc(var(--astrid-surface-start, 0ms) + var(--astrid-surface-duration, var(--astrid-motion-duration, 600ms))),
+    calc(var(--astrid-assembly-delay, 0ms) + var(--astrid-assembly-duration, var(--astrid-motion-duration, 600ms)))
+  );
+}
+.astrid-public-site[data-audience="app"] .astrid-chat-surface > * {
+  opacity: 0;
+  /* Once faded out, the hidden conversation is skipped entirely, so the shrinking card doesn't re-lay
+     out its whole thread at every intermediate width. The fade runs as the card starts to move. */
+  content-visibility: hidden;
+  transition:
+    opacity 180ms ease var(--astrid-surface-delay, 0ms),
+    content-visibility 0s linear calc(var(--astrid-surface-delay, 0ms) + 180ms);
+  transition-behavior: allow-discrete;
+}
+.astrid-agent-launcher {
+  position: absolute;
+  z-index: 30;
+  top: auto;
+  right: 24px;
+  bottom: 24px;
+  display: grid;
+  width: 48px;
+  height: 48px;
+  padding: 7px;
+  place-items: center;
+  border: 1px solid #d4c8b7;
+  border-radius: 50%;
+  background: #fffefa;
+  box-shadow: 0 4px 14px rgba(50, 40, 25, .14);
+  cursor: pointer;
+  transition: box-shadow 140ms ease, transform 140ms ease;
+}
+.astrid-agent-launcher { animation: astrid-launcher-arrive 200ms ease-out calc(var(--astrid-surface-delay, 0ms) + var(--astrid-surface-duration, var(--astrid-motion-duration, 600ms)) * .8) backwards; }
+@keyframes astrid-launcher-arrive { from { opacity: 0; scale: .8; } }
+.astrid-agent-launcher:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(50, 40, 25, .18); }
+.astrid-agent-launcher:focus-visible { outline: 3px solid #a94714; outline-offset: 3px; }
+.astrid-agent-launcher img { width: 30px; height: 30px; object-fit: contain; image-rendering: pixelated; transform: scale(1.9); }
+.astrid-agent-launcher > span {
+  position: absolute;
+  top: -4px;
+  right: -5px;
+  display: grid;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  place-items: center;
+  border: 2px solid var(--astrid-panel);
+  border-radius: 999px;
+  background: #ed6b23;
+  color: #25241f;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+}
+.astrid-scripted-conversation,
+.astrid-scripted-conversation [data-conversation-presentation] {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  color: #28241f;
+  background: var(--astrid-panel);
+}
+.astrid-scripted-conversation [data-conversation-presentation] > div:first-child { align-items: center; border-color: #e4ddd0; }
+/* Keep the finished exchange at the bottom natively, including while its card resizes.
+   Only the scroll container is reversed; the request and reply retain their DOM and visual order. */
+.astrid-scripted-conversation [data-conversation-presentation] > div:nth-child(2) {
+  display: flex;
+  flex-direction: column-reverse;
+}
+.astrid-scripted-conversation [data-conversation-presentation] > div:nth-child(2) > .flex-col {
+  flex: 0 0 auto;
+}
+.astrid-scripted-conversation [data-conversation-presentation] img { object-fit: cover; }
+.astrid-scripted-conversation [data-conversation-presentation] > div:first-child img {
+  width: 25px; height: 25px; image-rendering: pixelated; transform: scale(2.25);
+}
+.astrid-scripted-conversation [data-conversation-presentation] .justify-end > div {
+  background: #ed6b23 !important;
+  color: #25241f !important;
+}
+.astrid-scripted-conversation [data-conversation-presentation] [class*="text-primary-foreground"] {
+  color: #25241f !important;
+}
+.astrid-scripted-conversation [data-conversation-presentation] > div:nth-child(2):focus-visible {
+  outline: 2px solid #a94714;
+  outline-offset: -2px;
+}
+.astrid-conversation-footer { display: grid; gap: 8px; }
+/* The example's composer: looks and types like the real one; sending explains the example is scripted. */
+.astrid-composer { position: relative; margin: 0; }
+.astrid-composer-field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 4px 4px 12px;
+  border: 1px solid #d9d0c2;
+  border-radius: 10px;
+  background: #fffefa;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+.astrid-composer-field:focus-within { border-color: #c98a5c; box-shadow: 0 0 0 3px rgba(237, 107, 35, .14); }
+.astrid-composer input {
+  flex: 1;
+  min-width: 0;
+  min-height: 30px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--astrid-ink);
+  font: inherit;
+  font-size: 12.5px;
+  outline: none;
+}
+.astrid-composer input::placeholder { color: var(--astrid-muted); opacity: .85; }
+.astrid-composer button {
+  display: grid;
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border: 0;
+  border-radius: 8px;
+  background: #ed6b23;
+  color: #1d1914;
+  cursor: pointer;
+  transition: opacity 160ms ease, background-color 160ms ease;
+}
+.astrid-composer button:hover:not(:disabled) { background: #f17b35; }
+.astrid-composer button:disabled { opacity: .35; cursor: default; }
+.astrid-composer button:focus-visible { outline: 2px solid #a94714; outline-offset: 2px; }
+.astrid-composer-note {
+  /* A brief toast floating just above the field: it never shifts the thread, and fades away. */
+  position: absolute;
+  z-index: 2;
+  right: 0;
+  bottom: calc(100% + 8px);
+  left: 0;
+  margin: 0;
+  padding: 8px 11px;
+  border: 1px solid #e4dbcd;
+  border-radius: 9px;
+  background: #fffefa;
+  box-shadow: 0 8px 20px rgba(50, 40, 25, .14);
+  color: #4f4a41;
+  font-size: 11.5px;
+  line-height: 1.4;
+  opacity: 0;
+  translate: 0 4px;
+  pointer-events: none;
+  transition: opacity 260ms ease, translate 260ms cubic-bezier(.22,.61,.36,1);
+}
+.astrid-composer-note[data-visible="true"] { opacity: 1; translate: 0 0; }
+.astrid-composer-note:empty { display: none; }
+.astrid-example-result {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 9px;
+  padding: 8px;
+  border: 1px solid #e4ddd0;
+  border-radius: 8px;
+  background: #f7f4ed;
+}
+.astrid-example-result img {
+  display: block;
+  width: 56px;
+  height: 40px;
+  flex: 0 0 56px;
+  border-radius: 5px;
+  object-fit: cover;
+  image-rendering: auto;
+  transform: none;
+}
+.astrid-example-result div { display: grid; min-width: 0; gap: 2px; }
+.astrid-example-result strong { color: #25241f; font-size: 12px; font-weight: 600; line-height: 1.2; }
+.astrid-example-result span { color: #615e55; font-size: 11px; line-height: 1.2; }
+.astrid-example-result p { margin: 1px 0 0; color: #615e55; font-size: 11px; line-height: 1.25; }
+.astrid-result-handoff-button {
+  justify-self: start;
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1px solid #c9c1b5;
+  border-radius: 6px;
+  background: #fffefa;
+  color: #25241f;
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+.astrid-result-handoff-button:focus-visible { outline: 2px solid #a94714; outline-offset: 2px; }
+.astrid-result-handoff-button:hover { background: #f1ece2; }
+
+
+
+/* Agent Preview: the same surfaces remain mounted as the conversation leads. */
+.astrid-public-site[data-audience="agent"] .astrid-player-surface {
+  z-index: 1;
+  left: 0;
+  top: 18%;
+  width: 38%;
+  height: 39%;
+  opacity: .48;
+  transform: translate3d(0, 0, -115px) rotateY(10deg);
+}
+.astrid-public-site[data-audience="agent"] .astrid-chat-surface {
+  z-index: 9;
+  left: 13%;
+  right: auto;
+  top: 9%;
+  width: 74%;
+  height: 80%;
+  transform: translate3d(0, 0, 105px) rotateY(-2deg);
+}
+
+/* App draws the actual editor surfaces apart. */
+.astrid-public-site[data-audience="app"] .astrid-player-surface {
+  left: 1.5%;
+  top: 1.5%;
+  width: 52%;
+  height: 56%;
+  transform: translate3d(-1%, 0, 55px) rotateY(4deg);
+}
+.astrid-public-site .astrid-editor-surfaces {
+  transform: rotateX(5deg) rotateY(-8deg) scale(.9);
+}
+.astrid-public-site .astrid-editor-stage {
+  box-shadow: 0 12px 28px rgba(50, 40, 25, .12);
+}
+.astrid-public-site[data-audience="app"] .astrid-inspector-surface {
+  right: 1.5%;
+  top: 1.5%;
+  width: 35%;
+  height: 56%;
+  visibility: visible;
+  opacity: 1;
+  pointer-events: auto;
+  transform: translate3d(0, 0, 75px) rotateY(-4deg);
+}
+.astrid-public-site[data-audience="app"] .astrid-timeline-surface {
+  left: 1.5%;
+  bottom: 1.5%;
+  width: 60%;
+  height: 32%;
+  transform: translate3d(0, 0, 45px) rotateX(2deg);
+}
+
+/* Agent keeps the intact conversation nearest the viewer. */
+.astrid-public-site[data-audience="agent"] .astrid-player-surface {
+  left: 0;
+  top: 8%;
+  width: 35%;
+  height: 39%;
+  opacity: .48;
+  transform: translate3d(-9%, 0, -175px) rotateY(12deg);
+}
+.astrid-public-site[data-audience="agent"] .astrid-inspector-surface {
+  right: 0;
+  top: 8%;
+  width: 35%;
+  height: 39%;
+  visibility: visible;
+  opacity: .48;
+  pointer-events: none;
+  transform: translate3d(-9%, 0, -150px) rotateY(-12deg);
+}
+.astrid-public-site[data-audience="agent"] .astrid-timeline-surface {
+  /* Same box as in App (see the App timeline rule below), so switching never reflows the timeline's
+     contents; it recedes as one solid object via transform. It spans the bottom behind the conversation
+     so the background reads as player (top left), inspector (top right) and timeline (along the bottom). */
+  z-index: 1;
+  left: 0;
+  top: calc(2% + var(--astrid-player-height, 60%) + 18px);
+  bottom: 1%;
+  width: 100%;
+  height: auto;
+  opacity: .48;
+  transform: translate3d(-2.5%, -30%, -145px) rotateX(4deg) scale(.86);
+}
+.astrid-public-site[data-audience="agent"] .astrid-chat-surface {
+  left: 15%;
+  right: auto;
+  top: 19%;
+  width: 70%;
+  height: 62%;
+  transform: translate3d(0, 0, 160px) rotateY(-2deg);
+}
+
+/* C02: the real editor sits below the hero at the adopted full-width scale. */
+.astrid-public-site[data-audience="app"] .astrid-inspector-surface {
+  visibility: visible;
+  opacity: 1;
+  pointer-events: auto;
+}
+.astrid-public-site[data-audience="agent"] .astrid-inspector-surface {
+  visibility: visible;
+  opacity: .48;
+  pointer-events: none;
+}
+.astrid-public-site[data-audience="app"] .astrid-preview-transport {
+  background-image: none !important;
+}
+/* The inspector keeps the shared surface motion; only the collapse toggle times its visibility. */
+.astrid-public-site[data-audience="app"] .astrid-player-surface {
+  /* Width is mirrored by PLAYER_WIDTH in PublicAstridShell.tsx. */
+  left: 1%; top: 2%; width: 70%; height: var(--astrid-player-height, auto); aspect-ratio: auto; padding: 8px;
+  transform: translate3d(0, 0, 55px) rotateY(3deg);
+}
+/* A compact inspector tucked into the corner; its panel scrolls rather than growing. */
+.astrid-public-site[data-audience="app"] .astrid-inspector-surface {
+  z-index: 20;
+  right: 0; top: 22%; width: 26%; height: 42%; padding: 6px;
+  box-shadow: 0 8px 24px rgba(50, 40, 25, .16);
+  transform: translate3d(0, 0, 75px) rotateY(-4deg);
+}
+.astrid-public-site[data-audience="app"] .astrid-inspector-panel-frame { zoom: .8; }
+.astrid-public-site[data-audience="app"] .astrid-timeline-surface {
+  z-index: 1;
+  /* Starts a small, fixed gap below the player at every width, and runs to the foot of the stage. */
+  left: 0; top: calc(2% + var(--astrid-player-height, 60%) + 18px); bottom: 1%; width: 100%; height: auto;
+  transform: translate3d(0, 0, 45px) rotateX(2deg);
+}
+.astrid-inspector-surface { --astrid-surface-stagger: 45ms; }
+.astrid-timeline-surface { --astrid-surface-stagger: 90ms; }
+.astrid-chat-surface { --astrid-surface-stagger: 20ms; }
+/* The flat transport follows the tilted player; PublicAstridCallouts writes its box each frame. */
+.astrid-preview-transport-outlet[data-astrid-tracked] { transition: none; }
+
+/* Callouts: flat cards above the tilted editor, joined by measured connectors. */
+.astrid-callouts {
+  position: absolute;
+  z-index: 40;
+  inset: 0;
+  pointer-events: none;
+  /* Remounted per audience; each label pops in once the surfaces have mostly settled. */
+}
+.astrid-callout-connectors {
+  position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible;
+}
+.astrid-callout-connectors path { fill: none; stroke: rgba(169, 71, 20, .85); stroke-width: 1.5; }
+.astrid-callout-connectors circle { fill: #b84f18; stroke: #fffefa; stroke-width: 1.5; }
+.astrid-callout {
+  position: absolute;
+  width: var(--astrid-callout-width, 210px);
+  padding: 12px 14px;
+  /* Lifted clear of the off-white stage: pure white, a firmer border and a contact + lift shadow. */
+  border: 1px solid #d6cab8;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(50, 40, 25, .08), 0 14px 32px rgba(50, 40, 25, .16);
+}
+.astrid-callout h2 { margin: 0; color: #1d1a15; font-size: 15px; font-weight: 650; line-height: 1.25; }
+.astrid-callout p { margin: 5px 0 0; color: #57534a; font-size: 13px; line-height: 1.35; }
+.astrid-integration-logos {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px 6px;
+  margin: 9px 0 8px;
+  padding: 0;
+  list-style: none;
+}
+.astrid-integration-logos a {
+  display: flex;
+  min-height: 56px;
+  min-width: 0;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 3px 0;
+  border-radius: 5px;
+  color: var(--astrid-ink, #25241f);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: center;
+  text-decoration: none;
+  pointer-events: auto;
+}
+.astrid-integration-logos a:hover { background: color-mix(in srgb, #ed6b23 12%, transparent); }
+.astrid-integration-logos a:focus-visible { outline: 2px solid #ed6b23; outline-offset: 2px; }
+.astrid-integration-logos img {
+  display: block;
+  box-sizing: border-box;
+  width: 40px;
+  height: 40px;
+  padding: 3px;
+  border: 1px solid rgb(243 238 228 / 16%);
+  border-radius: 6px;
+  background: #080808;
+  object-fit: contain;
+}
+.astrid-integration-logos a:not([data-integration="comfyui"]) img {
+  padding: 1px;
+  filter: brightness(1.22) contrast(1.1);
+}
+.astrid-integration-logos span { max-width: 100%; overflow-wrap: anywhere; }
+/* Label layout: one card size, and every card hangs about a fifth of its width over the stage's
+   left or right edge. App and Agent mirror each other: App keeps two labels on the right and one on
+   the left, Agent two on the left and one on the right. */
+.astrid-callout { --astrid-callout-width: 210px; --astrid-callout-overhang: -42px; }
+.astrid-callout[data-callout="effects"] { right: var(--astrid-callout-overhang); top: 2.5%; }
+.astrid-callout[data-callout="models"] { right: var(--astrid-callout-overhang); bottom: 25%; }
+.astrid-callout[data-callout="timeline"] { left: var(--astrid-callout-overhang); bottom: 3%; }
+.astrid-callout[data-callout="community"] { left: var(--astrid-callout-overhang); top: 12%; }
+.astrid-callout[data-callout="workflows"] { left: var(--astrid-callout-overhang); bottom: 14%; }
+.astrid-callout[data-callout="tools"] { right: var(--astrid-callout-overhang); top: 34%; }
+.astrid-public-site[data-audience="agent"] .astrid-chat-surface {
+  left: 50%; right: auto; top: 12%; width: 48%; height: 76%;
+  transform: translate3d(-50%, 0, 70px) rotateY(-2deg);
+}
+.astrid-public-site[data-audience="app"] .astrid-scripted-conversation [data-conversation-presentation] > div:nth-child(2) { padding: 6px 10px; }
+.astrid-public-site[data-audience="app"] .astrid-scripted-conversation [data-conversation-presentation] > div:last-child { padding: 4px 8px !important; }
+.astrid-scripted-conversation:focus { outline: 3px solid #a94714; outline-offset: 3px; }
+.astrid-inspector-surface [role="tablist"].grid-cols-4 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  height: auto;
+  min-height: 40px;
+}
+.astrid-inspector-surface [role="tablist"] > [role="tab"] {
+  min-width: 0;
+  padding-inline: 5px;
+  font-size: 12px;
+  line-height: 1.2;
+  white-space: normal;
+}
+.astrid-inspector-surface [role="tabpanel"] { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+/* Timeline labels follow the page's ink, so they lighten with it after dusk. */
+.astrid-public-site .astrid-timeline-surface .truncate { color: var(--astrid-ink) !important; }
+.astrid-surface {
+  border-color: var(--astrid-line);
+  border-radius: 0;
+  box-shadow: none;
+}
+.astrid-public-site[data-audience="app"] .astrid-editor-surfaces {
+  transform: rotateX(5deg) rotateY(-8deg) scale(.9);
+}
+/* Depth in App: the panels float at different heights above the stage. No hard edges; just a hairline
+   lit rim and a layered, very soft shadow that widens and fades the higher a panel floats. */
+.astrid-public-site .astrid-surface { border-radius: 10px; }
+.astrid-public-site[data-audience="app"] .astrid-timeline-surface {
+  transform: translate3d(0, 0, 30px) rotateX(2deg);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .7),
+    0 1px 2px rgba(60, 45, 25, .05),
+    0 8px 16px -8px rgba(60, 45, 25, .1),
+    0 24px 44px -20px rgba(60, 45, 25, .14);
+}
+.astrid-public-site[data-audience="app"] .astrid-player-surface {
+  transform: translate3d(0, 0, 80px) rotateY(3deg);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .7),
+    0 1px 2px rgba(60, 45, 25, .05),
+    0 12px 24px -10px rgba(60, 45, 25, .12),
+    0 40px 72px -28px rgba(60, 45, 25, .2);
+}
+/* The inspector shares the player's plane, so the two line up as laid out: bottoms level, with a clear
+   gap between them. It still reads as lifted through its deeper shadow. */
+.astrid-public-site[data-audience="app"] .astrid-inspector-surface {
+  /* Bottom level with the player's; the top stays clear of the effects label above it, so on narrower
+     stages the inspector gets shorter rather than running under the label. */
+  top: max(calc(2% + var(--astrid-player-height, 56%) - 42%), 128px);
+  bottom: calc(98% - var(--astrid-player-height, 56%));
+  height: auto;
+  transform: translate3d(0, 0, 80px) rotateY(3deg);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .7),
+    0 1px 2px rgba(60, 45, 25, .05),
+    0 18px 32px -12px rgba(60, 45, 25, .16),
+    0 60px 100px -32px rgba(60, 45, 25, .3);
+}
+
+/* Entrance: the hero copy rises in sequence while the empty stage settles. The editor stays hidden
+   until its first frame and side panel are ready (data-revealed), then its surfaces float forward
+   out of depth one after another, and finally the labels pop in and draw their connectors.
+   Surfaces animate the independent translate property so their positioning transforms stay free. */
+@keyframes astrid-rise { from { opacity: 0; translate: 0 14px; } }
+@keyframes astrid-surface-in { from { opacity: 0; translate: 0 14px -90px; } }
+@keyframes astrid-callout-in {
+  from {
+    opacity: 0;
+    translate: 0 14px;
+    scale: .96;
+    transform: perspective(700px) rotateX(14deg);
+    filter: blur(5px);
+    box-shadow: 0 0 0 rgba(50, 40, 25, 0), 0 2px 4px rgba(50, 40, 25, .06);
+  }
+  40% { opacity: 1; filter: blur(0); }
+}
+@keyframes astrid-callout-text { from { opacity: 0; translate: 0 5px; } }
+@keyframes astrid-dot-ping { from { r: 4px; opacity: .7; } to { r: 18px; opacity: 0; } }
+@keyframes astrid-dot-land { from { opacity: 0; scale: .2; } }
+@keyframes astrid-connector-draw { from { stroke-dashoffset: 1; } }
+@keyframes astrid-dot-in { from { opacity: 0; } }
+.astrid-hero-copy > *,
+.astrid-hero-detail > *,
+.astrid-hero-actions > * { animation: astrid-rise 560ms cubic-bezier(.22,.61,.36,1) backwards; }
+.astrid-hero-copy > .astrid-brand { animation-delay: 0ms; }
+.astrid-hero-copy > .astrid-audience-switch { animation-delay: 70ms; }
+.astrid-hero-copy > h1 { animation-delay: 130ms; }
+.astrid-hero-detail > .astrid-hero-subtitle { animation-delay: 220ms; }
+.astrid-hero-actions > * { animation-delay: 300ms; }
+.astrid-hero-copy > .astrid-hero-note { animation-delay: 420ms; }
+.astrid-hero-copy > .astrid-hero-detail,
+.astrid-hero-detail > .astrid-hero-actions { animation: none; }
+.astrid-editor-stage { animation: astrid-rise 700ms cubic-bezier(.22,.61,.36,1) 120ms backwards; }
+.astrid-editor-stage:not([data-revealed="true"]) :is(.astrid-editor-tilt, .astrid-preview-transport-outlet) { opacity: 0; }
+.astrid-editor-stage[data-revealed="true"] .astrid-surface { animation: astrid-surface-in 900ms cubic-bezier(.16,1,.3,1) backwards; }
+.astrid-editor-stage[data-revealed="true"] .astrid-player-surface { animation-delay: 0ms; }
+.astrid-editor-stage[data-revealed="true"] .astrid-timeline-surface { animation-delay: 110ms; }
+.astrid-editor-stage[data-revealed="true"] .astrid-inspector-surface { animation-delay: 220ms; }
+.astrid-editor-stage[data-revealed="true"] .astrid-chat-surface { animation-delay: 260ms; }
+.astrid-editor-stage[data-revealed="true"] .astrid-preview-transport-outlet { animation: astrid-rise 500ms ease 500ms backwards; }
+/* Each label is presented, not just shown: the card tips up out of a slight backward lean and a soft
+   blur, lifting off the stage as its shadow deepens; its title and then its body follow; the connector
+   draws out to the panel; and the far dot lands with a single soft ring, pointing at the spot.
+   Labels follow one another by 160ms. */
+.astrid-callout {
+  --astrid-callout-start: calc(var(--astrid-label-delay, 0ms) + var(--astrid-callout-index, 0) * 160ms);
+  transform-origin: 50% 100%;
+  animation: astrid-callout-in 760ms cubic-bezier(.16, 1, .3, 1) var(--astrid-callout-start) backwards;
+}
+.astrid-callout > h2 { animation: astrid-callout-text 520ms cubic-bezier(.16, 1, .3, 1) calc(var(--astrid-callout-start) + 140ms) backwards; }
+.astrid-callout > p { animation: astrid-callout-text 520ms cubic-bezier(.16, 1, .3, 1) calc(var(--astrid-callout-start) + 230ms) backwards; }
+.astrid-callout-connectors g {
+  --astrid-callout-start: calc(var(--astrid-label-delay, 0ms) + var(--astrid-callout-index, 0) * 160ms);
+}
+.astrid-callout-connectors path {
+  stroke-dasharray: 1;
+  animation: astrid-connector-draw 520ms cubic-bezier(.65, 0, .35, 1) calc(var(--astrid-callout-start) + 260ms) backwards;
+}
+.astrid-callout-connectors .astrid-callout-dot-start {
+  animation: astrid-dot-in 160ms ease-out calc(var(--astrid-callout-start) + 260ms) backwards;
+}
+.astrid-callout-connectors .astrid-callout-dot-end {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: astrid-dot-land 380ms cubic-bezier(.34, 1.5, .64, 1) calc(var(--astrid-callout-start) + 740ms) backwards;
+}
+.astrid-callout-connectors .astrid-callout-ping {
+  fill: none;
+  stroke: #b84f18;
+  stroke-width: 1.5;
+  opacity: 0;
+  /* No fill: the ring exists only while it plays. */
+  animation: astrid-dot-ping 900ms cubic-bezier(.2, .7, .3, 1) calc(var(--astrid-callout-start) + 760ms);
+}
+
+
+/* Dusk: the page's colours follow how dark the visitor's sky is, on both App and Agent, and change
+   gradually rather than switching. The page sets two 0→1 values from the sky (see onSkyDarkness):
+   --astrid-dusk for surfaces, borders and lines, which shift across the whole of twilight, and
+   --astrid-dusk-ink for text and icons, which shift over a short window in the middle, so text spends
+   as little time as possible near its background's tone. Near that change --astrid-dusk-firm rises,
+   firming secondary text up towards full ink, since only near-full contrast reads on mid-tone surfaces. Values are generated from the day and night
+   palettes. The page colour itself (--astrid-paper) is set inline from the sky. */
+.astrid-public-site[data-dusk] {
+  /* The night dot grid, like graph paper under a terminal, fading in with the dark. */
+  background-image: radial-gradient(rgb(243 238 228 / calc(.09 * var(--astrid-dusk))) 1px, transparent 1.3px);
+  background-size: 22px 22px;
+}
+.astrid-public-site[data-dusk] .astrid-beta {
+  border-color: color-mix(in oklab, color(srgb 0.929412 0.419608 0.137255 / 0.45), rgba(240, 124, 58, 0.45) calc(var(--astrid-dusk) * 100%));
+  color: color-mix(in oklab, color-mix(in oklab, rgb(184, 82, 27), rgb(242, 138, 78) calc(var(--astrid-dusk-ink) * 100%)), var(--astrid-ink) calc(var(--astrid-dusk-firm) * 100%));
+}
+.astrid-public-site[data-dusk] .astrid-beta-link {
+  border-left-color: color-mix(in oklab, color(srgb 0.929412 0.419608 0.137255 / 0.3), rgba(240, 124, 58, 0.3) calc(var(--astrid-dusk) * 100%));
+}
+.astrid-public-site[data-dusk] .astrid-beta-link svg {
+  color: color-mix(in oklab, color-mix(in oklab, rgb(184, 82, 27), rgb(242, 138, 78) calc(var(--astrid-dusk-ink) * 100%)), var(--astrid-ink) calc(var(--astrid-dusk-firm) * 100%));
+}
+.astrid-public-site[data-dusk] {
+  --astrid-panel: color-mix(in oklab, #fffefa, #221f1a calc(var(--astrid-dusk) * 100%));
+  --astrid-ink: color-mix(in oklab, #25241f, #f3eee4 calc(var(--astrid-dusk-ink) * 100%));
+  --astrid-muted: color-mix(in oklab, color-mix(in oklab, #615e55, #aca395 calc(var(--astrid-dusk-ink) * 100%)), var(--astrid-ink) calc(var(--astrid-dusk-firm) * 100%));
+  --astrid-line: color-mix(in oklab, #d5d0c5, #413a30 calc(var(--astrid-dusk) * 100%));
+}
+.astrid-public-site[data-dusk] .astrid-hero-subtitle {
+  color: color-mix(in oklab, color-mix(in oklab, rgb(51, 49, 44), rgb(221, 214, 201) calc(var(--astrid-dusk-ink) * 100%)), var(--astrid-ink) calc(var(--astrid-dusk-firm) * 100%));
+}
+.astrid-public-site[data-dusk] .astrid-audience-switch {
+  border-color: color-mix(in oklab, rgb(201, 193, 181), rgb(65, 58, 48) calc(var(--astrid-dusk) * 100%));
+  background-color: color-mix(in oklab, rgb(255, 254, 250), rgb(26, 24, 20) calc(var(--astrid-dusk) * 100%));
+}
+.astrid-public-site[data-dusk] .astrid-audience-switch button {
+  color: color-mix(in oklab, color-mix(in oklab, rgb(37, 36, 31), rgb(221, 214, 201) calc(var(--astrid-dusk-ink) * 100%)), var(--astrid-ink) calc(var(--astrid-dusk-firm) * 100%));
+}
+.astrid-public-site[data-dusk] .astrid-editor-stage {
+  border-color: color-mix(in oklab, rgb(213, 208, 197), rgb(58, 52, 43) calc(var(--astrid-dusk) * 100%));
+  background-color: color-mix(in oklab, rgb(255, 254, 250), rgb(22, 20, 16) calc(var(--astrid-dusk) * 100%));
+}
+.astrid-public-site[data-dusk] :is(.astrid-player-surface, .astrid-inspector-surface, .astrid-timeline-surface) {
+  border-color: color-mix(in oklab, rgb(213, 208, 197), rgb(74, 67, 55) calc(var(--astrid-dusk) * 100%));
+  background-color: color-mix(in oklab, rgb(255, 254, 250), rgb(29, 26, 22) calc(var(--astrid-dusk) * 100%));
+}
+.astrid-public-site[data-dusk] .astrid-chat-surface {
+  border-color: color-mix(in oklab, rgb(213, 208, 197), rgb(90, 80, 66) calc(var(--astrid-dusk) * 100%));
+  background-color: color-mix(in oklab, rgb(255, 254, 250), rgb(36, 33, 27) calc(var(--astrid-dusk) * 100%));
+}
+/* The agent launcher is a panel too, so its disc darkens with the others. */
+.astrid-public-site[data-dusk] .astrid-agent-launcher {
+  border-color: color-mix(in oklab, #d4c8b7, #5c5345 calc(var(--astrid-dusk) * 100%));
+  background-color: color-mix(in oklab, #fffefa, #2e2a23 calc(var(--astrid-dusk) * 100%));
+  box-shadow: 0 4px 14px rgb(0 0 0 / calc(.14 + .3 * var(--astrid-dusk)));
+}
+.astrid-public-site[data-dusk] .astrid-agent-launcher:focus-visible { outline-color: color-mix(in oklab, #a94714, #f28a4e calc(var(--astrid-dusk) * 100%)); }
+.astrid-public-site[data-dusk] .astrid-callout {
+  border-color: color-mix(in oklab, rgb(214, 202, 184), rgb(92, 83, 69) calc(var(--astrid-dusk) * 100%));
+  background-color: color-mix(in oklab, rgb(255, 255, 255), rgb(46, 42, 35) calc(var(--astrid-dusk) * 100%));
+}
+.astrid-public-site[data-dusk] .astrid-callout h2 { color: color-mix(in oklab, color-mix(in oklab, rgb(29, 26, 21), rgb(251, 247, 239) calc(var(--astrid-dusk-ink) * 100%)), var(--astrid-ink) calc(var(--astrid-dusk-firm) * 100%)); }
+.astrid-public-site[data-dusk] .astrid-callout p { color: color-mix(in oklab, color-mix(in oklab, rgb(87, 83, 74), rgb(194, 185, 169) calc(var(--astrid-dusk-ink) * 100%)), var(--astrid-ink) calc(var(--astrid-dusk-firm) * 100%)); }
+.astrid-public-site[data-dusk] .astrid-callout-connectors path {
+  stroke: color-mix(in oklab, rgba(169, 71, 20, 0.85), rgba(240, 124, 58, 0.95) calc(var(--astrid-dusk) * 100%));
+}
+.astrid-public-site[data-dusk] .astrid-callout-connectors circle {
+  fill: color-mix(in oklab, none, rgb(240, 124, 58) calc(var(--astrid-dusk) * 100%));
+  stroke: color-mix(in oklab, rgb(184, 79, 24), rgb(22, 20, 16) calc(var(--astrid-dusk) * 100%));
+}
+.astrid-public-site[data-dusk] .astrid-callout-connectors .astrid-callout-ping {
+  fill: none;
+  stroke: color-mix(in oklab, rgb(184, 79, 24), rgb(240, 124, 58) calc(var(--astrid-dusk) * 100%));
+}
+.astrid-public-site[data-dusk] :is(.astrid-scripted-conversation, .astrid-scripted-conversation [data-conversation-presentation]) {
+  color: color-mix(in oklab, color-mix(in oklab, rgb(40, 36, 31), var(--astrid-ink) calc(var(--astrid-dusk-ink) * 100%)), var(--astrid-ink) calc(var(--astrid-dusk-firm) * 100%));
+  background-color: color-mix(in oklab, rgb(255, 254, 250), rgb(36, 33, 27) calc(var(--astrid-dusk) * 100%));
+}
+.astrid-public-site[data-dusk] .astrid-scripted-conversation [data-conversation-presentation] > div:first-child {
+  border-color: color-mix(in oklab, rgb(228, 221, 208),  calc(var(--astrid-dusk) * 100%));
+}
+.astrid-public-site[data-dusk] .astrid-example-result {
+  border-color: color-mix(in oklab, rgb(228, 221, 208), rgb(74, 67, 55) calc(var(--astrid-dusk) * 100%));
+  background-color: color-mix(in oklab, rgb(247, 244, 237), rgb(44, 40, 34) calc(var(--astrid-dusk) * 100%));
+}
+.astrid-public-site[data-dusk] .astrid-example-result strong {
+  color: color-mix(in oklab, color-mix(in oklab, rgb(37, 36, 31), var(--astrid-ink) calc(var(--astrid-dusk-ink) * 100%)), var(--astrid-ink) calc(var(--astrid-dusk-firm) * 100%));
+}
+.astrid-public-site[data-dusk] .astrid-example-result :is(span, p) {
+  color: color-mix(in oklab, color-mix(in oklab, rgb(97, 94, 85), var(--astrid-muted) calc(var(--astrid-dusk-ink) * 100%)), var(--astrid-ink) calc(var(--astrid-dusk-firm) * 100%));
+}
+.astrid-public-site[data-dusk] .astrid-composer-field {
+  border-color: color-mix(in oklab, rgb(217, 208, 194), rgb(74, 67, 55) calc(var(--astrid-dusk) * 100%));
+  background-color: color-mix(in oklab, rgb(255, 254, 250), rgb(27, 25, 21) calc(var(--astrid-dusk) * 100%));
+}
+.astrid-public-site[data-dusk] .astrid-composer-note {
+  border-color: color-mix(in oklab, rgb(228, 219, 205), rgb(90, 80, 66) calc(var(--astrid-dusk) * 100%));
+  background-color: color-mix(in oklab, rgb(255, 254, 250), rgb(46, 42, 35) calc(var(--astrid-dusk) * 100%));
+  color: color-mix(in oklab, color-mix(in oklab, rgb(79, 74, 65), rgb(216, 208, 194) calc(var(--astrid-dusk-ink) * 100%)), var(--astrid-ink) calc(var(--astrid-dusk-firm) * 100%));
+}
+.astrid-public-site[data-dusk] .astrid-composer-field:focus-within {
+  border-color: color-mix(in oklab, rgb(201, 138, 92), rgb(138, 90, 54) calc(var(--astrid-dusk) * 100%));
+}
+.astrid-public-site[data-dusk] .astrid-result-handoff-button {
+  border-color: color-mix(in oklab, rgb(201, 193, 181), rgb(90, 80, 66) calc(var(--astrid-dusk) * 100%));
+  background-color: color-mix(in oklab, rgb(255, 254, 250), rgb(44, 40, 34) calc(var(--astrid-dusk) * 100%));
+  color: color-mix(in oklab, color-mix(in oklab, rgb(37, 36, 31), var(--astrid-ink) calc(var(--astrid-dusk-ink) * 100%)), var(--astrid-ink) calc(var(--astrid-dusk-firm) * 100%));
+}
+.astrid-public-site[data-sky-frame="open"][data-dusk] .astrid-editor-stage {
+  background-color: color-mix(in oklab, color(srgb 1 0.996078 0.980392 / 0.8), color-mix(in srgb, rgb(22, 20, 16) 82%, transparent 18%) calc(var(--astrid-dusk) * 100%));
+}
+
+/* The hero copy sits straight on the page background, so its text turns with the page (which reaches
+   mid-tone before the panels), not with the panels' later timing. */
+.astrid-public-site[data-dusk] .astrid-hero-copy {
+  --astrid-dusk-ink: var(--astrid-dusk-ink-page);
+  --astrid-ink: color-mix(in oklab, #25241f, #f3eee4 calc(var(--astrid-dusk-ink-page) * 100%));
+  --astrid-muted: color-mix(in oklab, color-mix(in oklab, #615e55, #aca395 calc(var(--astrid-dusk-ink-page) * 100%)), var(--astrid-ink) calc(var(--astrid-dusk-firm) * 100%));
+  color: var(--astrid-ink);
+}
+
+/* Two of the shared editor's small grey labels sit on tinted grounds (the preview's resolution pill and
+   the inspector's chips), where its usual grey falls short of AA by day or by night. On this page they
+   take a firmer tone. */
+.astrid-public-site .astrid-preview-transport .text-muted-foreground { color: hsl(var(--foreground)); }
+.astrid-public-site .astrid-inspector-surface .text-muted-foreground {
+  color: color-mix(in oklab, hsl(var(--muted-foreground)), hsl(var(--foreground)) 45%);
+}
+
+/* The few things that cannot blend (shadows, the browser's own control colours) change at mid-twilight. */
+.astrid-public-site[data-theme="dark"] { color-scheme: dark; }
+.astrid-public-site[data-theme="dark"] .astrid-editor-stage {
+  box-shadow: rgba(255, 255, 255, 0.04) 0px 1px 0px inset, rgba(0, 0, 0, 0.55) 0px 30px 80px;
+}
+.astrid-public-site[data-theme="dark"] :is(.astrid-player-surface, .astrid-inspector-surface, .astrid-timeline-surface) {
+  box-shadow: rgba(255, 255, 255, 0.05) 0px 1px 0px inset, rgba(0, 0, 0, 0.45) 0px 12px 24px -10px, rgba(0, 0, 0, 0.6) 0px 40px 72px -28px;
+}
+.astrid-public-site[data-theme="dark"] .astrid-chat-surface {
+  box-shadow: rgba(255, 255, 255, 0.07) 0px 1px 0px inset, rgba(237, 107, 35, 0.22) 0px 0px 0px 1px, rgba(0, 0, 0, 0.3) 0px 2px 4px, rgba(0, 0, 0, 0.55) 0px 18px 34px -12px, rgba(0, 0, 0, 0.75) 0px 64px 110px -34px;
+}
+.astrid-public-site[data-theme="dark"] .astrid-callout { box-shadow: rgba(0, 0, 0, 0.55) 0px 18px 40px; }
+.astrid-public-site[data-theme="dark"] .astrid-callout-connectors path { stroke-width: 1.6; }
+.astrid-public-site[data-theme="dark"] .astrid-composer-note { box-shadow: rgba(0, 0, 0, 0.45) 0px 10px 24px; }
+.astrid-public-site[data-theme="dark"] .astrid-composer-field:focus-within { box-shadow: rgba(237, 107, 35, 0.18) 0px 0px 0px 3px; }
+
+/* In Agent the editor recedes behind the conversation, whatever the palette. */
+.astrid-public-site[data-audience="agent"] :is(.astrid-player-surface, .astrid-inspector-surface, .astrid-timeline-surface) { opacity: .55; }
+
+/* Theme switch: where View Transitions exist the whole page crossfades as one (see runThemeFade), so
+   nothing may crossfade underneath it. Elsewhere, flat elements crossfade on their own. */
+::view-transition-old(root),
+::view-transition-new(root) { animation-duration: 650ms; animation-timing-function: cubic-bezier(.4, 0, .2, 1); } /* THEME_WASH_MS */
+/* The moving panels are left out of the page's colour crossfade: a snapshot of them would ghost over
+   their live selves as they travel. They show live throughout and change colour on their own. */
+.astrid-editor-tilt { view-transition-name: astrid-panels; }
+::view-transition-old(astrid-panels) { display: none; }
+::view-transition-new(astrid-panels) { animation: none; }
+/* The outgoing labels step aside quickly rather than lingering through the whole wash; the incoming
+   ones run their own entrance once the panels settle. */
+.astrid-callouts { view-transition-name: astrid-labels; }
+::view-transition-old(astrid-labels) { animation-duration: 180ms; }
+::view-transition-new(astrid-labels) { animation: none; }
+/* The agent launcher sits over the panels, so in the page snapshot they would cover it for the whole
+   wash. It shows live above them instead, its disc blending with the dusk like theirs. */
+.astrid-agent-launcher { view-transition-name: astrid-agent-launcher; }
+::view-transition-old(astrid-agent-launcher) { display: none; }
+::view-transition-new(astrid-agent-launcher) { animation: none; }
+@supports not (view-transition-name: none) {
+  .astrid-public-site { transition: background-color 600ms ease, color 600ms ease; }
+  .astrid-editor-stage { transition: box-shadow 600ms ease, background-color 600ms ease, border-color 600ms ease; }
+  :is(.astrid-callout, .astrid-audience-switch, .astrid-audience-switch button, .astrid-hero-subtitle) {
+    transition: background-color 600ms ease, border-color 600ms ease, color 600ms ease;
+  }
+}
+
+/* Desktop Agent: the timeline keeps the App box, which follows the player and so scales with the stage's
+   width, while the stage's height barely changes. A height-sized top row therefore ran into the timeline
+   on narrower desktops. The top row and the timeline's lift both follow the player instead, so the gap
+   between the two panels on top and the timeline below holds at every desktop width. */
+@media (min-width: 1100px) {
+  .astrid-public-site[data-audience="agent"] :is(.astrid-player-surface, .astrid-inspector-surface) {
+    height: min(39%, calc(var(--astrid-player-height, 60%) * .73 - 14px));
+  }
+  .astrid-public-site[data-audience="agent"] .astrid-timeline-surface {
+    transform: translate3d(-2.5%, calc(var(--astrid-player-height, 0px) * -.2), -145px) rotateX(4deg) scale(.86);
+  }
+}
+
+/* Narrow desktops: the page gutter is slimmer, so labels hang over the stage edge a little less. */
+@media (max-width: 1300px) {
+  .astrid-callout { --astrid-callout-width: 190px; --astrid-callout-overhang: -28px; }
+}
+
+/* Tablet (641–1099px): an editorial layout. A slim top bar carries the brand and the App/Agent
+   toggle; the headline and the subtitle + CTA sit side by side; the stage keeps the exact desktop
+   composition by locking its aspect ratio, with gutters for the labels that hang over its edges. */
+@media (max-width: 1099px) {
+  .astrid-public-site { padding-inline: clamp(20px, 4vw, 44px); }
+  .astrid-landing-grid {
+    grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+    grid-template-areas:
+      "brand switch"
+      "title detail"
+      "stage stage"
+      "note note";
+    align-items: end;
+    /* Only the two-column desktop layout fills the viewport; stacked layouts size to their content. */
+    min-height: 0;
+    column-gap: clamp(28px, 5vw, 56px);
+    row-gap: 26px;
+    padding: 18px 0 22px;
+  }
+  .astrid-hero-copy { display: contents; }
+  .astrid-hero-copy .astrid-brand { grid-area: brand; align-self: center; margin: 0; }
+  .astrid-hero-copy .astrid-audience-switch { grid-area: switch; justify-self: end; align-self: center; margin: 0; }
+  .astrid-hero-copy h1 { grid-area: title; max-width: 12ch; margin: 10px 0 0; font-size: clamp(52px, 7.2vw, 74px); }
+  .astrid-hero-detail { grid-area: detail; max-width: none; padding-bottom: 4px; }
+  .astrid-hero-subtitle { max-width: none; font-size: 17px; }
+  .astrid-hero-actions { max-width: none; }
+  .astrid-hero-note { grid-area: note; justify-self: start; margin: 0; padding: 0; }
+  .astrid-showcase { grid-area: stage; grid-template-rows: auto; padding-inline: 32px; }
+  .astrid-editor-stage { height: auto; aspect-ratio: 984 / 740; }
+  /* App reads as one editor: the player with the inspector beside it at the same height, and the
+     timeline straight beneath both. The surfaces box is about 0.735 as tall as it is wide, which the
+     percentages below rely on to line the three up. */
+  .astrid-public-site[data-audience="app"] .astrid-player-surface {
+    left: 4%; top: 6%; width: 57.5%; height: auto; aspect-ratio: 16 / 9;
+  }
+  .astrid-public-site[data-audience="app"] .astrid-inspector-surface {
+    /* Level with the player's bottom, starting just below the effects label. */
+    left: 64%; right: auto; top: 100px; bottom: 50.1%; width: 32%; height: auto;
+  }
+  .astrid-public-site[data-audience="app"] .astrid-inspector-panel-frame { zoom: .72; }
+  .astrid-public-site[data-audience="app"] .astrid-timeline-surface {
+    left: 4%; top: 51.2%; bottom: auto; width: 92%; height: 38%;
+  }
+  .astrid-public-site[data-audience="app"] .astrid-chat-surface { left: calc(96% - 62px); top: calc(89.2% - 62px); }
+  /* The Agent timeline keeps the App box (no reflow on switching) and recedes by transform only. */
+  .astrid-public-site[data-audience="agent"] .astrid-timeline-surface {
+    left: 4%; top: 51.2%; bottom: auto; width: 92%; height: 38%;
+    transform: translate3d(0, 0, -145px) rotateX(4deg) scale(.86);
+  }
+  .astrid-public-site[data-audience="agent"] .astrid-chat-surface { top: 8%; width: 54%; height: 84%; }
+  .astrid-public-site[data-audience="app"] { --astrid-centre-x: 2.8%; }
+  .astrid-public-site[data-audience="agent"] { --astrid-centre-x: 2.9%; }
+  /* A touch denser so the whole exchange fits the smaller conversation card (tablet and phone). */
+  .astrid-public-site[data-audience] .astrid-scripted-conversation { zoom: .88; }
+  /* Labels sit in the corners, clear of the panels: effects over the inspector's top edge, the other two
+     hanging below the timeline. */
+  .astrid-callout[data-callout="effects"] { top: 2%; }
+  .astrid-callout[data-callout="models"] { bottom: -4%; }
+  .astrid-callout[data-callout="timeline"] { bottom: -4%; }
+  .astrid-callout { --astrid-callout-width: 184px; --astrid-callout-overhang: -32px; padding: 10px 12px; }
+  .astrid-callout h2 { font-size: 13.5px; }
+  .astrid-callout p { font-size: 12px; }
+}
+
+/* Phone (≤640px): a portrait product shot. In Agent the
+   conversation fills the front with the editor peeking from behind; in App
+   the player, a tilted inspector card and the timeline are layered. Phones have no side room but plenty
+   of height, so the desktop labelling is rotated 90°: the same cards hang over the stage's top and
+   bottom edges, framing the composition, and draw their connectors down or up into it. */
+@media (max-width: 640px) {
+  .astrid-public-site { padding-inline: 18px; }
+  .astrid-landing-grid {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "brand switch"
+      "title title"
+      "detail detail"
+      "stage stage"
+      "note note";
+    align-items: start;
+    row-gap: 18px;
+    padding: 12px 0 18px;
+  }
+  .astrid-brand { min-height: 44px; gap: 9px; }
+  .astrid-brand-name { font-size: 23px; }
+  .astrid-audience-switch { min-width: 0; }
+  .astrid-audience-switch button { min-height: 40px; padding-inline: 15px; }
+  .astrid-hero-copy h1 { max-width: 11ch; margin: 14px 0 0; font-size: clamp(44px, 12.6vw, 56px); }
+  .astrid-hero-subtitle { margin-bottom: 18px; font-size: 16.5px; }
+  .astrid-button { min-height: 52px; }
+  .astrid-showcase { grid-template-rows: auto; padding: 26px 0 30px; }
+  .astrid-editor-stage { aspect-ratio: 390 / 552; border-radius: 16px; }
+  /* The App has one timeline row. Size its stage from the inspector, 16:9 player, row, and
+     label clearance instead of stretching a portrait aspect ratio on wider phones. */
+  .astrid-editor-stage[data-audience="app"] {
+    --astrid-app-top: 64px;
+    --astrid-app-label-space: clamp(94px, calc(280px - 42vw), 146px);
+    width: 100%; min-width: 0; min-height: 0; aspect-ratio: auto;
+    height: calc(var(--astrid-app-top) + 100px + (100vw - 62px) * .5625 + 112px + var(--astrid-app-label-space));
+  }
+  /* The labels hang over the top and bottom edges; the composition tucks just under them. */
+  .astrid-editor-tilt { inset: 64px 12px 40px; }
+  .astrid-editor-stage[data-audience="agent"] { cursor: auto; }
+
+  /* Render the foreground at its actual CSS size: perspective and nested downscaling soften
+     small text on phones. Overlap and shadows retain depth; only the Agent backdrop tilts. */
+  .astrid-showcase, .astrid-editor-stage { perspective: none; }
+  .astrid-editor-tilt, .astrid-editor-surfaces { transform-style: flat; }
+  .astrid-public-site[data-audience] .astrid-editor-surfaces { transform: none; translate: none; }
+  .astrid-public-site[data-audience="app"],
+  .astrid-public-site[data-audience="agent"] { --astrid-centre-x: 0%; }
+  .astrid-public-site[data-audience="app"] .astrid-inspector-surface {
+    left: 0; right: auto; top: 0; width: 100%; height: 84px; padding: 4px;
+    transform: none;
+  }
+  .astrid-public-site[data-audience="app"] .astrid-player-surface {
+    left: 0; top: 92px; width: 100%; height: auto; aspect-ratio: 16 / 9; padding: 6px;
+    transform: none;
+  }
+  .astrid-public-site[data-audience="app"] .astrid-timeline-surface {
+    left: 0; top: calc(100px + (100vw - 62px) * .5625); bottom: auto; width: 100%; height: 112px;
+    transform: none;
+  }
+  /* A compact clip-name row sits above evenly spaced tabs; the full inspector controls stay hidden. */
+  .astrid-public-site[data-audience="app"] .astrid-inspector-panel-frame { zoom: 1; font-size: 11px; }
+  .astrid-public-site[data-audience="app"] .astrid-inspector-surface [role="tabpanel"] { margin-top: 0; gap: 0; }
+  .astrid-public-site[data-audience="app"] .astrid-inspector-surface .text-sm { font-size: 11px; line-height: 1.2; }
+  .astrid-public-site[data-audience="app"] .astrid-inspector-surface [role="tabpanel"] > div > div > :first-child :is(.mt-1, .rounded-full) { display: none; }
+  .astrid-public-site[data-audience="app"] .astrid-inspector-panel-frame > div > div > [role="tablist"],
+  .astrid-public-site[data-audience="app"] .astrid-inspector-surface fieldset { display: none; }
+  .astrid-public-site[data-audience="app"] .astrid-inspector-surface [role="tabpanel"] > div { padding: 5px; overflow: hidden; }
+  .astrid-public-site[data-audience="app"] .astrid-inspector-surface [role="tabpanel"] > div > div {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: 24px 30px;
+    align-items: center;
+    gap: 4px;
+    height: 100%;
+  }
+  .astrid-public-site[data-audience="app"] .astrid-inspector-surface [role="tabpanel"] > div > div > * { margin: 0; }
+  .astrid-public-site[data-audience="app"] .astrid-inspector-surface [role="tabpanel"] > div > div > :first-child {
+    height: 24px; min-width: 0; align-items: center; padding: 0 2px;
+    border: 0; border-radius: 0; background: transparent;
+  }
+  .astrid-public-site[data-audience="app"] .astrid-inspector-surface [data-clip-inspector-read-only] > :first-child button { width: 24px; height: 24px; min-height: 0; }
+  .astrid-public-site[data-audience="app"] .astrid-inspector-surface [role="tablist"].grid-cols-4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    height: 30px;
+    min-height: 0;
+  }
+  .astrid-public-site[data-audience="app"] .astrid-inspector-surface [role="tablist"].grid-cols-4 > [role="tab"] { font-size: 11px; padding-inline: 2px; }
+  .astrid-public-site[data-audience="agent"] .astrid-chat-surface {
+    /* Sized so the finished exchange just fills it, rather than the whole stage, and centred. */
+    left: 4%; top: calc(50% - min(50%, 190px)); width: 92%; height: min(100%, 380px);
+    transform: none;
+  }
+  .astrid-public-site[data-audience="agent"] .astrid-player-surface {
+    left: 0; top: 0; width: 62%; height: 30%;
+    transform: rotate(-3deg);
+  }
+  .astrid-public-site[data-audience="agent"] .astrid-inspector-surface {
+    right: 0; top: 7%; width: 58%; height: 34%;
+    transform: rotate(3deg);
+  }
+  .astrid-public-site[data-audience="agent"] .astrid-timeline-surface {
+    /* A smaller actual box behind the chat, without shrinking its rendered text. */
+    left: 0; top: 60%; bottom: 0; width: 88%; height: auto;
+    transform: rotate(-2deg);
+  }
+  /* Direct font and spacing sizes keep the conversation crisp without a zoomed text layer. */
+  .astrid-public-site[data-audience] .astrid-scripted-conversation { zoom: 1; font-size: 12px; }
+  .astrid-scripted-conversation [data-conversation-presentation] .text-sm { font-size: 12px; line-height: 1.4; }
+  .astrid-scripted-conversation [data-conversation-presentation] > div:first-child img { width: 20px; height: 20px; }
+  .astrid-conversation-footer { gap: 6px; }
+  .astrid-example-result { gap: 7px; padding: 6px; }
+  .astrid-example-result img { width: 44px; height: 32px; flex-basis: 44px; }
+  .astrid-example-result strong { font-size: 11px; }
+  .astrid-example-result span { font-size: 10px; }
+  .astrid-composer-field { padding: 3px 3px 3px 8px; }
+  .astrid-composer input { min-height: 28px; font-size: 12px; }
+  .astrid-composer button { width: 28px; height: 28px; }
+  .astrid-conversation-footer > .astrid-example-result p { display: none; }
+  .astrid-scripted-conversation [data-conversation-presentation] > div:first-child { padding-block: 9px; }
+  .astrid-scripted-conversation [data-conversation-presentation] > div:nth-child(2) { padding: 8px 12px; }
+  .astrid-scripted-conversation [data-conversation-presentation] > div:nth-child(2) > .flex-col { gap: 8px; }
+  .astrid-scripted-conversation [data-conversation-presentation] > div:nth-child(2) .rounded-2xl { max-width: 94%; padding: 7px 10px; }
+  .astrid-scripted-conversation [data-conversation-presentation] > div:nth-child(2) .rounded-2xl > .mt-1\.5 { display: none; }
+  .astrid-scripted-conversation [data-conversation-presentation] > div:last-child { padding: 8px 10px; }
+  .astrid-preview-transport-outlet .astrid-preview-transport button { flex: 0 0 40px; width: 40px; }
+
+  /* Half-width cards on the top and bottom rails, hanging ~a fifth of their height over the edge. */
+  .astrid-callout {
+    --astrid-callout-width: calc(50% - 14px);
+    padding: 9px 11px;
+    border-radius: 10px;
+  }
+  .astrid-callout h2 { font-size: 13px; line-height: 1.22; }
+  .astrid-callout p { margin-top: 3px; font-size: 11.5px; line-height: 1.32; }
+  .astrid-callout[data-callout] { top: auto; right: auto; bottom: auto; left: auto; }
+  .astrid-callout:is([data-callout="community"], [data-callout="timeline"], [data-callout="workflows"]) { left: 8px; }
+  .astrid-callout:is([data-callout="effects"], [data-callout="tools"], [data-callout="models"]) { right: 8px; }
+  .astrid-callout:is([data-callout="community"], [data-callout="tools"], [data-callout="effects"]) { top: -20px; }
+  .astrid-callout:is([data-callout="timeline"], [data-callout="workflows"], [data-callout="models"]) { bottom: -20px; }
+  .astrid-result-handoff-button { min-height: 44px; }
+
+}
+
+@media (min-width: 641px) and (max-width: 1280px) {
+  /* Where the inspector is short, it keeps just the clip and its effect tabs, so the Effects tab the
+     label points at is always in view. */
+  .astrid-public-site[data-audience="app"] .astrid-inspector-panel-frame > div > div > [role="tablist"],
+  .astrid-public-site[data-audience="app"] .astrid-inspector-surface [role="tabpanel"] > div > div > :first-child :is(.mt-1, .rounded-full) { display: none; }
+  .astrid-public-site[data-audience="app"] .astrid-inspector-surface [role="tabpanel"] > div { padding: 8px; }
+  .astrid-public-site[data-audience="app"] .astrid-inspector-surface [role="tabpanel"] > div > div > :first-child { padding: 8px 10px; }
+}
+@media (max-width: 380px) {
+  /* Narrow phones wrap the labels onto more lines, so the composition gets a little more room under them. */
+  .astrid-editor-stage { aspect-ratio: 390 / 600; }
+  .astrid-editor-tilt { inset: 84px 12px 58px; }
+}
+@media (min-width: 411px) and (max-width: 640px) {
+  /* Wider phones wrap the exchange onto fewer lines, so the conversation can be shorter. */
+  .astrid-public-site[data-audience="agent"] .astrid-chat-surface { top: calc(50% - min(50%, 175px)); height: min(100%, 350px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .astrid-hero-cta > *,
+  .astrid-chat-surface > * { transition: none !important; }
+  .astrid-editor-surfaces,
+  .astrid-editor-stage { transition-duration: 0ms !important; transition-delay: 0ms !important; }
+  .astrid-surface,
+  .astrid-preview-transport-outlet,
+  .astrid-callouts {
+    transition-duration: 0ms !important;
+    transition-delay: 0ms !important;
+  }
+  .astrid-surface { transform: none !important; }
+  .astrid-editor-surfaces { transform: none !important; translate: none !important; }
+  .astrid-editor-tilt { transform: none !important; }
+  .astrid-agent-launcher { animation: none; }
+  .astrid-callouts,
+  .astrid-callout,
+  .astrid-callout > :is(h2, p),
+  .astrid-callout-connectors :is(path, circle),
+  .astrid-editor-stage[data-revealed="true"] :is(.astrid-surface, .astrid-preview-transport-outlet),
+  .astrid-editor-loading,
+  .astrid-editor-stage,
+  .astrid-hero-copy > *,
+  .astrid-hero-detail > *,
+  .astrid-hero-actions > * { animation: none !important; }
+  .astrid-showcase { perspective: none; }
+  .astrid-editor-stage { box-shadow: 0 2px 8px rgba(50, 40, 25, .06) !important; }
+  .astrid-public-site[data-audience="agent"] .astrid-player-surface,
+  .astrid-public-site[data-audience="agent"] .astrid-timeline-surface,
+  .astrid-public-site[data-audience="agent"] .astrid-inspector-surface { opacity: 1; }
+  .astrid-public-site[data-audience="agent"] .astrid-chat-surface {
+    transform: translateX(-50%) !important;
+  }
+}
+
+/* Phones use a shallow full-width integration rail and balanced lower callouts. Geometry switches
+   immediately; only opacity fades, avoiding reflowing the live editor throughout a 650ms morph. */
+@media (max-width: 640px) {
+  .astrid-editor-stage[data-audience="agent"] {
+    width: 100%;
+    min-width: 0;
+    min-height: 650px;
+    aspect-ratio: auto;
+  }
+  .astrid-editor-stage[data-audience="agent"] .astrid-editor-tilt { inset: 148px 12px 108px; }
+  .astrid-callout[data-callout="tools"] {
+    --astrid-callout-width: calc(100% - 16px);
+    top: -20px; left: 8px; right: 8px;
+  }
+  .astrid-callout[data-callout="community"] { top: auto; left: auto; right: 8px; bottom: -20px; }
+  .astrid-integration-logos { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin-block: 7px; }
+  .astrid-integration-logos a { font-size: 10px; letter-spacing: -.02em; min-height: 52px; }
+  .astrid-integration-logos span { white-space: nowrap; overflow-wrap: normal; }
+  .astrid-integration-logos img { width: 36px; height: 36px; }
+
+  .astrid-public-site .astrid-editor-stage,
+  .astrid-public-site .astrid-editor-surfaces,
+  .astrid-public-site .astrid-surface,
+  .astrid-public-site .astrid-preview-transport-outlet { transition: none; }
+  .astrid-public-site .astrid-chat-surface > * { transition: opacity 160ms ease; }
+  .astrid-public-site .astrid-callouts,
+  .astrid-public-site .astrid-callout,
+  .astrid-public-site .astrid-callout > :is(h2, p),
+  .astrid-public-site .astrid-callout-connectors :is(path, circle),
+  .astrid-public-site .astrid-agent-launcher,
+  .astrid-public-site .astrid-editor-stage[data-revealed="true"] :is(.astrid-surface, .astrid-preview-transport-outlet) { animation: none; }
+}
+
+@media (max-width: 640px) and (prefers-reduced-motion: reduce) {
+  .astrid-public-site[data-audience="agent"] .astrid-chat-surface { transform: none !important; }
+}
+
+@media (max-width: 380px) {
+  /* Extra line wrapping makes both lower cards taller. Keep them clear of the composer. */
+  .astrid-editor-stage[data-audience="agent"] { min-height: 710px; }
+  .astrid-editor-stage[data-audience="app"] { --astrid-app-top: 84px; }
+}
+
+/* A short compositor-only arrival preserves the switch's motion without resizing text layers. */
+@keyframes astrid-mobile-app-arrive {
+  from { opacity: .35; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes astrid-mobile-agent-arrive {
+  from { opacity: .35; transform: translateY(-10px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes astrid-mobile-callout-arrive {
+  from { opacity: 0; translate: 0 8px; }
+  to { opacity: 1; translate: 0 0; }
+}
+@media (max-width: 640px) and (prefers-reduced-motion: no-preference) {
+  .astrid-public-site[data-audience="app"] .astrid-editor-surfaces {
+    animation: astrid-mobile-app-arrive 220ms ease-out both;
+  }
+  .astrid-public-site[data-audience="agent"] .astrid-editor-surfaces {
+    animation: astrid-mobile-agent-arrive 220ms ease-out both;
+  }
+  /* Callouts remount for each audience and first appear when the editor reveals. Bring the whole
+     card in together: no blurred text, scale, or separate animation for each line. */
+  .astrid-public-site .astrid-callout {
+    animation: astrid-mobile-callout-arrive 220ms ease-out calc(80ms + var(--astrid-mobile-callout-order, var(--astrid-callout-index, 0)) * 60ms) backwards;
+  }
+  .astrid-callout[data-callout="tools"] { --astrid-mobile-callout-order: 0; }
+  .astrid-callout[data-callout="workflows"] { --astrid-mobile-callout-order: 1; }
+  .astrid-callout[data-callout="community"] { --astrid-mobile-callout-order: 2; }
+  .astrid-public-site .astrid-callout-connectors g {
+    /* Each card settles before its connector starts; animationend refreshes final geometry. */
+    --astrid-mobile-connector-start: calc(340ms + var(--astrid-callout-index, 0) * 60ms);
+  }
+  .astrid-public-site[data-audience="agent"] .astrid-callout-connectors g:has([data-callout="tools"]) { --astrid-mobile-connector-start: 340ms; }
+  .astrid-public-site[data-audience="agent"] .astrid-callout-connectors g:has([data-callout="workflows"]) { --astrid-mobile-connector-start: 400ms; }
+  .astrid-public-site[data-audience="agent"] .astrid-callout-connectors g:has([data-callout="community"]) { --astrid-mobile-connector-start: 460ms; }
+  .astrid-public-site .astrid-callout-connectors path {
+    animation: astrid-connector-draw 320ms ease-out var(--astrid-mobile-connector-start) backwards;
+  }
+  .astrid-public-site .astrid-callout-connectors .astrid-callout-dot-start {
+    animation: astrid-dot-in 100ms ease-out var(--astrid-mobile-connector-start) backwards;
+  }
+  .astrid-public-site .astrid-callout-connectors .astrid-callout-dot-end {
+    animation: astrid-dot-in 120ms ease-out calc(var(--astrid-mobile-connector-start) + 300ms) backwards;
+  }
+}
+
+/* Mobile Agent reads as a conversation: fit the exchange rather than reserving an empty transcript. */
+@media (max-width: 640px) {
+  .astrid-public-site[data-audience="agent"] .astrid-chat-surface {
+    top: 12px; height: auto; max-height: calc(100% - 12px);
+    display: flex; flex-direction: column;
+    border-color: color-mix(in srgb, var(--astrid-ink) 24%, var(--astrid-panel));
+    border-radius: 14px;
+    box-shadow: 0 4px 12px rgb(0 0 0 / 12%), 0 14px 28px rgb(0 0 0 / 16%);
+  }
+  .astrid-public-site[data-audience="agent"] .astrid-scripted-conversation {
+    display: flex; flex-direction: column; height: auto; min-height: 0;
+  }
+  .astrid-public-site[data-audience="agent"] .astrid-scripted-conversation [data-conversation-presentation] { height: auto; min-height: 0; }
+  .astrid-public-site[data-audience="agent"] .astrid-scripted-conversation [data-conversation-presentation] > div:nth-child(2) {
+    flex: 0 1 auto; min-height: 0; padding: 12px;
+  }
+  .astrid-public-site[data-audience="agent"] .astrid-scripted-conversation [data-conversation-presentation] > div:nth-child(2) > .flex-col { gap: 12px; }
+  .astrid-public-site[data-audience="agent"] .astrid-scripted-conversation [data-conversation-presentation] > div:nth-child(2) .rounded-2xl { max-width: 85%; }
+  .astrid-public-site[data-audience="agent"] .astrid-scripted-conversation .justify-end > .rounded-2xl { border-bottom-right-radius: 4px; }
+  .astrid-public-site[data-audience="agent"] .astrid-scripted-conversation .justify-start > .rounded-2xl { border-bottom-left-radius: 4px; }
+  .astrid-public-site[data-audience="agent"] .astrid-scripted-conversation [data-conversation-presentation] > div:last-child {
+    flex-shrink: 0;
+    background: color-mix(in srgb, var(--astrid-ink) 5%, var(--astrid-panel));
+    border-color: color-mix(in srgb, var(--astrid-ink) 16%, var(--astrid-panel));
+    padding: 10px;
+  }
+  .astrid-public-site[data-audience="agent"] .astrid-conversation-footer { gap: 9px; }
+  .astrid-public-site[data-audience="agent"] .astrid-example-result { border: 0; background: transparent; padding: 0 2px; }
+  .astrid-public-site[data-audience="agent"] .astrid-composer-field { border-radius: 12px; }
+  .astrid-public-site[data-audience="agent"] :is(.astrid-player-surface, .astrid-inspector-surface, .astrid-timeline-surface) { opacity: .22; }
+}
+
+@media (min-width: 480px) and (max-width: 640px) {
+  .astrid-editor-stage[data-audience="agent"] { min-height: 570px; }
+}
+
+.astrid-workflows-title-line { display: block; white-space: nowrap; }
+
+@media (max-width: 380px) {
+  .astrid-callout[data-callout="workflows"] h2 { font-size: clamp(10.5px, calc(6.25vw - 9.5px), 13px); }
+}

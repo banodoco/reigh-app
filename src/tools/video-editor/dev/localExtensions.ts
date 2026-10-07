@@ -23,14 +23,12 @@
  * lane under the timeline tracks.
  */
 import type { ReighExtension } from '@reigh/editor-sdk';
-import { ASTRID_EDITOR_EXTENSIONS } from '@astrid/packs/rendering/editor/catalog';
 import { scenePhaseMarkersExtension } from './scene-phase-markers/extension';
 import { transcriptLaneExtension } from './transcript-lane/extension';
 import { creativeLabExtensions } from '../examples/extensions/creative-lab';
 import { runawayTimelineExtension } from './runaway-timeline/extension';
 
 export const devLocalExtensions: ReighExtension[] = [
-  ...ASTRID_EDITOR_EXTENSIONS,
   scenePhaseMarkersExtension,
   transcriptLaneExtension,
   runawayTimelineExtension,

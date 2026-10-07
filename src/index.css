@@ -7,7 +7,7 @@
 /* TT Gertika Font Face Declarations */
 @font-face {
   font-family: 'TTGertika';
-  src: url('/fonts/tt_gertika/TT_Gertika_Trial_Regular.ttf') format('truetype');
+  src: url('/fonts/tt_gertika/TT_Gertika_Trial_Regular.woff2') format('woff2'), url('/fonts/tt_gertika/TT_Gertika_Trial_Regular.ttf') format('truetype');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -15,7 +15,7 @@
 
 @font-face {
   font-family: 'TTGertika';
-  src: url('/fonts/tt_gertika/TT_Gertika_Trial_Bold.ttf') format('truetype');
+  src: url('/fonts/tt_gertika/TT_Gertika_Trial_Bold.woff2') format('woff2'), url('/fonts/tt_gertika/TT_Gertika_Trial_Bold.ttf') format('truetype');
   font-weight: 700;
   font-style: normal;
   font-display: swap;
@@ -23,7 +23,7 @@
 
 @font-face {
   font-family: 'TTGertika';
-  src: url('/fonts/tt_gertika/TT_Gertika_Trial_Black.ttf') format('truetype');
+  src: url('/fonts/tt_gertika/TT_Gertika_Trial_Black.woff2') format('woff2'), url('/fonts/tt_gertika/TT_Gertika_Trial_Black.ttf') format('truetype');
   font-weight: 900;
   font-style: normal;
   font-display: swap;
@@ -141,13 +141,14 @@
     /* ========================================= */
     /* TYPOGRAPHY                                */
     /* ========================================= */
-    --theme-font-family: 'Crimson Text', serif;
-    --theme-heading-font: 'TTGertika', sans-serif;
-    --theme-heading-weight: 700;
-    --theme-body-weight: 600;
-    --theme-light-weight: 600;
-    --theme-medium-weight: 700;
-    --theme-bold-weight: 800;
+    /* As the public site: Inter for text, Georgia for headings. */
+    --theme-font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --theme-heading-font: Georgia, 'Times New Roman', serif;
+    --theme-heading-weight: 400;
+    --theme-body-weight: 400;
+    --theme-light-weight: 400;
+    --theme-medium-weight: 500;
+    --theme-bold-weight: 600;
 
     /* ========================================= */
     /* SEMANTIC COLORS - LIGHT MODE              */
@@ -314,14 +315,19 @@
 @layer base {
   * {
     @apply border-border;
-    /* UI text is always lowercase for aesthetic consistency */
+  }
+
+  /* Astrid's own words keep their sentence case, as on the public site. The person's own text (project
+   * names, shot names, prompts: elements with .preserve-case) follows their choice in onboarding:
+   * all lowercase, unless they chose to keep it exactly as typed. */
+  :root:not(.preserve-user-text) .preserve-case {
     text-transform: lowercase !important;
   }
 
-  /* When "preserve user text" setting is enabled, elements with .preserve-case
-   * show their original casing. This applies to user-inputted text like
-   * project names, shot names, prompts, etc. */
-  :root.preserve-user-text .preserve-case {
+  /* Text shown exactly as written, whatever the case settings: commands, briefs to paste into an agent,
+   and previews of the person's own text. */
+  .verbatim-case,
+  .verbatim-case * {
     text-transform: none !important;
   }
 
@@ -339,8 +345,8 @@
   }
 
   body {
-    @apply text-foreground font-cocogoose font-light antialiased;
-    font-family: 'Cocogoose', 'CocogooseNumbers', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    @apply text-foreground font-cocogoose antialiased;
+    font-family: var(--theme-font-family, Inter, sans-serif);
     background-color: hsl(var(--background));
     /* Removed decorative gradients that were creating visible grid artifacts */
     letter-spacing: 0.015em;
@@ -378,16 +384,20 @@
     touch-action: pan-y !important;
   }
 
+  /* Headings as on the public site: Georgia at its regular weight, even where a component asks for bold. */
+  :is(h1, h2, h3, h4, h5, h6),
+  :is(h1, h2, h3, h4, h5, h6):is(.font-bold, .font-semibold, .font-extrabold) {
+    font-weight: var(--theme-heading-weight, 400);
+  }
   h1, h2, h3, h4, h5, h6 {
-    font-family: var(--theme-heading-font, 'TTGertika', sans-serif);
-    font-weight: var(--theme-heading-weight, 700);
-    letter-spacing: 0.02em;
+    font-family: var(--theme-heading-font, Georgia, serif);
+    letter-spacing: -0.01em;
     position: relative;
   }
   
   body {
-    font-family: var(--theme-font-family, 'Cocogoose', 'Inter', sans-serif) !important;
-    font-weight: var(--theme-body-weight, 350) !important;
+    font-family: var(--theme-font-family, Inter, sans-serif) !important;
+    font-weight: var(--theme-body-weight, 400) !important;
   }
 
   /* Ensure root element has proper background coverage for iOS */
@@ -397,9 +407,9 @@
     background-color: hsl(var(--background));
   }
   
-  /* Force numbers to use system fonts since Cocogoose trial doesn't include them */
+  /* The legacy Cocogoose class now sets Astrid's text face, as the public site does. */
   .font-cocogoose {
-    font-family: 'Cocogoose', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+    font-family: var(--theme-font-family, Inter, sans-serif) !important;
   }
 
   /* Override for any element containing numbers - force system font for digits */
@@ -671,7 +681,7 @@
   
   /* Font family utilities */
   .font-theme { font-family: var(--theme-font-family, 'Inter', sans-serif); }
-  .font-heading { font-family: var(--theme-heading-font, 'TTGertika', sans-serif); }
+  .font-heading { font-family: var(--theme-heading-font, Georgia, serif); }
   
   /* Font weight utilities - adapt to current theme */
   .font-theme-light { font-weight: var(--theme-light-weight, 300); }
@@ -1236,35 +1246,7 @@
   filter: drop-shadow(0 0 6px hsl(var(--wes-vintage-gold) / 0.7));
 }
 
-/* ========================================= */
-/* TEXT HIERARCHY REFINEMENTS               */
-/* Sharper distinction between levels        */
-/* ========================================= */
-
-/* Shot titles - more prominent */
-.dark .shot-title,
-.dark [class*="shot-name"],
-.dark h3[class*="font-light"] {
-  letter-spacing: 0.02em;
-  font-weight: 500;
-}
-
-/* Section headers - bolder, wider spacing */
-.dark .section-header,
-.dark [class*="text-xl"],
-.dark h2 {
-  letter-spacing: 0.03em;
-  font-weight: 600;
-}
-
-/* Metadata/labels - smaller, more muted */
-.dark .metadata,
-.dark .label,
-.dark [class*="text-xs"][class*="text-muted"],
-.dark [class*="text-sm"][class*="text-zinc-400"] {
-  letter-spacing: 0.01em;
-  font-weight: 400;
-}
+/* (Type is the same by day and by night, as on the public site: no dark-only weights or spacing.) */
 
 /* Shot group cards - icons dim until card hover */
 .dark .shot-group button {

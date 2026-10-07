@@ -97,7 +97,7 @@ export const ReferralModal: React.FC<ReferralModalProps> = ({ isOpen, onOpenChan
   const handleCopyLink = async () => {
     if (!username) return;
     
-    const referralLink = `https://reigh.art?from=${username}`;
+    const referralLink = `https://astrid.haus?from=${username}`;
     
     try {
       await navigator.clipboard.writeText(referralLink);
@@ -151,7 +151,7 @@ export const ReferralModal: React.FC<ReferralModalProps> = ({ isOpen, onOpenChan
                 <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border">
                   <div className="flex items-center justify-between">
                     <div className="flex-1 text-sm font-mono text-muted-foreground truncate mr-3">
-                      https://reigh.art?from={username}
+                      https://astrid.haus?from={username}
                     </div>
                     <Button
                       onClick={handleCopyLink}

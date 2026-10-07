@@ -36,6 +36,7 @@ test.describe('timeline desktop interaction', () => {
       const grid = q('main.grid');
       return {
         gridRows: grid ? getComputedStyle(grid).gridTemplateRows : null,
+        activityRegionCount: document.querySelectorAll('[data-video-editor-activity-region="true"]').length,
         preview: rect(q('[data-testid="video-editor-preview-surface"]')),
         playhead: rect(q('[data-testid="timeline-playhead"]')),
         tracks: Array.from(document.querySelectorAll('[data-track-id]'))
@@ -46,7 +47,6 @@ test.describe('timeline desktop interaction', () => {
           .filter((el) => /^\d:\d\d\.\d\d$/.test(el.textContent?.trim() ?? '')).length,
       };
     }, CLIP_BODY_SELECTOR as string);
-
     await test.step('preview surface has non-zero height', async () => {
       expect(geom.preview?.h ?? 0, JSON.stringify(geom.preview)).toBeGreaterThan(200);
     });
@@ -76,8 +76,9 @@ test.describe('timeline desktop interaction', () => {
       expect(geom.rulerTicks, `${geom.rulerTicks} ticks`).toBeGreaterThanOrEqual(5);
     });
 
-    await test.step('grid declares 4 rows', async () => {
-      expect((geom.gridRows ?? '').trim().split(/\s+/), geom.gridRows ?? '').toHaveLength(4);
+    await test.step('grid declares three rows when extension activity is absent', async () => {
+      expect(geom.activityRegionCount, 'the empty local stub has no activity event or proposal region').toBe(0);
+      expect((geom.gridRows ?? '').trim().split(/\s+/), geom.gridRows ?? '').toHaveLength(3);
     });
 
     await test.step('timeline fully inside viewport', async () => {

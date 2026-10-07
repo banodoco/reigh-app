@@ -4,7 +4,8 @@ import { SequenceParamEditor } from '@/tools/video-editor/components/PropertiesP
 import { isEditorParamsSchema } from '@/tools/video-editor/clip-types/defineClipType.ts';
 import type { ClipTypeDescriptor } from '@/tools/video-editor/clip-types/defineClipType.ts';
 import { KeyframeInspector } from '@/tools/video-editor/components/KeyframeInspector/KeyframeInspector';
-import { EffectCreatorPanel } from '@/tools/video-editor/components/EffectCreatorPanel.tsx';
+import type { ComponentType } from 'react';
+import type { EffectCreatorPanelProps } from '@/tools/video-editor/components/EffectCreatorPanel.tsx';
 import type { EffectResource } from '@/tools/video-editor/hooks/useEffectResources.ts';
 import type { VideoEditorEffectCatalog } from '@/tools/video-editor/lib/effect-catalog.ts';
 import type { ClipMeta } from '@/tools/video-editor/lib/timeline-data.ts';
@@ -36,6 +37,7 @@ export function ClipEffectsTab({
   setCreatorOpen,
   editingEffect,
   setEditingEffect,
+  EffectCreator,
 }: {
   clip: ResolvedTimelineClip;
   onChange: (patch: Partial<ClipMeta> & { at?: number }) => void;
@@ -52,8 +54,9 @@ export function ClipEffectsTab({
   setCreatorOpen: (open: boolean) => void;
   editingEffect: EffectResource | null;
   setEditingEffect: (effect: EffectResource | null) => void;
+  EffectCreator?: ComponentType<EffectCreatorPanelProps>;
 }) {
-  const canCreateEffects = effectResources.canCreateEffect;
+  const canCreateEffects = Boolean(EffectCreator && effectResources.canCreateEffect);
   const canEditEffects = effectResources.canUpdateEffect;
 
   if (!clipDescriptor && clip.clipType) {
@@ -140,7 +143,7 @@ export function ClipEffectsTab({
           Create Effect
         </Button>
       )}
-      <EffectCreatorPanel
+      {EffectCreator && <EffectCreator
         open={creatorOpen}
         onOpenChange={setCreatorOpen}
         editingEffect={editingEffect}
@@ -164,7 +167,7 @@ export function ClipEffectsTab({
             onChange({ continuous: { type: effectType, intensity: clip.continuous?.intensity ?? 0.5, params } });
           }
         }}
-      />
+      />}
       {/* M9: Keyframe Inspector — shown when clip type has editor params schema */}
       {clipDescriptor && isEditorParamsSchema(clipDescriptor.paramsSchema) && (
         <KeyframeInspector

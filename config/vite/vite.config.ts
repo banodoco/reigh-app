@@ -24,6 +24,7 @@ import {
 import { createBundleBudgetPlugin } from "./bundleBudget";
 import { createRemoteFontModePlugin } from "./remoteFonts";
 import { createPairedRelayPlugin, resolvePairedRelayConfig } from "./pairedRelay";
+import { createShareMetaPlugin } from "./shareMeta";
 
 export { createRemoteFontModePlugin, stripRemoteFontLinks } from "./remoteFonts";
 
@@ -55,6 +56,10 @@ export default defineConfig(() => {
   const astridBridgeProxyPolicy = resolveAstridBridgeProxyPolicy(process.env);
   const pairedRelay = createPairedRelayPlugin(resolvePairedRelayConfig(process.env));
   const astridSource = resolveAstridSource();
+  const astridPublicSource = resolveAstridSource(
+    process.env.ASTRID_PUBLIC_CHECKOUT ?? '',
+    'ASTRID_PUBLIC_CHECKOUT',
+  );
   const generationComposerConfig = resolveAstridGenerationComposer(process.env, astridSource?.sourceRoot);
   const generationComposer = generationComposerConfig
     ? createAstridGenerationComposer(generationComposerConfig)
@@ -113,7 +118,11 @@ export default defineConfig(() => {
       // Sprint 5: allow Vite to read from the sibling banodoco-workspace
       // (timeline-theme-2rp file: link).
       fs: {
-        allow: [path.resolve(__dirname, "../../../.."), ...(astridSource ? [astridSource.checkout] : [])],
+        allow: [
+          path.resolve(__dirname, "../../../.."),
+          ...(astridSource ? [astridSource.checkout] : []),
+          ...(astridPublicSource ? [astridPublicSource.checkout] : []),
+        ],
       },
     },
     preview: {
@@ -126,6 +135,7 @@ export default defineConfig(() => {
       pairedRelay,
       astridBridgeAuthPlugin,
       createRemoteFontModePlugin(disableRemoteFonts),
+      createShareMetaPlugin(process.env.ASTRID_SITE_ORIGIN?.trim() || undefined),
       react(),
       createBundleBudgetPlugin(),
     ].filter(Boolean),
@@ -134,6 +144,7 @@ export default defineConfig(() => {
         "@": path.resolve(__dirname, "../../src"),
         "@reigh/editor-sdk": path.resolve(__dirname, "../../src/sdk/index.ts"),
         ...(astridSource ? { "@astrid": astridSource.sourceRoot } : {}),
+        ...(astridPublicSource ? { "@astrid-public": astridPublicSource.sourceRoot } : {}),
         // Sprint 5: deduplicate React / Remotion / @banodoco/* across the
         // linked timeline-composition + timeline-theme-* packages so a
         // single React runtime drives the @remotion/player preview.

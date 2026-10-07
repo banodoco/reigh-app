@@ -1,5 +1,5 @@
 import React from 'react';
-import { Ellipsis, Loader2, RefreshCw, Video } from 'lucide-react';
+import { Ellipsis, Film, Loader2, RefreshCw, Video } from 'lucide-react';
 import { cn } from '@/shared/components/ui/contracts/cn.ts';
 import { shotGroupLabelAttrs } from '@/tools/video-editor/lib/timeline-dom.ts';
 import {
@@ -23,6 +23,7 @@ export interface PositionedShotGroup {
   hasManagedOutput?: boolean;
   hasStaleVideo: boolean;
   hasActiveTask: boolean;
+  thumbnailSrc?: string;
   left: number;
   top: number;
   width: number;
@@ -190,6 +191,39 @@ export const ShotGroupBorders = React.memo(function ShotGroupBorders({
     <>
       {positionedShotGroups.map((group) => (
         <React.Fragment key={group.key}>
+          {group.thumbnailSrc && (
+            <div
+              className="pointer-events-none absolute overflow-hidden rounded-md"
+              aria-hidden="true"
+              style={{
+                left: group.left,
+                top: group.top,
+                width: group.width,
+                height: group.height,
+                zIndex: 0,
+                opacity: 0.58,
+              }}
+            >
+              <img src={group.thumbnailSrc} alt="" className="h-full w-full object-cover" draggable={false} />
+              <div className="absolute inset-0 bg-black/25" />
+            </div>
+          )}
+          {group.canonicalIdentity && !group.thumbnailSrc && (
+            <div
+              className="pointer-events-none absolute flex items-center justify-center rounded-md bg-black/20 text-white/50"
+              title="No canonical poster available"
+              aria-hidden="true"
+              style={{
+                left: group.left,
+                top: group.top,
+                width: group.width,
+                height: group.height,
+                zIndex: 0,
+              }}
+            >
+              <Film className="h-4 w-4" />
+            </div>
+          )}
           <div
             className="pointer-events-none absolute rounded-md border-2 border-solid transition-colors"
             style={{

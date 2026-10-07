@@ -47,6 +47,8 @@ COPY --chown=node:node config ./config
 # source carrier in the minimal runtime image; copying only `dist/` is not
 # sufficient for `vite preview`.
 COPY --chown=node:node src/tools/video-editor/data/astridBridgeWire.ts ./src/tools/video-editor/data/astridBridgeWire.ts
+# Likewise the share-card copy that config/vite/shareMeta.ts reads.
+COPY --chown=node:node src/pages/Home/publicAstridShare.ts ./src/pages/Home/publicAstridShare.ts
 COPY scripts/runtime ./scripts/runtime
 COPY --chown=node:node --from=build /app/dist ./dist
 

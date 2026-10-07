@@ -1,16 +1,27 @@
 import React from 'react';
 import { Dialog, DialogContent } from '@/shared/components/ui/dialog';
 import { ChevronLeft } from 'lucide-react';
-import { useMediumModal } from '@/shared/hooks/useModal';
+import { useLargeModal } from '@/shared/hooks/useModal';
 import { useScrollFade } from '@/shared/hooks/useScrollFade';
 import { useOnboardingSteps } from '@/shared/components/OnboardingModal/hooks/useOnboardingSteps';
 import type { OnboardingModalProps } from '@/shared/components/OnboardingModal/types';
+import { AstridSetupStep, SetupFooterStatus } from '@/shared/components/OnboardingModal/components/steps/AstridSetupStep';
+
+/** With ?skip-setup in the address, the setup step offers a way past it (for testing the later steps
+ *  without a running Runtime). */
+export function wantsSetupSkip(): boolean {
+  return typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('skip-setup');
+}
 
 export const OnboardingModal: React.FC<OnboardingModalProps> = ({
   isOpen,
+  mode = 'first-run',
   onClose,
 }) => {
-  const modal = useMediumModal();
+  const initialFocusRef = React.useRef<HTMLDivElement>(null);
+  const reconnect = mode === 'reconnect';
+  // Large: setup shows commands and a brief that need room to read.
+  const modal = useLargeModal();
   const { showFade, scrollRef } = useScrollFade({
     isOpen,
     preloadFade: modal.isMobile,
@@ -29,7 +40,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleShake}>
-      <DialogContent className={modal.className} style={modal.style}>
+      <DialogContent className={modal.className} style={modal.style} initialFocus={initialFocusRef}>
         <style>
           {`
             @keyframes shake {
@@ -48,16 +59,21 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
           }
         `}</style>
 
-        <div className={`flex flex-col flex-1 min-h-0 ${isShaking ? 'shake-wrapper' : ''}`}>
+        <div ref={initialFocusRef} tabIndex={-1} className={`flex flex-col flex-1 min-h-0 outline-none ${isShaking ? 'shake-wrapper' : ''}`}>
           <div className={modal.headerClass} />
 
-          <div ref={scrollRef} className={modal.scrollClass}>
-            <CurrentStepComponent onNext={handleNext} onClose={onClose} />
+          {/* The scroller reaches into the dialog's right padding with matching padding inside, so its
+              scrollbar runs in its own lane beside the content instead of over it. */}
+          <div ref={scrollRef} className={`${modal.scrollClass} -mr-4 pr-4 [scrollbar-gutter:stable] [scrollbar-width:thin]`}>
+            {reconnect
+              ? <AstridSetupStep reconnect onNext={onClose} onClose={onClose} />
+              : <CurrentStepComponent onNext={handleNext} onClose={onClose} />}
             <div className="h-6" />
           </div>
 
+          {!reconnect && (
           <div className={`${modal.footerClass} relative`}>
-            {showFade && (
+            {showFade && currentStep !== 1 && (
               <div
                 className="absolute top-0 left-0 right-0 h-16 pointer-events-none z-10"
                 style={{ transform: 'translateY(-64px)' }}
@@ -66,7 +82,25 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
               </div>
             )}
 
-            <div className="relative flex justify-center gap-x-2 pt-6 pb-2 border-t relative z-20">
+            {/* While setting up, what it's waiting for sits here, below the instructions rather than over them. */}
+            {/* The checks sit centred in the footer, with no step-dot row beneath them. */}
+            {currentStep === 1 && (
+              <div className="border-t pt-6">
+                <SetupFooterStatus />
+                {wantsSetupSkip() && (
+                  <div className="flex justify-center pt-3">
+                    <button
+                      type="button"
+                      onClick={handleNext}
+                      className="text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground"
+                    >
+                      Skip setup
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+            <div className={`relative flex justify-center gap-x-2 pb-2 relative z-20 ${currentStep === 1 ? 'hidden' : 'pt-6 border-t'}`}>
               {currentStep > 1 && (
                 <button
                   onClick={handleBack}
@@ -77,7 +111,8 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                 </button>
               )}
 
-              <div className="flex gap-x-2">
+              {/* On the setup step the checks show progress; step dots there would only compete with them. */}
+              <div className={`flex gap-x-2 ${currentStep === 1 ? 'hidden' : ''}`}>
                 {stepTitles.map((_, index) => (
                   <div
                     key={index}
@@ -89,6 +124,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
               </div>
             </div>
           </div>
+          )}
         </div>
       </DialogContent>
     </Dialog>

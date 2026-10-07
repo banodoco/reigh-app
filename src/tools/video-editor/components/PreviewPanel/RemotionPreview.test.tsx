@@ -4,13 +4,15 @@ import { act, render } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { RemotionPreview, type PreviewHandle } from '@/tools/video-editor/components/PreviewPanel/RemotionPreview';
 import type { ResolvedTimelineConfig } from '@/tools/video-editor/types';
+import { VideoEditorRuntimeProvider, type VideoEditorRuntimeContextValue } from '@/tools/video-editor/contexts/VideoEditorRuntimeContext.tsx';
+import type { AstridElementHost } from '@/tools/video-editor/runtime/astrid-element-host.ts';
 
 vi.mock('@/tools/video-editor/compositions/TimelineRenderer', () => ({
   TimelineRenderer: () => null,
 }));
 
 const playerListeners = new Map<string, Set<(...args: any[]) => void>>();
-const playerPropsHistory: Array<{ config: ResolvedTimelineConfig; numberOfSharedAudioTags?: number }> = [];
+const playerPropsHistory: Array<{ config: ResolvedTimelineConfig; astridElementHost?: AstridElementHost; numberOfSharedAudioTags?: number }> = [];
 const playerHandles: Array<{
   seekTo: ReturnType<typeof vi.fn>;
   getCurrentFrame: ReturnType<typeof vi.fn>;
@@ -23,11 +25,12 @@ vi.mock('@remotion/player', async () => {
 
   return {
     Player: React.forwardRef(function MockPlayer(
-      props: { inputProps: { config: ResolvedTimelineConfig }; numberOfSharedAudioTags?: number },
+      props: { inputProps: { config: ResolvedTimelineConfig; astridElementHost?: AstridElementHost }; numberOfSharedAudioTags?: number },
       ref: React.Ref<unknown>,
     ) {
       playerPropsHistory.push({
         config: props.inputProps.config,
+        astridElementHost: props.inputProps.astridElementHost,
         numberOfSharedAudioTags: props.numberOfSharedAudioTags,
       });
       React.useImperativeHandle(ref, () => {
@@ -153,6 +156,54 @@ describe('RemotionPreview', () => {
 
   afterEach(() => {
     vi.useRealTimers();
+  });
+
+  it('forwards the provider-owned Astrid element host to the actual Player', () => {
+    const host: AstridElementHost = {
+      descriptors: [],
+      sequenceRegistry: {},
+      resolveComponent: () => undefined,
+      resolveSequenceClipEntry: () => undefined,
+      describeClipCapability: () => undefined,
+    };
+    render(
+      <VideoEditorRuntimeProvider value={{astridElementHost: host} as VideoEditorRuntimeContextValue}>
+        <RemotionPreview
+          config={makeConfig('public-host')}
+          onTimeUpdate={vi.fn()}
+          playerContainerRef={createRef<HTMLDivElement>()}
+        />
+      </VideoEditorRuntimeProvider>,
+    );
+    expect(playerPropsHistory.at(-1)?.astridElementHost).toBe(host);
+  });
+
+  it('renders controls into an optional public outlet without remounting the Player', () => {
+    const outlet = document.createElement('div');
+    document.body.append(outlet);
+    const config = makeConfig('transport-outlet');
+    const props = {
+      config,
+      onTimeUpdate: vi.fn(),
+      playerContainerRef: createRef<HTMLDivElement>(),
+      transportOutlet: outlet,
+      touchChrome: true,
+    };
+    const {container, rerender, unmount} = render(<RemotionPreview {...props} />);
+    const player = container.querySelector('[data-testid="mock-player"]');
+    const play = outlet.querySelector<HTMLButtonElement>('button[aria-label="Play"]');
+
+    expect(player).not.toBeNull();
+    expect(play).not.toBeNull();
+    expect(play).toHaveClass('h-12', 'w-12');
+    expect(container.querySelector('.astrid-preview-transport')).toBeNull();
+
+    rerender(<RemotionPreview {...props} />);
+
+    expect(container.querySelector('[data-testid="mock-player"]')).toBe(player);
+    expect(outlet.querySelector('button[aria-label="Play"]')).not.toBeNull();
+    unmount();
+    outlet.remove();
   });
 
   it('applies config updates live while playing', () => {

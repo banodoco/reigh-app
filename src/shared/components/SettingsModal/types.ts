@@ -38,8 +38,6 @@ export interface SettingsModalProps {
 
 export interface PreferencesSectionProps {
   isMobile: boolean;
-  darkMode: boolean;
-  setDarkMode: (value: boolean) => void;
   preserveUserText: boolean;
   setPreserveUserText: (value: boolean) => void;
   aiInputMode: AIInputMode;

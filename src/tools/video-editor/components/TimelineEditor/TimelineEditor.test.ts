@@ -9,6 +9,7 @@ import {
   resolveSelectedGenerationIdsForShotCreation,
   resolveVideoClipDoubleClickResolution,
   resolveWaveformAudioSrc,
+  resolveHostWaveformAudioSrc,
 } from './TimelineEditor';
 
 describe('resolveSelectedGenerationIdsForShotCreation', () => {
@@ -121,6 +122,31 @@ describe('resolveWaveformAudioSrc', () => {
     }), visualTrack)).toBeUndefined();
     expect(resolveWaveformAudioSrc(createClip({ clipType: 'text' }), visualTrack)).toBeUndefined();
     expect(resolveWaveformAudioSrc(createClip({ clipType: 'effect-layer' }), visualTrack)).toBeUndefined();
+  });
+});
+
+describe('resolveHostWaveformAudioSrc', () => {
+  const visualTrack: TrackDefinition = { id: 'V1', kind: 'visual', label: 'V1' };
+  const audioTrack: TrackDefinition = { id: 'A1', kind: 'audio', label: 'A1' };
+  const silentHashes = {'silent-study-clip': 'verified-silent-hash'};
+  const clip = (overrides: Partial<ResolvedTimelineClip> = {}): ResolvedTimelineClip => ({
+    id: 'clip-1',
+    at: 0,
+    track: 'V1',
+    clipType: 'media',
+    asset: 'silent-study-clip',
+    assetEntry: {file: 'silent.mp4', src: '/silent.mp4', type: 'video/mp4', content_sha256: 'verified-silent-hash'},
+    ...overrides,
+  });
+
+  it('skips waveform reads only for exact verified silent visual-video bytes', () => {
+    expect(resolveHostWaveformAudioSrc(clip(), visualTrack, silentHashes)).toBeUndefined();
+    expect(resolveHostWaveformAudioSrc(clip({assetEntry: {file: 'replacement.mp4', src: '/replacement.mp4', type: 'video/mp4', content_sha256: 'changed-hash'}}), visualTrack, silentHashes)).toBe('/replacement.mp4');
+    expect(resolveHostWaveformAudioSrc(clip(), visualTrack)).toBe('/silent.mp4');
+  });
+
+  it('keeps audio-track waveforms enabled even when the visual source hash is in the silent set', () => {
+    expect(resolveHostWaveformAudioSrc(clip({track: 'A1'}), audioTrack, silentHashes)).toBe('/silent.mp4');
   });
 });
 

@@ -1,5 +1,6 @@
 import type { RefObject } from 'react';
 import { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Pause, Play, SkipBack } from 'lucide-react';
 import { Player, type PlayerRef } from '@remotion/player';
 import { Button } from '@/shared/components/ui/button.tsx';
@@ -9,6 +10,8 @@ import { useEffectDiagnostic, useRenderDiagnostic } from '@/tools/video-editor/h
 import { getClipDurationInFrames, parseResolution, secondsToFrames } from '@/tools/video-editor/lib/config-utils.ts';
 import { VIDEO_EDITOR_THEME_VARS } from '@/tools/video-editor/lib/themeTokens.ts';
 import type { ResolvedTimelineConfig } from '@/tools/video-editor/types/index.ts';
+import { useOptionalVideoEditorRuntime } from '@/tools/video-editor/contexts/VideoEditorRuntimeContext.tsx';
+import { useOptionalPreviewMediaFailure } from '@/tools/video-editor/compositions/PreviewMediaFailureContext.tsx';
 
 export interface PreviewHandle {
   seek: (time: number) => void;
@@ -44,16 +47,20 @@ interface RemotionPreviewProps {
   compact?: boolean;
   /** Phone/tablet chrome: transport controls grow to touch-sized hit targets. */
   touchChrome?: boolean;
+  /** Public shell outlet keeps controls on a stable 2D plane above the deconstructing preview. */
+  transportOutlet?: HTMLElement | null;
   initialTime?: number;
   /** @deprecated Compatibility only; ignored. Use initialTime or PreviewHandle.seek. */
   currentTime?: number;
 }
 
 const RemotionPreviewComponent = forwardRef<PreviewHandle, RemotionPreviewProps>(function RemotionPreview(
-  { config, onTimeUpdate, playerContainerRef, compact = false, touchChrome = false, initialTime = 0 },
+  { config, onTimeUpdate, playerContainerRef, compact = false, touchChrome = false, transportOutlet, initialTime = 0 },
   ref,
 ) {
   const playerRef = useRef<PlayerRef>(null);
+  const previewMediaFailure = useOptionalPreviewMediaFailure();
+  const astridElementHost = useOptionalVideoEditorRuntime()?.astridElementHost;
   const [isPlaying, setIsPlaying] = useState(false);
   const playbackIntentRef = useRef<'playing' | 'paused'>('paused');
   const activeSeekRef = useRef<PendingSeek | null>(null);
@@ -141,7 +148,11 @@ const RemotionPreviewComponent = forwardRef<PreviewHandle, RemotionPreviewProps>
     };
   }, [config, isPlaying]);
 
-  const inputProps = useMemo(() => ({ config: deferredConfig }), [deferredConfig]);
+  const inputProps = useMemo(() => ({
+    config: deferredConfig,
+    astridElementHost,
+    previewMediaFailurePolicy: previewMediaFailure,
+  }), [astridElementHost, deferredConfig, previewMediaFailure]);
   const metadata = useMemo(() => {
     const fps = deferredConfig.output.fps;
     const { width, height } = parseResolution(deferredConfig.output.resolution);
@@ -169,7 +180,19 @@ const RemotionPreviewComponent = forwardRef<PreviewHandle, RemotionPreviewProps>
     }
 
     const onFrameUpdate = (event: { detail: { frame: number } }) => {
-      onTimeUpdate(event.detail.frame / metadata.fps);
+      const time = event.detail.frame / metadata.fps;
+      onTimeUpdate(time);
+      if (previewMediaFailure?.enabled) {
+        const activeVideoClipIds = deferredConfig.clips
+          .filter((clip) => {
+            if (!clip.assetEntry?.type?.startsWith('video')) return false;
+            const start = secondsToFrames(clip.at, metadata.fps);
+            const end = start + getClipDurationInFrames(clip, metadata.fps);
+            return event.detail.frame >= start && event.detail.frame < end;
+          })
+          .map((clip) => clip.id);
+        previewMediaFailure.syncActiveClips(activeVideoClipIds);
+      }
     };
     const onPlay = () => setIsPlaying(true);
     const onPause = () => setIsPlaying(false);
@@ -183,7 +206,7 @@ const RemotionPreviewComponent = forwardRef<PreviewHandle, RemotionPreviewProps>
       player.removeEventListener('play', onPlay);
       player.removeEventListener('pause', onPause);
     };
-  }, [markEventsEffect, metadata.fps, onTimeUpdate]);
+  }, [deferredConfig.clips, markEventsEffect, metadata.fps, onTimeUpdate, previewMediaFailure]);
 
   const flushPendingSeekRef = useRef<() => void>(() => undefined);
   const dispatchSeek = useCallback((pendingSeek: PendingSeek) => {
@@ -330,6 +353,94 @@ const RemotionPreviewComponent = forwardRef<PreviewHandle, RemotionPreviewProps>
     },
   }), [isPlaying, pause, play, seek, togglePlayPause]);
 
+  const failedMedia = previewMediaFailure?.enabled ? previewMediaFailure.failure : null;
+  const failedMediaRetryToken = failedMedia
+    ? previewMediaFailure?.retryTokenFor(failedMedia.clipId, failedMedia.source) ?? 0
+    : 0;
+  useEffect(() => {
+    if (!previewMediaFailure?.enabled || !failedMedia || failedMediaRetryToken === 0) return;
+    const expectedPath = new URL(failedMedia.source, window.location.href).pathname;
+    const checkNativeFrame = () => {
+      const nativeVideo = playerContainerRef.current?.querySelector('video');
+      if (nativeVideo && nativeVideo.error === null && nativeVideo.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+        try {
+          if (new URL(nativeVideo.currentSrc || nativeVideo.src, window.location.href).pathname === expectedPath) {
+            previewMediaFailure.markFrameReady(failedMedia.clipId, failedMedia.source, failedMediaRetryToken);
+          }
+        } catch {
+          // Wait for the retried source to become an ordinary local URL.
+        }
+      }
+    };
+    checkNativeFrame();
+    const interval = window.setInterval(checkNativeFrame, 160);
+    return () => {
+      window.clearInterval(interval);
+    };
+  }, [failedMedia, failedMediaRetryToken, playerContainerRef, previewMediaFailure]);
+
+  useEffect(() => {
+    if (!previewMediaFailure?.enabled || !failedMedia || !previewMediaFailure.retryPending || failedMediaRetryToken === 0) return;
+    const timeout = window.setTimeout(() => {
+      previewMediaFailure.markRetryFailed(failedMedia.clipId, failedMedia.source, failedMediaRetryToken);
+    }, 5000);
+    return () => window.clearTimeout(timeout);
+  }, [failedMedia, failedMediaRetryToken, previewMediaFailure]);
+
+  const transport = (
+    <div
+      className="astrid-preview-transport pointer-events-none absolute inset-x-0 bottom-0 z-10 flex items-center justify-center gap-2 px-3 py-3"
+      style={{ ...VIDEO_EDITOR_THEME_VARS, backgroundImage: 'linear-gradient(to top, var(--video-editor-stage-gradient-start), transparent)' }}
+    >
+      <Button
+        type="button"
+        variant="outline"
+        size="icon"
+        className={cn(TRANSPORT_BUTTON_CLASS, touchChrome ? 'h-11 w-11' : 'h-8 w-8')}
+        onClick={() => requestSeek(0)}
+        title="Jump to beginning"
+        aria-label="Jump to beginning"
+      >
+        <SkipBack className="h-4 w-4" />
+      </Button>
+      <Button
+        type="button"
+        variant="outline"
+        size="icon"
+        className={cn(TRANSPORT_BUTTON_CLASS, touchChrome ? 'h-12 w-12' : 'h-10 w-10')}
+        onClick={togglePlayPause}
+        title={isPlaying ? 'Pause' : 'Play'}
+        aria-label={isPlaying ? 'Pause' : 'Play'}
+      >
+        {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4 fill-current" />}
+      </Button>
+      {!compact && (
+        <div className="pointer-events-none rounded-full bg-background/70 px-2 py-1 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+          {config.output.resolution}
+        </div>
+      )}
+    </div>
+  );
+
+  const mediaFailureNotice = previewMediaFailure?.enabled && previewMediaFailure.failure ? (
+    <div className="astrid-preview-media-failure" role="status" aria-live="polite" aria-atomic="true" data-testid="preview-media-failure" data-retry-pending={previewMediaFailure.retryPending}>
+      <strong>Preview unavailable</strong>
+      <p>This clip couldn’t load. Showing its poster.</p>
+      <button
+        type="button"
+        onClick={() => {
+          playerRef.current?.pause();
+          previewMediaFailure.retry();
+        }}
+        disabled={previewMediaFailure.retryPending}
+      >
+        {previewMediaFailure.retryPending ? 'Retrying preview…' : 'Retry preview'}
+      </button>
+    </div>
+  ) : null;
+
+  const previewControls = <>{transport}{mediaFailureNotice}</>;
+
   return (
     <div
       ref={playerContainerRef}
@@ -372,38 +483,14 @@ const RemotionPreviewComponent = forwardRef<PreviewHandle, RemotionPreviewProps>
         )}
         style={{ width: '100%', height: '100%' }}
       />
-      <div
-        className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex items-center justify-center gap-2 px-3 py-3"
-        style={{ backgroundImage: 'linear-gradient(to top, var(--video-editor-stage-gradient-start), transparent)' }}
-      >
-        <Button
-          type="button"
-          variant="outline"
-          size="icon"
-          className={cn(TRANSPORT_BUTTON_CLASS, touchChrome ? 'h-11 w-11' : 'h-8 w-8')}
-          onClick={() => requestSeek(0)}
-          title="Jump to beginning"
-          aria-label="Jump to beginning"
-        >
-          <SkipBack className="h-4 w-4" />
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          size="icon"
-          className={cn(TRANSPORT_BUTTON_CLASS, touchChrome ? 'h-12 w-12' : 'h-10 w-10')}
-          onClick={togglePlayPause}
-          title={isPlaying ? 'Pause' : 'Play'}
-          aria-label={isPlaying ? 'Pause' : 'Play'}
-        >
-          {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4 fill-current" />}
-        </Button>
-        {!compact && (
-          <div className="pointer-events-none rounded-full bg-background/70 px-2 py-1 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-            {config.output.resolution}
-          </div>
-        )}
-      </div>
+      {previewMediaFailure?.enabled && previewMediaFailure.failure ? (
+        <div className="astrid-preview-media-failure-poster" aria-hidden="true" data-testid="preview-media-failure-poster">
+          {previewMediaFailure.failure.posterUrl && (
+            <img src={previewMediaFailure.failure.posterUrl} alt="" />
+          )}
+        </div>
+      ) : null}
+      {transportOutlet ? createPortal(previewControls, transportOutlet) : previewControls}
     </div>
   );
 });

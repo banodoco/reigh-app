@@ -47,6 +47,7 @@ interface TrackLabelContentProps {
   onSelect: (trackId: string) => void;
   onChange: (trackId: string, patch: Partial<TrackDefinition>) => void;
   onRemove: (trackId: string) => void;
+  readOnly?: boolean;
   dragListeners?: SyntheticListenerMap;
   dragAttributes?: DraggableAttributes;
 }
@@ -312,6 +313,7 @@ export function TrackLabelContent({
   onSelect,
   onChange,
   onRemove,
+  readOnly = false,
   dragListeners,
   dragAttributes,
 }: TrackLabelContentProps) {
@@ -377,7 +379,7 @@ export function TrackLabelContent({
       y: event.clientY,
       target,
     });
-  }, [commandRegistry, extensions, onSelect, track.id]);
+  }, [commandRegistry, extensions, onSelect, readOnly, track.id]);
 
   const pinActions = shouldPinHoverAffordances(deviceClass);
 
@@ -391,7 +393,7 @@ export function TrackLabelContent({
         )}
         {...trackLabelAttrs(track.id)}
         onClick={() => onSelect(track.id)}
-        onContextMenu={handleContextMenu}
+        onContextMenu={readOnly ? undefined : handleContextMenu}
       >
         <span className="shrink-0 text-muted-foreground">
           {track.kind === 'visual' ? <Video className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
@@ -399,13 +401,13 @@ export function TrackLabelContent({
 
         {/* Full label shown at rest; on pointer devices it fades out for the hover overlay */}
         <span
-          className={cn('min-w-0 flex-1 truncate', !pinActions && 'transition-opacity group-hover:opacity-0')}
+          className={cn('min-w-0 flex-1 truncate', !pinActions && !readOnly && 'transition-opacity group-hover:opacity-0')}
           title={displayLabel ?? track.label}
         >
           {displayLabel ?? track.label}
         </span>
 
-        {pinActions ? (
+        {!readOnly && pinActions ? (
           /* Touch: two full-height targets. 144px of row cannot hold rename plus three
              36px buttons, so rename and remove move inside the settings dialog and the
              grip stays out here because dnd-kit needs a pointerdown on the handle. */
@@ -433,7 +435,7 @@ export function TrackLabelContent({
               onRemoveClick={handleRemoveClick}
             />
           </div>
-        ) : (
+        ) : !readOnly ? (
           /* Editable input + action buttons on hover */
           <div className="absolute inset-0 flex items-center gap-1 px-2 opacity-0 transition-opacity group-hover:opacity-100">
             <span className="w-[18px] shrink-0" />
@@ -478,7 +480,7 @@ export function TrackLabelContent({
               </Button>
             </div>
           </div>
-        )}
+        ) : null}
       </div>
       {contextMenu && (
         <TrackExtensionContextMenu

@@ -1,5 +1,5 @@
 import { useCallback, useContext, useEffect, useMemo, useRef, useState, type SetStateAction } from 'react';
-import { AstridLocalClient } from '@/integrations/astrid/client.ts';
+import type { AstridLocalClient } from '@/integrations/astrid/client.ts';
 import { isLocalTestMode } from '@/app/localTestRuntime.ts';
 import { useClientRender } from '@/tools/video-editor/hooks/useClientRender.ts';
 import type { CompositionMetadata } from '@/tools/video-editor/hooks/useDerivedTimeline.ts';
@@ -7,30 +7,27 @@ import type { VideoEditorExporter } from '@/tools/video-editor/lib/browser-runti
 import type { ResolvedTimelineConfig } from '@/tools/video-editor/types/index.ts';
 import type { ExtensionRuntime, VideoEditorOutputFormatDescriptor } from '@/tools/video-editor/runtime/extensionSurface.ts';
 import {
-  createCompileOnlyOutputFormatRegistry,
-  executeCompileOnlyOutput,
-  type CompileOnlyOutputFormatEntry,
   type CompileOnlyOutputFormatRegistry,
 } from '@/tools/video-editor/runtime/outputFormatRegistry.ts';
 import { useEffectRegistrySnapshot } from '@/tools/video-editor/effects/registry/EffectRegistryContext.tsx';
 import { useTransitionRegistrySnapshot } from '@/tools/video-editor/transitions/registry/TransitionRegistryContext.tsx';
 import { useClipTypeRegistrySnapshot } from '@/tools/video-editor/clip-types/ClipTypeRegistryContext.tsx';
-import {
+import type {
   collectBuiltInKnownIds,
   collectExtensionDeclaredIds,
   hasTimelineShaderMetadata,
   scanExportConfig,
 } from '@/tools/video-editor/runtime/exportGuard.ts';
-import {
+import type {
   planRender,
+  RenderPlannerResult,
   runtimeTimelineCompositionGraph,
-  type RenderPlannerResult,
 } from '@/tools/video-editor/runtime/renderPlanner.ts';
 import {
   VideoEditorRuntimeContext,
   type VideoEditorRuntimeContextValue,
 } from '@/tools/video-editor/contexts/VideoEditorRuntimeContext.tsx';
-import { syncPlannerDiagnosticsToCollection } from '@/tools/video-editor/runtime/diagnosticCollectionSync.ts';
+import type { syncPlannerDiagnosticsToCollection } from '@/tools/video-editor/runtime/diagnosticCollectionSync.ts';
 import type { PlannerBackedRenderRouteDecision } from '@/tools/video-editor/lib/renderRouter.ts';
 import type { RenderExportDestination } from '@/tools/video-editor/lib/renderRouter.ts';
 import { resolveCanonicalComposition } from '@/tools/video-editor/data/canonicalCompositionState.ts';
@@ -418,6 +415,7 @@ function exportDiagnosticToPlannerFinding(diagnostic: ExportDiagnostic, index: n
 
 function planFromExportGuardResult(
   guardResult: ReturnType<typeof scanExportConfig>,
+  planRenderOperation: typeof planRender,
   options?: {
     readonly extensionRuntime?: ExtensionRuntime;
     readonly processStatuses?: VideoEditorRuntimeContextValue['processStatuses'];
@@ -429,7 +427,7 @@ function planFromExportGuardResult(
     ...(guardResult.blockers ?? []),
     ...guardResult.diagnostics.map(exportDiagnosticToPlannerFinding),
   ];
-  return planRender({
+  return planRenderOperation({
     diagnostics,
     extensionRuntime: options?.extensionRuntime,
     outputFormats: outputFormatsForPlanning(options?.extensionRuntime),
@@ -594,10 +592,10 @@ export function useRenderState(
     setRenderResult: commitRenderResult,
   });
 
-  const runExportGuard = useCallback((managedRuntimeAdmission?: {
+  const runExportGuard = useCallback(async (managedRuntimeAdmission?: {
     readonly projectId: string;
     readonly timelineId: string;
-  }): boolean => {
+  }): Promise<boolean> => {
     if (renderProjectionError) {
       setRenderStatus('error');
       setRenderProgress(null);
@@ -605,10 +603,16 @@ export function useRenderState(
       setRenderLog(renderProjectionError.message);
       return false;
     }
+
+    const [exportGuard, renderPlanner, diagnosticSync] = await Promise.all([
+      import('@/tools/video-editor/runtime/exportGuard.ts'),
+      import('@/tools/video-editor/runtime/renderPlanner.ts'),
+      import('@/tools/video-editor/runtime/diagnosticCollectionSync.ts'),
+    ]);
     diagnosticCollection?.remove((diagnostic) => diagnostic.detail?.source === 'export-guard');
     diagnosticCollection?.remove((diagnostic) => diagnostic.detail?.source === 'render-planner');
 
-    const compositionGraph = runtimeTimelineCompositionGraph(extensionRuntime);
+    const compositionGraph = renderPlanner.runtimeTimelineCompositionGraph(extensionRuntime);
 
     // Skip guard work only when there is no active extension/provider registry
     // input and there are no Runtime-owned authoring clips. `shot` must still
@@ -618,7 +622,7 @@ export function useRenderState(
       && effectRegistrySnapshot.records.length === 0
       && transitionRegistrySnapshot.records.length === 0
       && clipTypeRegistrySnapshot.records.length === 0
-      && !hasTimelineShaderMetadata(renderConfig, compositionGraph)
+      && !exportGuard.hasTimelineShaderMetadata(renderConfig, compositionGraph)
       && (canonicalLane || !resolvedConfig?.clips.some((clip) => clip.clipType === 'shot'))
     ) {
       return true; // no blocker
@@ -628,10 +632,10 @@ export function useRenderState(
       return true; // nothing to scan
     }
 
-    const builtIn = collectBuiltInKnownIds();
+    const builtIn = exportGuard.collectBuiltInKnownIds();
     const allContributions = extensionRuntime ? buildExtensionContributions(extensionRuntime) : [];
-    const extIds = collectExtensionDeclaredIds(allContributions);
-    const guardResult = scanExportConfig(
+    const extIds = exportGuard.collectExtensionDeclaredIds(allContributions);
+    const guardResult = exportGuard.scanExportConfig(
       renderConfig,
       builtIn,
       extIds,
@@ -642,7 +646,7 @@ export function useRenderState(
       processResultAttachRecords,
       managedRuntimeAdmission ? { managedRuntimeAdmission } : undefined,
     );
-    const plannerResult = planFromExportGuardResult(guardResult, {
+    const plannerResult = planFromExportGuardResult(guardResult, renderPlanner.planRender, {
       extensionRuntime,
       processStatuses,
       processResultAttachRecords,
@@ -651,7 +655,7 @@ export function useRenderState(
     guardResult.diagnostics.forEach((diagnostic, index) => {
       diagnosticCollection?.publish(toCollectionDiagnostic(diagnostic, index));
     });
-    syncPlannerDiagnosticsToCollection(diagnosticCollection, plannerResult.blockers);
+    diagnosticSync.syncPlannerDiagnosticsToCollection(diagnosticCollection, plannerResult.blockers);
 
     // Emit structured diagnostics as concise render log output
     const log = formatExportGuardLog(guardResult);
@@ -814,7 +818,8 @@ export function useRenderState(
     setRenderLog('Admitting render to Astrid…');
 
     const bridgeBaseUrl = (runtimeContext.provider as { apiBaseUrl?: string }).apiBaseUrl;
-    const client = new AstridLocalClient({ projectSlug: projectId, baseUrl: bridgeBaseUrl });
+    const { AstridLocalClient: AstridLocalClientModule } = await import('@/integrations/astrid/client.ts');
+    const client = new AstridLocalClientModule({ projectSlug: projectId, baseUrl: bridgeBaseUrl });
     renderClientRef.current = client;
     const renderRouter = await import('@/tools/video-editor/lib/renderRouter.ts');
     const request = {
@@ -901,13 +906,24 @@ export function useRenderState(
   }, [activeRenderTaskId]);
 
   const startRender = useCallback(async () => {
+    if (runtimeContext?.renderExportEnabled === false) {
+      setRenderStatus('error');
+      setRenderProgress(null);
+      setRenderDirty(false);
+      setRenderLog('Render is unavailable in this read-only preview.');
+      return;
+    }
+
     let decision: FastRenderRouteDecision | PlannerBackedRenderRouteDecision | null =
       getFastRenderRouteDecision(renderConfig);
     if (!decision) {
       let importedDecision: PlannerBackedRenderRouteDecision;
       try {
-        const renderRouter = await import('@/tools/video-editor/lib/renderRouter');
-        importedDecision = renderRouter.decideRenderRoute(
+        const [{ decideRenderRoute }, { runtimeTimelineCompositionGraph }] = await Promise.all([
+          import('@/tools/video-editor/lib/renderRouter'),
+          import('@/tools/video-editor/runtime/renderPlanner.ts'),
+        ]);
+        importedDecision = decideRenderRoute(
           renderConfig,
           undefined,
           {
@@ -943,7 +959,7 @@ export function useRenderState(
     // Runtime-owned authoring clips are exempt only for the exact scoped
     // Runtime path. Browser proof, compile-only export, and unsupported routes
     // retain the strict guard.
-    if (!runExportGuard(managedRuntimeAdmission)) {
+    if (!await runExportGuard(managedRuntimeAdmission)) {
       return; // blocked by export guard
     }
 
@@ -1071,12 +1087,19 @@ export function useRenderState(
     formatId: string,
     compileOnlyRegistry?: CompileOnlyOutputFormatRegistry,
   ) => {
+    if (runtimeContext?.renderExportEnabled === false) {
+      setExportStatus('error');
+      setExportLogState('Export is unavailable in this read-only preview.');
+      return;
+    }
+
     if (!renderConfig) {
       setExportStatus('error');
       setExportLogState(renderProjectionError?.message ?? 'Export unavailable: no timeline configuration.');
       return;
     }
 
+    const { planRender, runtimeTimelineCompositionGraph } = await import('@/tools/video-editor/runtime/renderPlanner.ts');
     const plannerOutputFormats = outputFormatsForPlanning(extensionRuntime);
     const outputPlan = planRender({
       extensionRuntime,
@@ -1127,7 +1150,7 @@ export function useRenderState(
     // because the exported data would be invalid.  Route-specific capability
     // blockers (browser-export blocked, worker-export blocked) are surfaced
     // as warnings but do not prevent compile-only export.
-    const guardPassed = runExportGuard();
+    const guardPassed = await runExportGuard();
     if (!guardPassed) {
       // Export guard found blocking errors (e.g. truly unknown effects).
       // Surface the guard log as the export error.
@@ -1172,6 +1195,7 @@ export function useRenderState(
       }
       const assets: ReadonlyMap<string, Readonly<any>> = Object.freeze(assetsMap);
 
+      const { executeCompileOnlyOutput } = await import('@/tools/video-editor/runtime/outputFormatRegistry.ts');
       const result = await executeCompileOnlyOutput(compileOnlyRegistry, {
         formatId,
         timeline: timeline as any,
@@ -1217,6 +1241,7 @@ export function useRenderState(
     processResultAttachRecords,
     processStatuses,
     runExportGuard,
+    runtimeContext,
   ]);
 
   return {

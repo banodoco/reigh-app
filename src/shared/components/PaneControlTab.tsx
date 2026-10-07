@@ -215,7 +215,7 @@ const PaneControlTab: React.FC<PaneControlTabProps> = ({
   // RENDER HELPERS
   // ==========================================================================
   const renderButton = (type: ButtonType) => {
-    const baseClass = `${buttonSize} text-zinc-300 hover:text-white hover:bg-zinc-700`;
+    const baseClass = `${buttonSize} text-muted-foreground hover:text-foreground hover:bg-accent`;
 
     switch (type) {
       case 'third':
@@ -338,7 +338,7 @@ const PaneControlTab: React.FC<PaneControlTabProps> = ({
                 onClick={(e) => e.stopPropagation()}
                 className={cn(
                   'absolute -top-1.5 -right-1.5 h-4 w-4 p-0 rounded-full',
-                  'bg-zinc-700 border border-zinc-600 text-zinc-200 hover:bg-zinc-600 hover:text-white',
+                  'bg-secondary border border-border text-secondary-foreground hover:bg-accent hover:text-foreground',
                   // Hidden by default; reveal on hover/focus of the composite cell.
                   'opacity-0 transition-opacity duration-150',
                   'group-hover:opacity-100 group-focus-within:opacity-100 focus:opacity-100',
@@ -384,7 +384,8 @@ const PaneControlTab: React.FC<PaneControlTabProps> = ({
     ? ''
     : (isLocked || (isOpen && !isLocked) ? normalLockedZIndex : normalUnlockedZIndex);
 
-  const bgOpacity = isLocked || (isOpen && !isLocked) ? 'bg-zinc-800/90' : 'bg-zinc-800/80';
+  // The tab is a small panel in the theme's own colours, light by day and dark by night.
+  const bgOpacity = isLocked || (isOpen && !isLocked) ? 'bg-card/95' : 'bg-card/85';
   const transition = isLocked || (isOpen && !isLocked)
     ? PANE_CONFIG.transition.PROPERTIES.TRANSFORM_ONLY
     : PANE_CONFIG.transition.PROPERTIES.TRANSFORM_OPACITY;
@@ -419,7 +420,7 @@ const PaneControlTab: React.FC<PaneControlTabProps> = ({
         ...(isTasksPane ? { zIndex: tasksPaneZIndex } : {}),
       }}
       className={cn(
-        `fixed ${zIndexClass} flex items-center p-1 backdrop-blur-sm border border-zinc-700 rounded-md gap-1 duration-${PANE_CONFIG.timing.ANIMATION_DURATION} ${PANE_CONFIG.transition.EASING}`,
+        `fixed ${zIndexClass} flex items-center p-1 backdrop-blur-sm border border-border shadow-sm rounded-md gap-1 duration-${PANE_CONFIG.timing.ANIMATION_DURATION} ${PANE_CONFIG.transition.EASING}`,
         bgOpacity,
         transition,
         positionClasses,

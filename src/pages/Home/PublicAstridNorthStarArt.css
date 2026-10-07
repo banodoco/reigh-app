@@ -1,0 +1,96 @@
+/*
+ * The North Star minks: each acts out a goal on the art-pixel grid, with its moving details as separate
+ * sprites. They play a small loop while their host (any element marked data-ns-host) is hovered, or while
+ * it is marked data-play, as on a tap; used by the Vision page's cards and the app's onboarding.
+ */
+.astrid-vision-principle-art {
+  --px: 2px;
+  position: relative;
+  width: calc(var(--art-w) * var(--px));
+  height: calc(var(--art-h) * var(--px));
+}
+.astrid-vision-principle-art img { display: block; width: 100%; image-rendering: pixelated; }
+/* The mink sits above its layers, so anything held in its paws (data-behind) stays behind them as it moves. */
+.astrid-vision-art-base { position: relative; z-index: 1; }
+.astrid-vision-art-layer:not([data-behind]) { z-index: 2; }
+.astrid-vision-principle-art .astrid-vision-art-layer {
+  position: absolute;
+  left: calc(var(--x) * var(--px));
+  top: calc(var(--y) * var(--px));
+  width: calc(var(--w) * var(--px));
+}
+/* The resting state is the moment before the animation: no rays on the canvas yet, no sparks, no thoughts. */
+.astrid-vision-art-layer:is([data-part^="spark-"], [data-part^="thought-"], [data-part="snap"], [data-part^="twinkle-"]) { opacity: 0; }
+
+/*
+ * Every detail animates on its own loop, paused until its host is hovered (or tapped). Leaving pauses it
+ * where it is, and coming back carries on from there. Each loop's first frame is the resting picture.
+ */
+.astrid-vision-art-layer[data-part="rays"] { animation: astrid-ns-rays 2.8s steps(8, jump-end) infinite; animation-play-state: paused; }
+.astrid-vision-art-layer[data-part="brush"] { animation: astrid-ns-dab .7s step-end infinite; animation-play-state: paused; }
+.astrid-vision-art-layer[data-part^="spark-"] { animation: astrid-ns-spark 2.4s cubic-bezier(.2, .7, .3, 1) var(--delay, 0s) infinite backwards; animation-play-state: paused; }
+.astrid-vision-art-layer[data-part^="thought-"] { animation: astrid-ns-thought 3s ease-out var(--delay, 0s) infinite; animation-play-state: paused; }
+.astrid-vision-art-layer:is([data-part="block"], [data-part="paws"]) { animation: astrid-ns-place 3s step-end infinite; animation-play-state: paused; }
+.astrid-vision-art-layer[data-part="snap"] { animation: astrid-ns-snap 3s steps(2, jump-none) infinite; animation-play-state: paused; }
+.astrid-vision-art-layer[data-part="star"] { animation: astrid-ns-star 1.6s ease-in-out infinite; animation-play-state: paused; }
+.astrid-vision-art-layer[data-part^="twinkle-"] { animation: astrid-ns-twinkle 1.6s ease-out var(--delay, 0s) infinite; animation-play-state: paused; }
+[data-ns-host][data-play] .astrid-vision-art-layer { animation-play-state: running; }
+@media (hover: hover) {
+  [data-ns-host]:hover .astrid-vision-art-layer { animation-play-state: running; }
+}
+
+/* i. The sun is painted ray by ray, clockwise, while the brush dabs at the canvas. */
+@property --astrid-ns-sweep { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
+[data-part="rays"] { mask: conic-gradient(from -20deg at 47% 50%, #000 var(--astrid-ns-sweep), transparent 0); }
+@keyframes astrid-ns-rays {
+  0% { --astrid-ns-sweep: 0deg; }
+  75%, 100% { --astrid-ns-sweep: 360deg; }
+}
+@keyframes astrid-ns-dab {
+  0% { translate: 0 0; }
+  50% { translate: calc(-1 * var(--px)) calc(-1 * var(--px)); }
+}
+/* ii. Sparks lift out of the open book, rise and fade, one after another. */
+[data-part="spark-0"] { --from-x: 6; --from-y: 11; }
+[data-part="spark-1"] { --from-x: 1; --from-y: 5; --delay: .3s; }
+[data-part="spark-2"] { --from-x: -3; --from-y: 1; --delay: .6s; }
+@keyframes astrid-ns-spark {
+  0% { opacity: 0; scale: .3; translate: calc(var(--from-x) * var(--px)) calc(var(--from-y) * var(--px)); }
+  30% { opacity: 1; scale: 1; translate: 0 0; }
+  65% { opacity: 1; translate: 0 calc(-2 * var(--px)); }
+  100% { opacity: 0; translate: 0 calc(-7 * var(--px)); }
+}
+/* iii. A thought bubbles up, then the paws lift the block and press it into place with a snap. */
+[data-part="thought-1"] { --delay: .3s; }
+[data-part="thought-2"] { --delay: .6s; }
+@keyframes astrid-ns-thought {
+  0% { opacity: 0; scale: .4; }
+  6%, 40% { opacity: 1; scale: 1; }
+  50%, 100% { opacity: 0; scale: 1; }
+}
+@keyframes astrid-ns-place {
+  0% { translate: 0 0; }
+  50% { translate: 0 calc(-1 * var(--px)); }
+  58% { translate: 0 var(--px); }
+  90% { translate: 0 0; }
+}
+@keyframes astrid-ns-snap {
+  0%, 56% { opacity: 0; translate: var(--px) 0; }
+  60% { opacity: 1; translate: 0 0; }
+  74% { opacity: 1; translate: calc(-1 * var(--px)) 0; }
+  80%, 100% { opacity: 0; translate: calc(-1 * var(--px)) 0; }
+}
+/* iv. The star above the climbers bobs and glows, with a twinkle either side. */
+@keyframes astrid-ns-star {
+  0%, 100% { translate: 0 0; scale: 1; }
+  50% { translate: 0 calc(-1.5 * var(--px)); scale: 1.12; }
+}
+[data-part="twinkle-1"] { --delay: .8s; }
+@keyframes astrid-ns-twinkle {
+  0% { opacity: 0; scale: .3; }
+  25% { opacity: 1; scale: 1; }
+  60%, 100% { opacity: 0; scale: .5; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .astrid-vision-art-layer { animation: none !important; }
+}

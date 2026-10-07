@@ -6,22 +6,24 @@ export type AstridSource = {
   sourceRoot: string;
 };
 
-/** Resolve the canonical Astrid checkout without guessing a sibling path. */
+/** Resolve an explicit checkout, or the pinned browser sources shipped with this app. */
 export function resolveAstridSource(
   configuredPath = process.env.ASTRID_CHECKOUT,
+  environmentName = 'ASTRID_CHECKOUT',
 ): AstridSource | null {
-  const value = configuredPath?.trim();
+  const bundledCheckout = path.resolve(__dirname, '../../vendor/astrid-browser');
+  const value = configuredPath?.trim() || (fs.existsSync(bundledCheckout) ? bundledCheckout : '');
   if (!value) {
     return null;
   }
   if (!path.isAbsolute(value)) {
-    throw new Error('ASTRID_CHECKOUT must be an absolute path');
+    throw new Error(`${environmentName} must be an absolute path`);
   }
 
   const checkout = fs.realpathSync(value);
   const sourceRoot = path.join(checkout, 'astrid');
   if (!fs.existsSync(sourceRoot) || !fs.statSync(sourceRoot).isDirectory()) {
-    throw new Error(`ASTRID_CHECKOUT is missing its canonical astrid source: ${sourceRoot}`);
+    throw new Error(`${environmentName} is missing its canonical astrid source: ${sourceRoot}`);
   }
 
   return {checkout, sourceRoot};

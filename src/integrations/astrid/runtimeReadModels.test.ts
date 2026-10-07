@@ -37,6 +37,11 @@ describe('Runtime gallery read models', () => {
         source_task_id: 'task-1',
         output_name: 'animated_video',
       },
+      thumbnail: {
+        object_id: `sha256:${'e'.repeat(64)}`,
+        source_object_id: outputObject,
+        recipe_version: 1,
+      },
       created_at: generation.created_at,
     }];
 
@@ -53,6 +58,11 @@ describe('Runtime gallery read models', () => {
       variant_type: 'character_animation',
       media_id: outputObject,
       is_primary: true,
+      thumbnail: {
+        object_id: `sha256:${'e'.repeat(64)}`,
+        source_object_id: outputObject,
+        recipe_version: 1,
+      },
     });
     expect(summary).toMatchObject({
       generation_id: generation.generation_id,

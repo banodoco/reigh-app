@@ -138,6 +138,7 @@ function runtimeVariantToBridge(
     generation_id: resource.generation_id,
     media_id: resource.object_id,
     object_id: resource.object_id,
+    ...(resource.thumbnail ? { thumbnail: resource.thumbnail } : {}),
     variant_type: resource.variant_type,
     name: metadataString(metadata, 'name'),
     params: metadataRecord(metadata, 'params'),

@@ -12,9 +12,9 @@ export const APP_BUTTON_VARIANTS = {
 
 export const APP_BUTTON_SIZES = {
   // Retro sizes with TTGertika font
-  "retro-sm": "h-9 px-4 py-2 text-sm font-heading",
-  "retro-default": "h-11 px-6 py-3 text-base font-heading",
-  "retro-lg": "h-14 px-12 py-4 text-xl font-heading",
+  "retro-sm": "h-9 px-4 py-2 text-sm font-medium",
+  "retro-default": "h-11 px-6 py-3 text-base font-medium",
+  "retro-lg": "h-14 px-12 py-4 text-xl font-medium",
   "theme-sm": "h-9 px-6 py-2 rounded-lg font-cocogoose tracking-wide",
   "theme-default": "h-11 px-8 py-3 rounded-xl font-cocogoose tracking-wide",
   "theme-lg": "h-14 px-12 py-4 rounded-2xl font-cocogoose font-light tracking-wider",

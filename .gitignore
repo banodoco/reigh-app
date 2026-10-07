@@ -52,6 +52,7 @@ temp/
 !docs/structure_detail/*.md
 !docs/blog/*.md
 !docs/quality/*.md
+!docs/astrid-data-dash-app-handoff.md
 !docs/state_management_refactor_baselines.md
 !docs/state_management_context_audit.md
 !docs/design/*.md

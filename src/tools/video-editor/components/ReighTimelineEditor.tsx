@@ -352,6 +352,7 @@ function ReighTimelineEditorComponent({ onOpenSequenceCreator, onOpenElementCrea
     data?.rows ?? [],
     documentShotGroups,
     isCanonicalEditor ? canonicalOccurrences : [],
+    isCanonicalEditor ? runtime.shots?.canonicalThumbnailUrls : undefined,
   );
 
   const handleOpenCanonicalOccurrence = useCallback((occurrence: CanonicalShotOccurrence) => {

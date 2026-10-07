@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "name": "astrid-public-source-v1",
+  "astrid": {
+    "commit": "06dee36fbfa9d134a57b50536c045231e541b11e",
+    "tree": "5243a7825d1e22aeb60e46b13be8212c8d776f27"
+  },
+  "app": {
+    "commit": "8ff05e2bad85be33e6ff3ddafffefd7abf6dcbf5"
+  },
+  "selections": [
+    {"pack": "rendering", "kind": "animations", "id": "fade"},
+    {"pack": "rendering", "kind": "animations", "id": "fade-up"},
+    {"pack": "rendering", "kind": "animations", "id": "scale-in"},
+    {"pack": "rendering", "kind": "animations", "id": "slide-left"},
+    {"pack": "rendering", "kind": "animations", "id": "slide-up"},
+    {"pack": "rendering", "kind": "animations", "id": "type-on"},
+    {"pack": "rendering", "kind": "effects", "id": "audio-reactive-colour"},
+    {"pack": "rendering", "kind": "effects", "id": "text-card"},
+    {"pack": "rendering", "kind": "transitions", "id": "cross-fade"},
+    {"pack": "rendering", "kind": "transitions", "id": "fade"},
+    {"pack": "local", "kind": "effects", "id": "end-spanning-layer"},
+    {"pack": "local", "kind": "effects", "id": "frame-overlay"}
+  ],
+  "asset_overlays": [
+    {"source": "public/astrid-effects/end-spanning-layer/card-0.png", "destination": "astrid/packs/local/elements/effects/end-spanning-layer/assets/card-0.png", "git_blob": "812404d89d4579ab8c76bed109fa3a8c5643a0d1", "sha256": "416aa587a0493d75f901256b00146ec8f34578535a9c67bdf6eb7cdd6fb5d6f1"},
+    {"source": "public/astrid-effects/end-spanning-layer/card-1.png", "destination": "astrid/packs/local/elements/effects/end-spanning-layer/assets/card-1.png", "git_blob": "3679f7e54d0c17f5c608b03ef93181bf99cf9340", "sha256": "9c348d11c59b973214b2aec0d9886017d70db44ecc0bc5ec44a42f4aacd55223"},
+    {"source": "public/astrid-effects/end-spanning-layer/card-2.png", "destination": "astrid/packs/local/elements/effects/end-spanning-layer/assets/card-2.png", "git_blob": "a6f5da749c6b753005a07fdb2d2afd5e14f835e3", "sha256": "2464851c6b826b96cc09b2d83aa79ba2b00ebfb1e4ccb1cf3a16a54242141fa8"},
+    {"source": "public/astrid-effects/end-spanning-layer/card-3.png", "destination": "astrid/packs/local/elements/effects/end-spanning-layer/assets/card-3.png", "git_blob": "7c2cfc1709b35789d2c34f7e8e244276e5620c27", "sha256": "721367fbd93d819af70b4d9993d271e2c29892557c859a837597f255a524be3d"},
+    {"source": "public/astrid-effects/end-spanning-layer/card-4.png", "destination": "astrid/packs/local/elements/effects/end-spanning-layer/assets/card-4.png", "git_blob": "65b3556f65729ab482c6c4eda741c6eed84bf007", "sha256": "cf1ddd8c30b3445e08344712e291447fd124cd76d9ecbdb7b14aa41433395669"},
+    {"source": "public/astrid-effects/end-spanning-layer/card-5.png", "destination": "astrid/packs/local/elements/effects/end-spanning-layer/assets/card-5.png", "git_blob": "bb056561605ccc5a431afd538c3484d6d1a8e9b0", "sha256": "3bda96e4105793b03b74f9a46fb9766ae510020c45140ca1f4b3e674aa0d3bd0"},
+    {"source": "public/astrid-effects/frame-overlay/frame.png", "destination": "astrid/packs/local/elements/effects/frame-overlay/assets/frame.png", "git_blob": "ee81f42d271b805ae28330bc53102d3a3f3c641c", "sha256": "730113561d7848cea6156c3c0e4f08c1d2db693d7522671cf654f044de528605"}
+  ]
+}

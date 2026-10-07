@@ -119,6 +119,18 @@ export class RuntimeDataProvider implements DataProvider {
     },
   };
   readonly shotComposition: ShotCompositionPort = {
+    getSourceFrameThumbnailUrl: async (request) => {
+      const descriptor = await this.client.getSourceFrameThumbnail(
+        request.projectId,
+        request.sourceObjectId,
+        request.sourceTimeSeconds,
+        request.recipeVersion ?? 1,
+      );
+      const objectId = descriptor && typeof descriptor.object_id === 'string'
+        ? descriptor.object_id
+        : null;
+      return objectId ? this.client.objectContentUrl(objectId) : null;
+    },
     load: async (request) => this.loadRuntimeShotComposition(request.projectId, request.parentDocumentId),
     loadAtHead: async (request) => this.loadRuntimeShotCompositionAtHead(request),
     publish: async (request) => {

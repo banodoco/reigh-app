@@ -3,6 +3,11 @@ import {
   StaleWriteError,
   type ShotCompositionContract,
 } from './shotComposition.ts';
+import {
+  isActiveTimelineClip,
+  timelineClipDurationMs,
+  timelineClipStartMs,
+} from './shotCompositionTiming.ts';
 
 type JsonObject = Record<string, unknown>;
 
@@ -49,7 +54,15 @@ export interface ShotCompositionPort {
   load(request: ShotCompositionReadRequest): Promise<unknown>;
   loadAtHead?(request: ShotCompositionHeadReadRequest): Promise<unknown>;
   publish?(request: ShotCompositionPublishRequest): Promise<unknown>;
+  getSourceFrameThumbnailUrl?(request: SourceFrameThumbnailRequest): Promise<string | null>;
 }
+
+export type SourceFrameThumbnailRequest = Readonly<{
+  projectId: string;
+  sourceObjectId: string;
+  sourceTimeSeconds: number;
+  recipeVersion?: number;
+}>;
 
 export class ShotCompositionUnavailableError extends Error {
   readonly code = 'shot_composition_unavailable' as const;
@@ -230,6 +243,9 @@ function assertRequestIdentity(
 
 export function createShotCompositionAdapter(port: ShotCompositionPort) {
   return {
+    getSourceFrameThumbnailUrl: port.getSourceFrameThumbnailUrl
+      ? (request: SourceFrameThumbnailRequest) => port.getSourceFrameThumbnailUrl!(request)
+      : undefined,
     async load(request: ShotCompositionReadRequest): Promise<PreparedShotComposition> {
       try {
         const composition = prepareContract(parseShotComposition(await port.load(request)));
@@ -290,3 +306,104 @@ export function createShotCompositionAdapter(port: ShotCompositionPort) {
 }
 
 export type ShotCompositionAdapter = ReturnType<typeof createShotCompositionAdapter>;
+
+function objectRecord(value: unknown): JsonObject | null {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+    ? value as JsonObject
+    : null;
+}
+
+function finite(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+}
+
+function stringValue(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim().length > 0 ? value : undefined;
+}
+
+function visualAssetKind(asset: JsonObject, clip: JsonObject): 'image' | 'video' | undefined {
+  const raw = stringValue(asset.media_type) ?? stringValue(asset.type)
+    ?? stringValue(clip.clip_type) ?? stringValue(clip.clipType);
+  if (!raw) return undefined;
+  const normalized = raw.toLowerCase();
+  if (normalized === 'video' || normalized.startsWith('video/')) return 'video';
+  if (normalized === 'image' || normalized.startsWith('image/')) return 'image';
+  return undefined;
+}
+
+/**
+ * Resolve the one deterministic source-frame key shared by repair and read.
+ * The midpoint is measured in shot playback time; trim and speed are applied
+ * exactly once when mapping it back to source-media time.
+ */
+export function canonicalSourceFrameRequest(
+  occurrence: CanonicalShotOccurrence,
+): SourceFrameThumbnailRequest | null {
+  const revision = objectRecord(occurrence.revision);
+  const internal = objectRecord(revision?.internal_timeline_revision);
+  const timeline = objectRecord(internal?.timeline);
+  const rawAssets = Array.isArray(revision?.assets) ? revision.assets : [];
+  const assets = new Map<string, JsonObject>();
+  for (const rawAsset of rawAssets) {
+    const asset = objectRecord(rawAsset);
+    const assetId = stringValue(asset?.asset_id);
+    if (asset && assetId) assets.set(assetId, asset);
+  }
+  const tracks = Array.isArray(timeline?.tracks) ? timeline.tracks : [];
+  const primaryVisualTrack = tracks.find((rawTrack) => {
+    const track = objectRecord(rawTrack);
+    return track?.kind === 'visual' && typeof track.id === 'string';
+  });
+  const primaryVisualTrackId = objectRecord(primaryVisualTrack)?.id;
+  if (typeof primaryVisualTrackId !== 'string') return null;
+  const visualClips = (Array.isArray(timeline?.clips) ? timeline.clips : [])
+    .filter(isActiveTimelineClip)
+    .map((rawClip) => {
+      const clip = objectRecord(rawClip);
+      if (!clip) return null;
+      const asset = assets.get(stringValue(clip.asset_id) ?? stringValue(clip.asset) ?? '');
+      if (!asset || clip.track !== primaryVisualTrackId || visualAssetKind(asset, clip) !== 'video') return null;
+      const startMs = timelineClipStartMs(clip);
+      const durationMs = timelineClipDurationMs(clip);
+      if (durationMs <= 0) return null;
+      const rawSpeed = finite(clip.speed);
+      const speed = rawSpeed !== undefined && rawSpeed > 0 ? rawSpeed : 1;
+      const sourceFrom = finite(clip.from)
+        ?? (finite(clip.from_ms) !== undefined ? (finite(clip.from_ms) as number) / 1000 : 0);
+      const sourceObjectId = stringValue(asset.object_id) ?? stringValue(asset.media_id);
+      if (!sourceObjectId) return null;
+      return { clip, asset, startMs, durationMs, speed, sourceFrom, sourceObjectId };
+    })
+    .filter((clip): clip is NonNullable<typeof clip> => clip !== null)
+    .sort((left, right) => left.startMs - right.startMs);
+  if (visualClips.length === 0) return null;
+
+  const targetMs = Math.max(0, occurrence.durationMs / 2);
+  const selected = visualClips.reduce((best, candidate) => {
+    const candidateEnd = candidate.startMs + candidate.durationMs;
+    const bestEnd = best.startMs + best.durationMs;
+    const candidateDistance = targetMs < candidate.startMs
+      ? candidate.startMs - targetMs
+      : targetMs > candidateEnd ? targetMs - candidateEnd : 0;
+    const bestDistance = targetMs < best.startMs
+      ? best.startMs - targetMs
+      : targetMs > bestEnd ? targetMs - bestEnd : 0;
+    return candidateDistance < bestDistance
+      || (candidateDistance === bestDistance && candidate.startMs < best.startMs)
+      ? candidate
+      : best;
+  });
+  const localMs = Math.min(
+    selected.durationMs,
+    Math.max(0, targetMs - selected.startMs),
+  );
+  const sourceTimeSeconds = selected.sourceFrom
+    + (localMs / 1000) * selected.speed;
+  if (!Number.isFinite(sourceTimeSeconds) || sourceTimeSeconds < 0) return null;
+  return {
+    projectId: occurrence.projectId,
+    sourceObjectId: selected.sourceObjectId,
+    sourceTimeSeconds,
+    recipeVersion: 1,
+  };
+}

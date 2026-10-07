@@ -1,11 +1,10 @@
 import React from "react";
-import { Sun, Moon, Mic, Wand2 } from "lucide-react";
+import { Mic, Wand2 } from "lucide-react";
+import { TimeOfDayControl } from "@/shared/components/TimeOfDay/TimeOfDayControl";
 import type { PreferencesSectionProps } from "../types";
 
 const PreferencesSection: React.FC<PreferencesSectionProps> = ({
   isMobile,
-  darkMode,
-  setDarkMode,
   preserveUserText,
   setPreserveUserText,
   aiInputMode,
@@ -17,35 +16,10 @@ const PreferencesSection: React.FC<PreferencesSectionProps> = ({
       <div>
         <h3 className="text-sm font-medium text-muted-foreground mb-3">Appearance</h3>
         <div className={`${isMobile ? 'p-3' : 'p-4'} bg-muted/30 rounded-lg space-y-2`}>
-          <div className={`flex ${isMobile ? 'flex-col gap-2' : 'items-center justify-between'}`}>
-            <span className="font-medium">Theme:</span>
-            <div className="flex items-center gap-0">
-              <button
-                onClick={() => setDarkMode(false)}
-                className={`${isMobile ? 'px-2 py-1 text-xs' : 'px-3 py-1.5 text-sm'} rounded-l-full transition-all ${
-                  !darkMode
-                    ? 'bg-amber-400 text-white'
-                    : 'bg-muted text-muted-foreground hover:bg-muted/80'
-                }`}
-              >
-                <Sun className={`${isMobile ? 'h-3 w-3' : 'h-3.5 w-3.5'} inline mr-1`} />
-                Light
-              </button>
-              <button
-                onClick={() => setDarkMode(true)}
-                className={`${isMobile ? 'px-2 py-1 text-xs' : 'px-3 py-1.5 text-sm'} rounded-r-full transition-all ${
-                  darkMode
-                    ? 'bg-indigo-600 text-white'
-                    : 'bg-muted text-muted-foreground hover:bg-muted/80'
-                }`}
-              >
-                <Moon className={`${isMobile ? 'h-3 w-3' : 'h-3.5 w-3.5'} inline mr-1`} />
-                Dark
-              </button>
-            </div>
-          </div>
+          <span className="font-medium">Time of day:</span>
+          <TimeOfDayControl compact />
           <p className="text-xs text-muted-foreground">
-            Switch between light and dark color schemes
+            Towards the sun for a light workspace, towards the moon for a dark one
           </p>
         </div>
 
@@ -58,21 +32,21 @@ const PreferencesSection: React.FC<PreferencesSectionProps> = ({
                 onClick={() => setPreserveUserText(false)}
                 className={`${isMobile ? 'px-2 py-1 text-xs' : 'px-3 py-1.5 text-sm'} rounded-l-full transition-all ${
                   !preserveUserText
-                    ? 'bg-teal-600 text-white'
+                    ? 'bg-primary text-primary-foreground'
                     : 'bg-muted text-muted-foreground hover:bg-muted/80'
                 }`}
               >
-                lowercase
+                all lowercase
               </button>
               <button
                 onClick={() => setPreserveUserText(true)}
-                className={`${isMobile ? 'px-2 py-1 text-xs' : 'px-3 py-1.5 text-sm'} rounded-r-full transition-all title-case ${
+                className={`${isMobile ? 'px-2 py-1 text-xs' : 'px-3 py-1.5 text-sm'} rounded-r-full transition-all verbatim-case ${
                   preserveUserText
-                    ? 'bg-teal-600 text-white'
+                    ? 'bg-primary text-primary-foreground'
                     : 'bg-muted text-muted-foreground hover:bg-muted/80'
                 }`}
               >
-                Original Case
+                Original case
               </button>
             </div>
           </div>

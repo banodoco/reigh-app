@@ -41,6 +41,7 @@ import type {
 } from '@/tools/video-editor/runtime/extensionStateRepository';
 import type { BundleContentStore } from '@/tools/video-editor/runtime/useExtensionLoaderWiring';
 import { generateIntegrityHash } from '@/tools/video-editor/runtime/extensionIntegrity';
+import { INSTALLED_ASTRID_ELEMENT_HOST } from '@/tools/video-editor/runtime/astrid-element-components.tsx';
 
 // ---------------------------------------------------------------------------
 // Scenario type
@@ -430,6 +431,7 @@ const ScenarioCard: FC<{
   }, [data.packageStateInventory]);
 
   const mockContextValue = useMemo<VideoEditorRuntimeContextValue>(() => ({
+    astridElementHost: INSTALLED_ASTRID_ELEMENT_HOST,
     provider: {} as unknown as DataProvider,
     assetResolver: { resolveAssetUrl: async (f: string) => f },
     auth: { userId: 'harness' },
