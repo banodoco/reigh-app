@@ -22,7 +22,15 @@ function Stage({ active = true, beforeReveal = false }: { active?: boolean; befo
       <div className="astrid-player-surface astrid-surface" />
       <div className="astrid-timeline-surface astrid-surface" />
       <div className="astrid-chat-surface astrid-surface" />
-      <div className="astrid-inspector-surface"><div role="tablist" className="grid-cols-4"><button role="tab" /></div></div>
+      <div className="astrid-inspector-surface">
+        <div role="tablist" className="grid-cols-4" data-test-hidden-tablist>
+          <button role="tab" />
+          <button role="tab" aria-controls="hidden-inspector" />
+        </div>
+        <div role="tablist" className="grid-cols-4">
+          <button role="tab" aria-controls="effects-panel" />
+        </div>
+      </div>
     </div></div>
     <div className="astrid-preview-transport-outlet" />
     <button data-astrid-agent-launcher />
@@ -62,6 +70,7 @@ beforeEach(() => {
   vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
     events.push('read');
     if (this.dataset.testid === 'stage') return new DOMRect(0, 0, 500, 500);
+    if (this.closest('[data-test-hidden-tablist]')) return new DOMRect(0, 0, 0, 0);
     return new DOMRect(100, 100, 100, 80);
   });
   for (const name of ['clientWidth', 'clientLeft', 'clientTop', 'offsetWidth'] as const) {

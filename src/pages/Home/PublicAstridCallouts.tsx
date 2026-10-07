@@ -110,11 +110,12 @@ const APP_CALLOUTS: readonly CalloutDefinition[] = [
     id: 'effects',
     title: 'Live vibe code effects and visuals',
     body: 'Describe a look and edit the effect’s code live, right on the clip.',
-    // The Effects tab itself, reached from above.
-    target: '.astrid-inspector-surface [role="tablist"].grid-cols-4 > [role="tab"]:first-child',
+    // The public preview contains hidden Outline/Inspector tablists before the
+    // visible inspector tabs. Geometry resolution below skips zero-sized tabs.
+    target: '.astrid-inspector-surface [role="tablist"].grid-cols-4 > [role="tab"]',
     at: [0.5, 0],
     // The mobile inspector has a full-width tab row beneath the clip name.
-    phoneTarget: '.astrid-inspector-surface [role="tablist"].grid-cols-4 > [role="tab"]:first-child',
+    phoneTarget: '.astrid-inspector-surface [role="tablist"].grid-cols-4 > [role="tab"]',
     phoneAt: [0.5, 0],
     side: 'bottom',
     phoneSide: 'bottom',
@@ -185,6 +186,14 @@ function cardAnchor(card: DOMRect, side: CalloutSide, target: { x: number; y: nu
     case 'top': return { x: clamp(target.x, card.left + inset, card.right - inset), y: card.top };
     case 'bottom': return { x: clamp(target.x, card.left + inset, card.right - inset), y: card.bottom };
   }
+}
+
+function resolveVisibleTarget(stage: HTMLElement, selector: string) {
+  for (const element of stage.querySelectorAll<HTMLElement>(selector)) {
+    const rect = element.getBoundingClientRect();
+    if (rect.width > 0 && rect.height > 0) return { element, rect };
+  }
+  return null;
 }
 
 /**
@@ -297,7 +306,11 @@ export function PublicAstridCallouts({ stageRef, audience, reducedMotion, active
         const path = svgElement.querySelector<SVGPathElement>(`path[data-callout="${callout.id}"]`);
         const dots = svgElement.querySelectorAll<SVGCircleElement>(`circle[data-callout="${callout.id}"]`);
         const card = cardRefs.current.get(callout.id);
-        const target = stageElement.querySelector<HTMLElement>(phone && callout.phoneTarget ? callout.phoneTarget : callout.target);
+        const resolvedTarget = resolveVisibleTarget(
+          stageElement,
+          phone && callout.phoneTarget ? callout.phoneTarget : callout.target,
+        );
+        const target = resolvedTarget?.element;
         if (!path || dots.length !== 2) continue;
         if (!card || !target) {
           writes.push(() => path.removeAttribute('d'));
@@ -305,7 +318,7 @@ export function PublicAstridCallouts({ stageRef, audience, reducedMotion, active
           continue;
         }
         const side = phone ? callout.phoneSide : tablet ? callout.tabletSide ?? callout.side : callout.side;
-        const box = target.getBoundingClientRect();
+        const box = resolvedTarget.rect;
         const [ax, ay] = phone ? callout.phoneAt ?? callout.at : tablet ? callout.tabletAt ?? callout.at : callout.at;
         const end = { x: box.left + box.width * ax, y: box.top + (!phone && callout.atTop !== undefined ? callout.atTop : box.height * ay) };
         const clampBox = phone && callout.phoneTarget ? target.closest(PHONE_CLAMP_SELECTOR)?.getBoundingClientRect() : undefined;

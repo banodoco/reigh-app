@@ -1546,7 +1546,7 @@
   .astrid-example-result strong { font-size: 11px; }
   .astrid-example-result span { font-size: 10px; }
   .astrid-composer-field { padding: 3px 3px 3px 8px; }
-  .astrid-composer input { min-height: 28px; font-size: 12px; }
+  .astrid-composer input { min-height: 28px; font-size: 11px; line-height: 1.2; }
   .astrid-composer button { width: 28px; height: 28px; }
   .astrid-conversation-footer > .astrid-example-result p { display: none; }
   .astrid-scripted-conversation [data-conversation-presentation] > div:first-child { padding-block: 9px; }
