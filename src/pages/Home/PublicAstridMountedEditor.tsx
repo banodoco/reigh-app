@@ -122,8 +122,9 @@ export function PublicAstridMountedEditor({
             ref={playerRef}
             aria-label="Composition preview"
             aria-hidden={!appView}
+            data-astrid-player-state={appView ? 'active' : 'suppressed'}
           >
-            <PublicAstridPreview transportOutlet={transportOutlet} />
+            {appView && <PublicAstridPreview transportOutlet={transportOutlet} />}
           </section>
           <aside
             className="astrid-surface astrid-inspector-surface"

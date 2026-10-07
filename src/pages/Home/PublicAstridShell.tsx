@@ -400,6 +400,13 @@ export function PublicAstridShell({ onOpenVision, lifecycle = 'active', environm
       if (readinessRef.current.mediaReady) return;
       applyReadinessEvent({type: fallback ? 'media-fallback' : 'media-ready', attempt});
     };
+    // Agent has no visible preview by design. Resolve its media readiness
+    // without waiting for a player that is deliberately not mounted; this
+    // also keeps the direct Agent route from briefly painting a black frame.
+    if (state.audience !== 'app') {
+      markMedia(false);
+      return undefined;
+    }
     const inspectMedia = () => {
       if (!visualActiveRef.current || editorAttemptRef.current !== attempt) return;
       const video = stageElement.querySelector<HTMLVideoElement>('.astrid-player-surface video');
@@ -439,7 +446,7 @@ export function PublicAstridShell({ onOpenVision, lifecycle = 'active', environm
       currentVideo?.removeEventListener('canplay', onMediaReady);
       currentVideo?.removeEventListener('error', onMediaError);
     };
-  }, [applyReadinessEvent, readiness.attempt, readiness.moduleReady, readiness.phase, visualActive]);
+  }, [applyReadinessEvent, readiness.attempt, readiness.moduleReady, readiness.phase, state.audience, visualActive]);
 
   useEffect(() => {
     const stage = editorStageRef.current;
