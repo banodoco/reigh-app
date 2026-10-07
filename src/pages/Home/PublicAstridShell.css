@@ -1100,8 +1100,8 @@
     0 60px 100px -32px rgba(60, 45, 25, .3);
 }
 
-/* Direct entry reveals the ready editor in place. Only audience switches animate its geometry
-   and present new labels; removing the direct-entry guard must never replay a page intro. */
+/* Direct entry fades the ready editor in place. Audience switches own their geometry motion;
+   removing the direct-entry guard must never replay the page intro. */
 @keyframes astrid-callout-in {
   from {
     opacity: 0;
@@ -1127,8 +1127,8 @@
 .astrid-editor-stage:not([data-revealed="true"]) :is(.astrid-editor-tilt, .astrid-preview-transport-outlet) { opacity: 0; }
 .astrid-editor-stage[data-revealed="true"] .astrid-surface { animation: none; }
 .astrid-editor-stage[data-revealed="true"] .astrid-preview-transport-outlet { animation: none; }
-/* A direct page URL is already in its final editor geometry. Keep the initial render static; the same
-   choreography remains available after a real App <-> Agent audience switch. */
+/* A direct page URL is already in its final editor geometry. Suppress individual panel/label
+   choreography so the readiness-gated intro below can bring the assembled editor in together. */
 .astrid-public-site[data-astrid-direct-entry] .astrid-editor-stage,
 .astrid-public-site[data-astrid-direct-entry] .astrid-editor-surfaces,
 .astrid-public-site[data-astrid-direct-entry] .astrid-surface,
@@ -1153,6 +1153,19 @@
 .astrid-public-site[data-astrid-direct-entry] .astrid-hero-actions > * {
   animation: none;
   transition: none;
+}
+/* Start only when the media, inspector, timeline and (for Agent) conversation are ready.
+   Animate their wrappers, preserving panel transforms and callout measurement coordinates.
+   The direct-entry marker is retired permanently on the first audience switch. */
+@keyframes astrid-editor-intro {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .astrid-public-site[data-astrid-direct-entry] .astrid-editor-stage[data-revealed="true"]
+    :is(.astrid-editor-tilt, .astrid-preview-transport-outlet, .astrid-callouts, .astrid-agent-launcher) {
+    animation: astrid-editor-intro 800ms cubic-bezier(.22, .61, .36, 1) backwards;
+  }
 }
 /* Each label is presented, not just shown: the card tips up out of a slight backward lean and a soft
    blur, lifting off the stage as its shadow deepens; its title and then its body follow; the connector
