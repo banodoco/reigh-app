@@ -158,8 +158,31 @@ const PHONE_MEDIA_QUERY = '(max-width: 640px)';
 const TABLET_MEDIA_QUERY = '(max-width: 1099px)';
 
 function calloutsFor(audience: PublicAstridAudience) {
-  return audience === 'agent' ? AGENT_CALLOUTS : APP_CALLOUTS;
+  const definitions = audience === 'agent' ? AGENT_CALLOUTS : APP_CALLOUTS;
+  const order = audience === 'agent' ? ['community', 'tools', 'workflows'] : ['timeline', 'effects', 'models'];
+  return order.map(id => definitions.find(callout => callout.id === id)!);
 }
+
+// One complete turn: card settles, line draws, endpoint lands, then a short breath.
+// Both the card and its SVG group consume these same timings on every screen size.
+function calloutTiming(index: number): CSSProperties {
+  const card = 760;
+  const connector = 420;
+  const endpoint = 220;
+  const start = 600 + index * (card + connector + endpoint + 100);
+  return {
+    '--astrid-callout-index': index,
+    '--astrid-callout-start': `${start}ms`,
+    '--astrid-card-duration': `${card}ms`,
+    '--astrid-connector-start': `${start + card}ms`,
+    '--astrid-connector-duration': `${connector}ms`,
+    '--astrid-endpoint-start': `${start + card + connector}ms`,
+    '--astrid-endpoint-duration': `${endpoint}ms`,
+  } as CSSProperties;
+}
+
+const ORDERED_AGENT_CALLOUTS = calloutsFor('agent');
+const ORDERED_APP_CALLOUTS = calloutsFor('app');
 
 interface PublicAstridCalloutsProps {
   stageRef: RefObject<HTMLDivElement>;
@@ -202,7 +225,7 @@ function resolveVisibleTarget(stage: HTMLElement, selector: string) {
  * on both the card and the surface they describe, including under parallax.
  */
 export function PublicAstridCallouts({ stageRef, audience, reducedMotion, active = true }: PublicAstridCalloutsProps) {
-  const callouts = calloutsFor(audience);
+  const callouts = audience === 'agent' ? ORDERED_AGENT_CALLOUTS : ORDERED_APP_CALLOUTS;
   const svgRef = useRef<SVGSVGElement>(null);
   const cardRefs = useRef(new Map<string, HTMLElement>());
 
@@ -433,7 +456,7 @@ export function PublicAstridCallouts({ stageRef, audience, reducedMotion, active
     >
       <svg ref={svgRef} className="astrid-callout-connectors" aria-hidden="true">
         {callouts.map((callout, index) => (
-          <g key={callout.id} style={{ '--astrid-callout-index': index } as CSSProperties}>
+          <g key={callout.id} style={calloutTiming(index)}>
             <path data-callout={callout.id} pathLength={1} />
             <circle className="astrid-callout-ping" data-callout-ping={callout.id} r="0" />
             <circle className="astrid-callout-dot-start" data-callout={callout.id} r="0" />
@@ -446,7 +469,7 @@ export function PublicAstridCallouts({ stageRef, audience, reducedMotion, active
           key={callout.id}
           className="astrid-callout"
           data-callout={callout.id}
-          style={{ '--astrid-callout-index': index } as CSSProperties}
+          style={calloutTiming(index)}
           ref={(element) => {
             if (element) cardRefs.current.set(callout.id, element);
             else cardRefs.current.delete(callout.id);

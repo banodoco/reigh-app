@@ -14,7 +14,7 @@ let phone: boolean;
 const originalResizeObserver = window.ResizeObserver;
 const originalMutationObserver = window.MutationObserver;
 
-function Stage({ active = true, beforeReveal = false }: { active?: boolean; beforeReveal?: boolean }) {
+function Stage({ active = true, beforeReveal = false, audience = 'app' }: { active?: boolean; beforeReveal?: boolean; audience?: 'app' | 'agent' }) {
   const stage = useRef<HTMLDivElement>(null);
   usePublicAstridPlayerHeight(stage, active && beforeReveal);
   return <div ref={stage} data-testid="stage">
@@ -34,7 +34,7 @@ function Stage({ active = true, beforeReveal = false }: { active?: boolean; befo
     </div></div>
     <div className="astrid-preview-transport-outlet" />
     <button data-astrid-agent-launcher />
-    {!beforeReveal && <PublicAstridCallouts stageRef={stage} audience="app" reducedMotion={false} active={active} />}
+    {!beforeReveal && <PublicAstridCallouts stageRef={stage} audience={audience} reducedMotion={false} active={active} />}
   </div>;
 }
 function paint() {
@@ -90,6 +90,28 @@ afterEach(() => {
 });
 
 describe('bounded stage passes', () => {
+  it.each([
+    ['app', ['timeline', 'effects', 'models']],
+    ['agent', ['community', 'tools', 'workflows']],
+  ] as const)('presents %s cards in narrative order with non-overlapping card/connector turns', (audience, order) => {
+    const view = render(<Stage audience={audience} />);
+    const cards = [...view.container.querySelectorAll<HTMLElement>('article.astrid-callout')];
+    expect(cards.map(card => card.dataset.callout)).toEqual(order);
+    const milliseconds = (element: HTMLElement | SVGElement, name: string) => parseFloat(element.style.getPropertyValue(`--astrid-${name}`));
+    for (const [index, card] of cards.entries()) {
+      const group = view.container.querySelector<SVGElement>(`g:has(path[data-callout="${card.dataset.callout}"])`)!;
+      expect(group.getAttribute('style')).toBe(card.getAttribute('style'));
+      const start = milliseconds(card, 'callout-start');
+      const lineStart = milliseconds(card, 'connector-start');
+      const endStart = milliseconds(card, 'endpoint-start');
+      expect(lineStart).toBeGreaterThanOrEqual(start + milliseconds(card, 'card-duration'));
+      expect(endStart).toBeGreaterThanOrEqual(lineStart + milliseconds(card, 'connector-duration'));
+      if (cards[index + 1]) {
+        expect(milliseconds(cards[index + 1], 'callout-start')).toBeGreaterThan(endStart + milliseconds(card, 'endpoint-duration'));
+      }
+    }
+  });
+
   it('reads all callout/stage boxes before writes and stops after stable scroll/resize bursts', () => {
     const view = render(<Stage />);
     events = [];

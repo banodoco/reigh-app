@@ -1147,9 +1147,9 @@
   transition: none;
 }
 /* Each label is presented, not just shown: the card tips up out of a slight backward lean and a soft
-   blur, lifting off the stage as its shadow deepens; its title and then its body follow; the connector
+   blur, lifting off the stage as its shadow deepens; its content settles with it; the connector
    draws out to the panel; and the far dot lands with a single soft ring, pointing at the spot.
-   Labels follow one another by 160ms. */
+   Direct-entry timing is shared by each card and its connector in PublicAstridCallouts. */
 .astrid-callout {
   --astrid-callout-start: calc(var(--astrid-label-delay, 0ms) + var(--astrid-callout-index, 0) * 160ms);
   transform-origin: 50% 100%;
@@ -1816,20 +1816,33 @@
   }
   .astrid-public-site[data-astrid-direct-entry] .astrid-callouts { --astrid-label-delay: 600ms; }
   .astrid-public-site[data-astrid-direct-entry] .astrid-callout {
-    animation: astrid-callout-in 760ms cubic-bezier(.16, 1, .3, 1) var(--astrid-callout-start) backwards;
+    animation: astrid-callout-in var(--astrid-card-duration) cubic-bezier(.16, 1, .3, 1) var(--astrid-callout-start) backwards;
+  }
+  .astrid-public-site[data-astrid-direct-entry] .astrid-callout > :is(h2, p) {
+    animation: none;
   }
   .astrid-public-site[data-astrid-direct-entry] .astrid-agent-launcher {
     animation: astrid-launcher-arrive 300ms ease-out 600ms backwards;
   }
   .astrid-public-site[data-astrid-direct-entry] .astrid-callout-connectors path {
-    animation: astrid-connector-draw 520ms ease-out calc(var(--astrid-callout-start) + 260ms) backwards;
+    animation: astrid-connector-draw var(--astrid-connector-duration) ease-in-out var(--astrid-connector-start) backwards;
   }
   .astrid-public-site[data-astrid-direct-entry] .astrid-callout-connectors .astrid-callout-dot-start {
-    animation: astrid-dot-in 160ms ease-out calc(var(--astrid-callout-start) + 260ms) backwards;
+    animation: astrid-dot-in 160ms ease-out var(--astrid-connector-start) backwards;
   }
   .astrid-public-site[data-astrid-direct-entry] .astrid-callout-connectors .astrid-callout-dot-end {
-    animation: astrid-dot-land 380ms ease-out calc(var(--astrid-callout-start) + 740ms) backwards;
+    animation: astrid-dot-land var(--astrid-endpoint-duration) cubic-bezier(.34, 1.5, .64, 1) var(--astrid-endpoint-start) backwards;
   }
+  .astrid-public-site[data-astrid-direct-entry] .astrid-callout-connectors .astrid-callout-ping {
+    animation: astrid-dot-ping var(--astrid-endpoint-duration) ease-out var(--astrid-endpoint-start);
+  }
+}
+
+/* The direct-entry guard is retired permanently on the first audience switch. */
+.astrid-public-site:not([data-astrid-direct-entry]) .astrid-callout,
+.astrid-public-site:not([data-astrid-direct-entry]) .astrid-callout > :is(h2, p),
+.astrid-public-site:not([data-astrid-direct-entry]) .astrid-callout-connectors :is(path, circle) {
+  animation: none;
 }
 
 @media (max-width: 380px) {
