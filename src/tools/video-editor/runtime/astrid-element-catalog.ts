@@ -17,6 +17,7 @@ export type AstridElementCatalogTransition = {
   label: string;
   description: string;
   revision: string;
+  packId: string;
   defaults: Record<string, unknown>;
   schema?: ParameterSchema;
   provenance: 'astrid-catalog';
@@ -28,6 +29,7 @@ export type AstridElementCatalogVisual = {
   name: string;
   description: string;
   revision: string;
+  packId: string;
   parameterSchema: ParameterSchema;
   defaults: Record<string, unknown>;
   provenance: 'astrid-catalog';
@@ -63,6 +65,7 @@ export const ASTRID_TRANSITION_CATALOG: readonly AstridElementCatalogTransition[
       label: element.label,
       description: element.description,
       revision: element.revision,
+      packId: element.packId,
       defaults: element.defaults,
       schema: toParameterSchema(element),
       provenance: 'astrid-catalog' as const,
@@ -78,6 +81,7 @@ function toVisualCatalogEntry(
     name: element.label,
     description: element.description,
     revision: element.revision,
+    packId: element.packId,
     parameterSchema: toParameterSchema(element),
     defaults: element.defaults,
     provenance: 'astrid-catalog' as const,

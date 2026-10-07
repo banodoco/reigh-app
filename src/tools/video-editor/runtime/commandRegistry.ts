@@ -434,7 +434,7 @@ export interface CommandRegistry {
   /** All diagnostics emitted by the registry. */
   readonly diagnostics: readonly ExtensionDiagnostic[];
 
-  /** Subscribe to registry diagnostic changes. */
+  /** Subscribe to observable registry snapshot changes. */
   subscribe(listener: () => void): DisposeHandle;
 
   // ---- Snapshot ----------------------------------------------------------
@@ -498,9 +498,14 @@ export function createCommandRegistry(): CommandRegistry {
     frozenSnapshot = null;
   }
 
-  function notifyListeners(): void {
+  function notifySnapshotChanged(): void {
+    invalidateSnapshot();
     for (const listener of listeners) {
-      listener();
+      try {
+        listener();
+      } catch {
+        // A consumer must not be able to break the registry operation.
+      }
     }
   }
 
@@ -513,8 +518,7 @@ export function createCommandRegistry(): CommandRegistry {
     detail?: Record<string, unknown>,
   ): void {
     emitDiagnostic(diagnostics, severity, code, message, extensionId, contributionId, detail);
-    invalidateSnapshot();
-    notifyListeners();
+    notifySnapshotChanged();
   }
 
   function getOrCreateStatus(commandId: string): InternalCommandRunStatus {
@@ -585,7 +589,7 @@ export function createCommandRegistry(): CommandRegistry {
       handler: existingHandler,
     });
 
-    invalidateSnapshot();
+    notifySnapshotChanged();
   }
 
   // ---- ingestKeybindingContribution --------------------------------------
@@ -640,7 +644,7 @@ export function createCommandRegistry(): CommandRegistry {
       order: contribution.order ?? 0,
     });
 
-    invalidateSnapshot();
+    notifySnapshotChanged();
   }
 
   // ---- ingestContextMenuItemContribution ---------------------------------
@@ -683,7 +687,7 @@ export function createCommandRegistry(): CommandRegistry {
       icon: contribution.icon,
     });
 
-    invalidateSnapshot();
+    notifySnapshotChanged();
   }
 
   // ---- registerCommand ---------------------------------------------------
@@ -728,7 +732,7 @@ export function createCommandRegistry(): CommandRegistry {
 
     // Set the handler
     cmd.handler = handler;
-    invalidateSnapshot();
+    notifySnapshotChanged();
 
     let handlerDisposed = false;
     return {
@@ -739,7 +743,7 @@ export function createCommandRegistry(): CommandRegistry {
         const current = commands.get(commandId);
         if (current && current.extensionId === extensionId) {
           current.handler = null;
-          invalidateSnapshot();
+          notifySnapshotChanged();
         }
       },
     };
@@ -832,6 +836,7 @@ export function createCommandRegistry(): CommandRegistry {
       status.lastRunAt = Date.now();
       status.lastRunOk = true;
       status.lastError = null;
+      notifySnapshotChanged();
       notifyOutcome('success');
       return true;
     } catch (err) {
@@ -1017,7 +1022,7 @@ export function createCommandRegistry(): CommandRegistry {
     }
 
     if (cmdCount > 0 || kbCount > 0 || cmCount > 0) {
-      invalidateSnapshot();
+      notifySnapshotChanged();
     }
   }
 
@@ -1034,12 +1039,12 @@ export function createCommandRegistry(): CommandRegistry {
     contextMenuItems.clear();
     runStatuses.clear();
     callbacks = {};
-    invalidateSnapshot();
 
     addDiagnostic('info',
       'command-registry/disposed',
       'CommandRegistry disposed.',
     );
+    listeners.clear();
   }
 
   function subscribe(listener: () => void): DisposeHandle {

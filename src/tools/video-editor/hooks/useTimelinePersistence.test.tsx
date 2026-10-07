@@ -5,7 +5,13 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createFakeIndexedDB, resetFakeIndexedDB } from 'fake-indexeddb';
 vi.stubGlobal('indexedDB', createFakeIndexedDB());
+// Cache invalidation is an effect of saving, not part of this writer's
+// acknowledgement protocol. Avoid importing the renderer's media pack tree.
+vi.mock('@/tools/video-editor/compositions/TimelineRenderer.tsx', () => ({
+  invalidateReferencedTimelineCache: vi.fn(),
+}));
 import { useTimelinePersistence, type UseTimelinePersistenceResult } from './useTimelinePersistence';
+import { useTimelineOps } from './useTimelineOps';
 import { TimelineEventBus } from './useTimelineEventBus';
 import {
   TimelineStoreProvider,
@@ -100,6 +106,9 @@ interface TestHarness {
   dataRef: { current: TimelineData | null };
   /** Commit sequence counter — bump to simulate a newer edit landing. */
   editSeqRef: { current: number };
+  savedSeqRef: { current: number };
+  configVersionRef: { current: number };
+  replaceSession: (provider: DataProvider, timelineId?: string) => void;
   commitData: ReturnType<typeof vi.fn>;
   scheduleSave: (data: TimelineData) => void;
   reloadFromServer: () => Promise<void>;
@@ -171,11 +180,11 @@ function setup(options?: SetupOptions): TestHarness {
     React.createElement(QueryClientProvider, { client: queryClient }, children);
 
   const hook = renderHook(
-    () => useTimelinePersistence({
+    (target: { provider: DataProvider; timelineId: string }) => useTimelinePersistence({
       store: options?.store,
-      provider,
+      provider: target.provider,
       assetResolver,
-      timelineId: 'timeline-1',
+      timelineId: target.timelineId,
       eventBus,
       dataRef,
       commitData,
@@ -187,7 +196,7 @@ function setup(options?: SetupOptions): TestHarness {
       lastSavedSignatureRef,
       interactionStateRef,
     }),
-    { wrapper },
+    { wrapper, initialProps: { provider, timelineId: 'timeline-1' } },
   );
 
   return {
@@ -200,6 +209,9 @@ function setup(options?: SetupOptions): TestHarness {
     interactionStateRef,
     dataRef,
     editSeqRef,
+    savedSeqRef,
+    configVersionRef,
+    replaceSession: (nextProvider, timelineId = 'timeline-1') => hook.rerender({ provider: nextProvider, timelineId }),
     commitData,
     scheduleSave: (data) => {
       dataRef.current = data;
@@ -417,6 +429,46 @@ describe('useTimelinePersistence — interaction gating', () => {
     expect(acknowledgedVersion).toBe(2);
   });
 
+  it('public apply schedules the normal host save synchronously and public flush awaits that writer', async () => {
+    let acknowledge!: (version: number) => void;
+    const harness = setup({ saveTimelineImpl: () => new Promise<number>((resolve) => { acknowledge = resolve; }) });
+    const commitData = vi.fn((nextData: TimelineData) => {
+      harness.editSeqRef.current += 1;
+      harness.scheduleSave(nextData);
+    });
+    const ops = renderHook(() => useTimelineOps({
+      dataRef: harness.dataRef,
+      commitData,
+      flushPendingSave: harness.result.current.flushPendingSave,
+      createManualCheckpoint: vi.fn(),
+      jumpToCheckpoint: vi.fn(),
+      checkpoints: [],
+    }));
+    let applied: unknown;
+    act(() => {
+      applied = ops.result.current.apply({
+        version: 1,
+        operations: [{ op: 'track.update', target: 'V1', payload: { label: 'Acknowledged track' } }],
+      });
+    });
+    expect(applied).not.toBeInstanceOf(Promise);
+    expect(commitData).toHaveBeenCalledWith(expect.anything(), { save: true, semantic: true });
+    expect(harness.saveTimeline).not.toHaveBeenCalled();
+    let settled = false;
+    let flushed!: ReturnType<typeof ops.result.current.flush>;
+    await act(async () => {
+      flushed = ops.result.current.flush().then((receipt) => { settled = true; return receipt; });
+    });
+    expect(harness.saveTimeline).toHaveBeenCalledTimes(1);
+    expect(harness.saveTimeline.mock.calls[0]?.[1].tracks).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: 'V1', label: 'Acknowledged track' }),
+    ]));
+    expect(settled).toBe(false);
+    await act(async () => { acknowledge(8); });
+    await expect(flushed).resolves.toEqual({ version: 8 });
+    expect(harness.savedSeqRef.current).toBe(harness.editSeqRef.current);
+  });
+
   it('refuses the save-for-render barrier while an interaction is active', async () => {
     const harness = setup();
     harness.interactionStateRef.current.drag = true;
@@ -441,6 +493,190 @@ describe('useTimelinePersistence — interaction gating', () => {
     });
     expect(harness.saveTimeline).toHaveBeenCalledTimes(1);
     harness.unmount();
+  });
+
+  it('rejects disabled persistence even when an earlier sequence is already saved', async () => {
+    const harness = setup({ persistenceEnabled: false });
+    harness.savedSeqRef.current = harness.editSeqRef.current;
+    await expect(harness.result.current.flushPendingSave()).rejects.toThrow('persistence is unavailable');
+    expect(harness.saveTimeline).not.toHaveBeenCalled();
+  });
+
+  it('rejects an unavailable writer and unloaded data before starting a save', async () => {
+    const harness = setup();
+    harness.dataRef.current = null;
+    await expect(harness.result.current.flushPendingSave()).rejects.toThrow('Timeline data is not loaded');
+    harness.dataRef.current = makeTimelineData('loaded');
+    // A malformed/incomplete host must take a capability failure path.
+    harness.provider.saveTimeline = undefined as unknown as DataProvider['saveTimeline'];
+    await expect(harness.result.current.flushPendingSave()).rejects.toThrow('persistence is unavailable');
+    expect(harness.saveTimeline).not.toHaveBeenCalled();
+  });
+
+  it('rejects a conflict with the existing error and cannot later claim that edit saved', async () => {
+    const conflict = new TimelineVersionConflictError('stale timeline version', 1);
+    const harness = setup({ saveTimelineImpl: async () => { throw conflict; } });
+    harness.scheduleSave(makeTimelineData('conflict-flush'));
+    await act(async () => {
+      await expect(harness.result.current.flushPendingSave()).rejects.toBe(conflict);
+    });
+    expect(harness.savedSeqRef.current).toBe(0);
+    await expect(harness.result.current.flushPendingSave()).rejects.toThrow('timeline version conflict');
+    expect(harness.saveTimeline).toHaveBeenCalledTimes(1);
+  });
+
+  it('an earlier receipt releases only the earlier sequence waiter', async () => {
+    const receipts: Array<(version: number) => void> = [];
+    const harness = setup({ saveTimelineImpl: () => new Promise<number>((resolve) => { receipts.push(resolve); }) });
+    harness.scheduleSave(makeTimelineData('seq-one'));
+    let first!: Promise<number>;
+    await act(async () => { first = harness.result.current.flushPendingSave(); });
+    expect(harness.saveTimeline).toHaveBeenCalledTimes(1);
+
+    harness.editSeqRef.current = 2;
+    harness.scheduleSave(makeTimelineData('seq-two'));
+    let newerSettled = false;
+    let newer!: Promise<number>;
+    await act(async () => {
+      newer = harness.result.current.flushPendingSave().then((version) => { newerSettled = true; return version; });
+    });
+    await act(async () => { receipts[0]!(2); });
+    await expect(first).resolves.toBe(2);
+    expect(newerSettled).toBe(false);
+    expect(harness.savedSeqRef.current).toBe(1);
+    expect(harness.saveTimeline).toHaveBeenCalledTimes(2);
+    expect(harness.saveTimeline.mock.calls[1]?.[2]).toBe(2);
+    await act(async () => { receipts[1]!(3); });
+    await expect(newer).resolves.toBe(3);
+    expect(harness.savedSeqRef.current).toBe(2);
+  });
+
+  it('reuses a current acknowledged receipt without saving again, but not after session replacement', async () => {
+    const harness = setup();
+    harness.scheduleSave(makeTimelineData('acknowledged'));
+    await act(async () => {
+      await expect(harness.result.current.flushPendingSave()).resolves.toBe(2);
+    });
+    await expect(harness.result.current.flushPendingSave()).resolves.toBe(2);
+    expect(harness.saveTimeline).toHaveBeenCalledTimes(1);
+
+    // The host refs still carry the previous target's saved sequence. A new
+    // session cannot borrow that receipt, even if its sequence is identical.
+    let acknowledge!: (version: number) => void;
+    const newWriter = vi.fn(() => new Promise<number>((resolve) => { acknowledge = resolve; }));
+    harness.replaceSession({ ...harness.provider, saveTimeline: newWriter });
+    let settled = false;
+    let flushed!: Promise<number>;
+    await act(async () => {
+      flushed = harness.result.current.flushPendingSave().then((version) => { settled = true; return version; });
+    });
+    expect(newWriter).toHaveBeenCalledTimes(1);
+    expect(settled).toBe(false);
+    await act(async () => { acknowledge(3); });
+    await expect(flushed).resolves.toBe(3);
+  });
+
+  it('rejects an in-flight flush on unmount and rejects calls through the retained barrier', async () => {
+    let acknowledge!: (version: number) => void;
+    const harness = setup({ saveTimelineImpl: () => new Promise<number>((resolve) => { acknowledge = resolve; }) });
+    harness.scheduleSave(makeTimelineData('close-flush'));
+    const barrier = harness.result.current.flushPendingSave;
+    let outcome!: Promise<number | Error>;
+    await act(async () => { outcome = barrier().catch((error: Error) => error); });
+    harness.unmount();
+    expect(await outcome).toEqual(expect.objectContaining({ message: 'Timeline closed before durable acknowledgement.' }));
+    await expect(barrier()).rejects.toThrow('closed or replaced');
+    await act(async () => { acknowledge(9); });
+    expect(harness.savedSeqRef.current).toBe(0);
+    expect(harness.configVersionRef.current).toBe(1);
+  });
+
+  it.each(['provider', 'timeline'] as const)('rejects a flush on %s replacement and ignores a receipt after returning to the original target', async (kind) => {
+    let acknowledge!: (version: number) => void;
+    const harness = setup({ saveTimelineImpl: () => new Promise<number>((resolve) => { acknowledge = resolve; }) });
+    harness.scheduleSave(makeTimelineData('replace-flush'));
+    const oldBarrier = harness.result.current.flushPendingSave;
+    let outcome!: Promise<number | Error>;
+    await act(async () => { outcome = oldBarrier().catch((error: Error) => error); });
+    harness.replaceSession(kind === 'provider' ? { ...harness.provider } : harness.provider, kind === 'timeline' ? 'timeline-2' : 'timeline-1');
+    expect(await outcome).toEqual(expect.objectContaining({ message: 'Timeline session replaced before durable acknowledgement.' }));
+    harness.replaceSession(harness.provider);
+    await expect(oldBarrier()).rejects.toThrow('closed or replaced');
+    await act(async () => { acknowledge(9); });
+    expect(harness.savedSeqRef.current).toBe(0);
+    expect(harness.configVersionRef.current).toBe(1);
+  });
+
+  it('a replaced session waiter waits for its own receipt after an obsolete save drains', async () => {
+    let acknowledgeOld!: (version: number) => void;
+    let acknowledgeNew!: (version: number) => void;
+    const harness = setup({ saveTimelineImpl: () => new Promise<number>((resolve) => { acknowledgeOld = resolve; }) });
+    let oldOutcome!: Promise<number | Error>;
+    await act(async () => { oldOutcome = harness.result.current.flushPendingSave().catch((error: Error) => error); });
+    const newWriter = vi.fn(() => new Promise<number>((resolve) => { acknowledgeNew = resolve; }));
+    harness.replaceSession({ ...harness.provider, saveTimeline: newWriter });
+    expect(await oldOutcome).toBeInstanceOf(Error);
+    let newSettled = false;
+    let newFlush!: Promise<number>;
+    await act(async () => {
+      newFlush = harness.result.current.flushPendingSave().then((version) => { newSettled = true; return version; });
+    });
+    await act(async () => { acknowledgeOld(40); });
+    expect(newSettled).toBe(false);
+    expect(harness.configVersionRef.current).toBe(1);
+    expect(newWriter).toHaveBeenCalledTimes(1);
+    await act(async () => { acknowledgeNew(2); });
+    await expect(newFlush).resolves.toBe(2);
+  });
+
+  it('a replacement session flush does not wait behind the old session transport retry timer', async () => {
+    const harness = setup({ saveTimelineImpl: async () => { throw new Error('old transport outcome unknown'); } });
+    await act(async () => {
+      await expect(harness.result.current.flushPendingSave()).rejects.toThrow('old transport outcome unknown');
+    });
+    expect(harness.result.current.saveStatus).toBe('retrying');
+    const newWriter = vi.fn(async () => 5);
+    harness.replaceSession({ ...harness.provider, saveTimeline: newWriter });
+    await act(async () => {
+      await expect(harness.result.current.flushPendingSave()).resolves.toBe(5);
+      vi.advanceTimersByTime(1_000);
+    });
+    expect(newWriter).toHaveBeenCalledTimes(1);
+    expect(harness.saveTimeline).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects a flush when canonical reload invalidates its pending edit', async () => {
+    let acknowledge!: (version: number) => void;
+    const harness = setup({ saveTimelineImpl: () => new Promise<number>((resolve) => { acknowledge = resolve; }) });
+    harness.scheduleSave(makeTimelineData('reload-flush'));
+    let outcome!: Promise<number | Error>;
+    await act(async () => { outcome = harness.result.current.flushPendingSave().catch((error: Error) => error); });
+    let reloaded!: Promise<void>;
+    await act(async () => { reloaded = harness.reloadFromServer(); });
+    expect(await outcome).toEqual(expect.objectContaining({ message: 'Timeline reloaded before durable acknowledgement.' }));
+    await expect(harness.result.current.flushPendingSave()).rejects.toThrow('Timeline is reloading');
+    await act(async () => { acknowledge(2); await reloaded; });
+  });
+
+  it('rejects when timeline data unloads before the in-flight receipt arrives', async () => {
+    let acknowledge!: (version: number) => void;
+    const harness = setup({ saveTimelineImpl: () => new Promise<number>((resolve) => { acknowledge = resolve; }) });
+    let outcome!: Promise<number | Error>;
+    await act(async () => { outcome = harness.result.current.flushPendingSave().catch((error: Error) => error); });
+    harness.dataRef.current = null;
+    await act(async () => { acknowledge(2); });
+    expect(await outcome).toEqual(expect.objectContaining({ message: 'Timeline data unloaded before durable acknowledgement.' }));
+  });
+
+  it('rejects if persistence is disabled before an in-flight receipt arrives', async () => {
+    let acknowledge!: (version: number) => void;
+    const harness = setup({ saveTimelineImpl: () => new Promise<number>((resolve) => { acknowledge = resolve; }) });
+    let outcome!: Promise<number | Error>;
+    await act(async () => { outcome = harness.result.current.flushPendingSave().catch((error: Error) => error); });
+    harness.provider.persistenceEnabled = false;
+    harness.replaceSession(harness.provider);
+    expect(await outcome).toEqual(expect.objectContaining({ message: 'Durable timeline persistence is unavailable.' }));
+    await act(async () => { acknowledge(2); });
   });
 
   it('suppresses autosave when provider persistence is disabled', async () => {

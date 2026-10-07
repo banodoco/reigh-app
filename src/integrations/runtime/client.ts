@@ -16,6 +16,7 @@ import {
   type Project,
   type Realm,
   type Task,
+  type ObjectLocation,
   type TimelineInspectionResult,
   type Transport,
 } from './generated.ts';
@@ -275,6 +276,10 @@ export class ReighRuntimeClient {
     return this.withSession(() => this.client.ingestProjectObject(projectId, data, mediaType, idempotencyKey(), filename));
   }
 
+  /** Project-scoped object authority check; the local path is never exposed. */
+  async getProjectObjectLocation(projectId: string, objectId: string): Promise<ObjectLocation> {
+    return this.withSession(() => this.client.getProjectObjectLocation(projectId, objectId));
+  }
   async importProjectMedia(
     projectId: string,
     data: Uint8Array,

@@ -242,7 +242,7 @@ export function buildVideoEditorLightboxMedia(
 /** Registers video-editor state into the app-level AgentChatContext and keeps
  *  timeline attachment metadata synchronized in the selection store. */
 function AgentChatBridgeRegistration() {
-  const { timelineId, timelineName, project, agentChat } = useVideoEditorRuntime();
+  const { timelineId, timelineName, project, agentChat, liveSceneOperationPort } = useVideoEditorRuntime();
   const { registerTimeline, unregisterTimeline } = agentChat;
   const allClips = useTimelineClipsForAttachments();
   const { data, resolvedConfig, selectedClipIds } = useTimelineEditorData();
@@ -316,9 +316,10 @@ function AgentChatBridgeRegistration() {
       timelineSummary,
       elementContext,
       elementOperationAdapter,
+      liveSceneOperationPort,
     });
     return unregisterTimeline;
-  }, [elementContext, project.projectId, project.projectSlug, registerTimeline, timelineId, timelineName, timelineSummary, unregisterTimeline]);
+  }, [elementContext, elementOperationAdapter, liveSceneOperationPort, project.projectId, project.projectSlug, registerTimeline, timelineId, timelineName, timelineSummary, unregisterTimeline]);
 
   return null;
 }
@@ -364,6 +365,8 @@ function InnerProvider({
   const sync = useEditorRuntimeSync({
     assembly,
     projectId: runtime.project.projectId,
+    timelineId: runtime.timelineId,
+    projectObjects: runtime.provider.projectObjects,
     catalogUserId: runtime.auth.userId,
     effectsQueryEnabled: !effectCatalog && Boolean(runtime.auth.userId),
     effectCatalog,
@@ -793,6 +796,7 @@ export function VideoEditorProvider({
     };
     elementContext?: AgentChatEditorContext['elementContext'];
     elementOperationAdapter?: AgentChatEditorContext['elementOperationAdapter'];
+    liveSceneOperationPort?: AgentChatEditorContext['liveSceneOperationPort'];
   }) => {
     agentChatRegistry.register({
       timelineId: value.timelineId,
@@ -806,6 +810,7 @@ export function VideoEditorProvider({
             timelineSummary: value.timelineSummary,
             elementContext: value.elementContext,
             elementOperationAdapter: value.elementOperationAdapter,
+            liveSceneOperationPort: value.liveSceneOperationPort,
             deepLink: typeof globalThis.location?.href === 'string' ? globalThis.location.href : null,
           }
         : null,
@@ -978,6 +983,7 @@ export function VideoEditorProvider({
     extensionRuntime: assembly.extensionRuntime,
     commandRegistry: assembly.commandRegistryRef.current ?? undefined,
     agentToolRegistry: assembly.agentToolRegistryRef.current ?? undefined,
+    liveSceneOperationPort: assembly.liveSceneOperationPort,
     diagnosticCollection: assembly.diagnosticCollectionRef.current ?? undefined,
     getRecoveryKey: assembly.getRecoveryKey,
     incrementRecoveryKey: assembly.incrementRecoveryKey,

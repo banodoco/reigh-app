@@ -13,6 +13,7 @@ import {
   type DataProvider,
   type LoadedTimeline,
   type LoadedReferencedTimeline,
+  type ProjectObjectStorage,
   type UploadedAssetResult,
   type UploadAssetOptions,
 } from '@/tools/video-editor/data/DataProvider.ts';
@@ -85,6 +86,38 @@ export class RuntimeDataProvider implements DataProvider {
    */
   readonly refreshIntervalMs = 2_000;
   readonly apiBaseUrl: string;
+  readonly projectObjects: ProjectObjectStorage = {
+    ingest: async (bytes, mediaType, filename) => {
+      const object = await this.client.ingestProjectObject(this.projectId, bytes, mediaType, filename);
+      return {
+        object_id: object.object_id,
+        digest: object.digest,
+        media_type: object.media_type,
+        size: object.size,
+        ...(object.filename !== undefined ? { filename: object.filename } : {}),
+      };
+    },
+    read: async (objectId) => {
+      // Runtime's project location endpoint is the authority for membership.
+      // Only after it accepts the active project do we retrieve raw bytes.
+      const location = await this.client.getProjectObjectLocation(this.projectId, objectId);
+      if (location.object_id !== objectId) {
+        throw new Error(
+          `Workspace Runtime project-object authority returned ${location.object_id} for ${objectId}`,
+        );
+      }
+      const response = await this.client.getObject(objectId);
+      if (response.etag) {
+        assertManagedObjectIdentity(objectId, location.digest, response.etag);
+      }
+      if (response.data.byteLength !== location.size) {
+        throw new Error(
+          `Workspace Runtime object size mismatch for ${objectId}: expected ${location.size}, got ${response.data.byteLength}`,
+        );
+      }
+      return response.data;
+    },
+  };
   readonly shotComposition: ShotCompositionPort = {
     getSourceFrameThumbnailUrl: async (request) => {
       const descriptor = await this.client.getSourceFrameThumbnail(

@@ -186,8 +186,9 @@ export interface TimelineCommands {
    */
   moveTrack: (input: MoveTrackCommandInput) => TimelineCommandResult<{ trackId: string }>;
   /**
-   * Optimistically register an asset and persist it through the current host
-   * adapter without exposing `patchRegistry()` or `registerAsset()` directly.
+   * Accept an optimistic registry edit into the canonical timeline save path.
+   * `{ok: true}` confirms edit acceptance; durable acknowledgement is obtained
+   * through `TimelineOps.flush()`, which rejects when the save is unverified.
    */
   registerAsset: (input: RegisterAssetCommandInput) => Promise<TimelineCommandResult<{ assetId: string }>>;
   /**
@@ -450,13 +451,17 @@ export function createTimelineCommands(
           type: 'place-prepared-media',
           payload: {
             asset: input.preparedAsset,
-            trackId: preparedTrackId,
-            selectedTrackId: state.data.selectedTrackId,
+            ...(preparedTrackId !== undefined ? { trackId: preparedTrackId } : {}),
+            ...(state.data.selectedTrackId !== undefined
+              ? { selectedTrackId: state.data.selectedTrackId }
+              : {}),
             at: Math.max(0, preparedAt),
             ...(input.afterClipId !== undefined ? { afterClipId: input.afterClipId } : {}),
             forceNewTrack: input.forceNewTrack ?? false,
             insertAtTop: input.insertAtTop ?? false,
-            clipSpanSeconds: input.clipSpanSeconds,
+            ...(input.clipSpanSeconds !== undefined
+              ? { clipSpanSeconds: input.clipSpanSeconds }
+              : {}),
             ...(input.clipId !== undefined ? { clipId: input.clipId } : {}),
             ...(input.removeClipId !== undefined ? { removeClipId: input.removeClipId } : {}),
             ...(input.removeClipIds !== undefined ? { removeClipIds: input.removeClipIds } : {}),

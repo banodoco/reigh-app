@@ -24,6 +24,7 @@ export type ReighElementCapabilities = {
 };
 
 export type ReighElementCatalogEntry = {
+  packId?: string;
   id: string;
   label: string;
   kind: ReighElementKind;
@@ -119,6 +120,7 @@ export const REIGH_ELEMENT_OPERATIONS: readonly ReighElementOperationDescriptor[
 ]);
 
 export type ReighElementRef = {
+  packId?: string;
   id: string;
   kind: ReighElementKind;
   revision: string;
@@ -226,6 +228,7 @@ function requireElementRef(
     return;
   }
   requireString(value.id, `${path}.id`, diagnostics);
+  if ('packId' in value) requireString(value.packId, `${path}.packId`, diagnostics);
   requireString(value.revision, `${path}.revision`, diagnostics);
   if (!ELEMENT_KINDS.has(String(value.kind))) {
     diagnostics.push({ path: `${path}.kind`, message: 'must be effect, animation, or transition' });
@@ -355,6 +358,7 @@ export function pinElementRevision(
 }
 
 type CatalogEffectSource = {
+  packId?: string;
   id: string;
   name: string;
   description?: string;
@@ -368,6 +372,7 @@ type CatalogEffectSource = {
 };
 
 type CatalogAnimationSource = {
+  packId?: string;
   id: string;
   name: string;
   description?: string;
@@ -392,6 +397,7 @@ type CatalogSequenceSource = {
 };
 
 type CatalogTransitionSource = {
+  packId?: string;
   transitionId: string;
   label?: string;
   description?: string;
@@ -459,6 +465,7 @@ function publicationForSource(
 function effectEntry(effect: CatalogEffectSource): ReighElementCatalogEntry {
   return {
     id: effect.id,
+    ...(effect.packId !== undefined ? { packId: effect.packId } : {}),
     label: effect.name,
     kind: 'effect',
     placement: 'overlay',
@@ -479,6 +486,7 @@ function effectEntry(effect: CatalogEffectSource): ReighElementCatalogEntry {
 function animationEntry(animation: CatalogAnimationSource): ReighElementCatalogEntry {
   return {
     id: animation.id,
+    ...(animation.packId !== undefined ? { packId: animation.packId } : {}),
     label: animation.name,
     kind: 'animation',
     placement: 'overlay',
@@ -520,6 +528,7 @@ function sequenceEntry(sequence: CatalogSequenceSource): ReighLegacySequenceReso
 function transitionEntry(transition: CatalogTransitionSource): ReighElementCatalogEntry {
   return {
     id: transition.transitionId,
+    ...(transition.packId !== undefined ? { packId: transition.packId } : {}),
     label: transition.label ?? transition.transitionId,
     kind: 'transition',
     placement: 'between-clips',
@@ -554,9 +563,9 @@ export function buildReighAgentElementContext(
     ...(sources.astridEffects ?? []).map(effectEntry),
     ...(sources.astridAnimations ?? []).map(animationEntry),
     ...[...(sources.astridTransitions ?? []), ...(sources.transitions ?? [])]
-      .filter((transition, index, all) => all.findIndex((candidate) => candidate.transitionId === transition.transitionId) === index)
+      .filter((transition, index, all) => all.findIndex((candidate) => candidate.transitionId === transition.transitionId && candidate.packId === transition.packId) === index)
       .map(transitionEntry),
-  ].filter((entry, index, all) => all.findIndex((candidate) => candidate.kind === entry.kind && candidate.id === entry.id) === index);
+  ].filter((entry, index, all) => all.findIndex((candidate) => candidate.kind === entry.kind && candidate.id === entry.id && candidate.packId === entry.packId) === index);
   const legacySequenceResources = (sources.sequences ?? []).map(sequenceEntry);
   const clips = [...(sources.clips ?? [])].sort((left, right) => left.at - right.at);
   const selectedClips = clips.map((clip) => ({

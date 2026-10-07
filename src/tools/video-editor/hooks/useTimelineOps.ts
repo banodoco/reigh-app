@@ -63,6 +63,9 @@ export interface UseTimelineOpsArgs {
    */
   getConfigVersion?: () => number;
 
+  /** Normal host writer's edit-sequence acknowledgement barrier. */
+  flushPendingSave?: () => Promise<number>;
+
   /** Host checkpoint creation (async fire-and-forget). */
   createManualCheckpoint: (label?: string) => Promise<void>;
 
@@ -106,6 +109,7 @@ export function useTimelineOps({
   commitData,
   dataRef,
   getConfigVersion,
+  flushPendingSave,
   createManualCheckpoint,
   jumpToCheckpoint,
   checkpoints,
@@ -120,6 +124,8 @@ export function useTimelineOps({
   // identity changes between renders.
   const getConfigVersionRef = useRef(getConfigVersion);
   getConfigVersionRef.current = getConfigVersion;
+  const flushPendingSaveRef = useRef(flushPendingSave);
+  flushPendingSaveRef.current = flushPendingSave;
   const getCanonicalVersion = useCallback(
     () => getConfigVersionRef.current?.() ?? dataRef.current?.configVersion ?? 0,
     [dataRef],
@@ -397,15 +403,27 @@ export function useTimelineOps({
 
   // ---- assemble stable adapter --------------------------------------------
 
+  const flush = useCallback(async (): Promise<{ readonly version: number }> => {
+    if (!dataRef.current) {
+      throw new Error('TimelineOps.flush: timeline data is not yet loaded.');
+    }
+    const barrier = flushPendingSaveRef.current;
+    if (!barrier) {
+      throw new Error('TimelineOps.flush: durable persistence is unavailable.');
+    }
+    return Object.freeze({ version: await barrier() });
+  }, [dataRef]);
+
   return useMemo<TimelineOps>(
     () => ({
       validate,
       preview,
       apply,
+      flush,
       checkpoint,
       rollback,
       setAllTracksMuted,
     }),
-    [validate, preview, apply, checkpoint, rollback, setAllTracksMuted],
+    [validate, preview, apply, flush, checkpoint, rollback, setAllTracksMuted],
   );
 }

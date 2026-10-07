@@ -1269,6 +1269,22 @@ describe('TimelineRenderer — live binding renderer facade (M11 T6)', () => {
     expect(screen.queryByTestId('live-binding-placeholder')).not.toBeInTheDocument();
   });
 
+  it('passes host source time and opaque source independently of animated params', () => {
+    currentFrame = 180;
+    const TestRenderer: FC<ClipRendererProps> = props => <div data-testid="scene-clock" data-time={props.sourceTime} data-source={JSON.stringify(props.source)} data-params={JSON.stringify(props.params)} />;
+    mockClipTypeRegistryGet.mockReturnValue(makeRegistryRecord({clipTypeId:'ext.live-clip',renderer:TestRenderer,schema:[{name:'scale',label:'Scale',description:'',type:'number',default:1}]}));
+    mockClipTypeRegistryHas.mockReturnValue(true);
+    const config = liveBuildConfig([{...liveClip('scene',[]),at:2,from:55,hold:20,speed:2,app:{liveScene:{revision:'pinned'}},keyframes:{scale:[{time:0,value:1},{time:10,value:2}]}}]);
+    const view = render(<TimelineRenderer config={config} />);
+    expect(screen.getByTestId('scene-clock')).toHaveAttribute('data-time','63');
+    expect(screen.getByTestId('scene-clock')).toHaveAttribute('data-source',JSON.stringify({liveScene:{revision:'pinned'}}));
+    expect(JSON.parse(screen.getByTestId('scene-clock').getAttribute('data-params') ?? '{}')).not.toHaveProperty('liveScene');
+    currentFrame = 120;
+    view.rerender(<TimelineRenderer config={{...config, clips:[...config.clips]}} />);
+    expect(screen.getByTestId('scene-clock')).toHaveAttribute('data-time','59');
+    currentFrame = 0;
+  });
+
   it('renders live diagnostics placeholders for unresolved live binding states', () => {
     const TestRenderer: FC<ClipRendererProps> = () => (
       <div data-testid="extension-live-renderer" />
@@ -1785,5 +1801,33 @@ describe('TimelineRenderer — track.scale scales the whole track subtree', () =
     const text = screen.getByTestId('text-clip-sequence');
     expect(media.parentElement).toBe(text.parentElement);
     expect(media.parentElement?.style.transform).toBe('scale(0.5)');
+  });
+});
+
+describe('TimelineRenderer owner-qualified Astrid references', () => {
+  it.each(['local', 'rendering'])('passes the %s owner to the component bridge', (packId) => {
+    const Owned: FC<{ clip: { id: string } }> = ({ clip }) => <div data-testid="owner-preview">{clip.id}</div>;
+    astridElementComponentMock.mockImplementation((id: string, kind: string, owner?: string) => (
+      id === 'text-card' && kind === 'effect' && owner === packId ? Owned : undefined
+    ));
+    render(<TimelineRenderer config={{ ...buildConfig(), clips: [{
+      id: `text-${packId}`, track: 'V1', at: 0, hold: 1, clipType: 'effect-layer',
+      elementRef: { id: 'text-card', kind: 'effect', revision: 'test-revision', packId },
+    }] }} />);
+    expect(screen.getByTestId('owner-preview')).toHaveTextContent(`text-${packId}`);
+    expect(astridElementComponentMock).toHaveBeenCalledWith('text-card', 'effect', packId);
+  });
+
+  it('shows an unavailable-element placeholder for an unknown owner without using another source', () => {
+    astridElementComponentMock.mockReturnValue(undefined);
+    render(<TimelineRenderer config={{ ...buildConfig(), app: { elements: {
+      'text-card': { kind: 'effect', revision: 'test-revision', source: 'export default function Wrong() { return <div>wrong owner</div>; }' },
+    } }, clips: [{
+      id: 'unknown-owner', track: 'V1', at: 0, hold: 1, clipType: 'text-card',
+      elementRef: { id: 'text-card', kind: 'effect', revision: 'test-revision', packId: 'unknown' },
+    }] }} />);
+    expect(screen.getByTestId('generated-module-placeholder')).toHaveAttribute('data-artifact-id', 'text-card');
+    expect(astridElementComponentMock).toHaveBeenCalledWith('text-card', 'effect', 'unknown');
+    expect(screen.queryByText('wrong owner')).not.toBeInTheDocument();
   });
 });

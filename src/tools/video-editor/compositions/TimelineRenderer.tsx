@@ -4,6 +4,7 @@ import type { DataProvider } from '@/tools/video-editor/data/DataProvider.ts';
 import { getAudioTracks, getVisualTracks } from '@/tools/video-editor/lib/editor-utils.ts';
 import { getClipDurationInFrames, getTimelineDurationInFrames, resolveTimelineConfig, secondsToFrames } from '@/tools/video-editor/lib/config-utils.ts';
 import { BUILTIN_CLIP_TYPES } from '@/sdk/video/timeline/clipTypes.ts';
+import { clipSourceTime } from '../clip-types/sourceTime';
 import {
   type ParameterSchema,
   type ResolvedTimelineClip,
@@ -381,6 +382,7 @@ function getPinnedElementSource(
   if (!isRecord(elements)) return undefined;
   const entry = elements[ref.id];
   if (!isRecord(entry)) return undefined;
+  if (ref.packId !== undefined && entry.packId !== ref.packId) return undefined;
   if (typeof entry.revision === 'string' && entry.revision !== ref.revision) return undefined;
   return typeof entry.source === 'string' && entry.source.trim().length > 0
     ? entry.source
@@ -455,7 +457,7 @@ const AstridEffectPreviewSequence: FC<{
   }>;
 }> = ({ clip, fps, theme, assetEntry, component }) => {
   const Component = component ?? (clip.elementRef
-    ? resolveAstridElementComponent(clip.elementRef.id, clip.elementRef.kind)
+    ? resolveAstridElementComponent(clip.elementRef.id, clip.elementRef.kind, clip.elementRef.packId)
     : undefined);
   const durationInFrames = getClipDurationInFrames(clip, fps);
   if (!Component) return null;
@@ -486,7 +488,7 @@ const AstridAnimationPreviewSequence: FC<{
   predecessor?: ResolvedTimelineClip | null;
 }> = ({ clip, track, fps, theme, predecessor }) => {
   const Component = clip.elementRef
-    ? resolveAstridElementComponent(clip.elementRef.id, clip.elementRef.kind)
+    ? resolveAstridElementComponent(clip.elementRef.id, clip.elementRef.kind, clip.elementRef.packId)
     : undefined;
   const durationInFrames = getClipDurationInFrames(clip, fps);
   const transitionFrames = predecessor && clip.transition
@@ -1265,13 +1267,16 @@ const ExtensionClipSequence: FC<ExtensionClipSequenceProps> = ({
   const interpolatedParams = useMemo(() => {
     const schema: ParameterSchema | undefined = registryRecord.schema as ParameterSchema | undefined;
     const keyframes = clip.keyframes ?? {};
+    const rawParams = (clip.params as Record<string, unknown>) ?? {};
     let baseParams: Record<string, unknown>;
     if (!schema || schema.length === 0) {
       // No schema → pass raw params (no interpolation needed)
-      baseParams = (clip.params as Record<string, unknown>) ?? {};
+      baseParams = { ...rawParams };
     } else {
       const resolved = resolveAnimatedParams(keyframes, schema, timeSeconds);
-      baseParams = interpolatedParamsToRecord(resolved);
+      // Parameter resolution owns only declared animated values. Preserve
+      // opaque source/package identity carried beside them.
+      baseParams = { ...rawParams, ...interpolatedParamsToRecord(resolved) };
     }
 
     // Apply automation overrides
@@ -1295,6 +1300,8 @@ const ExtensionClipSequence: FC<ExtensionClipSequenceProps> = ({
     clipId: clip.id,
     clipTypeId: registryRecord.clipTypeId,
     time: timeSeconds,
+    sourceTime: clipSourceTime(clip, timeSeconds),
+    source: clip.app,
     params: interpolatedParams,
     width,
     height,
@@ -1432,6 +1439,7 @@ const VisualTrack: FC<VisualTrackProps> = ({
           const astridComponent = resolveAstridElementComponent(
             clip.elementRef.id,
             clip.elementRef.kind,
+            clip.elementRef.packId,
           );
           if (astridComponent && clip.elementRef.kind === 'effect') {
             return (
@@ -1697,7 +1705,7 @@ export const TimelineRenderer: FC<{ config: ResolvedTimelineConfig }> = memo(({ 
       if (clip.clipType === 'automation') {
         // Automation clips are data-only and do not produce visual output.
         // They are only processed for override resolution.
-      } else if (clip.clipType === 'effect-layer' && !isGeneratedRemotionModuleClip(clip)) {
+      } else if (clip.clipType === 'effect-layer' && !clip.elementRef && !isGeneratedRemotionModuleClip(clip)) {
         groups.effectLayers[clip.track] ??= [];
         groups.effectLayers[clip.track].push(clip);
       } else {

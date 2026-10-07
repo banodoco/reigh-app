@@ -47,7 +47,20 @@ declare module '@astrid/*' {
   export default AstridSequenceComponent;
 }
 
-declare module '@astrid/packs/local/elements/effects/end-spanning-layer/component.tsx' {
+declare module '@astrid/packs/rendering/editor/catalog' {
+  import type { ReighExtension } from '@reigh/editor-sdk';
+
+  export type AstridEditorExtensionDescriptor = {
+    readonly packId: string;
+    readonly entryPath: string;
+    readonly extension: ReighExtension;
+  };
+
+  export const ASTRID_EDITOR_EXTENSION_CATALOG: readonly AstridEditorExtensionDescriptor[];
+  export const ASTRID_EDITOR_EXTENSIONS: readonly ReighExtension[];
+}
+
+declare module '@astrid/packs/local/rendering/elements/effects/end-spanning-layer/component.tsx' {
   const EndSpanningLayer: (props: {
     clip: unknown;
     params?: Record<string, unknown>;
@@ -58,32 +71,32 @@ declare module '@astrid/packs/local/elements/effects/end-spanning-layer/componen
   export default EndSpanningLayer;
 }
 
-declare module '@astrid/packs/local/elements/effects/end-spanning-layer/assets/card-0.png?url' {
+declare module '@astrid/packs/local/rendering/elements/effects/end-spanning-layer/assets/card-0.png?url' {
   const cardUrl: string;
   export default cardUrl;
 }
 
-declare module '@astrid/packs/local/elements/effects/end-spanning-layer/assets/card-1.png?url' {
+declare module '@astrid/packs/local/rendering/elements/effects/end-spanning-layer/assets/card-1.png?url' {
   const cardUrl: string;
   export default cardUrl;
 }
 
-declare module '@astrid/packs/local/elements/effects/end-spanning-layer/assets/card-2.png?url' {
+declare module '@astrid/packs/local/rendering/elements/effects/end-spanning-layer/assets/card-2.png?url' {
   const cardUrl: string;
   export default cardUrl;
 }
 
-declare module '@astrid/packs/local/elements/effects/end-spanning-layer/assets/card-3.png?url' {
+declare module '@astrid/packs/local/rendering/elements/effects/end-spanning-layer/assets/card-3.png?url' {
   const cardUrl: string;
   export default cardUrl;
 }
 
-declare module '@astrid/packs/local/elements/effects/end-spanning-layer/assets/card-4.png?url' {
+declare module '@astrid/packs/local/rendering/elements/effects/end-spanning-layer/assets/card-4.png?url' {
   const cardUrl: string;
   export default cardUrl;
 }
 
-declare module '@astrid/packs/local/elements/effects/end-spanning-layer/assets/card-5.png?url' {
+declare module '@astrid/packs/local/rendering/elements/effects/end-spanning-layer/assets/card-5.png?url' {
   const cardUrl: string;
   export default cardUrl;
 }

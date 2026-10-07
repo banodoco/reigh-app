@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 import { AstridElementOperationAdapter } from './element-adapter.ts';
 import { buildReighAgentElementContext } from './element-contract.ts';
+import { ASTRID_EFFECT_CATALOG } from './astrid-element-catalog.ts';
+import { configToRows, rowsToConfig } from '../lib/timeline-data.ts';
+import type { TimelineConfig } from '../types/index.ts';
 
 function context() {
   return buildReighAgentElementContext({
@@ -28,6 +31,30 @@ function documentPayload() {
 }
 
 describe('Astrid element operation adapter', () => {
+  it('preserves owner and revision through editor serialization and save/reload', async () => {
+    const ownedContext = buildReighAgentElementContext({ astridEffects: ASTRID_EFFECT_CATALOG });
+    for (const packId of ['local', 'rendering']) {
+      let payload = { ...documentPayload(), config: {
+        ...documentPayload().config, tracks: [{ id: 'picture', kind: 'visual' }],
+      } };
+      const save = vi.fn(async (_ref, input) => {
+        const config = input.config as TimelineConfig;
+        const rows = configToRows(config);
+        const serialized = rowsToConfig(rows.rows, rows.meta, config.output, rows.clipOrder, rows.tracks);
+        payload = JSON.parse(JSON.stringify({ ...payload, config: serialized, config_version: 8 }));
+        return payload;
+      });
+      const adapter = new AstridElementOperationAdapter(ownedContext, { get: vi.fn(async () => payload), save }, 'astrid-intro');
+      const entry = ownedContext.catalog.find((candidate) => candidate.id === 'text-card' && candidate.packId === packId)!;
+      const element = { id: entry.id, kind: entry.kind, revision: entry.revision, packId };
+      await adapter.execute({ name: 'timeline.apply_element', project: 'astrid-intro', timeline: 'main', expected_version: 7, clip_id: 'a', placement: 'overlay', element });
+      expect((payload.config as TimelineConfig).clips.find((clip) => clip.elementRef)?.elementRef).toEqual(element);
+      const reloaded = new AstridElementOperationAdapter(ownedContext, { get: vi.fn(async () => payload), save }, 'astrid-intro');
+      await expect(reloaded.execute({ name: 'timeline.apply_element', project: 'astrid-intro', timeline: 'main', expected_version: 8, clip_id: 'a', placement: 'overlay', element: { ...element, packId: 'unknown' } })).rejects.toThrow('not registered');
+      await expect(reloaded.execute({ name: 'timeline.apply_element', project: 'astrid-intro', timeline: 'main', expected_version: 8, clip_id: 'a', placement: 'overlay', element: { ...element, packId: packId === 'local' ? 'rendering' : 'local' } })).rejects.toThrow('revision is stale');
+      expect(save).toHaveBeenCalledTimes(1);
+    }
+  });
   it('applies a pinned transition through one expected-version CAS save', async () => {
     const payload = documentPayload();
     const save = vi.fn(async (_ref, input) => ({

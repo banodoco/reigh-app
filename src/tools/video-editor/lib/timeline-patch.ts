@@ -1077,6 +1077,17 @@ export function compileTimelinePatch(
     switch (family) {
       // ── clip.add ──────────────────────────────────────────────────────
       case 'clip.add': {
+        if (clips.some((clip) => clip.id === op.target)) {
+          compileDiags.push(
+            diag('error', 'timeline-patch/clip-id-collision', `clip.add: clip "${op.target}" already exists`, {
+              operationIndex: originalIndex,
+              op: family,
+              target: op.target,
+              detail: { collision: 'clip-id' },
+            }),
+          );
+          break;
+        }
         const track = (op.payload?.track as string) ?? tracks[0]?.id ?? 'V1';
         const at = (op.payload?.at as number) ?? 0;
         const clipType = op.payload?.clipType as string | undefined;
@@ -1843,13 +1854,12 @@ export function compileTimelinePatch(
 
   // ── Materialize nextData through existing serialization paths ──────────
 
-  // Project-data quotas are hard atomic limits. Compilation may discover the
-  // total/count overflow only after projecting earlier operations in the same
-  // batch, so fail closed before materializing or returning any mutation.
-  if (compileDiags.some((diagnostic) => (
-    diagnostic.severity === 'error'
-    && diagnostic.code === 'timeline-patch/project-data-overflow'
-  ))) {
+  // Project-data quotas and clip-ID collisions are hard atomic limits.
+  // Compilation may discover either only after projecting earlier operations
+  // in the same batch, so fail closed before materializing or returning any
+  // mutation.
+  if (compileDiags.some((diagnostic) => diagnostic.code === 'timeline-patch/project-data-overflow'
+    || diagnostic.code === 'timeline-patch/clip-id-collision')) {
     return {
       valid: false,
       nextData: null,

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { ASTRID_EFFECT_CATALOG } from './astrid-element-catalog.ts';
 import {
   buildReighAgentElementContext,
   pinElementRevision,
@@ -6,6 +7,17 @@ import {
 } from './element-contract.ts';
 
 describe('Astrid-backed element contract', () => {
+  it('retains owner identity for both actual text-card catalog entries', () => {
+    const context = buildReighAgentElementContext({ astridEffects: ASTRID_EFFECT_CATALOG });
+    expect(context.catalog.filter((entry) => entry.id === 'text-card').map((entry) => entry.packId))
+      .toEqual(['rendering', 'local']);
+    const operation = {
+      name: 'timeline.apply_element', project: 'p', timeline: 'main', expected_version: 1,
+      clip_id: 'a', placement: 'overlay',
+      element: { id: 'text-card', kind: 'effect', revision: 'r', packId: '' },
+    };
+    expect(validateReighElementOperation(operation)).toContainEqual({ path: 'element.packId', message: 'must be a non-empty string' });
+  });
   it('builds one compact catalog while retaining legacy sequence resources separately', () => {
     const context = buildReighAgentElementContext({
       effects: [{

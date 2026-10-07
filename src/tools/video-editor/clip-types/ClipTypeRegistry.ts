@@ -99,6 +99,10 @@ export interface ClipRendererProps {
   readonly clipId: string;
   readonly clipTypeId: string;
   readonly time: number;
+  /** Host-owned source time: from + (composition time - at) * speed. */
+  readonly sourceTime: number;
+  /** Opaque source metadata; excluded from animated parameter evaluation. */
+  readonly source?: Record<string, unknown>;
   readonly params: Record<string, unknown>;
   readonly width: number;
   readonly height: number;

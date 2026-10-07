@@ -1,27 +1,80 @@
 import { describe, expect, it } from 'vitest';
 import { ReighRuntimeClient, RuntimeAuthenticationError } from './client.ts';
 import { RuntimeDataProvider, toRuntimePublication } from './dataProvider.ts';
+import { TimelineVersionConflictError } from '@/tools/video-editor/data/DataProvider.ts';
+import { createTimelineReader } from '@/tools/video-editor/lib/timeline-reader.ts';
+import { buildTimelineData } from '@/tools/video-editor/lib/timeline-data.ts';
 import {
   RUNTIME_SCHEMA_DIGEST,
   RUNTIME_TARGETED_EXECUTION_CAPABILITY,
 } from './contract-metadata.ts';
 import { createDefaultTimelineConfig } from '@/tools/video-editor/lib/defaults.ts';
+import type { ProjectObjectMetadata } from '@reigh/editor-sdk';
 
 const PROJECT_ID = 'project-r1';
 const TIMELINE_ID = 'timeline-r1';
 const MANAGED_OBJECT_ID = 'object-r3-managed';
-const MANAGED_OBJECT_DIGEST = `sha256:${'a'.repeat(64)}`;
+const MANAGED_OBJECT_DIGEST = 'sha256:837705df2d47b071382f374110cbb5ef50b037c431cac6974cdfba986d836be7';
+
+async function sha256Digest(bytes: Uint8Array): Promise<string> {
+  const digest = await globalThis.crypto.subtle.digest('SHA-256', bytes);
+  return `sha256:${Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('')}`;
+}
+
+type FixtureObject = {
+  projectId: string;
+  bytes: Uint8Array;
+  digest: string;
+  mediaType: string;
+  filename?: string;
+};
+function fixtureError(code: string, message: string): Uint8Array {
+  return json({ code, message });
+}
+
+function objectRange(
+  bytes: Uint8Array,
+  range: string | undefined,
+): { status: number; bytes: Uint8Array; contentRange?: string } {
+  if (!range) return { status: 200, bytes };
+  const match = /^bytes=(\d+)-(\d*)$/.exec(range);
+  if (!match) throw new Error(`unsupported fixture range ${range}`);
+  const start = Number(match[1]);
+  const requestedEnd = match[2] ? Number(match[2]) : bytes.length - 1;
+  const end = Math.min(requestedEnd, bytes.length - 1);
+  if (start < 0 || start > end || start >= bytes.length) {
+    throw new Error(`invalid fixture range ${range}`);
+  }
+  return {
+    status: 206,
+    bytes: bytes.slice(start, end + 1),
+    contentRange: `bytes ${start}-${end}/${bytes.length}`,
+  };
+}
 
 function json(value: unknown): Uint8Array {
   return new TextEncoder().encode(JSON.stringify(value));
 }
 
-function runtimeFixture(options: { mediaEtag?: string } = {}) {
+function packageBodyBytes(
+  manifest: Record<string, unknown>,
+  entry: unknown,
+  assets: readonly unknown[] = [],
+): Uint8Array {
+  return json({ manifest, entry, assets });
+}
+
+function runtimeFixture(options: {
+  mediaEtag?: string;
+  objectReadOverrides?: Map<string, Uint8Array>;
+} = {}) {
   let documentVersion = 1;
   let headRevisionId = 'parent-r1';
   let config = createDefaultTimelineConfig();
   let registry = { assets: {} };
-  const mediaEtag = options.mediaEtag ?? `"${MANAGED_OBJECT_DIGEST}"`;
+  let objectSequence = 0;
+  const objects = new Map<string, FixtureObject>();
+  const mediaEtag = options.mediaEtag;
   const requests: Array<{ method: string; path: string; headers: Record<string, string>; body?: unknown }> = [];
 
   const transport = async (
@@ -30,7 +83,8 @@ function runtimeFixture(options: { mediaEtag?: string } = {}) {
     headers: Record<string, string>,
     body?: Uint8Array,
   ) => {
-    const parsedBody = body && !path.endsWith(`/projects/${PROJECT_ID}/objects`)
+    const projectObjectPath = /^\/v1\/projects\/([^/]+)\/objects$/.exec(path);
+    const parsedBody = body && !projectObjectPath
       ? JSON.parse(new TextDecoder().decode(body)) as Record<string, unknown>
       : undefined;
     requests.push({ method, path, headers, ...(parsedBody ? { body: parsedBody } : {}) });
@@ -44,45 +98,94 @@ function runtimeFixture(options: { mediaEtag?: string } = {}) {
     if (path === '/v1/realm') {
       return { status: 200, headers: {}, body: json({ realm_id: 'realm-r1', display_name: 'R1 fixture', version: 1, created_at: '2026-09-11T00:00:00Z' }) };
     }
-    if (path === `/v1/projects/${PROJECT_ID}/objects` && method === 'POST') {
+    if (projectObjectPath && method === 'POST') {
+      if (!body) {
+        return { status: 400, headers: {}, body: fixtureError('empty_body', 'project object body is required') };
+      }
+      const bytes = new Uint8Array(body);
+      const digest = await sha256Digest(bytes);
+      const filename = headers['X-Original-Name'];
+      const projectId = projectObjectPath[1]!;
+      const objectId = filename === 'managed-creative.mp4'
+        ? MANAGED_OBJECT_ID
+        : `project-object-${++objectSequence}`;
+      const object: FixtureObject = {
+        projectId,
+        bytes,
+        digest,
+        mediaType: headers['Content-Type'] ?? 'application/octet-stream',
+        ...(filename ? { filename } : {}),
+      };
+      objects.set(objectId, object);
       return {
         status: 201,
-        headers: {},
+        headers: { ETag: `"${digest}"` },
         body: json({
           data: {
-            object_id: MANAGED_OBJECT_ID,
-            digest: MANAGED_OBJECT_DIGEST,
-            media_type: 'video/mp4',
-            size: 13,
+            object_id: objectId,
+            digest,
+            media_type: object.mediaType,
+            size: bytes.byteLength,
             version: 1,
             created_at: '2026-09-11T00:00:00Z',
-            filename: 'managed-creative.mp4',
+            ...(object.filename ? { filename: object.filename } : {}),
             relation: 'asset-upload',
           },
           receipt: {
-            receipt_id: 'receipt-object-r3',
+            receipt_id: `receipt-object-${objectId}`,
             command_kind: 'object.ingest',
             idempotency_key: headers['Idempotency-Key'],
-            request_hash: 'object-hash',
-            project_id: PROJECT_ID,
+            project_id: object.projectId,
             project_seq: [1, 1],
-            event_ids: ['event-object-r3'],
+            event_ids: [`event-object-${objectId}`],
             result: {},
             created_at: '2026-09-11T00:00:00Z',
           },
         }),
       };
     }
-    if (path === `/v1/objects/${MANAGED_OBJECT_ID}` && (method === 'GET' || method === 'HEAD')) {
-      const ranged = headers.Range !== undefined;
+    const projectObjectLocationPath = /^\/v1\/projects\/([^/]+)\/objects\/([^/]+)\/location$/.exec(path);
+    if (projectObjectLocationPath && method === 'GET') {
+      const projectId = projectObjectLocationPath[1]!;
+      const objectId = decodeURIComponent(projectObjectLocationPath[2]!);
+      const object = objects.get(objectId);
+      if (!object || object.projectId !== projectId) {
+        return { status: 404, headers: {}, body: fixtureError('not_found', `object ${objectId} is not in project ${projectId}`) };
+      }
       return {
-        status: ranged ? 206 : 200,
+        status: 200,
+        headers: {},
+        body: json({
+          object_id: objectId,
+          digest: object.digest,
+          size: object.bytes.byteLength,
+          media_type: object.mediaType,
+          ...(object.filename ? { filename: object.filename } : {}),
+          local_path: `/runtime/${projectId}/${objectId}`,
+          storage: 'runtime_cas',
+          verified: true,
+        }),
+      };
+    }
+    if (path.startsWith('/v1/objects/') && (method === 'GET' || method === 'HEAD')) {
+      const objectId = decodeURIComponent(path.slice('/v1/objects/'.length));
+      const object = objects.get(objectId);
+      if (!object) {
+        return { status: 404, headers: {}, body: fixtureError('not_found', `unknown object ${objectId}`) };
+      }
+      const servedBytes = options.objectReadOverrides?.get(objectId) ?? object.bytes;
+      const ranged = objectRange(servedBytes, headers.Range);
+      const etag = objectId === MANAGED_OBJECT_ID && mediaEtag
+        ? mediaEtag
+        : `"${await sha256Digest(servedBytes)}"`;
+      return {
+        status: ranged.status,
         headers: {
-          ETag: mediaEtag,
+          ETag: etag,
           'Accept-Ranges': 'bytes',
-          ...(ranged ? { 'Content-Range': 'bytes 0-3/13' } : {}),
+          ...(ranged.contentRange ? { 'Content-Range': ranged.contentRange } : {}),
         },
-        body: method === 'HEAD' ? new Uint8Array() : new Uint8Array([1, 2, 3, 4]),
+        body: method === 'HEAD' ? new Uint8Array() : ranged.bytes,
       };
     }
     if (method === 'POST' && path === `/v1/projects/${PROJECT_ID}/timelines/${TIMELINE_ID}/inspect`) {
@@ -391,6 +494,289 @@ describe('RuntimeDataProvider', () => {
       .toEqual(['POST']);
   });
 
+  it('round-trips package and entry identities through Runtime reload with stale-write rejection', async () => {
+    const objectReadOverrides = new Map<string, Uint8Array>();
+    const fixture = runtimeFixture({ objectReadOverrides });
+    const staleProvider = new RuntimeDataProvider({
+      projectId: PROJECT_ID,
+      baseUrl: 'http://runtime.test',
+      token: 'fixture-token',
+      transport: fixture.transport,
+    });
+    const staleInitial = await staleProvider.loadTimeline(TIMELINE_ID);
+    const staleRegistry = await staleProvider.loadAssetRegistry(TIMELINE_ID);
+
+    const provider = new RuntimeDataProvider({
+      projectId: PROJECT_ID,
+      baseUrl: 'http://runtime.test',
+      token: 'fixture-token',
+      transport: fixture.transport,
+    });
+    const initialSourceBytes = new TextEncoder().encode(
+      '<!doctype html><html><body><script>document.body.dataset.scene="initial";</script></body></html>',
+    );
+    const uploaded = await provider.projectObjects.ingest(initialSourceBytes, 'text/html', 'scene.html');
+    const initialReadback = await provider.projectObjects.read(uploaded.object_id);
+    expect(Array.from(initialReadback)).toEqual(Array.from(initialSourceBytes));
+    expect(await sha256Digest(initialReadback)).toBe(uploaded.digest);
+    const initialManifest = { formatVersion: 1, entry: 'scene.html', duration: 100, authoredFps: 30 };
+    const initialPackagePayload = { manifest: initialManifest, entry: uploaded, assets: [] };
+    const initialPackageBytes = packageBodyBytes(initialManifest, uploaded);
+    const initialPackageObject = await provider.projectObjects.ingest(
+      initialPackageBytes,
+      'application/json',
+      'scene.package.json',
+    );
+    const initialPackageReadback = await provider.projectObjects.read(initialPackageObject.object_id);
+    expect(Array.from(initialPackageReadback)).toEqual(Array.from(initialPackageBytes));
+    expect(await sha256Digest(initialPackageReadback)).toBe(initialPackageObject.digest);
+    expect(initialPackageObject.object_id).not.toBe(uploaded.object_id);
+    expect(initialPackageObject.digest).not.toBe(uploaded.digest);
+    const initialPackageBody = new TextDecoder().decode(initialPackageReadback);
+    expect(JSON.parse(initialPackageBody)).toEqual(initialPackagePayload);
+    expect(fixture.requests.filter((request) => request.path.includes('/objects')).map((request) => request.method))
+      .toEqual(['POST', 'GET', 'GET', 'POST', 'GET', 'GET']);
+
+    const initialLiveScene = {
+      revision: initialPackageObject.digest,
+      source: { objectId: initialPackageObject.object_id, revision: initialPackageObject.digest },
+      packageBody: initialPackageBody,
+      html: new TextDecoder().decode(initialReadback),
+    };
+    const afterInitialIngest = await provider.loadTimeline(TIMELINE_ID);
+    const initialRegistry = await provider.loadAssetRegistry(TIMELINE_ID);
+    const initialConfig = {
+      ...afterInitialIngest.config,
+      clips: [
+        {
+          id: 'scene-a',
+          at: 2,
+          track: 'V1',
+          clipType: 'com.reigh.astrid.liveScene',
+          label: 'scene A sentinel',
+          from: 55,
+          to: 75,
+          speed: 1,
+          app: { liveScene: initialLiveScene, unrelated: { sentinel: 'keep-scene-a' } },
+        },
+        {
+          id: 'scene-b',
+          at: 22,
+          track: 'V1',
+          clipType: 'com.reigh.astrid.liveScene',
+          label: 'scene B sentinel',
+          from: 20,
+          to: 30,
+          speed: 2,
+          app: { liveScene: initialLiveScene, unrelated: { sentinel: 'keep-scene-b' } },
+        },
+      ],
+    };
+    const initialSavedVersion = await provider.saveTimeline(
+      TIMELINE_ID,
+      initialConfig,
+      afterInitialIngest.configVersion,
+      initialRegistry,
+    );
+
+    const winningSourceBytes = new TextEncoder().encode(
+      '<!doctype html><html><body><script>document.body.dataset.scene="winning";</script></body></html>',
+    );
+    const winningObject = await provider.projectObjects.ingest(winningSourceBytes, 'text/html', 'scene.html');
+    const winningReadback = await provider.projectObjects.read(winningObject.object_id);
+    expect(Array.from(winningReadback)).toEqual(Array.from(winningSourceBytes));
+    expect(await sha256Digest(winningReadback)).toBe(winningObject.digest);
+    const winningManifest = { ...initialManifest, duration: 120, title: 'winning manifest' };
+    const winningPackagePayload = { manifest: winningManifest, entry: winningObject, assets: [] };
+    const winningPackageBytes = packageBodyBytes(winningManifest, winningObject);
+    const winningPackageObject = await provider.projectObjects.ingest(
+      winningPackageBytes,
+      'application/json',
+      'scene.package.json',
+    );
+    const winningPackageReadback = await provider.projectObjects.read(winningPackageObject.object_id);
+    expect(Array.from(winningPackageReadback)).toEqual(Array.from(winningPackageBytes));
+    expect(await sha256Digest(winningPackageReadback)).toBe(winningPackageObject.digest);
+    expect(winningPackageObject.object_id).not.toBe(winningObject.object_id);
+    expect(winningPackageObject.digest).not.toBe(winningObject.digest);
+    expect(winningPackageObject.digest).not.toBe(initialPackageObject.digest);
+    const winningPackageBody = new TextDecoder().decode(winningPackageReadback);
+    expect(JSON.parse(winningPackageBody)).toEqual(winningPackagePayload);
+
+    const manifestOnlyPackageBody = {
+      manifest: { ...winningManifest, title: 'manifest-only revision' },
+      entry: winningObject,
+      assets: [],
+    };
+    const manifestOnlyPackageBytes = packageBodyBytes(
+      manifestOnlyPackageBody.manifest,
+      manifestOnlyPackageBody.entry,
+      manifestOnlyPackageBody.assets,
+    );
+    const manifestOnlyPackageObject = await provider.projectObjects.ingest(
+      manifestOnlyPackageBytes,
+      'application/json',
+      'scene.package.json',
+    );
+    const manifestOnlyPackageReadback = await provider.projectObjects.read(manifestOnlyPackageObject.object_id);
+    expect(Array.from(manifestOnlyPackageReadback)).toEqual(Array.from(manifestOnlyPackageBytes));
+    expect(await sha256Digest(manifestOnlyPackageReadback)).toBe(manifestOnlyPackageObject.digest);
+    expect(manifestOnlyPackageObject.digest).not.toBe(winningPackageObject.digest);
+    expect(manifestOnlyPackageBody.entry).toEqual(winningPackagePayload.entry);
+    expect(manifestOnlyPackageBody.assets).toEqual(winningPackagePayload.assets);
+
+    const winningLiveScene = {
+      revision: winningPackageObject.digest,
+      source: { objectId: winningPackageObject.object_id, revision: winningPackageObject.digest },
+      packageBody: winningPackageBody,
+      html: new TextDecoder().decode(winningReadback),
+    };
+    expect(winningLiveScene.html).toBe(new TextDecoder().decode(winningSourceBytes));
+    const winningConfig = {
+      ...initialConfig,
+      clips: initialConfig.clips.map((clip) => ({
+        ...clip,
+        app: { ...clip.app, liveScene: winningLiveScene },
+      })),
+    };
+    const winningVersion = await provider.saveTimeline(
+      TIMELINE_ID,
+      winningConfig,
+      initialSavedVersion,
+      await provider.loadAssetRegistry(TIMELINE_ID),
+    );
+
+    await expect(staleProvider.saveTimeline(
+      TIMELINE_ID,
+      { ...staleInitial.config, clips: [] },
+      staleInitial.configVersion,
+      staleRegistry,
+    )).rejects.toBeInstanceOf(TimelineVersionConflictError);
+
+    const reloadedProvider = new RuntimeDataProvider({
+      projectId: PROJECT_ID,
+      baseUrl: 'http://runtime.test',
+      token: 'fixture-token',
+      transport: fixture.transport,
+    });
+    const reopened = await reloadedProvider.loadTimeline(TIMELINE_ID);
+    const reopenedRegistry = await reloadedProvider.loadAssetRegistry(TIMELINE_ID);
+    const reopenedData = await buildTimelineData(reopened.config, reopenedRegistry);
+    const clips = createTimelineReader({ data: reopenedData }).snapshot().clips;
+    expect(winningVersion).toBe(3);
+    expect(reopened.config.clips[0]?.app?.liveScene).toEqual({
+      revision: winningPackageObject.digest,
+      html: new TextDecoder().decode(winningSourceBytes),
+      source: { objectId: winningPackageObject.object_id, revision: winningPackageObject.digest },
+      packageBody: winningPackageBody,
+    });
+    expect(reopened.config.clips.map((clip) => ({
+      id: clip.id,
+      at: clip.at,
+      from: clip.from,
+      to: clip.to,
+      speed: clip.speed,
+      label: clip.label,
+      unrelated: clip.app?.unrelated,
+    }))).toEqual([
+      {
+        id: 'scene-a',
+        at: 2,
+        from: 55,
+        to: 75,
+        speed: 1,
+        label: 'scene A sentinel',
+        unrelated: { sentinel: 'keep-scene-a' },
+      },
+      {
+        id: 'scene-b',
+        at: 22,
+        from: 20,
+        to: 30,
+        speed: 2,
+        label: 'scene B sentinel',
+        unrelated: { sentinel: 'keep-scene-b' },
+      },
+    ]);
+    expect(clips.map((clip) => ({
+      id: clip.id,
+      at: clip.at,
+      sourceOffset: clip.sourceOffset,
+      sourceEnd: clip.sourceEnd,
+      rate: clip.rate,
+      source: clip.sourceRefs?.find((ref) => ref.sourceObjectId),
+    }))).toEqual([
+      {
+        id: 'scene-a',
+        at: 2,
+        sourceOffset: 55,
+        sourceEnd: 75,
+        rate: 1,
+        source: expect.objectContaining({
+          sourceObjectId: winningPackageObject.object_id,
+          sourceRevision: winningPackageObject.digest,
+          packageRevision: winningPackageObject.digest,
+        }),
+      },
+      {
+        id: 'scene-b',
+        at: 22,
+        sourceOffset: 20,
+        sourceEnd: 30,
+        rate: 2,
+        source: expect.objectContaining({
+          sourceObjectId: winningPackageObject.object_id,
+          sourceRevision: winningPackageObject.digest,
+          packageRevision: winningPackageObject.digest,
+        }),
+      },
+    ]);
+    const reopenedPackageBytes = await reloadedProvider.projectObjects.read(winningPackageObject.object_id);
+    expect(Array.from(reopenedPackageBytes)).toEqual(Array.from(winningPackageBytes));
+    expect(await sha256Digest(reopenedPackageBytes)).toBe(winningPackageObject.digest);
+    const reopenedPackagePayload = JSON.parse(new TextDecoder().decode(reopenedPackageBytes)) as {
+      manifest: Record<string, unknown>;
+      entry: ProjectObjectMetadata;
+      assets: ProjectObjectMetadata[];
+    };
+    expect(reopenedPackagePayload).toEqual(winningPackagePayload);
+    const reopenedWinningBytes = await reloadedProvider.projectObjects.read(reopenedPackagePayload.entry.object_id);
+    expect(Array.from(reopenedWinningBytes)).toEqual(Array.from(winningSourceBytes));
+    expect(await sha256Digest(reopenedWinningBytes)).toBe(reopenedPackagePayload.entry.digest);
+    const originalBytes = await reloadedProvider.projectObjects.read(uploaded.object_id);
+    expect(Array.from(originalBytes)).toEqual(Array.from(initialSourceBytes));
+    expect(await sha256Digest(originalBytes)).toBe(uploaded.digest);
+
+    // The Runtime ETag/digest check must reject an equal-length wrong entry.
+    const wrongEntryBytes = new TextEncoder().encode(
+      '<!doctype html><html><body><script>document.body.dataset.scene="changed";</script></body></html>',
+    );
+    expect(wrongEntryBytes.byteLength).toBe(winningSourceBytes.byteLength);
+    objectReadOverrides.set(winningObject.object_id, wrongEntryBytes);
+    await expect(reloadedProvider.projectObjects.read(winningObject.object_id))
+      .rejects.toThrow(`Workspace Runtime object identity mismatch for ${winningObject.object_id}`);
+    objectReadOverrides.delete(winningObject.object_id);
+
+    await expect(reloadedProvider.projectObjects.read('unknown-project-object'))
+      .rejects.toMatchObject({ status: 404 });
+    const otherProjectProvider = new RuntimeDataProvider({
+      projectId: 'project-r2',
+      baseUrl: 'http://runtime.test',
+      token: 'fixture-token',
+      transport: fixture.transport,
+    });
+    const otherProjectObject = await otherProjectProvider.projectObjects.ingest(
+      new TextEncoder().encode('<html>other-project</html>'),
+      'text/html',
+      'other-scene.html',
+    );
+    await expect(reloadedProvider.projectObjects.read(otherProjectObject.object_id))
+      .rejects.toMatchObject({ status: 404 });
+    expect(fixture.read().config.clips).toHaveLength(2);
+    expect(fixture.read().config.clips[0]?.app?.liveScene.source)
+      .toEqual({ objectId: winningPackageObject.object_id, revision: winningPackageObject.digest });
+  });
+
   it('returns a playable locator for a freshly prepared object before registry readback', async () => {
     const fixture = runtimeFixture();
     const provider = new RuntimeDataProvider({ projectId: PROJECT_ID, baseUrl: 'http://runtime.test', token: 'fixture-token', transport: fixture.transport });
@@ -419,7 +805,7 @@ describe('RuntimeDataProvider', () => {
 
     expect(ranged.status).toBe(206);
     expect(ranged.etag).toBe(`"${MANAGED_OBJECT_DIGEST}"`);
-    expect(ranged.content_range).toBe('bytes 0-3/13');
+    expect(ranged.content_range).toBe('bytes 0-3/16');
     expect(metadata.status).toBe(200);
     expect(metadata.etag).toBe(`"${MANAGED_OBJECT_DIGEST}"`);
     expect(fixture.requests.filter((request) => request.path === '/v1/handshake')).toHaveLength(2);
@@ -437,7 +823,7 @@ describe('RuntimeDataProvider', () => {
     );
 
     await expect(provider.headAsset(MANAGED_OBJECT_ID)).rejects.toThrow(
-      `Workspace Runtime object identity mismatch for ${MANAGED_OBJECT_ID}: expected ${MANAGED_OBJECT_DIGEST}, got sha256:${'b'.repeat(64)}`,
+      'Workspace Runtime object identity mismatch',
     );
   });
 

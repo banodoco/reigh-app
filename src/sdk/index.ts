@@ -18,6 +18,7 @@
 // ids & dispose
 export { type ExtensionId, type ContributionId, validateExtensionId, validateContributionId } from './ids';
 export type { DisposeHandle } from './dispose';
+export type { LiveSceneScope, LiveSceneCapture, LiveSceneRequest, LiveSceneReadResult, LiveScenePublishResult, LiveSceneResult, LiveSceneExecution, LiveSceneAuthoringHandler, LiveSceneAuthoringRegistration } from './video/liveSceneAuthoring';
 export { combineDisposeHandles } from './dispose';
 
 // commands
@@ -229,6 +230,7 @@ export type {
 // ===========================================================================
 
 export type { AssetIntegrityMetadata, AssetGPSMetadata, AssetConsentMetadata, AssetProvenanceMetadata, EnrichmentStatus, DeferredEnrichmentRecord, AssetMetadata, MetadataFacetValueKind, MetadataFacetDescriptor, AssetDetailSectionDescriptor, AssetReadSurface, MaterialReadSurface } from './video/assets/metadata';
+export type { ImmutableProjectPackageDescriptor, ProjectObjectMetadata, ProjectObjectStorage } from './video/assets/projectObjects';
 export type { ParserInput, ParserResult, ParserDiagnostic, ParserHandler } from './video/assets/parsers';
 export type { SearchMatch, SearchProviderResult, SearchProviderHandler, SearchProviderContext } from './video/assets/search';
 

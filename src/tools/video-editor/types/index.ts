@@ -116,6 +116,8 @@ export type ClipTransition = {
 
 /** Stable, revision-pinned reference for an Astrid-backed visual element. */
 export type TimelineElementRef = {
+  /** Optional owning pack; omitted refs use the Astrid registry winner. */
+  packId?: string;
   id: string;
   kind: 'effect' | 'animation' | 'transition';
   revision: string;

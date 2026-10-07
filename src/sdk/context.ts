@@ -28,6 +28,8 @@ import type {
   MaterialReadSurface,
 } from '@/sdk/video/assets/metadata.ts';
 import type { ExportService } from '@/sdk/video/exports/outputFormats.ts';
+import type { ProjectObjectStorage } from './video/assets/projectObjects';
+import type { LiveSceneAuthoringRegistration } from './video/liveSceneAuthoring';
 
 // M2b family types now extracted to dedicated family modules.
 // import type is erased at compile time — zero runtime cost, no host wiring.
@@ -67,7 +69,6 @@ export interface ExtensionDiagnosticsService {
 // ---------------------------------------------------------------------------
 // Creative context (reserved stubs)
 // ---------------------------------------------------------------------------
-
 /** Reserved creative context members — each becomes live in its owning milestone. */
 export interface CreativeContext {
   readonly project: unknown;
@@ -92,6 +93,11 @@ export interface CreativeContext {
   readonly sessions: LiveSessionsService;
   /** Export service for registering output format handlers (M6). */
   readonly export: ExportService;
+  /**
+   * Active-project immutable source/package object port (L2a).
+   * `undefined` means the host provider does not support project objects.
+   */
+  readonly projectObjects?: ProjectObjectStorage;
   readonly stage: unknown;
   readonly writing: unknown;
 }
@@ -107,6 +113,7 @@ export const CREATIVE_MEMBER_MILESTONE: Record<keyof CreativeContext, string> = 
   materials: 'M6',
   sessions: 'M11',
   export: 'M2',
+  projectObjects: 'L2a',
   stage: 'M5',
   writing: 'M2',
 };
@@ -127,12 +134,22 @@ export class ExtensionNotImplementedError extends Error {
   }
 }
 
-/** Create a creative context object whose every member throws on access. */
+/** Create a creative context object with throwing stubs and unavailable project objects. */
 export function createCreativeContextStubs(): CreativeContext {
   const members = Object.keys(CREATIVE_MEMBER_MILESTONE) as (keyof CreativeContext)[];
 
   const stub: Record<string, unknown> = {};
   for (const member of members) {
+    if (member === 'projectObjects') {
+      Object.defineProperty(stub, member, {
+        value: undefined,
+        enumerable: true,
+        writable: false,
+        configurable: false,
+      });
+      continue;
+    }
+
     const milestone = CREATIVE_MEMBER_MILESTONE[member];
     Object.defineProperty(stub, member, {
       get(): never {
@@ -149,11 +166,12 @@ export function createCreativeContextStubs(): CreativeContext {
 /**
  * Create a CreativeContext with optional live overrides.
  *
- * Members present in `overrides` are used directly; all other members
- * retain the default throwing-stub behavior from createCreativeContextStubs().
- * This lets host providers inject live timeline services for extensions
- * running inside a mounted video-editor context while keeping stubs for
- * unmounted or non-editor contexts.
+ * Members present in `overrides` are used directly. Unsupported project
+ * objects remain `undefined` when omitted; all other omitted members retain
+ * the default throwing-stub behavior from createCreativeContextStubs(). This
+ * lets host providers inject live timeline services for extensions running
+ * inside a mounted video-editor context while keeping stubs for unmounted or
+ * non-editor contexts.
  */
 export function createCreativeContext(
   overrides?: Partial<CreativeContext>,
@@ -166,7 +184,16 @@ export function createCreativeContext(
   const merged: Record<string, unknown> = {};
 
   for (const member of members) {
-    if (member in overrides) {
+    if (member === 'projectObjects') {
+      Object.defineProperty(merged, member, {
+        value: member in overrides
+          ? (overrides as Record<string, unknown>)[member]
+          : undefined,
+        enumerable: true,
+        writable: false,
+        configurable: false,
+      });
+    } else if (member in overrides) {
       Object.defineProperty(merged, member, {
         value: (overrides as Record<string, unknown>)[member],
         enumerable: true,
@@ -187,7 +214,6 @@ export function createCreativeContext(
 
   return Object.freeze(merged) as unknown as CreativeContext;
 }
-
 // ---------------------------------------------------------------------------
 // M4: Command registration service
 // ---------------------------------------------------------------------------
@@ -260,6 +286,8 @@ export interface ExtensionContext {
   readonly shaders: ShaderRegistrationService;
   /** M10: Agent tool registration service for host-mediated agent tools. */
   readonly agentTools: AgentToolRegistrationService;
+  /** Bounded rendering-pack ACP authoring port, when supported by the host. */
+  readonly liveSceneAuthoring?: LiveSceneAuthoringRegistration;
   /** dataKind V1: single bind path for typed-data lanes (clipType analog). */
   readonly dataKinds: DataKindRegistrationService;
 }

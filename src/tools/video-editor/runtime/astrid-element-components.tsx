@@ -45,26 +45,34 @@ const ASTRID_PREVIEW_COMPONENT_OVERRIDES: Record<
 // Remotion component that Astrid's worker bundles. The catalog supplies the
 // stable componentPath; this glob is only the host-side module bridge.
 const ASTRID_ELEMENT_MODULES = import.meta.glob(
-  '@astrid/packs/**/elements/**/component.tsx',
+  [
+    '@astrid/packs/*/elements/**/*.{ts,tsx}',
+    '@astrid/packs/*/rendering/elements/**/*.{ts,tsx}',
+  ],
   { eager: true },
 ) as Record<string, AstridElementModule>;
 
 export function resolveAstridElementComponent(
   elementId: string,
   kind: 'effect' | 'animation' | 'transition',
+  packId?: string,
 ): ComponentType<AstridElementComponentProps> | undefined {
+  const descriptor = ASTRID_RENDERING_ELEMENTS.find((element) => (
+    element.id === elementId && element.kind === kind
+    && (packId === undefined || element.packId === packId)
+  ));
+  if (!descriptor?.componentPath) return undefined;
+
   if (
     kind === 'effect'
+    && descriptor.packId === 'local'
     && Object.prototype.hasOwnProperty.call(ASTRID_PREVIEW_COMPONENT_OVERRIDES, elementId)
   ) {
     const previewOverride = ASTRID_PREVIEW_COMPONENT_OVERRIDES[elementId];
     if (previewOverride) return previewOverride;
   }
 
-  const componentPath = ASTRID_RENDERING_ELEMENTS.find((element) => (
-    element.id === elementId && element.kind === kind
-  ))?.componentPath;
-  if (!componentPath) return undefined;
+  const componentPath = descriptor.componentPath;
   const suffix = `/${componentPath}`;
   const modulePath = Object.keys(ASTRID_ELEMENT_MODULES).find((candidate) => (
     candidate.endsWith(suffix) || candidate.endsWith(componentPath)

@@ -65,7 +65,8 @@ function findElement(
   ref: ReighElementRef,
   options: { allowDraft?: boolean } = {},
 ): ReighElementCatalogEntry {
-  const entry = context.catalog.find((candidate) => candidate.id === ref.id && candidate.kind === ref.kind);
+  const entry = context.catalog.find((candidate) => candidate.id === ref.id && candidate.kind === ref.kind
+    && (ref.packId === undefined || candidate.packId === ref.packId));
   if (!entry) {
     throw new ReighElementOperationError(`Element is not registered in the Astrid catalog: ${ref.kind}/${ref.id}`);
   }

@@ -56,6 +56,7 @@ import {
   shouldToggleTouchSelection,
 } from '@/tools/video-editor/lib/mobile-interaction-model';
 import { configToRows, type TimelineData } from '@/tools/video-editor/lib/timeline-data';
+import { applyPreparedMediaCommand, type PlacePreparedMediaCommand } from '@/tools/video-editor/commands/media';
 import { VIDEO_EDITOR_HOST_PORT_NAMES } from '@/tools/video-editor/runtime/ports';
 import type { DataProvider } from '@/tools/video-editor/data/DataProvider';
 import { createVideoEditorEffectCatalog } from '@/tools/video-editor/lib/effect-catalog';
@@ -1056,6 +1057,97 @@ describe('VideoEditorProvider', () => {
     expect(disposeReplacement).toHaveBeenCalledTimes(1);
   });
 
+  it('ingests replacement manifest commands after old lifecycle cleanup and before activation', async () => {
+    const provider: DataProvider = {
+      loadTimeline: vi.fn(),
+      saveTimeline: vi.fn(),
+      loadAssetRegistry: vi.fn(),
+      resolveAssetUrl: vi.fn(),
+    };
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const extensionId = 'com.example.command-manifest-replacement';
+    const oldCommandId = `${extensionId}.obsolete`;
+    const replacementCommandId = `${extensionId}.import`;
+    const replacementHandler = vi.fn();
+    const oldExtension = defineExtension({
+      manifest: {
+        id: extensionId as never,
+        version: '1.0.0',
+        label: 'Command manifest replacement v1',
+        contributions: [{
+          id: 'obsolete-command' as never,
+          kind: 'command',
+          command: oldCommandId,
+          label: 'Obsolete command',
+        }],
+      },
+      activate(ctx) {
+        return ctx.commands.registerCommand(oldCommandId, vi.fn());
+      },
+    });
+    const replacementExtension = defineExtension({
+      manifest: {
+        id: extensionId as never,
+        version: '1.0.0',
+        label: 'Command manifest replacement v2',
+        contributions: [{
+          id: 'prepared-scene-import' as never,
+          kind: 'command',
+          command: replacementCommandId,
+          label: 'Import prepared scene',
+        }],
+      },
+      activate(ctx) {
+        return ctx.commands.registerCommand(replacementCommandId, replacementHandler);
+      },
+    });
+
+    let commandRegistry: ReturnType<typeof useVideoEditorRuntime>['commandRegistry'];
+    function CaptureCommandRegistry() {
+      commandRegistry = useVideoEditorRuntime().commandRegistry;
+      return null;
+    }
+
+    const props = {
+      dataProvider: provider,
+      projectId: 'project-command-manifest-replacement',
+      timelineId: 'timeline-command-manifest-replacement',
+      userId: 'user-command-manifest-replacement',
+    };
+    const tree = (extension: ReighExtension) => (
+      <MemoryRouter>
+        <QueryClientProvider client={queryClient}>
+          <AgentChatProvider>
+            <VideoEditorProvider {...props} extensions={[extension]}>
+              <CaptureCommandRegistry />
+            </VideoEditorProvider>
+          </AgentChatProvider>
+        </QueryClientProvider>
+      </MemoryRouter>
+    );
+    const { rerender } = render(tree(oldExtension));
+
+    await waitFor(() => {
+      expect(commandRegistry?.getSnapshot().commands.map((command) => command.commandId))
+        .toContain(oldCommandId);
+    });
+
+    rerender(tree(replacementExtension));
+
+    await waitFor(() => {
+      const commandIds = commandRegistry?.getSnapshot().commands.map((command) => command.commandId) ?? [];
+      expect(commandIds).toContain(replacementCommandId);
+      expect(commandIds).not.toContain(oldCommandId);
+    });
+    expect(commandRegistry?.diagnostics.some((diagnostic) =>
+      diagnostic.code === 'command-registry/handler-no-command',
+    )).toBe(false);
+    await expect(commandRegistry?.executeCommand(replacementCommandId)).resolves.toBe(true);
+    expect(replacementHandler).toHaveBeenCalledTimes(1);
+  });
+
   // -------------------------------------------------------------------------
   // T1: Focused compatibility tests — extensions prop lifecycle
   // -------------------------------------------------------------------------
@@ -1360,26 +1452,19 @@ describe('VideoEditorProvider', () => {
     expect(navigateMock).not.toHaveBeenCalled();
   });
 
-  it('drops immediately when the mounted timeline store is available', () => {
+  it('places the prepared generation asset and clip in one canonical edit when mounted', () => {
     const current = buildCommandTimelineData();
-    const patchRegistry = vi.fn((assetId: string, entry: Record<string, unknown>) => {
-      current.registry.assets[assetId] = entry as never;
-    });
+    const patchRegistry = vi.fn();
     const registerAsset = vi.fn(async () => undefined);
-    const applyEdit = vi.fn();
-    const queryClient = new QueryClient({
-      defaultOptions: {
-        queries: {
-          retry: false,
-        },
-      },
+    const commits: Array<NonNullable<ReturnType<typeof applyPreparedMediaCommand>>> = [];
+    const applyEdit = vi.fn((mutation: unknown) => {
+      const edit = mutation as { type: string; command: PlacePreparedMediaCommand };
+      expect(edit.type).toBe('prepared-media');
+      const materialized = applyPreparedMediaCommand(current, edit.command);
+      if (materialized) commits.push(materialized);
     });
-    const store = buildCommandTestStore({
-      data: current,
-      patchRegistry,
-      registerAsset,
-      applyEdit,
-    });
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const store = buildCommandTestStore({ data: current, patchRegistry, registerAsset, applyEdit });
 
     render(
       <MemoryRouter>
@@ -1392,34 +1477,40 @@ describe('VideoEditorProvider', () => {
     );
 
     expect(screen.getByTestId('timeline-mounted')).toHaveTextContent('true');
-
     fireEvent.click(screen.getByRole('button', { name: 'add to video editor' }));
-
-    expect(patchRegistry).toHaveBeenCalledWith(
-      expect.any(String),
-      expect.objectContaining({
-        generationId: 'generation-1',
-        file: 'https://example.com/image.png',
-        type: 'image/png',
-      }),
-      'https://example.com/image.png',
-    );
-    expect(registerAsset).toHaveBeenCalledTimes(1);
     expect(applyEdit).toHaveBeenCalledTimes(1);
-    const insertedAssetId = patchRegistry.mock.calls[0]?.[0] as string;
-    const mutation = applyEdit.mock.calls[0]?.[0] as {
-      type: string;
-      rows: Array<{ actions: Array<{ start: number; end: number }> }>;
-      metaUpdates: Record<string, { asset: string }>;
-    };
-    expect(mutation.type).toBe('rows');
-    expect(mutation.rows[0]?.actions.at(-1)).toEqual(expect.objectContaining({
-      start: 2,
-      end: 7,
+    const edit = applyEdit.mock.calls[0]?.[0] as { command: PlacePreparedMediaCommand };
+    expect(edit.command).toEqual(expect.objectContaining({
+      type: 'place-prepared-media',
+      payload: expect.objectContaining({
+        at: 2,
+        selectedTrackId: 'V1',
+        asset: expect.objectContaining({
+          assetKey: expect.any(String),
+          mediaType: 'image',
+          source: 'registered',
+          entry: expect.objectContaining({
+            generationId: 'generation-1',
+            file: 'https://example.com/image.png',
+            type: 'image/png',
+          }),
+        }),
+      }),
     }));
-    expect(Object.values(mutation.metaUpdates)).toContainEqual(expect.objectContaining({
-      asset: insertedAssetId,
+    expect(edit.command.payload).not.toHaveProperty('trackId');
+    expect(edit.command.payload).not.toHaveProperty('clipSpanSeconds');
+    const assetId = edit.command.payload.asset.assetKey;
+    expect(commits).toHaveLength(1);
+    const committed = commits[0]!;
+    expect(committed.nextData.registry.assets[assetId]).toEqual(edit.command.payload.asset.entry);
+    expect(committed.nextData.resolvedConfig.clips).toContainEqual(expect.objectContaining({
+      at: 2,
+      hold: 5,
+      asset: assetId,
+      track: 'V1',
     }));
+    expect(patchRegistry).not.toHaveBeenCalled();
+    expect(registerAsset).not.toHaveBeenCalled();
     expect(readPendingAdds()).toEqual([]);
     expect(navigateMock).not.toHaveBeenCalled();
   });
@@ -1628,21 +1719,68 @@ describe('VideoEditorProvider', () => {
     });
   });
 
-  it('rolls back optimistic registry patches when public registerAsset persistence fails', async () => {
-    const patchRegistry = vi.fn();
-    const unpatchRegistry = vi.fn();
-    const registerAsset = vi.fn(async () => {
-      throw new Error('persist failed');
-    });
-    const store = buildCommandTestStore({
-      patchRegistry,
-      registerAsset,
-      unpatchRegistry,
-    });
+  it('omits absent selection and optional prepared-media payload fields', () => {
+    const applyEdit = vi.fn();
+    const store = buildCommandTestStore({ applyEdit });
+    const dataState = store.getState().data;
+    delete (dataState as Partial<typeof dataState>).selectedTrackId;
     const wrapper = ({ children }: { children: ReactNode }) => (
       <TimelineStoreProvider store={store}>{children}</TimelineStoreProvider>
     );
+    const { result } = renderHook(() => useTimelineCommandsService(), { wrapper });
+    expect(result.current.addClip({
+      preparedAsset: {
+        assetKey: 'unselected-image', mediaType: 'image', durationSeconds: null,
+        source: 'registered', entry: {file: 'https://example.com/image.png', type: 'image/png'},
+      },
+      time: 2,
+    }).ok).toBe(true);
+    expect(applyEdit).toHaveBeenCalledTimes(1);
+    const edit = applyEdit.mock.calls[0]?.[0] as {command: PlacePreparedMediaCommand};
+    expect(edit.command.payload).not.toHaveProperty('trackId');
+    expect(edit.command.payload).not.toHaveProperty('selectedTrackId');
+    expect(edit.command.payload).not.toHaveProperty('clipSpanSeconds');
+  });
 
+  it.each([null, 2.5])('preserves supplied prepared-media fields including nullable span %s', (span) => {
+    const applyEdit = vi.fn();
+    const current = buildCommandTimelineData();
+    const store = buildCommandTestStore({ data: current, applyEdit });
+    store.getState().data.selectedTrackId = null;
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <TimelineStoreProvider store={store}>{children}</TimelineStoreProvider>
+    );
+    const { result } = renderHook(() => useTimelineCommandsService(), { wrapper });
+    const response = result.current.addClip({
+      preparedAsset: {
+        assetKey: 'prepared-image', mediaType: 'image', durationSeconds: null,
+        source: 'registered', entry: {file: 'https://example.com/image.png', type: 'image/png'},
+      },
+      time: 2,
+      trackId: 'V1',
+      clipSpanSeconds: span,
+    });
+    expect(response.ok).toBe(true);
+    expect(applyEdit).toHaveBeenCalledTimes(1);
+    const edit = applyEdit.mock.calls[0]?.[0] as {command: PlacePreparedMediaCommand};
+    expect(edit.command.payload).toEqual(expect.objectContaining({
+      trackId: 'V1', selectedTrackId: null, clipSpanSeconds: span,
+    }));
+    const materialized = applyPreparedMediaCommand(current, edit.command);
+    expect(materialized).not.toBeNull();
+    expect(materialized!.nextData.resolvedConfig.clips).toContainEqual(expect.objectContaining({
+      asset: 'prepared-image', at: 2, hold: 5, track: 'V1',
+    }));
+  });
+
+  it('accepts public registerAsset into canonical saving without an independent durable write', async () => {
+    const patchRegistry = vi.fn();
+    const unpatchRegistry = vi.fn();
+    const registerAsset = vi.fn(async () => { throw new Error('retired independent write'); });
+    const store = buildCommandTestStore({ patchRegistry, registerAsset, unpatchRegistry });
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <TimelineStoreProvider store={store}>{children}</TimelineStoreProvider>
+    );
     const { result } = renderHook(() => useTimelineCommandsService(), { wrapper });
     const response = await result.current.registerAsset({
       generationId: 'generation-1',
@@ -1650,17 +1788,17 @@ describe('VideoEditorProvider', () => {
       variantType: 'image',
     });
 
-    expect(response).toEqual({
-      ok: false,
-      error: {
-        code: 'asset_registration_failed',
-        message: 'persist failed',
-        cause: expect.any(Error),
-      },
-    });
-    expect(patchRegistry).toHaveBeenCalledTimes(1);
-    expect(registerAsset).toHaveBeenCalledTimes(1);
-    expect(unpatchRegistry).toHaveBeenCalledTimes(1);
+    expect(response).toEqual({ ok: true, data: { assetId: expect.any(String) } });
+    if (!response.ok) throw new Error('registration should be accepted');
+    expect(patchRegistry).toHaveBeenCalledWith(response.data.assetId, expect.objectContaining({
+      generationId: 'generation-1',
+      file: 'https://example.com/image.png',
+      type: 'image/png',
+    }), 'https://example.com/image.png');
+    expect(registerAsset).not.toHaveBeenCalled();
+    expect(unpatchRegistry).not.toHaveBeenCalled();
+    // Acceptance queues the canonical save. Durable failure/acknowledgement
+    // belongs to TimelineOps.flush(), covered by useTimelineOps/Persistence.
   });
 
   // -------------------------------------------------------------------------

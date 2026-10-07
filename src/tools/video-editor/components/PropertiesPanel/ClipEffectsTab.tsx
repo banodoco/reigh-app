@@ -1,10 +1,11 @@
+import { lazy, Suspense, useCallback, useState } from 'react';
 import { Plus } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button.tsx';
+import { ChunkLoadErrorBoundary } from '@/shared/runtime/ChunkLoadErrorBoundary';
 import { SequenceParamEditor } from '@/tools/video-editor/components/PropertiesPanel/SequenceParamEditor.tsx';
 import { isEditorParamsSchema } from '@/tools/video-editor/clip-types/defineClipType.ts';
 import type { ClipTypeDescriptor } from '@/tools/video-editor/clip-types/defineClipType.ts';
 import { KeyframeInspector } from '@/tools/video-editor/components/KeyframeInspector/KeyframeInspector';
-import { EffectCreatorPanel } from '@/tools/video-editor/components/EffectCreatorPanel.tsx';
 import type { EffectResource } from '@/tools/video-editor/hooks/useEffectResources.ts';
 import type { VideoEditorEffectCatalog } from '@/tools/video-editor/lib/effect-catalog.ts';
 import type { ClipMeta } from '@/tools/video-editor/lib/timeline-data.ts';
@@ -18,6 +19,12 @@ import { ClipEntranceEffectField } from './ClipEntranceEffectField.tsx';
 import { ClipExitEffectField } from './ClipExitEffectField.tsx';
 import { ClipShaderSection } from './ClipShaderSection.tsx';
 import { ClipTransitionSection } from './ClipTransitionSection.tsx';
+
+const LazyEffectCreatorPanel = lazy(() =>
+  import('@/tools/video-editor/components/EffectCreatorPanel.tsx').then((module) => ({
+    default: module.EffectCreatorPanel,
+  })),
+);
 
 /** Body of the inspector's Effects tab (Sequence tab for sequence clip types). */
 export function ClipEffectsTab({
@@ -51,6 +58,14 @@ export function ClipEffectsTab({
   editingEffect: EffectResource | null;
   setEditingEffect: (effect: EffectResource | null) => void;
 }) {
+  const [creatorActivated, setCreatorActivated] = useState(creatorOpen);
+  const handleCreatorOpenChange = useCallback((open: boolean) => {
+    if (open) {
+      setCreatorActivated(true);
+    }
+    setCreatorOpen(open);
+  }, [setCreatorOpen]);
+
   const canCreateEffects = effectResources.canCreateEffect;
   const canEditEffects = effectResources.canUpdateEffect;
 
@@ -91,7 +106,7 @@ export function ClipEffectsTab({
             effectResources={effectResources}
             canEditEffects={canEditEffects}
             setEditingEffect={setEditingEffect}
-            setCreatorOpen={setCreatorOpen}
+            setCreatorOpen={handleCreatorOpenChange}
           />
         )}
         {!isEffectLayer && (
@@ -101,7 +116,7 @@ export function ClipEffectsTab({
             effectResources={effectResources}
             canEditEffects={canEditEffects}
             setEditingEffect={setEditingEffect}
-            setCreatorOpen={setCreatorOpen}
+            setCreatorOpen={handleCreatorOpenChange}
           />
         )}
         <ClipContinuousEffectField
@@ -110,7 +125,7 @@ export function ClipEffectsTab({
           effectResources={effectResources}
           canEditEffects={canEditEffects}
           setEditingEffect={setEditingEffect}
-          setCreatorOpen={setCreatorOpen}
+          setCreatorOpen={handleCreatorOpenChange}
         />
         <ClipShaderSection clip={clip} onChange={onChange} />
         <ClipTransitionSection clip={clip} onChange={onChange} />
@@ -128,38 +143,44 @@ export function ClipEffectsTab({
           className="gap-1.5"
           onClick={() => {
             setEditingEffect(null);
-            setCreatorOpen(true);
+            handleCreatorOpenChange(true);
           }}
         >
           <Plus className="h-3.5 w-3.5" />
           Create Effect
         </Button>
       )}
-      <EffectCreatorPanel
-        open={creatorOpen}
-        onOpenChange={setCreatorOpen}
-        editingEffect={editingEffect}
-        previewAssetSrc={clip?.assetEntry?.src}
-        timelineFps={timelineFps}
-        onSaved={(resourceId, savedCategory, defaultParams) => {
-          const effectType = `custom:${resourceId}`;
-          const params = Object.keys(defaultParams).length > 0 ? defaultParams : undefined;
-          if (isEffectLayer) {
-            if (savedCategory !== 'continuous') {
-              return;
-            }
-            onChange({ continuous: { type: effectType, intensity: clip.continuous?.intensity ?? 0.5, params } });
-            return;
-          }
-          if (!isEffectLayer && savedCategory === 'entrance') {
-            onChange({ entrance: { type: effectType, duration: clip.entrance?.duration ?? 0.4, params } });
-          } else if (!isEffectLayer && savedCategory === 'exit') {
-            onChange({ exit: { type: effectType, duration: clip.exit?.duration ?? 0.4, params } });
-          } else {
-            onChange({ continuous: { type: effectType, intensity: clip.continuous?.intensity ?? 0.5, params } });
-          }
-        }}
-      />
+      {creatorActivated && (
+        <ChunkLoadErrorBoundary>
+          <Suspense fallback={<div role="status" className="text-xs text-muted-foreground">Loading effect creator…</div>}>
+            <LazyEffectCreatorPanel
+              open={creatorOpen}
+              onOpenChange={handleCreatorOpenChange}
+              editingEffect={editingEffect}
+              previewAssetSrc={clip?.assetEntry?.src}
+              timelineFps={timelineFps}
+              onSaved={(resourceId, savedCategory, defaultParams) => {
+                const effectType = `custom:${resourceId}`;
+                const params = Object.keys(defaultParams).length > 0 ? defaultParams : undefined;
+                if (isEffectLayer) {
+                  if (savedCategory !== 'continuous') {
+                    return;
+                  }
+                  onChange({ continuous: { type: effectType, intensity: clip.continuous?.intensity ?? 0.5, params } });
+                  return;
+                }
+                if (savedCategory === 'entrance') {
+                  onChange({ entrance: { type: effectType, duration: clip.entrance?.duration ?? 0.4, params } });
+                } else if (savedCategory === 'exit') {
+                  onChange({ exit: { type: effectType, duration: clip.exit?.duration ?? 0.4, params } });
+                } else {
+                  onChange({ continuous: { type: effectType, intensity: clip.continuous?.intensity ?? 0.5, params } });
+                }
+              }}
+            />
+          </Suspense>
+        </ChunkLoadErrorBoundary>
+      )}
       {/* M9: Keyframe Inspector — shown when clip type has editor params schema */}
       {clipDescriptor && isEditorParamsSchema(clipDescriptor.paramsSchema) && (
         <KeyframeInspector

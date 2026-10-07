@@ -1090,6 +1090,28 @@ describe('Sprint 8 enqueueBanodocoRenderTimeline', () => {
     correlation_id: 'c',
   };
 
+  it('selects the existing Three.js route for saved scenes with ordinary audio', async () => {
+    const fetchImpl = canonicalRenderFetch();
+    vi.stubGlobal('fetch', fetchImpl);
+    const scenePayload = { ...payload, timeline: { tracks: [{ id: 'v', kind: 'visual' }, { id: 'a', kind: 'audio' }], clips: [{ clipType: 'com.reigh.astrid.liveScene', track: 'v' }, { clipType: 'media', track: 'a' }] } };
+    const result = await enqueueBanodocoRenderTimeline(scenePayload, { client: new AstridLocalClient({ projectSlug: 'p', baseUrl: 'http://bridge.fake' }), expectedVersion: 12 });
+    expect(result.status).toBe('queued');
+    const body = JSON.parse((fetchImpl.mock.calls[1][1] as RequestInit).body as string);
+    expect(body.spec.params).toMatchObject({ selector: 'rendering.threejs', timeline_ref: 't', expected_version: 12 });
+    expect(body.input_object_ids).toEqual([]);
+    vi.unstubAllGlobals();
+  });
+
+  it('rejects unsupported mixed scene clips before task admission', async () => {
+    const fetchImpl = canonicalRenderFetch();
+    vi.stubGlobal('fetch', fetchImpl);
+    const result = await enqueueBanodocoRenderTimeline({ ...payload, timeline: { clips: [{ clipType: 'com.reigh.astrid.liveScene' }, { clipType: 'media' }] } }, { client: new AstridLocalClient({ projectSlug: 'p', baseUrl: 'http://bridge.fake' }) });
+    expect(result.status).toBe('error');
+    expect(result.message).toContain('mixed or unsupported');
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    vi.unstubAllGlobals();
+  });
+
   it('POSTs the canonical rendering.render envelope through the Runtime task route', async () => {
     const fetchImpl = canonicalRenderFetch();
     vi.stubGlobal('fetch', fetchImpl);

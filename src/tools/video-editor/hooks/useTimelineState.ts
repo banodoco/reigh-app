@@ -621,6 +621,7 @@ export function useTimelineState(initialTimelineData?: TimelineData): UseTimelin
     commitData: save.commitData,
     dataRef: save.dataRef,
     getConfigVersion,
+    flushPendingSave: save.flushPendingSave,
     createManualCheckpoint,
     jumpToCheckpoint,
     checkpoints,

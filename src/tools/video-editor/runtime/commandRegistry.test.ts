@@ -686,6 +686,75 @@ describe('CommandRegistry — rejected/thrown handler diagnostics', () => {
     expect(listener).toHaveBeenCalledTimes(1);
   });
 
+  it('notifies subscribers with the complete snapshot after observable mutations', async () => {
+    const registry = createFreshRegistry();
+    const snapshots: CommandRegistrySnapshot[] = [];
+    registry.subscribe(() => snapshots.push(registry.getSnapshot()));
+
+    const initialSnapshot = registry.getSnapshot();
+    expect(registry.getSnapshot()).toBe(initialSnapshot);
+
+    registerTestCommand(registry, 'ext1', 'ext1.cmd', vi.fn());
+    expect(snapshots.at(-1)?.commands.map((command) => command.commandId)).toEqual(['ext1.cmd']);
+    const commandSnapshot = registry.getSnapshot();
+    expect(commandSnapshot).not.toBe(initialSnapshot);
+    expect(registry.getSnapshot()).toBe(commandSnapshot);
+
+    registry.ingestKeybindingContribution('ext1', makeKeybindingContribution({
+      command: 'ext1.cmd',
+      key: 'ctrl+k',
+    }));
+    expect(snapshots.at(-1)?.keybindings[0]?.commandId).toBe('ext1.cmd');
+
+    registry.ingestContextMenuItemContribution('ext1', makeContextMenuContribution({
+      command: 'ext1.cmd',
+      target: 'clip',
+    }));
+    expect(snapshots.at(-1)?.contextMenuItems[0]?.commandId).toBe('ext1.cmd');
+
+    const handler = vi.fn();
+    const handlerHandle = registry.registerCommand('ext1', 'ext1.cmd', handler);
+    expect(snapshots.at(-1)?.getCommand('ext1.cmd')).toBeDefined();
+    handlerHandle.dispose();
+    expect(snapshots.at(-1)?.getCommand('ext1.cmd')).toBeDefined();
+
+    registry.registerCommand('ext1', 'ext1.cmd', handler);
+    await registry.executeCommand('ext1.cmd');
+    expect(snapshots.at(-1)?.getStatus('ext1.cmd').invocationCount).toBe(1);
+    expect(snapshots.at(-1)?.getStatus('ext1.cmd').lastRunOk).toBe(true);
+
+    const failingHandler = vi.fn().mockRejectedValue(new Error('failure'));
+    registerTestCommand(registry, 'ext1', 'ext1.fail', failingHandler);
+    await registry.executeCommand('ext1.fail');
+    expect(snapshots.at(-1)?.getStatus('ext1.fail').invocationCount).toBe(1);
+    expect(snapshots.at(-1)?.getStatus('ext1.fail').lastRunOk).toBe(false);
+
+    registry.unregisterAll('ext1');
+    expect(snapshots.at(-1)?.commands).toHaveLength(0);
+    expect(snapshots.at(-1)?.keybindings).toHaveLength(0);
+    expect(snapshots.at(-1)?.contextMenuItems).toHaveLength(0);
+  });
+
+  it('isolates throwing listeners and still notifies healthy listeners', () => {
+    const registry = createFreshRegistry();
+    const throwingListener = vi.fn(() => {
+      throw new Error('listener failure');
+    });
+    let healthySnapshot: CommandRegistrySnapshot | undefined;
+    const healthyListener = vi.fn(() => {
+      healthySnapshot = registry.getSnapshot();
+    });
+    registry.subscribe(throwingListener);
+    registry.subscribe(healthyListener);
+
+    expect(() => {
+      registerTestCommand(registry, 'ext1', 'ext1.cmd', vi.fn());
+    }).not.toThrow();
+    expect(throwingListener).toHaveBeenCalled();
+    expect(healthyListener).toHaveBeenCalled();
+    expect(healthySnapshot?.commands[0]?.commandId).toBe('ext1.cmd');
+  });
+
   it('emits error diagnostic when handler throws', async () => {
     const registry = createFreshRegistry();
     const handler = vi.fn().mockImplementation(() => {
@@ -1102,6 +1171,26 @@ describe('CommandRegistry — registerCommand options', () => {
 // ---------------------------------------------------------------------------
 
 describe('CommandRegistry — dispose lifecycle', () => {
+  it('notifies subscribers with the cleared terminal snapshot before unsubscribing them', () => {
+    const registry = createFreshRegistry();
+    registerTestCommand(registry, 'ext1', 'ext1.cmd', vi.fn());
+    let disposedSnapshot: CommandRegistrySnapshot | undefined;
+    const listener = vi.fn(() => {
+      disposedSnapshot = registry.getSnapshot();
+    });
+    registry.subscribe(listener);
+
+    registry.dispose();
+
+    expect(listener).toHaveBeenCalled();
+    expect(disposedSnapshot?.commands).toHaveLength(0);
+    expect(registry.getSnapshot().commands).toHaveLength(0);
+
+    const callsAfterDispose = listener.mock.calls.length;
+    registry.ingestCommandContribution('ext2', makeCommandContribution({ command: 'ext2.cmd' }));
+    expect(listener).toHaveBeenCalledTimes(callsAfterDispose);
+  });
+
   it('after dispose, all operations become no-ops with diagnostics', () => {
     const registry = createFreshRegistry();
     registry.ingestCommandContribution('ext1', makeCommandContribution({ command: 'ext1.cmd' }));
