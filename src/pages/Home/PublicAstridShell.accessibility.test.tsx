@@ -25,6 +25,7 @@ vi.mock('./PublicAstridMountedEditor.tsx', async () => {
       const exposeTestHandoff = new URLSearchParams(window.location.search).get('test-verified-result') === '1';
       return (
         <>
+          <div data-astrid-preview-frame-ready="true" />
           <button type="button" onClick={() => setPlaying((value) => !value)}>{playing ? 'Pause' : 'Play'}</button>
           {exposeTestHandoff && (
             <button type="button" onClick={() => {

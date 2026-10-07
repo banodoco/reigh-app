@@ -1,5 +1,5 @@
 import React, {useEffect} from 'react';
-import {cleanup, fireEvent, render, screen} from '@testing-library/react';
+import {act, cleanup, fireEvent, render, screen} from '@testing-library/react';
 import {afterEach, describe, expect, it, vi} from 'vitest';
 import {ReadinessImage} from '@astrid/packs/rendering/elements/_shared/readiness-image';
 import {ReadinessVideo} from './ReadinessVideo.tsx';
@@ -19,6 +19,19 @@ vi.mock('@remotion/media', () => ({Video: (props: any) => {
 afterEach(() => {cleanup(); state.environment = {isRendering: false, isClientSideRendering: false}; state.throwVideo = false; vi.clearAllMocks();});
 
 describe('owned media preview and export policy', () => {
+  it('reports readiness only after a decoded frame, resets it on source change, and forwards the callback', () => {
+    const onVideoFrame = vi.fn();
+    const view = render(<ReadinessVideo clipId="video" src="/movie.mp4" onVideoFrame={onVideoFrame} />);
+    expect(view.container.querySelector('[data-preview-decoded-frame="true"]')).toBeNull();
+    const frame = {};
+    act(() => state.videoProps.onVideoFrame(frame));
+    expect(view.container.querySelector('[data-preview-decoded-frame="true"]')).not.toBeNull();
+    expect(onVideoFrame).toHaveBeenCalledWith(frame);
+    view.rerender(<ReadinessVideo clipId="video" src="/replacement.mp4" />);
+    expect(view.container.querySelector('[data-preview-decoded-frame="true"]')).toBeNull();
+    fireEvent.click(screen.getByText('Fail native fallback'));
+    expect(view.container.querySelector('[data-preview-decoded-frame="true"]')).toBeNull();
+  });
   it.each(['isRendering', 'isClientSideRendering'] as const)('retains strict native image/video errors during %s', (environmentKey) => {
     state.environment[environmentKey] = true;
     render(<><ReadinessImage src="/still.png" mediaId="still" /><ReadinessVideo clipId="video" src="/movie.mp4" /></>);

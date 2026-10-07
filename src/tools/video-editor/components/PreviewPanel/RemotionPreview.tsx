@@ -391,25 +391,22 @@ const RemotionPreviewComponent = forwardRef<PreviewHandle, RemotionPreviewProps>
     const container = playerContainerRef.current;
     if (!container) return undefined;
 
-    let pollFrame: number | null = null;
     let readyFrame: number | null = null;
     const markPreviewFrameReady = () => {
-      // Remotion's browser preview is canvas-backed, so a native video
-      // readyState probe cannot tell the public shell that the first frame is
-      // actually visible. Mark the container on the frame after the canvas
-      // appears instead of exposing its initial black clear.
+      // A canvas can exist while its media is still fetching (or has failed).
+      // Wait for the decoder callback and one paint before exposing the preview.
       container.dataset.astridPreviewFrameReady = 'true';
     };
-    const waitForCanvas = () => {
-      if (container.querySelector('canvas')) {
+    const inspectDecodedFrame = () => {
+      if (readyFrame === null && container.querySelector('[data-preview-decoded-frame="true"]')) {
         readyFrame = requestAnimationFrame(markPreviewFrameReady);
-        return;
       }
-      pollFrame = requestAnimationFrame(waitForCanvas);
     };
-    pollFrame = requestAnimationFrame(waitForCanvas);
+    const observer = new MutationObserver(inspectDecodedFrame);
+    observer.observe(container, {childList: true, subtree: true, attributes: true, attributeFilter: ['data-preview-decoded-frame']});
+    inspectDecodedFrame();
     return () => {
-      if (pollFrame !== null) cancelAnimationFrame(pollFrame);
+      observer.disconnect();
       if (readyFrame !== null) cancelAnimationFrame(readyFrame);
       delete container.dataset.astridPreviewFrameReady;
     };

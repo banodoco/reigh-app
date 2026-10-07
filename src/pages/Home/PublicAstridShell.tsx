@@ -35,7 +35,6 @@ import { usePublicAstridSkySession } from './usePublicAstridSkySession';
 const EDITOR_RELOAD_PENDING_KEY = 'astrid-public-editor-reload-pending';
 /** The editor stays hidden until its first frame and side panel are ready, so it assembles in one piece. */
 const EDITOR_REVEAL_TIMEOUT_MS = 2_500;
-const EDITOR_REVEAL_MEDIA_GRACE_MS = 900;
 const EDITOR_LOADER_RETIRE_TIMEOUT_MS = 850;
 
 async function loadPublicAstridMountedEditor() {
@@ -402,7 +401,6 @@ export function PublicAstridShell({ onOpenVision, lifecycle = 'active', environm
     const attempt = readiness.attempt;
     const stageElement: HTMLDivElement = stage;
     let currentVideo: HTMLVideoElement | null = null;
-    let mediaTimer: number | null = null;
     const markMedia = (fallback: boolean) => {
       if (readinessRef.current.mediaReady) return;
       applyReadinessEvent({type: fallback ? 'media-fallback' : 'media-ready', attempt});
@@ -437,11 +435,9 @@ export function PublicAstridShell({ onOpenVision, lifecycle = 'active', environm
       attributes: true,
       attributeFilter: ['data-astrid-preview-frame-ready'],
     });
-    mediaTimer = window.setTimeout(() => markMedia(true), EDITOR_REVEAL_MEDIA_GRACE_MS);
     inspectMedia();
     return () => {
       observer?.disconnect();
-      if (mediaTimer !== null) window.clearTimeout(mediaTimer);
       currentVideo?.removeEventListener('loadeddata', onMediaReady);
       currentVideo?.removeEventListener('canplay', onMediaReady);
       currentVideo?.removeEventListener('error', onMediaError);
@@ -457,7 +453,6 @@ export function PublicAstridShell({ onOpenVision, lifecycle = 'active', environm
       const current = readinessRef.current;
       if (!current.inspectorReady) applyReadinessEvent({type: 'inspector-fallback', attempt});
       if (!current.timelineReady) applyReadinessEvent({type: 'timeline-fallback', attempt});
-      if (!current.mediaReady) applyReadinessEvent({type: 'media-fallback', attempt});
     }, EDITOR_REVEAL_TIMEOUT_MS);
     return () => window.clearTimeout(revealTimer);
   }, [applyReadinessEvent, readiness.attempt, readiness.moduleReady, readiness.phase, visualActive]);
