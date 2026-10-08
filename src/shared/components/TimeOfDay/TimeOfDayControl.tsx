@@ -185,27 +185,31 @@ export function TimeOfDayControl({ compact = false }: { compact?: boolean }) {
     { follows: false, title: 'Choose a level', note: 'Pick a time on the clock, and keep it as bright as the sky is then.', choose: () => setHours(hours) },
   ];
   return (
-    <div className="space-y-3">
-      <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Brightness">
-        {options.map((option) => {
-          const selected = followsSky === option.follows;
-          return (
-            <button
-              key={option.title}
-              type="button"
-              role="radio"
-              aria-checked={selected}
-              onClick={option.choose}
-              className={`rounded-lg border p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background ${selected ? 'border-primary bg-primary/5' : 'hover:bg-muted/50'}`}
-            >
-              <span className="block text-sm font-medium text-foreground">{option.title}</span>
-              {!compact && <span className="mt-1 block text-xs text-muted-foreground">{option.note}</span>}
-            </button>
-          );
-        })}
+    <div className="grid gap-4 sm:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] sm:items-center">
+      <div className="min-w-0">
+        <div className="space-y-2" role="radiogroup" aria-label="Brightness">
+          {options.map((option) => {
+            const selected = followsSky === option.follows;
+            return (
+              <button
+                key={option.title}
+                type="button"
+                role="radio"
+                aria-checked={selected}
+                onClick={option.choose}
+                className={`block w-full rounded-lg border p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background ${selected ? 'border-primary bg-primary/5' : 'hover:bg-muted/50'}`}
+              >
+                <span className="block text-sm font-medium text-foreground">{option.title}</span>
+                {!compact && <span className="mt-1 block text-xs text-muted-foreground">{option.note}</span>}
+              </button>
+            );
+          })}
+        </div>
       </div>
-      <TimeOfDaySky hours={hours} className={compact ? 'h-16' : 'h-36'} />
-      <TimeOfDaySlider hours={hours} onChange={setHours} label={followsSky ? 'Time of day (now, where you are)' : 'Time of day'} />
+      <div className="min-w-0 space-y-2">
+        <TimeOfDaySky hours={hours} className={compact ? 'h-16' : 'h-36'} />
+        <TimeOfDaySlider hours={hours} onChange={setHours} label={followsSky ? 'Time of day (now, where you are)' : 'Time of day'} />
+      </div>
     </div>
   );
 }

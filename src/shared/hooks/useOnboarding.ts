@@ -7,7 +7,7 @@ import { hasLocalModeUrlParams } from '@/shared/dev/devSession';
 import { checkAstridDoctorAvailability } from '@/integrations/astrid/doctorAvailability.ts';
 
 /**
- * - `first-run`: Astrid has never been set up in this browser. The whole flow (setup, time of day, text
+ * - `first-run`: Astrid has never been set up in this browser. The whole flow (setup, brightness, text
  *   case) shows on every launch until it is finished.
  * - `reconnect`: it was set up before, but the local Runtime is not running, so only the "start your
  *   Runtime" step shows, and it closes once the Runtime is back.

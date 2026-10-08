@@ -9,7 +9,7 @@ import type { OnboardingStepDefinition } from '@/shared/components/OnboardingMod
  *  optional invitation to the community that finishes on its own. */
 const ONBOARDING_STEPS: OnboardingStepDefinition[] = [
   { id: 1, title: 'Set up', component: AstridSetupStep },
-  { id: 2, title: 'Time of day', component: TimeOfDayStep },
+  { id: 2, title: 'Brightness', component: TimeOfDayStep },
   { id: 3, title: 'Text', component: TextCaseStep },
   { id: 4, title: 'Community', component: CommunityStep },
 ];

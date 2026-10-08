@@ -16,10 +16,10 @@ const PreferencesSection: React.FC<PreferencesSectionProps> = ({
       <div>
         <h3 className="text-sm font-medium text-muted-foreground mb-3">Appearance</h3>
         <div className={`${isMobile ? 'p-3' : 'p-4'} bg-muted/30 rounded-lg space-y-2`}>
-          <span className="font-medium">Time of day:</span>
+          <span className="font-medium">Brightness:</span>
           <TimeOfDayControl compact />
           <p className="text-xs text-muted-foreground">
-            Towards the sun for a light workspace, towards the moon for a dark one
+            Follow the time of day or choose a fixed brightness for your workspace
           </p>
         </div>
 
