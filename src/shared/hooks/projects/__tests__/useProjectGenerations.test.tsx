@@ -62,6 +62,10 @@ describe('useProjectGenerations (bridge gallery reads R12)', () => {
     expect(matchesClientSideFilters(audio, { mediaType: 'video' })).toBe(false);
     expect(matchesClientSideFilters(video, { mediaType: 'video' })).toBe(true);
 
+    expect(matchesClientSideFilters(image, { mediaType: 'audio' })).toBe(false);
+    expect(matchesClientSideFilters(audio, { mediaType: 'audio' })).toBe(true);
+    expect(matchesClientSideFilters(video, { mediaType: 'audio' })).toBe(false);
+
     expect(matchesClientSideFilters(audio, { mediaType: 'all' })).toBe(true);
   });
 

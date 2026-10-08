@@ -9,8 +9,8 @@ import {
 import { cn } from '@/shared/components/ui/contracts/cn';
 
 interface MediaTypeFilterProps {
-  value: 'all' | 'image' | 'video';
-  onChange?: (value: 'all' | 'image' | 'video') => void;
+  value: 'all' | 'image' | 'video' | 'audio';
+  onChange?: (value: 'all' | 'image' | 'video' | 'audio') => void;
   /** Use when component is on a permanently dark surface (e.g., GenerationsPane) */
   darkSurface?: boolean;
   className?: string;
@@ -37,7 +37,7 @@ const MediaTypeFilterComponent: React.FC<MediaTypeFilterProps> = ({
     <Select
       value={value}
       onValueChange={(val) => {
-        if (val === 'all' || val === 'image' || val === 'video') {
+        if (val === 'all' || val === 'image' || val === 'video' || val === 'audio') {
           onChange?.(val);
         }
       }}
@@ -62,6 +62,9 @@ const MediaTypeFilterComponent: React.FC<MediaTypeFilterProps> = ({
         </SelectItem>
         <SelectItem variant={variant} value="video" className="text-xs whitespace-nowrap">
           Videos
+        </SelectItem>
+        <SelectItem variant={variant} value="audio" className="text-xs whitespace-nowrap">
+          Audio
         </SelectItem>
       </SelectContent>
     </Select>

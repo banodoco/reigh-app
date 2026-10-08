@@ -4,6 +4,7 @@ import { getProjectSelectionFallbackId } from '@/shared/contexts/projectSelectio
 import { isProgressiveLoadingEnabled } from '@/shared/settings/progressiveLoading';
 import { useProgressiveImage } from '@/shared/hooks/ui-image/useProgressiveImage';
 import type { GeneratedImageWithMetadata } from '../types';
+import { isAudioMedia, isVideoMedia } from '@/shared/lib/media/mediaTypeFilters';
 
 interface UseStableMediaUrlsParams {
   image: GeneratedImageWithMetadata;
@@ -21,14 +22,10 @@ interface UseStableMediaUrlsParams {
  */
 export function useStableMediaUrls({ image, isPriority }: UseStableMediaUrlsParams) {
   // === Progressive loading (images only) ===
-  const isVideoContent = useMemo(() => {
-    if (typeof image.isVideo === 'boolean') return image.isVideo;
-    const url = image.url || '';
-    const lower = url.toLowerCase();
-    return lower.endsWith('.webm') || lower.endsWith('.mp4') || lower.endsWith('.mov');
-  }, [image.isVideo, image.url]);
+  const isVideoContent = isVideoMedia(image);
+  const isAudioContent = isAudioMedia(image);
 
-  const progressiveEnabled = isProgressiveLoadingEnabled() && !isVideoContent;
+  const progressiveEnabled = isProgressiveLoadingEnabled() && !isVideoContent && !isAudioContent;
   const { src: progressiveSrc, isThumbShowing, isFullLoaded, ref: progressiveRef } = useProgressiveImage(
     progressiveEnabled ? image.thumbUrl : null,
     image.url,
@@ -49,6 +46,7 @@ export function useStableMediaUrls({ image, isPriority }: UseStableMediaUrlsPara
   // === Display URL (image thumbnail or progressive src) ===
   // Stored refs become same-origin R9 content-route addresses here.
   const displayUrl = useMemo(() => {
+    if (isAudioContent) return '';
     if (isVideoContent) {
       return bridgeMediaUrl(projectSlug, thumbnailSource);
     }
@@ -56,7 +54,7 @@ export function useStableMediaUrls({ image, isPriority }: UseStableMediaUrlsPara
       return progressiveSrc;
     }
     return bridgeMediaUrl(projectSlug, image.thumbUrl || image.url);
-  }, [progressiveEnabled, progressiveSrc, image.thumbUrl, image.url, isVideoContent, projectSlug, thumbnailSource]);
+  }, [progressiveEnabled, progressiveSrc, image.thumbUrl, image.url, isVideoContent, isAudioContent, projectSlug, thumbnailSource]);
 
   // Stable display URL (only changes when underlying file changes)
   const displayUrlIdentity = image.urlIdentity || image.url || '';
@@ -100,6 +98,7 @@ export function useStableMediaUrls({ image, isPriority }: UseStableMediaUrlsPara
 
   return {
     isVideoContent,
+    isAudioContent,
     displayUrl,
     stableDisplayUrl,
     stableVideoUrl,

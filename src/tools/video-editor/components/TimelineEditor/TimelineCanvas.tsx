@@ -120,7 +120,6 @@ export interface TimelineCanvasProps {
   minScaleCount: number;
   maxScaleCount: number;
   selectedTrackId: string | null;
-  readOnly?: boolean;
   getActionRender?: (action: TimelineAction, row: TimelineRow, width: number) => ReactNode;
   /** Selects action kinds that need vertical hit-target lanes when their minimum widths overlap. */
   shouldStackOverlappingActions?: (action: TimelineAction, row: TimelineRow) => boolean;
@@ -155,6 +154,8 @@ export interface TimelineCanvasProps {
   onShotGroupDelete?: (group: { shotId: string; trackId: string; clipIds: string[] }) => void;
   onShotGroupDuplicate?: (group: { shotId: string; trackId: string; canonicalIdentity?: CanonicalShotOccurrence }) => void;
   onShotGroupPromotePrimary?: (group: { shotId: string; trackId: string }) => void;
+  selectedCanonicalOccurrenceId?: string | null;
+  onShotGroupSelect?: (group: PositionedShotGroup) => void;
   onSelectClips?: (clipIds: string[]) => void;
   dragSessionRef?: MutableRefObject<DragSession | null>;
   interactionStateRef?: import('@/tools/video-editor/lib/interaction-state').InteractionStateRef;
@@ -332,7 +333,6 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
   minScaleCount,
   maxScaleCount,
   selectedTrackId,
-  readOnly = false,
   getActionRender,
   shouldStackOverlappingActions,
   onSelectTrack,
@@ -362,6 +362,8 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
   onShotGroupDelete,
   onShotGroupDuplicate,
   onShotGroupPromotePrimary,
+  selectedCanonicalOccurrenceId,
+  onShotGroupSelect,
   onSelectClips,
   dragSessionRef,
   interactionStateRef,
@@ -552,7 +554,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
   const maxShotGroupEnd = useMemo(() => shotGroups.reduce(
     (currentMax, group) => Math.max(
       currentMax,
-      resizePreviewSnapshot[`${group.shotId}:${group.rowId}`]?.end ?? shotGroupEndSeconds(group),
+      resizePreviewSnapshot[`${shotGroupVideoKey(group)}:${group.rowId}`]?.end ?? shotGroupEndSeconds(group),
     ),
     0,
   ), [resizePreviewSnapshot, shotGroups]);
@@ -711,14 +713,14 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
         return [];
       }
 
-      const groupKey = `${group.shotId}:${group.rowId}`;
+      const groupKey = `${shotGroupVideoKey(group)}:${group.rowId}`;
       const preview = resizePreviewSnapshot[groupKey];
       const start = preview?.start ?? group.start;
       const end = preview?.end ?? group.end ?? (group.start + lastChild!.offset + lastChild!.duration);
       const finalVideo = finalVideoMap?.get(shotGroupVideoKey(group));
 
       return [{
-        key: `${group.shotId}:${group.rowId}:${group.clipIds.join(',')}`,
+        key: `${shotGroupVideoKey(group)}:${group.rowId}:${group.clipIds.join(',')}`,
         shotId: group.shotId,
         shotName: group.shotName,
         clipIds: group.clipIds,
@@ -740,6 +742,57 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
       }];
     });
   }, [actionHeight, activeTaskClipIds, finalVideoMap, pixelsPerSecond, resizePreviewSnapshot, rowHeight, rows, shotGroups, staleShotGroupIds, timeToPixel]);
+  const [hoveredShotGroupKey, setHoveredShotGroupKey] = useState<string | null>(null);
+  const updateHoveredShotGroup = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    if (event.pointerType === 'touch') return;
+    // Labels float outside the scroll container. Treat both the label and
+    // its complete shot body as one hover surface without covering clips
+    // with another pointer target (which would steal drag/resize gestures).
+    const label = event.target instanceof Element
+      ? event.target.closest<HTMLElement>('[data-shot-group-key]') : null;
+    if (label) {
+      setHoveredShotGroupKey(label.dataset.shotGroupKey ?? null);
+      return;
+    }
+    const scroller = scrollContainerRef.current;
+    if (!scroller || !scroller.contains(event.target as Node)) {
+      setHoveredShotGroupKey(null);
+      return;
+    }
+    const bounds = scroller.getBoundingClientRect();
+    const viewportX = event.clientX - bounds.left;
+    const x = viewportX + scroller.scrollLeft;
+    const y = event.clientY - bounds.top + scroller.scrollTop;
+    const group = viewportX >= LABEL_WIDTH && positionedShotGroups.find((candidate) => (
+      x >= candidate.left && x < candidate.left + candidate.width
+      && y >= candidate.top && y < candidate.top + candidate.height
+    ));
+    setHoveredShotGroupKey(group ? group.key : null);
+  }, [positionedShotGroups]);
+  const handleSelectShotGroup = useCallback((group: PositionedShotGroup) => {
+    if (onShotGroupSelect) {
+      onShotGroupSelect(group);
+      return;
+    }
+    onSelectTrack?.(group.rowId);
+    if (group.canonicalIdentity) {
+      ops?.clearSelection?.();
+      ops?.setInspectorTarget?.({
+        kind: 'shotOccurrence',
+        occurrenceId: group.canonicalIdentity.occurrenceId,
+        shotId: group.canonicalIdentity.shotId,
+        revisionId: group.canonicalIdentity.revisionId,
+        parentDocumentId: group.canonicalIdentity.parentDocumentId,
+        shotName: group.shotName,
+        trackId: group.rowId,
+        start: group.start,
+        end: group.end,
+      });
+      return;
+    }
+    ops?.setInspectorTarget?.(null);
+    onSelectClips?.(group.clipIds);
+  }, [onSelectClips, onShotGroupSelect, onSelectTrack, ops]);
 
   const centerClipInViewport = useCallback((clipId: string): boolean => {
     const container = scrollContainerRef.current;
@@ -1079,6 +1132,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
   }, [pixelsPerSecond, startLeft]);
 
   const handleScroll = (event: UIEvent<HTMLDivElement>) => {
+    setHoveredShotGroupKey(null);
     const nextMetrics = {
       scrollLeft: event.currentTarget.scrollLeft,
       scrollTop: event.currentTarget.scrollTop,
@@ -1124,7 +1178,13 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
   };
 
   return (
-    <div className="relative flex h-full min-h-0 flex-col bg-background/70" style={VIDEO_EDITOR_THEME_VARS}>
+    <div
+      className="relative flex h-full min-h-0 flex-col bg-background/70"
+      style={VIDEO_EDITOR_THEME_VARS}
+      onPointerOverCapture={updateHoveredShotGroup}
+      onPointerMoveCapture={updateHoveredShotGroup}
+      onPointerLeave={() => setHoveredShotGroupKey(null)}
+    >
       <TimelineRulerAndGrid
         scale={scale}
         scaleWidth={scaleWidth}
@@ -1179,6 +1239,10 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
         scrollTop={scrollTop}
         openShotGroupMenu={openShotGroupMenu}
         onSelectClips={onSelectClips}
+        onSelectTrack={onSelectTrack}
+        onSelectShotGroup={handleSelectShotGroup}
+        selectedCanonicalOccurrenceId={selectedCanonicalOccurrenceId}
+        hoveredShotGroupKey={hoveredShotGroupKey}
         onShotGroupNavigate={onShotGroupNavigate}
         onShotGroupOpen={onShotGroupOpen}
       />
@@ -1283,7 +1347,6 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
             onRemoveTrack={onRemoveTrack}
             onTrackDragEnd={onTrackDragEnd}
             trackSensors={trackSensors}
-            readOnly={readOnly}
           />
           {/* dataKind V1: duration-neutral lane rows below the track rows —
               same scroller and startLeft/pixelsPerSecond mapping, outside the

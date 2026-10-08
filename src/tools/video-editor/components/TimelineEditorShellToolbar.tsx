@@ -130,7 +130,11 @@ export function TimelineEditorShellToolbar({
       >
         <Redo2 className="h-3.5 w-3.5" />
       </Button>
-      <DropdownMenu>
+      <DropdownMenu onOpenChange={(open) => {
+        if (open && chrome.canonicalHistorySupported) {
+          void chrome.refreshCanonicalHistory();
+        }
+      }}>
         <DropdownMenuTrigger asChild>
           <Button type="button" variant="ghost" size="icon" className={toolbarButtonSizeClass} title="History">
             <History className="h-3.5 w-3.5" />
@@ -141,7 +145,45 @@ export function TimelineEditorShellToolbar({
             History
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
-          {chrome.checkpoints.length === 0 ? (
+          {chrome.canonicalHistoryError ? (
+            <div role="alert" className="px-2 py-2 text-xs text-destructive">
+              {chrome.canonicalHistoryError}
+            </div>
+          ) : null}
+          {chrome.canonicalHistorySupported ? (
+            chrome.canonicalHistoryError ? null : chrome.canonicalHistory.length === 0 ? (
+              <div className="px-2 py-3 text-xs text-muted-foreground">
+                No published revisions yet.
+              </div>
+            ) : (
+              chrome.canonicalHistory.map((entry) => (
+                <DropdownMenuItem
+                  key={entry.revisionId}
+                  className="flex flex-col items-start gap-1 py-2"
+                  disabled={entry.isCurrentHead || chrome.restoringCanonicalRevisionId !== null}
+                  onClick={() => void chrome.restoreCanonicalRevision(entry.revisionId)}
+                >
+                  <div className="flex w-full items-start justify-between gap-2">
+                    <span className="truncate font-mono text-xs text-foreground">
+                      {entry.revisionId.slice(0, 16)}
+                    </span>
+                    {entry.isCurrentHead ? (
+                      <Badge variant="secondary" className="shrink-0 px-1.5 py-0 text-[9px] uppercase tracking-[0.12em]">
+                        Current
+                      </Badge>
+                    ) : chrome.restoringCanonicalRevisionId === entry.revisionId ? (
+                      <Badge variant="outline" className="shrink-0 px-1.5 py-0 text-[9px] uppercase tracking-[0.12em]">
+                        Restoring
+                      </Badge>
+                    ) : null}
+                  </div>
+                  <span className="text-[11px] text-muted-foreground">
+                    {formatDistanceToNow(new Date(entry.createdAt), { addSuffix: true })}
+                  </span>
+                </DropdownMenuItem>
+              ))
+            )
+          ) : chrome.checkpoints.length === 0 ? (
             <div className="px-2 py-3 text-xs text-muted-foreground">
               No checkpoints yet. Save one manually or keep editing to build history.
             </div>
@@ -167,10 +209,14 @@ export function TimelineEditorShellToolbar({
               </DropdownMenuItem>
             ))
           )}
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={() => void chrome.createManualCheckpoint()}>
-            Save checkpoint
-          </DropdownMenuItem>
+          {!chrome.canonicalHistorySupported ? (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => void chrome.createManualCheckpoint()}>
+                Save checkpoint
+              </DropdownMenuItem>
+            </>
+          ) : null}
         </DropdownMenuContent>
       </DropdownMenu>
     </>

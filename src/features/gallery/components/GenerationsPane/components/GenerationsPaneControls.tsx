@@ -182,7 +182,7 @@ export function GenerationsPaneControls({
               type="button"
               className={cn(
                 'h-full px-2.5 transition-colors',
-                filters.mediaTypeFilter !== 'video'
+                filters.mediaTypeFilter === 'image'
                   ? 'bg-zinc-600 text-zinc-100'
                   : 'text-zinc-400 hover:text-zinc-200',
               )}
@@ -201,6 +201,18 @@ export function GenerationsPaneControls({
               onClick={() => filters.onMediaTypeFilterChange('video')}
             >
               Videos
+            </button>
+            <button
+              type="button"
+              className={cn(
+                'h-full px-2.5 transition-colors',
+                filters.mediaTypeFilter === 'audio'
+                  ? 'bg-zinc-600 text-zinc-100'
+                  : 'text-zinc-400 hover:text-zinc-200',
+              )}
+              onClick={() => filters.onMediaTypeFilterChange('audio')}
+            >
+              Audio
             </button>
           </div>
         </div>

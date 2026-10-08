@@ -5,6 +5,7 @@ import type { RenderRuntime } from '@/tools/video-editor/render/renderRuntime.ts
 import type { AssetRegistryEntry, TrackDefinition } from '@/tools/video-editor/types/index.ts';
 import type { AssetRegistry } from '@/tools/video-editor/types/index.ts';
 import type { Checkpoint } from '@/tools/video-editor/types/history.ts';
+import type { CanonicalShotCompositionHistoryEntry } from '@/tools/video-editor/data/shotCompositionAdapter.ts';
 import type { TimelineData } from '@/tools/video-editor/lib/timeline-data.ts';
 
 export type TimelineResolvedConfig = TimelineData['resolvedConfig'] | null;
@@ -63,3 +64,6 @@ export type TimelineStartRender = () => Promise<void>;
 export type TimelineJumpToCheckpoint = (checkpointId: string) => void;
 export type TimelineCreateManualCheckpoint = (label?: string) => Promise<void>;
 export type TimelineCheckpoints = Checkpoint[];
+export type TimelineCanonicalHistory = readonly CanonicalShotCompositionHistoryEntry[];
+export type TimelineRefreshCanonicalHistory = () => Promise<void>;
+export type TimelineRestoreCanonicalRevision = (revisionId: string) => Promise<void>;

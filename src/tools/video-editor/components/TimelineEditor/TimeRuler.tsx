@@ -216,13 +216,7 @@ export function TimeRuler({
       return;
     }
 
-    const time = clientXToTime(event.clientX);
-    if (session.isDragging) {
-      onCursorDrag(time);
-      return;
-    }
-
-    onClickTimeArea(time);
+    onClickTimeArea(clientXToTime(event.clientX));
   };
 
   return (

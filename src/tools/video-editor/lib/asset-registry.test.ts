@@ -7,6 +7,7 @@ import {
   getAssetMediaId,
   getAssetResolutionToken,
   getAssetResolvedSource,
+  getAssetSourceForLocalEdit,
   validateAssetRegistryMediaIds,
 } from '@/tools/video-editor/lib/asset-registry.ts';
 
@@ -26,6 +27,15 @@ describe('asset registry references', () => {
     };
     expect(getAssetImmediateSource(entry)).toBe('/api/runtime/v1/objects/sha256%3Avideo');
     expect(getAssetImmediateSource({ ...entry, src: 'https://bridge/video' })).toBe('https://bridge/video');
+  });
+
+  it('retains resolved URLs only for the same identity and never treats opaque IDs as sources', () => {
+    const previous = { media_id: 'sha256:one', file: 'stale.png', src: '/objects/one' };
+    expect(getAssetSourceForLocalEdit({ media_id: 'sha256:one' }, previous)).toBe('/objects/one');
+    expect(getAssetSourceForLocalEdit({ media_id: 'sha256:two', file: 'stale.png' }, previous)).toBeUndefined();
+    expect(getAssetSourceForLocalEdit({ media_id: 'sha256:two' })).toBeUndefined();
+    expect(getAssetSourceForLocalEdit({ file: 'second.png' }, { file: 'first.png', src: '/first.png' })).toBe('second.png');
+    expect(getAssetSourceForLocalEdit({ media_id: 'sha256:two', file: '/objects/two' })).toBe('/objects/two');
   });
 
   it('retains file-only references and omits malformed entries from maps', () => {

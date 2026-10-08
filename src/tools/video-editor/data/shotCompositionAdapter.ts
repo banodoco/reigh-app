@@ -32,6 +32,25 @@ export type ShotCompositionPublicationReceipt = Readonly<{
   raw?: JsonObject;
 }>;
 
+export type CanonicalShotCompositionHistoryEntry = Readonly<{
+  revisionId: string;
+  projectId: string;
+  parentDocumentId: string;
+  contentDigest: string;
+  createdAt: string;
+  isCurrentHead: boolean;
+}>;
+
+export type ShotCompositionHistoryRequest = ShotCompositionReadRequest;
+
+export type ShotCompositionHistoryRestoreRequest = ShotCompositionReadRequest & Readonly<{
+  revisionId: string;
+}>;
+
+export type ShotCompositionHistoryRestoreReceipt = Readonly<{
+  newHead: string;
+}>;
+
 export type ShotCompositionPublishRequest = Readonly<{
   projectId: string;
   parentDocumentId: string;
@@ -54,6 +73,8 @@ export interface ShotCompositionPort {
   load(request: ShotCompositionReadRequest): Promise<unknown>;
   loadAtHead?(request: ShotCompositionHeadReadRequest): Promise<unknown>;
   publish?(request: ShotCompositionPublishRequest): Promise<unknown>;
+  listHistory?(request: ShotCompositionHistoryRequest): Promise<readonly CanonicalShotCompositionHistoryEntry[]>;
+  restoreHistory?(request: ShotCompositionHistoryRestoreRequest): Promise<ShotCompositionHistoryRestoreReceipt>;
   getSourceFrameThumbnailUrl?(request: SourceFrameThumbnailRequest): Promise<string | null>;
 }
 
@@ -90,6 +111,7 @@ export type CanonicalShotOccurrence = Readonly<{
   gain?: number;
   muted?: boolean;
   transform?: JsonObject;
+  textBindings?: readonly JsonObject[];
   revision: JsonObject;
 }>;
 
@@ -202,6 +224,9 @@ function prepareContract(contract: ShotCompositionContract): PreparedShotComposi
         ...(typeof occurrence.muted === 'boolean' ? { muted: occurrence.muted } : {}),
         ...(occurrence.transform !== undefined && occurrence.transform !== null && typeof occurrence.transform === 'object' && !Array.isArray(occurrence.transform)
           ? { transform: occurrence.transform as JsonObject }
+          : {}),
+        ...(Array.isArray(occurrence.text_bindings)
+          ? { textBindings: occurrence.text_bindings.filter((value): value is JsonObject => value !== null && typeof value === 'object' && !Array.isArray(value)) }
           : {}),
         revision,
       });

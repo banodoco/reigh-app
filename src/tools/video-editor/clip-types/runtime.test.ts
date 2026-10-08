@@ -8,10 +8,46 @@ import {
   getExtensionClipTypeDescriptor,
   getBuiltinClipTypeDescriptor,
   getRegisteredClipTypeDescriptor,
+  getSequenceDescriptorParams,
   isClipTypeCommandAvailable,
 } from '@/tools/video-editor/clip-types/runtime';
 
 describe('clip-type runtime registry', () => {
+  it('projects Astrid effect catalog descriptors into the Inspector registry', () => {
+    const descriptor = getRegisteredClipTypeDescriptor('animated-media-transform');
+    expect(descriptor).toMatchObject({
+      id: 'animated-media-transform',
+      label: 'Animated Media Transform',
+      description: expect.stringContaining('Clip-local transform keyframes'),
+      paramsSchema: { kind: 'sequence' },
+      defaults: { params: { fit: 'contain', keyframes: [{ at: 0, x: 0, y: 0, width: 1920, height: 1080, opacity: 1 }] } },
+    });
+    expect(getSequenceDescriptorParams(descriptor).map(({ key, kind, required }) => ({ key, kind, required })))
+      .toEqual([
+        { key: 'fit', kind: 'string', required: false },
+        { key: 'keyframes', kind: 'json', required: true },
+        { key: 'sourceSegments', kind: 'json', required: false },
+      ]);
+
+    const registry = createEditorClipTypeRegistry({});
+    expect(registry.clipTypes).toContain('animated-media-transform');
+    expect(registry.resolveRegistration('animated-media-transform')).toMatchObject({
+      status: 'available',
+      registration: { id: 'animated-media-transform', source: 'astrid-effect' },
+    });
+  });
+
+  it('keeps a richer trusted sequence descriptor ahead of same-id catalog data', () => {
+    const trusted = getRegisteredClipTypeDescriptor('frame-overlay');
+    expect(trusted?.label).toBe('Frame Overlay');
+    expect(trusted?.hold).toMatchObject({ kind: 'required', maxSeconds: 3600 });
+    const registry = createEditorClipTypeRegistry({ 'frame-overlay': { component: () => null } });
+    expect(registry.resolveRegistration('frame-overlay')).toMatchObject({
+      status: 'available',
+      registration: { source: 'sequence' },
+    });
+  });
+
   it('keeps the audio-reactive colour hold bound above the 168.4375s Runaway fixture', () => {
     expect(getBuiltinClipTypeDescriptor('audio-reactive-colour')?.hold).toMatchObject({
       kind: 'required',

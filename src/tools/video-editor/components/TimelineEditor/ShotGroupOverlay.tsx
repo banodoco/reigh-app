@@ -39,6 +39,10 @@ interface ShotGroupLabelsProps {
   scrollTop: number;
   openShotGroupMenu: (clientX: number, clientY: number, group: PositionedShotGroup) => void;
   onSelectClips?: (clipIds: string[]) => void;
+  onSelectTrack?: (trackId: string) => void;
+  onSelectShotGroup?: (group: PositionedShotGroup) => void;
+  selectedCanonicalOccurrenceId?: string | null;
+  hoveredShotGroupKey?: string | null;
   onShotGroupNavigate?: (shotId: string) => void;
   onShotGroupOpen?: (occurrence: CanonicalShotOccurrence) => void;
 }
@@ -56,6 +60,10 @@ export const ShotGroupLabels = React.memo(function ShotGroupLabels({
   scrollTop,
   openShotGroupMenu,
   onSelectClips,
+  onSelectTrack,
+  onSelectShotGroup,
+  selectedCanonicalOccurrenceId,
+  hoveredShotGroupKey,
   onShotGroupNavigate,
   onShotGroupOpen,
 }: ShotGroupLabelsProps) {
@@ -68,22 +76,41 @@ export const ShotGroupLabels = React.memo(function ShotGroupLabels({
       {positionedShotGroups.map((group) => {
         const labelLeft = group.left - scrollLeft;
         const clippedLeft = Math.max(0, LABEL_WIDTH - labelLeft);
+        const isSelectedCanonical = Boolean(
+          group.canonicalIdentity
+          && selectedCanonicalOccurrenceId === group.canonicalIdentity.occurrenceId,
+        );
+        const isHovered = hoveredShotGroupKey === group.key;
         return (
           <div
             key={`${group.key}:label`}
             className={cn(
-              'absolute cursor-pointer select-none rounded-t-sm transition-opacity',
-              showTouchActions ? 'opacity-100' : 'opacity-30 hover:opacity-100',
+              'group/shot-label absolute overflow-hidden hover:z-10 focus-within:z-10 hover:h-[18px] focus-within:h-[18px] hover:translate-y-0 focus-within:translate-y-0 hover:opacity-100 focus-within:opacity-100 cursor-pointer select-none rounded-t-sm transition-opacity',
+              isHovered ? 'z-10 h-[18px] translate-y-0 opacity-100' : 'z-[1] h-1 translate-y-[14px] opacity-70',
             )}
+            data-shot-group-key={group.key}
             title={group.shotName}
-            {...shotGroupLabelAttrs(group.clipIds[0] ?? '', group.rowId)}
+            aria-pressed={isSelectedCanonical}
+            {...shotGroupLabelAttrs(group.clipIds[0] ?? group.canonicalIdentity?.occurrenceId ?? '', group.rowId)}
             onClick={(event) => {
               event.stopPropagation();
-              onSelectClips?.(group.clipIds);
+              if (onSelectShotGroup) {
+                onSelectShotGroup(group);
+              } else {
+                onSelectTrack?.(group.rowId);
+                onSelectClips?.(group.canonicalIdentity
+                  ? [group.canonicalIdentity.occurrenceId]
+                  : group.clipIds);
+              }
             }}
             onDoubleClick={(event) => {
               event.stopPropagation();
               if (group.canonicalIdentity && onShotGroupOpen) {
+                if (onSelectShotGroup) onSelectShotGroup(group);
+                else {
+                  onSelectTrack?.(group.rowId);
+                  onSelectClips?.([group.canonicalIdentity.occurrenceId]);
+                }
                 onShotGroupOpen(group.canonicalIdentity);
                 return;
               }
@@ -102,23 +129,22 @@ export const ShotGroupLabels = React.memo(function ShotGroupLabels({
               left: labelLeft,
               top: TIME_RULER_HEIGHT + group.top - SHOT_GROUP_LABEL_HEIGHT - scrollTop,
               width: group.width,
-              height: SHOT_GROUP_LABEL_HEIGHT,
-              // Keep the floating label below the sticky track-label column.
+              // Idle labels sit behind clip slots; hover/focus raises them
+              // above clips, still below the sticky track-label column.
               // Clip the scrolled portion as well so it cannot intercept the
               // reorder/settings controls at the left edge of the timeline.
-              zIndex: 10,
               pointerEvents: 'auto',
               ...(clippedLeft > 0 ? { clipPath: `inset(0 0 0 ${Math.min(clippedLeft, group.width)}px)` } : {}),
               background: `color-mix(in srgb, ${group.color} 78%, transparent)`,
             }}
           >
             <span
-              className="pointer-events-none absolute inset-x-2 top-1/2 -translate-y-1/2 truncate text-[10px] font-medium"
+              className={cn('pointer-events-none absolute inset-x-2 top-1/2 -translate-y-1/2 truncate text-[10px] font-medium group-hover/shot-label:opacity-100 group-focus-within/shot-label:opacity-100', !isHovered && 'opacity-0')}
               style={{ color: `color-mix(in srgb, white 92%, ${group.color})` }}
             >
               {group.shotName}
             </span>
-            <div className="pointer-events-none absolute right-1 top-1/2 flex -translate-y-1/2 items-center gap-1">
+            <div className={cn('pointer-events-none absolute right-1 top-1/2 flex -translate-y-1/2 items-center gap-1 group-hover/shot-label:opacity-100 group-focus-within/shot-label:opacity-100', !isHovered && 'opacity-0')}>
               {showTouchActions && (
                 <button
                   type="button"

@@ -23,6 +23,8 @@ function __clearSlotRenderers() {
 
 /** Device class reported by the mocked timeline store; drives the shell layout branch. */
 let __deviceClass: 'desktop' | 'tablet' | 'phone' = 'desktop';
+let __selectedTrackId: string | null = null;
+let __useActualTargetEquality = false;
 /** Per-test overrides merged into the mocked chrome slice. */
 let __chromeOverrides: Record<string, unknown> = {};
 /** Interaction mode reported by the mocked timeline store. */
@@ -53,7 +55,7 @@ vi.mock('@/tools/video-editor/hooks/timelineStore.ts', () => ({
     dataRef: { current: null },
     data: null,
     selectedClipIds: new Set<string>(),
-    selectedTrackId: null,
+    selectedTrackId: __selectedTrackId,
     resolvedConfig: null,
     deviceClass: __deviceClass,
     precisionEnabled: false,
@@ -240,7 +242,12 @@ vi.mock('@/tools/video-editor/lib/mobile-interaction-model.ts', async () => {
   const actual = await vi.importActual<typeof import('@/tools/video-editor/lib/mobile-interaction-model.ts')>(
     '@/tools/video-editor/lib/mobile-interaction-model.ts',
   );
-  return { ...actual, areTimelineInteractionTargetsEqual: () => true };
+  return {
+    ...actual,
+    areTimelineInteractionTargetsEqual: (...args: Parameters<typeof actual.areTimelineInteractionTargetsEqual>) => (
+      __useActualTargetEquality ? actual.areTimelineInteractionTargetsEqual(...args) : true
+    ),
+  };
 });
 
 vi.mock('@/shared/lib/typedEvents.ts', () => ({
@@ -295,6 +302,8 @@ import { TimelineEditorShellCore } from '@/tools/video-editor/components/Timelin
 describe('TimelineEditorShellCore surface slots', () => {
   beforeEach(() => {
     __liveInspectorTarget.value = { kind: 'timeline' as const };
+    __selectedTrackId = null;
+    __useActualTargetEquality = false;
   });
 
   beforeEach(() => {
@@ -1168,7 +1177,7 @@ describe('TimelineEditorShellCore — diverged conflict banner', () => {
 
     render(<TimelineEditorShellCore timelineId="test-timeline" />);
 
-    expect(screen.getByText(/this timeline changed elsewhere/i)).toBeTruthy();
+    expect(screen.getByText(/the timeline version no longer matches this draft/i)).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: /reload/i }));
     expect(reload).toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: /save as copy/i }));
@@ -1177,7 +1186,7 @@ describe('TimelineEditorShellCore — diverged conflict banner', () => {
 
   it('does not render the diverged banner when clean', () => {
     render(<TimelineEditorShellCore timelineId="test-timeline" />);
-    expect(screen.queryByText(/this timeline changed elsewhere/i)).toBeNull();
+    expect(screen.queryByText(/the timeline version no longer matches this draft/i)).toBeNull();
   });
 });
 
@@ -1232,4 +1241,30 @@ describe('TimelineEditorShellCore — recovery draft banner', () => {
     // Empty selection derives {kind:'timeline'}; the host-owned-kind guard
     // must NOT write that placeholder over the extension's live target.
     expect(__editorOps.setInspectorTarget).not.toHaveBeenCalledWith({ kind: 'timeline' });
+  });
+
+  it('preserves a selected occurrence but lets a different track take over the inspector', () => {
+    __useActualTargetEquality = true;
+    __selectedTrackId = 'V1';
+    __liveInspectorTarget.value = {
+      kind: 'shotOccurrence' as const,
+      occurrenceId: 'occurrence-opening',
+      shotId: 'shot-opening',
+      revisionId: 'revision-opening',
+      parentDocumentId: 'timeline-1',
+      shotName: 'Opening',
+      trackId: 'V1',
+      start: 0,
+      end: 2,
+    };
+    const { unmount } = render(<TimelineEditorShellCore timelineId="test-timeline" />);
+
+    expect(__editorOps.setInspectorTarget).not.toHaveBeenCalled();
+
+    unmount();
+    vi.clearAllMocks();
+    __selectedTrackId = 'V2';
+    render(<TimelineEditorShellCore timelineId="test-timeline" />);
+
+    expect(__editorOps.setInspectorTarget).toHaveBeenCalledWith({ kind: 'track', trackId: 'V2' });
   });

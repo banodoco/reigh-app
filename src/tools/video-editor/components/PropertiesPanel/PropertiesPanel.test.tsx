@@ -1072,6 +1072,35 @@ describe('PropertiesPanel — data item inspector dispatch', () => {
     expect(screen.queryByTestId('mock-clip-panel')).not.toBeInTheDocument();
   });
 
+  it('shows the selected canonical occurrence identity instead of an empty clip inspector', () => {
+    const editorData = createDataTargetEditorData({
+      inspectorTarget: {
+        kind: 'shotOccurrence',
+        occurrenceId: 'occurrence-opening',
+        shotId: 'shot-opening',
+        revisionId: 'revision-opening',
+        parentDocumentId: 'timeline-1',
+        shotName: 'Opening',
+        trackId: 'picture',
+        start: 1,
+        end: 5,
+      },
+    });
+    useTimelineEditorDataMock.mockReturnValue({
+      ...editorData,
+      selectedClip: null,
+      selectedClipIds: new Set<string>(),
+      selectedTrackId: 'picture',
+    });
+
+    render(<PropertiesPanel />);
+
+    expect(screen.getByTestId('shot-occurrence-inspector')).toBeInTheDocument();
+    expect(screen.getByTestId('shot-occurrence-inspector-id')).toHaveTextContent('occurrence-opening');
+    expect(screen.getByText('Opening')).toBeInTheDocument();
+    expect(screen.queryByTestId('mock-clip-panel')).not.toBeInTheDocument();
+  });
+
   it('resolves lane items from the patched lane plane, not the store dataLanes (R1)', () => {
     // Store: frozen-empty `dataLanes` default. Only the render-side plane
     // — the same one the canvas renders via useDataLanes — carries lanes.

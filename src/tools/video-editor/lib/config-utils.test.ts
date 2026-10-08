@@ -264,3 +264,30 @@ describe('config-utils media sanitizers', () => {
     }));
   });
 });
+
+describe('end-spanning-layer managed card overrides', () => {
+  const config = {
+    output: { file: 'out.mp4', resolution: '1920x1080', fps: 30 },
+    tracks: [{ id: 'FX', kind: 'visual' as const, label: 'FX' }],
+    clips: [{ id: 'ending', clipType: 'end-spanning-layer', at: 0, hold: 10, track: 'FX', params: { cardAssets: { card4: 'replacement' } } }],
+  };
+  it('resolves managed identity and leaves authored params unchanged', async () => {
+    const result = await resolveTimelineConfig(config, {
+      assets: { replacement: { media_id: 'sha256:replacement', file: 'stale.png', type: 'image/png' } },
+    }, async (token) => `https://runtime.test/${token}`);
+    expect(result.clips[0].params).toEqual({
+      cardAssets: { card4: 'replacement' },
+      __astridAssets: { card4: 'https://runtime.test/sha256:replacement' },
+    });
+    expect(config.clips[0].params).toEqual({ cardAssets: { card4: 'replacement' } });
+    expect(result.clips[0].params?.__astridAssets).not.toHaveProperty('card0');
+  });
+  it('reports missing overrides instead of silently showing an obsolete default', async () => {
+    await expect(resolveTimelineConfig(config, { assets: {} }, async (file) => file)).rejects.toThrow('unresolved asset');
+  });
+  it('keeps legacy clips without card overrides unchanged', async () => {
+    const legacy = { ...config, clips: [{ ...config.clips[0], params: {} }] };
+    const result = await resolveTimelineConfig(legacy, { assets: {} }, async (file) => file);
+    expect(result.clips[0].params).toEqual({});
+  });
+});

@@ -93,6 +93,18 @@ describe('GenerationsPaneControls', () => {
     expect(screen.getByText('3 items')).toBeInTheDocument();
   });
 
+  it('selects audio in the existing media type buttons and highlights only audio', () => {
+    const props = buildProps();
+    props.filters.mediaTypeFilter = 'audio';
+    render(<GenerationsPaneControls {...props} />);
+    const audioButton = screen.getByRole('button', { name: 'Audio' });
+    expect(audioButton).toHaveClass('bg-zinc-600');
+    expect(screen.getByRole('button', { name: 'Images' })).not.toHaveClass('bg-zinc-600');
+    expect(screen.getByRole('button', { name: 'Videos' })).not.toHaveClass('bg-zinc-600');
+    fireEvent.click(audioButton);
+    expect(props.filters.onMediaTypeFilterChange).toHaveBeenCalledWith('audio');
+  });
+
   it('toggles search and starred filters via callbacks', () => {
     const onSearchOpenChange = vi.fn();
     const onStarredOnlyChange = vi.fn();
