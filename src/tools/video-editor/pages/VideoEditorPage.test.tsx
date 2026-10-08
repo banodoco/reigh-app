@@ -2,10 +2,21 @@ import React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useNavigate } from 'react-router-dom';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import VideoEditorPage from '@/tools/video-editor/pages/VideoEditorPage.tsx';
 import { RuntimeAuthenticationError } from '@/integrations/runtime/client.ts';
+import type { DataProvider } from '@/tools/video-editor/data/DataProvider.ts';
+import type { RuntimeDataProvider, RuntimeDataProviderOptions } from '@/integrations/runtime/dataProvider.ts';
+import type { Transport } from '@/integrations/runtime/generated.ts';
+import { RUNTIME_SCHEMA_DIGEST, RUNTIME_TARGETED_EXECUTION_CAPABILITY } from '@/integrations/runtime/contract-metadata.ts';
+import { useTimelineQueries } from '@/tools/video-editor/hooks/useTimelineQueries.ts';
+import { usePollSync, type UsePollSyncQueries } from '@/tools/video-editor/hooks/usePollSync.ts';
+import { assetRegistryQueryKey } from '@/tools/video-editor/hooks/useTimeline.ts';
+import { createInteractionState } from '@/tools/video-editor/lib/interaction-state.ts';
+import * as timelineData from '@/tools/video-editor/lib/timeline-data.ts';
+import { createDefaultTimelineConfig } from '@/tools/video-editor/lib/defaults.ts';
+import type { TimelineConfig, AssetRegistry } from '@/tools/video-editor/types/index.ts';
 import { setDevExtensionEnabled } from '@/tools/video-editor/dev/devExtensionEnablement.ts';
 
 const state = vi.hoisted(() => ({
@@ -50,7 +61,7 @@ const state = vi.hoisted(() => ({
     healthLoading: false,
     projectsLoading: false,
     projectsError: null as Error | null,
-    projects: [] as { slug: string; name: string }[],
+    projects: [] as { slug: string; name: string; project_id?: string }[],
     timelinesLoading: false,
     timelinesError: null as Error | null,
     timelines: [] as {
@@ -61,6 +72,9 @@ const state = vi.hoisted(() => ({
       is_default?: boolean;
     }[],
   },
+  workspaceV1: false,
+  selectedProvider: null as DataProvider | null,
+  providerProbe: null as React.ComponentType<{ dataProvider: DataProvider; timelineId: string }> | null,
   providerMounts: 0,
   providerUnmounts: 0,
   saveStatusCallback: null as null | ((status: 'saved' | 'saving' | 'dirty' | 'retrying' | 'error') => void),
@@ -153,6 +167,11 @@ vi.mock('@/tools/video-editor/hooks/useAstridBridgeDiscovery.ts', () => ({
   }),
 }));
 
+vi.mock('@/integrations/astrid/workspaceV1.ts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/integrations/astrid/workspaceV1.ts')>();
+  return { ...actual, get isAstridWorkspaceV1() { return state.workspaceV1; } };
+});
+
 vi.mock('@/tools/video-editor/data/AstridBridgeDataProvider.ts', () => ({
   AstridBridgeDataProvider: state.bridgeCtor,
 }));
@@ -189,7 +208,7 @@ vi.mock('@/tools/video-editor/contexts/VideoEditorProvider.tsx', async () => {
       timelineOverlaysEnabled,
       children,
     }: {
-      dataProvider: { kind?: string };
+      dataProvider: DataProvider & { kind?: string };
       timelineId: string;
       timelineName?: string | null;
       onSaveStatusChange?: (status: 'saved' | 'saving' | 'dirty' | 'retrying' | 'error') => void;
@@ -197,6 +216,8 @@ vi.mock('@/tools/video-editor/contexts/VideoEditorProvider.tsx', async () => {
       timelineOverlaysEnabled?: boolean;
       children: React.ReactNode;
     }) => {
+      state.selectedProvider = dataProvider;
+      const Probe = state.providerProbe;
       const [saveStatus, setSaveStatus] = ReactModule.useState<'saved' | 'saving' | 'dirty' | 'retrying' | 'error'>('saved');
       state.saveStatusCallback = onSaveStatusChange ?? null;
       state.lastProviderExtensions = extensions ?? null;
@@ -261,6 +282,7 @@ vi.mock('@/tools/video-editor/contexts/VideoEditorProvider.tsx', async () => {
             status-saved
           </button>
           <span data-testid="mock-save-status">{saveStatus}</span>
+          {Probe && <Probe dataProvider={dataProvider} timelineId={timelineId} />}
           {children}
         </div>
       );
@@ -288,6 +310,92 @@ function renderPage(initialEntry: string) {
     </QueryClientProvider>,
   );
 }
+
+
+const L04_PROJECT = 'l04-project-id';
+const L04_TIMELINE = 'l04-timeline';
+const L04_HEAD = 'l04-head-1';
+const L04_NEXT_HEAD = 'l04-head-2';
+const L04_TOKEN = `sha256:${'a'.repeat(64)}`;
+const L04_UNKNOWN = `sha256:${'b'.repeat(64)}`;
+const L04_CARD_URL = `/api/runtime/v1/objects/${encodeURIComponent(L04_TOKEN)}`;
+const l04Config: TimelineConfig = {
+  ...createDefaultTimelineConfig(),
+  clips: [{ id: 'l04-card', at: 0, track: 'V1', clipType: 'end-spanning-layer', hold: 1, params: { cardAssets: { card0: 'l04-card-asset' } } }],
+};
+const l04Registry: AssetRegistry = {
+  assets: { 'l04-card-asset': { file: 'card.png', type: 'image/png', media_id: L04_TOKEN, content_sha256: L04_TOKEN } },
+};
+type L04Build = { status: 'resolved'; data: timelineData.TimelineData } | { status: 'rejected'; error: unknown };
+let l04Builds: L04Build[] = [];
+let l04Queries: ReturnType<typeof useTimelineQueries> | null = null;
+let l04Navigate: ReturnType<typeof useNavigate>;
+
+function makeL04Transport() {
+  const requests: Array<{ provider: string; method: string; path: string }> = [];
+  const providers: RuntimeDataProvider[] = [];
+  let held = false;
+  let revised = false;
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => { release = resolve; });
+  const response = (value: unknown) => ({ status: 200, headers: {}, body: new TextEncoder().encode(JSON.stringify(value)) });
+  const transportFor = (provider: string): Transport => async (method, path) => {
+    requests.push({ provider, method, path });
+    if (path === '/v1/health') return response({ status: 'ok', protocol: 'workspace.v1', schema_digest: RUNTIME_SCHEMA_DIGEST, runtime_epoch: 1 });
+    if (path === '/v1/handshake') return response({ protocol: 'workspace.v1', schema_digest: RUNTIME_SCHEMA_DIGEST, session_id: 'l04-session', actor_id: 'owner', realm_id: 'l04-realm', scopes: ['handshake', 'projects:read'], capabilities: [RUNTIME_TARGETED_EXECUTION_CAPABILITY] });
+    if (path === '/v1/realm') return response({ realm_id: 'l04-realm', display_name: 'L04 offline fixture', version: 1, created_at: '2026-10-08T00:00:00Z' });
+    const inspection = /^\/v1\/projects\/([^/]+)\/timelines\/([^/]+)\/inspect$/.exec(path);
+    if (method === 'POST' && inspection) {
+      if (held) await gate;
+      const head = revised ? L04_NEXT_HEAD : L04_HEAD;
+      return response({ project_id: inspection[1], timeline_id: inspection[2], revision_id: head, head_revision_id: head, is_current_head: true, representation: 'canonical_head', authority: 'runtime_parent_composition' });
+    }
+    const revision = /^\/v1\/projects\/([^/]+)\/timelines\/([^/]+)\/composition-revisions\/([^/]+)$/.exec(path);
+    if (method === 'GET' && revision) {
+      const next = revision[3] === L04_NEXT_HEAD;
+      const registry = next ? { assets: { 'l04-card-asset': { ...l04Registry.assets['l04-card-asset'], metadata: { observedRevision: L04_NEXT_HEAD } } } } : l04Registry;
+      return response({ project_id: revision[1], timeline_id: revision[2], revision_id: revision[3], content_digest: `sha256:${(next ? 'd' : 'c').repeat(64)}`, payload: { config: l04Config, registry, clips: [], occurrences: [] }, created_at: '2026-10-08T00:00:00Z' });
+    }
+    throw new Error(`Unexpected L04 offline transport request: ${method} ${path}`);
+  };
+  return { requests, providers, transportFor, hold: () => { held = true; }, advance: () => { revised = true; held = false; release(); }, release: () => { held = false; release(); } };
+}
+
+function L04PollProbe({ admitted, queries, dataProvider }: { admitted: timelineData.TimelineData; queries: UsePollSyncQueries; dataProvider: DataProvider }) {
+  const dataRef = React.useRef(admitted);
+  const selectedClipIdRef = React.useRef<string | null>(null);
+  const selectedTrackIdRef = React.useRef<string | null>(null);
+  const editSeqRef = React.useRef(0);
+  const pendingOpsRef = React.useRef(0);
+  const savedSeqRef = React.useRef(0);
+  const configVersionRef = React.useRef(admitted.configVersion);
+  const lastSavedSignatureRef = React.useRef(admitted.stableSignature);
+  const isSavingRef = React.useRef(false);
+  const interactionStateRef = React.useRef(createInteractionState());
+  const resolveAssetUrl = React.useCallback((file: string) => dataProvider.resolveAssetUrl(file), [dataProvider]);
+  const commitData = React.useCallback((next: timelineData.TimelineData) => { dataRef.current = next; }, []);
+  usePollSync({ queries, provider: dataProvider, resolveAssetUrl, commitData, dataRef, selectedClipIdRef, selectedTrackIdRef, editSeqRef, pendingOpsRef, savedSeqRef, configVersionRef, lastSavedSignatureRef, isSavingRef, interactionStateRef });
+  return <output data-testid="l04-admitted-card">{(admitted.resolvedConfig.clips[0].params?.__astridAssets as Record<string, string> | undefined)?.card0}</output>;
+}
+
+function L04QueryProbe({ dataProvider, timelineId }: { dataProvider: DataProvider; timelineId: string }) {
+  const resolveAssetUrl = React.useCallback((file: string) => dataProvider.resolveAssetUrl(file), [dataProvider]);
+  const queries = useTimelineQueries(dataProvider, timelineId, resolveAssetUrl);
+  l04Queries = queries;
+  const [admitted, setAdmitted] = React.useState<timelineData.TimelineData | null>(null);
+  React.useEffect(() => { if (queries.timelineQuery.data) setAdmitted((current) => current ?? queries.timelineQuery.data!); }, [queries.timelineQuery.data]);
+  return admitted ? <L04PollProbe admitted={admitted} queries={queries} dataProvider={dataProvider} /> : null;
+}
+
+function L04RouteDriver() { l04Navigate = useNavigate(); return null; }
+function renderL04Page(entry = `/tools/video-editor?localProject=l04-project&localTimeline=${L04_TIMELINE}`) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
+  const tree = () => <QueryClientProvider client={client}><MemoryRouter initialEntries={[entry]} future={{ v7_startTransition: true, v7_relativeSplatPath: true }}><L04RouteDriver /><VideoEditorPage /></MemoryRouter></QueryClientProvider>;
+  const view = render(tree());
+  return { ...view, client, refresh: () => view.rerender(tree()), navigate: (url: string) => act(() => l04Navigate(url)) };
+}
+
+async function flushL04() { await act(async () => { for (let index = 0; index < 30; index += 1) await Promise.resolve(); }); }
 
 describe('VideoEditorPage', () => {
   const originalDEV = import.meta.env.DEV;
@@ -341,6 +449,9 @@ describe('VideoEditorPage', () => {
         is_default: false,
       },
     ];
+    state.workspaceV1 = false;
+    state.selectedProvider = null;
+    state.providerProbe = null;
     state.providerMounts = 0;
     state.providerUnmounts = 0;
     state.saveStatusCallback = null;
@@ -1265,4 +1376,151 @@ describe('VideoEditorPage', () => {
       expect(state.extensionActivations).toEqual([]);
     });
   });
+
+  describe('P2-L04.PROVIDER actual page provider lifetime', () => {
+    let actualRuntime: typeof import('@/integrations/runtime/dataProvider.ts');
+    let runtime: ReturnType<typeof makeL04Transport>;
+    const defaultRuntimeCtor = state.runtimeCtor.getMockImplementation()!;
+
+    beforeAll(async () => { actualRuntime = await vi.importActual<typeof import('@/integrations/runtime/dataProvider.ts')>('@/integrations/runtime/dataProvider.ts'); });
+    beforeEach(() => {
+      state.workspaceV1 = true;
+      state.discovery.projects = [
+        { slug: 'l04-project', name: 'L04 Project', project_id: L04_PROJECT },
+        { slug: 'l04-other', name: 'L04 Other', project_id: 'l04-other-project-id' },
+      ];
+      state.discovery.timelines = [
+        { timeline_id: L04_TIMELINE, name: 'Opening name', is_default: true },
+        { timeline_id: 'l04-other-timeline', name: 'Other timeline' },
+      ];
+      runtime = makeL04Transport();
+      l04Queries = null;
+      l04Builds = [];
+      state.runtimeCtor.mockImplementation(function (_options: unknown) {
+        const options = _options as RuntimeDataProviderOptions;
+        const provider = new actualRuntime.RuntimeDataProvider({ ...options, transport: runtime.transportFor(`provider-${runtime.providers.length + 1}`) });
+        runtime.providers.push(provider);
+        state.runtimeOnError = (options.onRuntimeError as ((error: unknown) => void) | undefined) ?? null;
+        return provider;
+      });
+      const realBuild = timelineData.buildTimelineData;
+      vi.spyOn(timelineData, 'buildTimelineData').mockImplementation((...args) => {
+        const promise = realBuild(...args);
+        void promise.then((data) => { l04Builds.push({ status: 'resolved', data }); }, (error: unknown) => { l04Builds.push({ status: 'rejected', error }); });
+        return promise; // preserve the real build and the real hook's rejection behavior
+      });
+    });
+    afterEach(() => {
+      runtime.release();
+      state.providerProbe = null;
+      state.workspaceV1 = false;
+      vi.restoreAllMocks();
+      state.runtimeCtor.mockImplementation(defaultRuntimeCtor);
+    });
+
+    it.each([false, true])('keeps its admitted provider and card through pending reads and discovered name refresh (initially absent=%s)', async (initiallyAbsent) => {
+      if (initiallyAbsent) {
+        state.discovery.timelinesLoading = true;
+        state.discovery.timelines = [];
+      }
+      state.providerProbe = L04QueryProbe;
+      const view = renderL04Page();
+      try {
+        await screen.findByTestId('l04-admitted-card');
+        await waitFor(() => expect(l04Builds).toHaveLength(1));
+        expect(l04Builds[0].status).toBe('resolved');
+        const admittedProvider = state.selectedProvider!;
+        expect(admittedProvider).toBe(runtime.providers[0]);
+        expect(await admittedProvider.resolveAssetUrl(L04_TOKEN)).toBe(L04_CARD_URL);
+        const admittedRegistry = l04Queries!.assetRegistryQuery.data;
+        const mounts = state.providerMounts;
+        const editorNode = screen.getByTestId('video-editor-provider');
+        runtime.hold();
+        const pending = view.client.refetchQueries({ queryKey: assetRegistryQueryKey(L04_TIMELINE), exact: true });
+        await waitFor(() => expect(view.client.getQueryState(assetRegistryQueryKey(L04_TIMELINE))?.fetchStatus).toBe('fetching'));
+        state.discovery.timelinesLoading = false;
+        state.discovery.timelines = [{ timeline_id: L04_TIMELINE, name: 'Refreshed display name', is_default: true }];
+        view.refresh();
+        await waitFor(() => expect(screen.getByRole('combobox', { name: 'Select timeline' })).toHaveTextContent('Refreshed display name'));
+        expect(screen.getByTestId('video-editor-provider')).toHaveAttribute('data-timeline-name', 'Refreshed display name');
+        expect(screen.getByTestId('video-editor-provider')).toBe(editorNode);
+        expect(state.providerMounts).toBe(mounts);
+        expect(state.providerUnmounts).toBe(0);
+        expect.soft(state.selectedProvider, 'display metadata must retain the admitted state owner').toBe(admittedProvider);
+        runtime.advance();
+        await pending;
+        await waitFor(() => expect(l04Queries!.assetRegistryQuery.data).not.toBe(admittedRegistry));
+        await flushL04();
+        expect(l04Queries!.assetRegistryQuery.data?.assets['l04-card-asset']).toMatchObject({ media_id: L04_TOKEN, content_sha256: L04_TOKEN, metadata: { observedRevision: L04_NEXT_HEAD } });
+        expect(l04Builds).toHaveLength(2);
+        const rebuilt = l04Builds[1];
+        console.info('P2-L04.PROVIDER page name refresh', { initiallyAbsent, providers: runtime.providers.length, mounts: state.providerMounts, rebuild: rebuilt.status, requests: runtime.requests });
+        expect.soft(rebuilt.status, 'the authored card must resolve after its admitted provider finishes the pending read').toBe('resolved');
+        expect.soft(rebuilt.status === 'resolved' ? rebuilt.data.resolvedConfig.clips[0].params?.__astridAssets : undefined).toMatchObject({ card0: L04_CARD_URL });
+        await expect(state.selectedProvider!.resolveAssetUrl(L04_TOKEN)).resolves.toBe(L04_CARD_URL);
+      } finally {
+        view.unmount();
+        view.client.clear();
+        runtime.release();
+        await flushL04();
+      }
+    });
+
+    it('replaces provider and editor at real timeline/project authority changes', async () => {
+      const view = renderL04Page();
+      try {
+        await screen.findByTestId('video-editor-provider');
+        const first = state.selectedProvider;
+        expect(state.providerMounts).toBe(1);
+        view.navigate('/tools/video-editor?localProject=l04-project&localTimeline=l04-other-timeline');
+        await waitFor(() => expect(state.providerMounts).toBe(2));
+        const second = state.selectedProvider;
+        expect(second).not.toBe(first);
+        expect(screen.getByTestId('video-editor-provider')).toHaveAttribute('data-timeline-id', 'l04-other-timeline');
+        view.navigate('/tools/video-editor?localProject=l04-other&localTimeline=l04-other-timeline');
+        await waitFor(() => expect(state.providerMounts).toBe(3));
+        expect(state.selectedProvider).not.toBe(second);
+        expect(state.providerUnmounts).toBe(2);
+        expect(state.runtimeCtor.mock.calls.map(([options]) => (options as RuntimeDataProviderOptions).projectId)).toEqual([L04_PROJECT, L04_PROJECT, 'l04-other-project-id']);
+      } finally { view.unmount(); view.client.clear(); }
+    });
+
+    it('replaces provider/remount on local-to-runtime mode change and retries through the current provider', async () => {
+      const view = renderL04Page();
+      try {
+        await screen.findByTestId('video-editor-provider');
+        const localProvider = state.selectedProvider;
+        view.navigate(`/tools/video-editor?runtime=1&runtimeProject=${L04_PROJECT}&runtimeTimeline=${L04_TIMELINE}`);
+        await waitFor(() => expect(state.providerMounts).toBe(2));
+        const currentProvider = state.selectedProvider as RuntimeDataProvider;
+        expect(currentProvider).not.toBe(localProvider);
+        expect(state.providerUnmounts).toBe(1);
+        const reconnect = vi.spyOn(currentProvider, 'reconnect');
+        act(() => state.runtimeOnError?.(new RuntimeAuthenticationError('/api/runtime')));
+        await screen.findByTestId('runtime-connector-alert');
+        await userEvent.setup().click(screen.getByRole('button', { name: 'Retry Runtime connection' }));
+        await waitFor(() => expect(reconnect).toHaveBeenCalledTimes(1));
+        await waitFor(() => expect(screen.queryByTestId('runtime-connector-alert')).toBeNull());
+        expect(state.selectedProvider).toBe(currentProvider);
+        expect(runtime.requests.every(({ provider }) => provider === 'provider-2')).toBe(true);
+        view.navigate(`/tools/video-editor?localProject=l04-project&localTimeline=${L04_TIMELINE}`);
+        await waitFor(() => expect(state.providerMounts).toBe(3));
+        expect(state.selectedProvider).not.toBe(currentProvider);
+      } finally { view.unmount(); view.client.clear(); }
+    });
+
+    it('resolves a known card and rejects a truly unknown token on the page-selected provider', async () => {
+      const view = renderL04Page();
+      try {
+        await screen.findByTestId('video-editor-provider');
+        const provider = state.selectedProvider!;
+        const data = await timelineData.loadTimelineJsonFromProvider(provider, L04_TIMELINE);
+        expect(data.resolvedConfig.clips[0].params?.__astridAssets).toMatchObject({ card0: L04_CARD_URL });
+        expect(await provider.resolveAssetUrl(L04_TOKEN)).toBe(L04_CARD_URL);
+        await expect(provider.resolveAssetUrl(L04_UNKNOWN)).rejects.toThrow(`Workspace Runtime has no managed object for asset ${L04_UNKNOWN}`);
+        expect(runtime.requests.some(({ path }) => path.startsWith('/v1/objects/'))).toBe(false);
+      } finally { view.unmount(); view.client.clear(); }
+    });
+  });
+
 });

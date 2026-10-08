@@ -60,6 +60,11 @@ declare module '@astrid/packs/rendering/editor/catalog' {
   export const ASTRID_EDITOR_EXTENSIONS: readonly ReighExtension[];
 }
 
+declare module '@astrid/packs/rendering/elements/_shared/readiness-image' {
+  export const ReadinessImage: (props: import('react').ComponentProps<typeof import('remotion').Img> & {
+    mediaId?: string;
+  }) => import('react').ReactElement;
+}
 declare module '@astrid/packs/local/elements/effects/end-spanning-layer/component.tsx' {
   const EndSpanningLayer: (props: {
     clip: unknown;
