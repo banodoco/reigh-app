@@ -259,6 +259,31 @@ const RemotionPreviewComponent = forwardRef<PreviewHandle, RemotionPreviewProps>
     }
   }, []);
 
+  useEffect(() => {
+    const container = playerContainerRef.current;
+    if (!container) return undefined;
+
+    let readyFrame: number | null = null;
+    const markPreviewFrameReady = () => {
+      // A canvas can exist while its media is still fetching (or has failed).
+      // Wait for the decoder callback and one paint before exposing the preview.
+      container.dataset.astridPreviewFrameReady = 'true';
+    };
+    const inspectDecodedFrame = () => {
+      if (readyFrame === null && container.querySelector('[data-preview-decoded-frame="true"]')) {
+        readyFrame = requestAnimationFrame(markPreviewFrameReady);
+      }
+    };
+    const observer = new MutationObserver(inspectDecodedFrame);
+    observer.observe(container, {childList: true, subtree: true, attributes: true, attributeFilter: ['data-preview-decoded-frame']});
+    inspectDecodedFrame();
+    return () => {
+      observer.disconnect();
+      if (readyFrame !== null) cancelAnimationFrame(readyFrame);
+      delete container.dataset.astridPreviewFrameReady;
+    };
+  }, [playerContainerRef]);
+
   useImperativeHandle(ref, () => ({
     seek,
     play,
