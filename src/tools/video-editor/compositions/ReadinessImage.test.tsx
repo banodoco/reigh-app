@@ -50,13 +50,14 @@ describe('owned still cleanup and recovery', () => {
     expect(native.cleanup).not.toHaveBeenCalled();
   });
 
-  it('does not let a same-source remount settle the new occurrence from a stale callback', () => {
+  it('does not let an unmounted occurrence settle a new same-source mount from a stale callback', () => {
     const next = vi.fn();
-    const view = render(<ReadinessImage src="/same.png" mediaId="first" onImageFrame={vi.fn()} />);
+    const first = render(<ReadinessImage src="/same.png" mediaId="first" onImageFrame={vi.fn()} />);
     const staleCallback = native.props.onImageFrame;
     const staleImage = document.querySelector('img');
 
-    view.rerender(<ReadinessImage src="/same.png" mediaId="second" onImageFrame={next} />);
+    first.unmount();
+    render(<ReadinessImage src="/same.png" mediaId="second" onImageFrame={next} />);
     act(() => staleCallback(staleImage));
 
     expect(next).not.toHaveBeenCalled();
