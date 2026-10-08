@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { loadTimelineJsonFromProvider } from '@/tools/video-editor/lib/timeline-data.ts';
 import { assetRegistryQueryKey, timelineQueryKey } from '@/tools/video-editor/hooks/useTimeline.ts';
 import type { DataProvider } from '@/tools/video-editor/data/DataProvider.ts';
+import type { AssetResolver } from '@/tools/video-editor/data/AssetResolver.ts';
 import type { TimelineData } from '@/tools/video-editor/lib/timeline-data.ts';
 
 export const DEFAULT_TIMELINE_REFRESH_INTERVAL_MS = 30_000;
@@ -33,7 +34,7 @@ export function getTimelineRefreshOptions(provider: DataProvider) {
 export function useTimelineQueries(
   provider: DataProvider,
   timelineId: string,
-  resolveAssetUrl?: (file: string) => Promise<string>,
+  resolveAssetUrl?: ((file: string) => Promise<string>) | AssetResolver,
   initialData?: TimelineData,
 ) {
   const refreshOptions = getTimelineRefreshOptions(provider);
@@ -44,7 +45,9 @@ export function useTimelineQueries(
   const timelineQuery = useQuery({
     queryKey: timelineKey,
     enabled: Boolean(timelineId),
-    queryFn: () => loadTimelineJsonFromProvider(provider, timelineId, resolveAssetUrl),
+    queryFn: () => typeof resolveAssetUrl === 'object' && resolveAssetUrl !== null
+      ? loadTimelineJsonFromProvider(provider, resolveAssetUrl, timelineId)
+      : loadTimelineJsonFromProvider(provider, timelineId, resolveAssetUrl),
     ...(initialData ? { initialData } : {}),
     ...refreshOptions,
   });

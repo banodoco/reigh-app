@@ -26,9 +26,22 @@ export type {
   UploadAssetOptions,
 } from '@/tools/video-editor/data/AssetResolver.ts';
 
+/** An opaque CAS base. Null is an explicit first publication, not unknown provenance. */
+export interface TimelineHeadRevision {
+  projectId: string;
+  timelineId: string;
+  headRevisionId: string | null;
+}
+
+export interface TimelineSaveReceipt {
+  configVersion: number;
+  head: TimelineHeadRevision;
+}
+
 export interface LoadedTimeline {
   config: TimelineConfig;
   configVersion: number;
+  head?: TimelineHeadRevision;
   /**
    * Persisted data-lane source items ([CONVERGE-WITH-M1] TimelineBundle),
    * parsed fail-closed by the provider on load. `null` = nothing persisted;
@@ -57,6 +70,16 @@ export class TimelineNotFoundError extends Error {
 export function isTimelineNotFoundError(error: unknown): error is TimelineNotFoundError {
   return error instanceof TimelineNotFoundError
     || (error instanceof Error && error.name === 'TimelineNotFoundError');
+}
+
+/** Provider-wide outages must not enter the timeline save retry backoff. */
+export function isProviderUnavailableError(error: unknown): boolean {
+  const code = error && typeof error === 'object' && 'code' in error
+    ? (error as { code?: unknown }).code
+    : undefined;
+  return code === 'runtime_unavailable'
+    || code === 'runtime_authentication'
+    || code === 'runtime_incompatible';
 }
 
 // ---------------------------------------------------------------------------
@@ -344,6 +367,14 @@ export interface ExtensionPersistenceService {
 // ---------------------------------------------------------------------------
 
 export interface DataProvider extends AssetResolver {
+  /** When present, writes MUST use this immutable-head CAS path, never numeric versions. */
+  saveTimelineAtHead?(
+    timelineId: string,
+    config: TimelineConfig,
+    expectedHead: TimelineHeadRevision,
+    registry?: AssetRegistry,
+    bundle?: TimelineBundleEnvelope | null,
+  ): Promise<TimelineSaveReceipt>;
   /** Optional canonical shot-composition boundary. Legacy shot records are not a fallback. */
   shotComposition?: ShotCompositionPort;
   /** Optional provider-owned generation lookup for editor asset actions. */

@@ -517,7 +517,10 @@ export function useTimelineState(services: TimelineHostServiceHooks, initialTime
 
     return await runtime.provider.resolveAssetUrl(file);
   }, [runtime.assetResolver, runtime.provider]);
-  const queries = useTimelineQueries(runtime.provider, runtime.timelineId, resolveAssetUrl, initialTimelineData);
+  // Pass the resolver object through the initial-load path so head-aware
+  // providers can assemble against the immutable registry snapshot returned
+  // with the timeline, rather than their mutable active registry.
+  const queries = useTimelineQueries(runtime.provider, runtime.timelineId, runtime.assetResolver, initialTimelineData);
   // A rejected load query is otherwise consumed by nobody: `isLoading` goes
   // false, no render throws, and the shell mounts an empty editor. Surfaced on
   // the chrome slice so the shell can put an error card where the timeline goes.

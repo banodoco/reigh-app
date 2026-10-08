@@ -7,6 +7,7 @@ vi.stubGlobal('indexedDB', fakeIndexedDb);
 vi.stubGlobal('IDBKeyRange', (await import('fake-indexeddb')).IDBKeyRange);
 
 import {
+  advanceTimelineDraftBaseAfterHeadAcknowledgement,
   clearTimelineDraft,
   clearTimelineDraftIfMatches,
   loadTimelineDraft,
@@ -177,6 +178,39 @@ describe('timelineDraftIndexedDb — one-slot recovery draft (plan-v5 B9)', () =
         draft: { config: { name: 'B' } },
       });
       expect(reopened?.draft.canonicalPublication).toEqual({ idempotencyKey: 'publish-A' });
+  });
+
+  it('advances only the queued draft that is still based on the acknowledged head', async () => {
+    const key = 'occurrence-head-advance';
+    const expectedHead = { projectId: 'project', timelineId: 'timeline', headRevisionId: 'head-0' };
+    const acknowledgedHead = { ...expectedHead, headRevisionId: 'head-1' };
+    await saveTimelineDraft('timeline', { config: { name: 'B' } }, 2, {
+      recoveryKey: key,
+      ownerId: 'owner-B',
+      baseHeadProjectId: expectedHead.projectId,
+      baseHeadTimelineId: expectedHead.timelineId,
+      baseHeadRevisionId: expectedHead.headRevisionId,
+    });
+
+    expect(await advanceTimelineDraftBaseAfterHeadAcknowledgement(
+      key,
+      'wrong-owner',
+      expectedHead,
+      acknowledgedHead,
+    )).toBe(false);
+    expect(await advanceTimelineDraftBaseAfterHeadAcknowledgement(
+      key,
+      'owner-B',
+      expectedHead,
+      acknowledgedHead,
+    )).toBe(true);
+    expect(await loadTimelineDraft(key)).toMatchObject({
+      ownerId: 'owner-B',
+      baseHeadProjectId: 'project',
+      baseHeadTimelineId: 'timeline',
+      baseHeadRevisionId: 'head-1',
+      draft: { config: { name: 'B' } },
+    });
   });
 
   it('drafts for different timelines do not collide', async () => {

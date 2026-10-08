@@ -617,7 +617,7 @@ function TimelineEditorShellCoreComponent({
 
   /** Recovery draft banner (B9): a previous session left unsaved work in the
    *  one-slot draft. Offer Retry (re-POST the draft) or Discard. */
-  const recoveryBanner = chrome.recoveryDraft ? (
+  const recoveryBanner = chrome.recoveryDraft && !conflict.isOpen && !chrome.isConflictExhausted ? (
     <div
       role="alert"
       className="flex items-center justify-between gap-3 border-b border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm"
@@ -625,9 +625,10 @@ function TimelineEditorShellCoreComponent({
       <span>
         We recovered unsaved changes from a previous session (draft from{' '}
         {new Date(chrome.recoveryDraft.updatedAt).toLocaleString()}).
+        {chrome.recoveryDraft.retryAllowed === false && ' The original editing head is unknown. This draft is preserved; discard it or resolve it explicitly before saving.'}
       </span>
       <div className="flex items-center gap-2">
-        <Button type="button" size="sm" variant="outline" onClick={() => void chrome.retryRecoveredDraft()}>
+        <Button type="button" size="sm" variant="outline" disabled={chrome.recoveryDraft.retryAllowed === false} onClick={() => void chrome.retryRecoveredDraft()}>
           Retry
         </Button>
         <Button type="button" size="sm" variant="outline" onClick={() => void chrome.discardRecoveredDraft()}>

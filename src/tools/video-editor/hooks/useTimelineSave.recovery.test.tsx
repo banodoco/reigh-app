@@ -72,6 +72,8 @@ describe('useTimelineSave stable occurrence recovery', () => {
     reloadFromServer.mockRejectedValueOnce(new Error('canonical reload failed'));
     recovery.persistence = {
       scheduleSave: vi.fn(),
+      resumeDeferredRecoverySave: vi.fn(),
+      clearDeferredRecoverySave: vi.fn(),
       flushPendingSave: vi.fn(async () => 1),
       saveStatus: 'saved',
       isConflictExhausted: false,

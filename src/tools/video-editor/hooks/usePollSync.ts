@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, type Mutable
 import { isInteractionActive, onInteractionEnd, type InteractionStateRef } from '@/tools/video-editor/lib/interaction-state.ts';
 import { shouldAcceptPolledData } from '@/tools/video-editor/lib/timeline-save-utils.ts';
 import { buildTimelineData, preserveUploadingClips, type TimelineData } from '@/tools/video-editor/lib/timeline-data.ts';
-import type { DataProvider } from '@/tools/video-editor/data/DataProvider.ts';
+import type { DataProvider, TimelineHeadRevision } from '@/tools/video-editor/data/DataProvider.ts';
 import type { CommitDataOptions } from '@/tools/video-editor/hooks/useTimelineCommit.ts';
 import type { TimelineStoreApi } from '@/tools/video-editor/hooks/timelineStore.ts';
 
@@ -50,6 +50,9 @@ interface UsePollSyncOptions {
   pendingOpsRef: MutableRefObject<number>;
   savedSeqRef: MutableRefObject<number>;
   configVersionRef: MutableRefObject<number>;
+  headRevisionRef?: MutableRefObject<TimelineHeadRevision | undefined>;
+  recoveryActiveRef?: MutableRefObject<boolean>;
+  canonicalReloadInProgressRef?: MutableRefObject<boolean>;
   lastSavedSignatureRef: MutableRefObject<string>;
   isSavingRef: MutableRefObject<boolean>;
   interactionStateRef: InteractionStateRef;
@@ -137,6 +140,9 @@ export function usePollSync({
   pendingOpsRef,
   savedSeqRef,
   configVersionRef,
+  headRevisionRef,
+  recoveryActiveRef,
+  canonicalReloadInProgressRef,
   lastSavedSignatureRef,
   isSavingRef,
   interactionStateRef,
@@ -145,6 +151,8 @@ export function usePollSync({
 }: UsePollSyncOptions): void {
   const lastRegistryDataRef = useRef<Awaited<ReturnType<DataProvider['loadAssetRegistry']>> | null>(null);
   const commitDataRef = useRef(commitData);
+  const canonicalShotDraftActiveRef = useRef(canonicalShotDraftActive);
+  canonicalShotDraftActiveRef.current = canonicalShotDraftActive;
   const latestObservedRemoteConfigVersionRef = useRef<number | null>(null);
   // Newest polled timeline data observed while a drag/resize was in flight.
   // Replayed via the normal commit path on gesture end.
@@ -201,13 +209,33 @@ export function usePollSync({
   }, [configVersionRef]);
 
   const getPollRejectionReason = useCallback((polledData: TimelineData): string | null => {
-    return getTimelinePollRejectionReason({
+    if (isConflictExhaustedRef?.current) return 'diverged';
+    if (canonicalReloadInProgressRef?.current) return 'reloading';
+    if (getDataRef().current && recoveryActiveRef?.current) return 'recovery active';
+    const gate = {
       editSeq: editSeqRef.current,
       savedSeq: savedSeqRef.current,
       pendingOps: getPendingOpsRef().current,
       isSaving: isSavingRef.current,
       interactionActive: isInteractionActive(getInteractionStateRef()),
-      canonicalShotDraftActive,
+      canonicalShotDraftActive: canonicalShotDraftActiveRef.current,
+    };
+    if (provider.saveTimelineAtHead && isTimelinePollIdle(gate)) {
+      if (!polledData.head) return 'unknown head';
+      const currentHead = headRevisionRef?.current;
+      if (currentHead && (currentHead.projectId !== polledData.head.projectId || currentHead.timelineId !== polledData.head.timelineId)) return 'different scope';
+      // A same-payload remote publication still changes the CAS base. Local
+      // counters have no ordering meaning across provider instances.
+      if (!currentHead || currentHead.headRevisionId !== polledData.head.headRevisionId) {
+        // The numeric version is not the CAS authority, but it is still a
+        // useful freshness fence within this live editor. A delayed response
+        // from the old head must not roll back a newer acknowledged head.
+        if (currentHead && polledData.configVersion <= configVersionRef.current) return 'stale head';
+        return null;
+      }
+    }
+    return getTimelinePollRejectionReason({
+      ...gate,
       polledConfigVersion: polledData.configVersion,
       currentConfigVersion: configVersionRef.current,
       polledStableSignature: polledData.stableSignature,
@@ -221,7 +249,12 @@ export function usePollSync({
     getInteractionStateRef,
     getPendingOpsRef,
     savedSeqRef,
-    canonicalShotDraftActive,
+    canonicalReloadInProgressRef,
+    getDataRef,
+    headRevisionRef,
+    isConflictExhaustedRef,
+    provider,
+    recoveryActiveRef,
   ]);
 
   const logPollRejection = useCallback((phase: PollCheckPhase, polledData: TimelineData, reason: string) => {
@@ -254,7 +287,7 @@ export function usePollSync({
   }, [getInteractionStateRef]);
 
   useEffect(() => {
-    const polledData = deferredPolledDataRef.current ?? queries.timelineQuery.data;
+    const polledData = queries.timelineQuery.data ?? deferredPolledDataRef.current;
     if (!polledData) {
       return;
     }
@@ -281,8 +314,22 @@ export function usePollSync({
     }
     // We accepted this payload — clear any stale deferred reference.
     deferredPolledDataRef.current = null;
+    const dataAtPreflight = getDataRef().current;
+    const seqAtPreflight = editSeqRef.current;
+    const headAtPreflight = headRevisionRef?.current;
 
     const syncHandle = window.setTimeout(() => {
+      if (getDataRef().current !== dataAtPreflight || editSeqRef.current !== seqAtPreflight) return;
+      if (provider.saveTimelineAtHead && headRevisionRef) {
+        const currentHead = headRevisionRef.current;
+        const sameHead = currentHead?.projectId === headAtPreflight?.projectId
+          && currentHead?.timelineId === headAtPreflight?.timelineId
+          && currentHead?.headRevisionId === headAtPreflight?.headRevisionId;
+        if (!sameHead) {
+          logPollRejection('timeout', resolvedPolledData, 'editing head advanced');
+          return;
+        }
+      }
       const timeoutRejectionReason = getPollRejectionReason(resolvedPolledData);
       if (timeoutRejectionReason) {
         logPollRejection('timeout', resolvedPolledData, timeoutRejectionReason);
@@ -299,6 +346,7 @@ export function usePollSync({
       latestObservedRemoteConfigVersionRef.current = resolvedPolledData.configVersion;
       logConfigVersionUpdate('poll', resolvedPolledData.configVersion);
       configVersionRef.current = resolvedPolledData.configVersion;
+      if (headRevisionRef) headRevisionRef.current = resolvedPolledData.head;
       // Mirror into the store's canonical version channel (outside the data
       // object) so reader/ops/sync see the adopted version.
       store?.getState().setConfigVersion(resolvedPolledData.configVersion);
@@ -312,6 +360,8 @@ export function usePollSync({
     return () => window.clearTimeout(syncHandle);
   }, [
     configVersionRef,
+    headRevisionRef,
+    editSeqRef,
     dataRef,
     getPollRejectionReason,
     interactionEndTick,
@@ -323,22 +373,29 @@ export function usePollSync({
     canonicalShotDraftActive,
     queries.timelineQuery.data,
     store,
+    provider.saveTimelineAtHead,
   ]);
 
   useEffect(() => {
+    // Head-authoritative providers deliver registry and config together from
+    // one immutable revision. A separate registry query has no head evidence.
+    if (provider.saveTimelineAtHead) return;
     const current = getDataRef().current;
     const registry = queries.assetRegistryQuery.data;
 
     if (
       !current
       || !registry
+      || isConflictExhaustedRef?.current
+      || recoveryActiveRef?.current
+      || canonicalReloadInProgressRef?.current
       || !isTimelinePollIdle({
         editSeq: editSeqRef.current,
         savedSeq: savedSeqRef.current,
         pendingOps: getPendingOpsRef().current,
         isSaving: isSavingRef.current,
         interactionActive: isInteractionActive(getInteractionStateRef()),
-        canonicalShotDraftActive,
+        canonicalShotDraftActive: canonicalShotDraftActiveRef.current,
       })
       || registry === lastRegistryDataRef.current
     ) {
@@ -346,13 +403,20 @@ export function usePollSync({
     }
 
     lastRegistryDataRef.current = registry;
+    let cancelled = false;
+    let syncHandle: number | undefined;
+    const seqAtBuild = editSeqRef.current;
+    const headAtBuild = current.head;
 
     void buildTimelineData(
       current.config,
       registry,
       resolveAssetUrl ?? ((file) => provider.resolveAssetUrl(file)),
       current.configVersion,
+      current.sourceItemsBySchemaRef,
+      current.head,
     ).then((nextData) => {
+      if (cancelled || getDataRef().current !== current || editSeqRef.current !== seqAtBuild) return;
       if (
         nextData.stableSignature === current.stableSignature
         && Object.keys(nextData.assetMap).length === Object.keys(current.assetMap).length
@@ -360,14 +424,17 @@ export function usePollSync({
         return;
       }
 
-      const syncHandle = window.setTimeout(() => {
-        if (!isTimelinePollIdle({
+      syncHandle = window.setTimeout(() => {
+        if (cancelled || getDataRef().current !== current || editSeqRef.current !== seqAtBuild
+          || (provider.saveTimelineAtHead && headRevisionRef && (headRevisionRef.current?.headRevisionId !== headAtBuild?.headRevisionId))
+          || isConflictExhaustedRef?.current || recoveryActiveRef?.current || canonicalReloadInProgressRef?.current
+          || !isTimelinePollIdle({
           editSeq: editSeqRef.current,
           savedSeq: savedSeqRef.current,
           pendingOps: getPendingOpsRef().current,
           isSaving: isSavingRef.current,
           interactionActive: isInteractionActive(getInteractionStateRef()),
-          canonicalShotDraftActive,
+          canonicalShotDraftActive: canonicalShotDraftActiveRef.current,
         })) {
           return;
         }
@@ -381,8 +448,11 @@ export function usePollSync({
         });
       }, 0);
 
-      return () => window.clearTimeout(syncHandle);
-    });
+    }).catch(() => {});
+    return () => {
+      cancelled = true;
+      if (syncHandle !== undefined) window.clearTimeout(syncHandle);
+    };
   }, [
     editSeqRef,
     isSavingRef,
@@ -396,5 +466,10 @@ export function usePollSync({
     getInteractionStateRef,
     canonicalShotDraftActive,
     getPendingOpsRef,
+    isConflictExhaustedRef,
+    recoveryActiveRef,
+    canonicalReloadInProgressRef,
+    headRevisionRef,
+    provider.saveTimelineAtHead,
   ]);
 }

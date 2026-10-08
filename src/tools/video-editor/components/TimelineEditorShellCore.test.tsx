@@ -1229,6 +1229,29 @@ describe('TimelineEditorShellCore — recovery draft banner', () => {
     render(<TimelineEditorShellCore timelineId="test-timeline" />);
     expect(screen.queryByText(/recovered unsaved changes/i)).toBeNull();
   });
+  it('hides recovery controls while the conflict surface is active', () => {
+    __chromeOverrides = {
+      isConflictExhausted: true,
+      recoveryDraft: { updatedAt: '2026-10-08T13:43:57Z', baseVersion: 1 },
+    };
+    render(<TimelineEditorShellCore timelineId="test-timeline" />);
+    expect(screen.getByText(/the timeline version no longer matches this draft/i)).toBeTruthy();
+    expect(screen.queryByText(/recovered unsaved changes/i)).toBeNull();
+    expect(screen.queryByRole('button', { name: /^retry$/i })).toBeNull();
+  });
+  it('marks unknown recovery provenance and disables Retry', () => {
+    const retry = vi.fn();
+    __chromeOverrides = {
+      recoveryDraft: { updatedAt: '2026-10-08T13:43:57Z', baseVersion: 1, retryAllowed: false },
+      retryRecoveredDraft: retry,
+    };
+    render(<TimelineEditorShellCore timelineId="test-timeline" />);
+    expect(screen.getByText(/original editing head is unknown/i)).toBeTruthy();
+    const button = screen.getByRole('button', { name: /^retry$/i });
+    expect(button.hasAttribute('disabled')).toBe(true);
+    fireEvent.click(button);
+    expect(retry).not.toHaveBeenCalled();
+  });
 });
   it('does not snap a live dataItem target back to the timeline placeholder (groken LIVE-1)', () => {
     __liveInspectorTarget.value = {

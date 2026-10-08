@@ -551,6 +551,7 @@ export function useTimelineCommit({
     const nextData = assembleTimelineData({
       config: migratedConfig,
       configVersion: current.configVersion,
+      head: current.head,
       registry: nextRegistry,
       resolvedConfig: {
         output: { ...migratedConfig.output },
@@ -611,6 +612,7 @@ export function useTimelineCommit({
     const nextData = assembleTimelineData({
       config: migratedConfig,
       configVersion: current.configVersion,
+      head: current.head,
       registry: nextRegistry,
       resolvedConfig: {
         output: { ...migratedConfig.output },

@@ -8,6 +8,8 @@
  * outbox: no ULIDs, no ordering, no automatic replay.
  */
 
+import type { TimelineHeadRevision } from '@/tools/video-editor/data/DataProvider.ts';
+
 const DATABASE_NAME = 'reigh.timeline-drafts';
 const DATABASE_VERSION = 1;
 const DRAFT_STORE_NAME = 'timeline-drafts';
@@ -26,6 +28,9 @@ export interface TimelineDraftRecord {
   ownerId?: string;
   updatedAt: string;
   baseHeadRevisionId?: string | null;
+  /** Scope evidence for immutable-head recovery; legacy unscoped heads are untrusted. */
+  baseHeadProjectId?: string;
+  baseHeadTimelineId?: string;
   baseCanonicalGraph?: Record<string, unknown>;
   draftIdentity?: string;
   acknowledgementIdentity?: string;
@@ -36,9 +41,54 @@ export interface TimelineDraftRecoveryMetadata {
   /** Compare-and-delete owner for editor save acknowledgements. */
   ownerId?: string;
   baseHeadRevisionId?: string | null;
+  baseHeadProjectId?: string;
+  baseHeadTimelineId?: string;
   baseCanonicalGraph?: Record<string, unknown>;
   draftIdentity?: string;
   acknowledgementIdentity?: string;
+}
+
+/**
+ * Move a queued descendant draft onto the immutable head acknowledged by its
+ * predecessor. The compare is deliberately scoped by owner and full head
+ * identity: an older ACK must never rewrite a newer edit or a draft from
+ * another project/timeline.
+ */
+export async function advanceTimelineDraftBaseAfterHeadAcknowledgement(
+  recoveryKey: string,
+  ownerId: string,
+  expectedHead: TimelineHeadRevision,
+  acknowledgedHead: TimelineHeadRevision,
+): Promise<boolean> {
+  if (typeof indexedDB === 'undefined') return false;
+  const database = await openDatabase();
+  const advanced = await new Promise<boolean>((resolve, reject) => {
+    const transaction = database.transaction(DRAFT_STORE_NAME, 'readwrite');
+    const store = transaction.objectStore(DRAFT_STORE_NAME);
+    const request = store.get(buildKey(recoveryKey));
+    let updated = false;
+    request.addEventListener('success', () => {
+      const current = request.result as TimelineDraftRecord | undefined;
+      if (!current
+        || current.ownerId !== ownerId
+        || current.baseHeadProjectId !== expectedHead.projectId
+        || current.baseHeadTimelineId !== expectedHead.timelineId
+        || current.baseHeadRevisionId !== expectedHead.headRevisionId) return;
+
+      store.put({
+        ...current,
+        baseHeadProjectId: acknowledgedHead.projectId,
+        baseHeadTimelineId: acknowledgedHead.timelineId,
+        baseHeadRevisionId: acknowledgedHead.headRevisionId,
+      });
+      updated = true;
+    });
+    request.addEventListener('error', () => reject(request.error));
+    transaction.addEventListener('complete', () => resolve(updated));
+    transaction.addEventListener('error', () => reject(transaction.error));
+  });
+  database.close();
+  return advanced;
 }
 
 function getIndexedDb(): IDBFactory {
@@ -85,6 +135,8 @@ function createDraftRecord(
     ...(recoveryMetadata.baseHeadRevisionId !== undefined
       ? { baseHeadRevisionId: recoveryMetadata.baseHeadRevisionId }
       : {}),
+    ...(recoveryMetadata.baseHeadProjectId !== undefined ? { baseHeadProjectId: recoveryMetadata.baseHeadProjectId } : {}),
+    ...(recoveryMetadata.baseHeadTimelineId !== undefined ? { baseHeadTimelineId: recoveryMetadata.baseHeadTimelineId } : {}),
     ...(recoveryMetadata.baseCanonicalGraph
       ? { baseCanonicalGraph: recoveryMetadata.baseCanonicalGraph }
       : {}),

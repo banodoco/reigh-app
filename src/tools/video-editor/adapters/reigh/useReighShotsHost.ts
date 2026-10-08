@@ -7,6 +7,7 @@ import {
   canonicalSourceFrameRequest,
   type ShotCompositionPort,
 } from '@/tools/video-editor/data/shotCompositionAdapter.ts';
+import { isProviderUnavailableError } from '@/tools/video-editor/data/DataProvider.ts';
 import { selectCanonicalShotViewModels } from '@/tools/video-editor/data/canonicalShotViewModel.ts';
 
 const MAX_DISMISSED_FINAL_VIDEOS = 256;
@@ -31,6 +32,7 @@ export function useReighShotsHost(
   const [canonicalDraftState, setCanonicalDraftState] = useState<CanonicalShotTimelineDraft | null>(null);
   const [canonicalThumbnailUrls, setCanonicalThumbnailUrls] = useState<ReadonlyMap<string, string>>(() => new Map());
   const refreshInFlightRef = useRef(false);
+  const runtimePollingPausedRef = useRef(false);
   const hasPreparedCompositionRef = useRef(false);
   const mountedRef = useRef(false);
   const loadGenerationRef = useRef(0);
@@ -199,6 +201,12 @@ export function useReighShotsHost(
       void loadSourceFrameThumbnails(composition, generation);
     } catch (loadError: unknown) {
       if (!mountedRef.current || generation !== loadGenerationRef.current) return;
+      if (isProviderUnavailableError(loadError)) {
+        // A Runtime-wide outage is surfaced by the page banner. Stop the
+        // ordinary graph poll until the user explicitly checks again; an
+        // outage must not turn into a read storm while the draft is preserved.
+        runtimePollingPausedRef.current = true;
+      }
       // Keep the last coherent pinned head (and any local draft) visible, but
       // expose that it is stale so the editor cannot call it current.
       setCanonicalCompositionError(loadError instanceof Error ? loadError : new Error(String(loadError)));
@@ -209,6 +217,7 @@ export function useReighShotsHost(
   }, [loadSourceFrameThumbnails, parentDocumentId, projectId, shotComposition]);
 
   useEffect(() => {
+    runtimePollingPausedRef.current = false;
     canonicalDraftRef.current = null;
     setCanonicalDraftState(null);
     activeDraftSessionsRef.current.clear();
@@ -225,7 +234,9 @@ export function useReighShotsHost(
       return () => { mountedRef.current = false; };
     }
     const interval = globalThis.setInterval(() => {
-      void loadCanonicalComposition(false, generation);
+      if (!runtimePollingPausedRef.current) {
+        void loadCanonicalComposition(false, generation);
+      }
     }, 2_000);
     return () => {
       mountedRef.current = false;

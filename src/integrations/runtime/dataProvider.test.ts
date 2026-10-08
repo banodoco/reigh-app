@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { ReighRuntimeClient, RuntimeAuthenticationError } from './client.ts';
 import { RuntimeDataProvider, toRuntimePublication } from './dataProvider.ts';
 import { TimelineVersionConflictError } from '@/tools/video-editor/data/DataProvider.ts';
@@ -73,6 +73,7 @@ function runtimeFixture(options: {
   let headRevisionId = 'parent-r1';
   let config = createDefaultTimelineConfig();
   let registry = { assets: {} };
+  const revisions = new Map<string, unknown>([['parent-r1', { config, registry, clips: [], occurrences: [] }]]);
   let objectSequence = 0;
   const objects = new Map<string, FixtureObject>();
   const mediaEtag = options.mediaEtag;
@@ -220,16 +221,18 @@ function runtimeFixture(options: {
         }),
       };
     }
-    if (method === 'GET' && path === `/v1/projects/${PROJECT_ID}/timelines/${TIMELINE_ID}/composition-revisions/${headRevisionId}`) {
+    const revisionPath = `/v1/projects/${PROJECT_ID}/timelines/${TIMELINE_ID}/composition-revisions/`;
+    const requestedRevision = path.startsWith(revisionPath) ? decodeURIComponent(path.slice(revisionPath.length)) : '';
+    if (method === 'GET' && (revisions.has(requestedRevision) || requestedRevision === headRevisionId)) {
       return {
         status: 200,
         headers: {},
         body: json({
-          revision_id: headRevisionId,
+          revision_id: requestedRevision,
           project_id: PROJECT_ID,
           timeline_id: TIMELINE_ID,
           content_digest: `sha256:${'1'.repeat(64)}`,
-          payload: { config, registry, clips: [], occurrences: [] },
+          payload: revisions.get(requestedRevision) ?? { config, registry, clips: [], occurrences: [] },
           created_at: '2026-09-11T00:00:00Z',
         }),
       };
@@ -309,6 +312,7 @@ function runtimeFixture(options: {
       headRevisionId = request.parent_revision_id;
       config = request.parent_composition.config;
       registry = request.parent_composition.registry;
+      revisions.set(headRevisionId, structuredClone({ ...request.parent_composition, clips: [], occurrences: [] }));
       const response = {
         status: 200,
         headers: {},
@@ -351,6 +355,103 @@ function runtimeFixture(options: {
 }
 
 describe('RuntimeDataProvider', () => {
+  it('saves the same immutable head after provider recreation with a different numeric counter', async () => {
+    const fixture = runtimeFixture();
+    const original = new RuntimeDataProvider({ projectId: PROJECT_ID, transport: fixture.transport });
+    const first = await original.loadTimeline(TIMELINE_ID);
+    await original.saveTimelineAtHead(TIMELINE_ID, first.config, first.head!);
+    const base = await original.loadTimeline(TIMELINE_ID);
+    const restarted = new RuntimeDataProvider({ projectId: PROJECT_ID, transport: fixture.transport });
+    const fresh = await restarted.loadTimeline(TIMELINE_ID);
+    expect(base.configVersion).toBe(2);
+    expect(fresh.configVersion).toBe(1);
+    expect(fresh.head).toEqual(base.head);
+    const edited = { ...base.config, clips: [{ id: 'ordinary-drag', track: 'track-frame', clipType: 'hold', at: 0, hold: 2 }] };
+    await expect(restarted.saveTimelineAtHead(TIMELINE_ID, edited, base.head!)).resolves.toMatchObject({ configVersion: 2 });
+    expect(fixture.read().config.clips[0]?.track).toBe('track-frame');
+  });
+
+  it('preserves the stored bundle when an editor save omits bundle updates', async () => {
+    const fixture = runtimeFixture();
+    const provider = new RuntimeDataProvider({ projectId: PROJECT_ID, transport: fixture.transport });
+    const initial = await provider.loadTimeline(TIMELINE_ID);
+    const bundle = { schema_version: 1 as const, itemsBySchemaRef: {} };
+    const first = await provider.saveTimelineAtHead(TIMELINE_ID, initial.config, initial.head!, undefined, bundle);
+    const next = { ...initial.config, tracks: initial.config.tracks.map((track, index) => index === 0 ? { ...track, label: 'Preserve bundle' } : track) };
+    await provider.saveTimelineAtHead(TIMELINE_ID, next, first.head);
+    const publications = fixture.requests.filter((request) => request.method === 'POST' && request.path.endsWith('/composition-revisions'));
+    const lastPublication = publications[publications.length - 1]?.body as { parent_composition?: { config?: { bundle?: unknown } } } | undefined;
+    expect(lastPublication?.parent_composition?.config?.bundle).toEqual(bundle);
+  });
+
+  it('rejects different heads with equal numeric counters even after polling a newer head', async () => {
+    const fixture = runtimeFixture();
+    const stale = new RuntimeDataProvider({ projectId: PROJECT_ID, transport: fixture.transport });
+    const base = await stale.loadTimeline(TIMELINE_ID);
+    await stale.saveTimelineAtHead(TIMELINE_ID, base.config, base.head!);
+    const restarted = new RuntimeDataProvider({ projectId: PROJECT_ID, transport: fixture.transport });
+    const fresh = await restarted.loadTimeline(TIMELINE_ID);
+    expect(fresh.configVersion).toBe(base.configVersion);
+    expect(fresh.head).not.toEqual(base.head);
+    const edited = { ...base.config, clips: [{ id: 'stale', track: 'V1', clipType: 'hold', at: 0, hold: 2 }] };
+    await expect(restarted.saveTimelineAtHead(TIMELINE_ID, edited, base.head!)).rejects.toMatchObject({ code: 'timeline_version_conflict' });
+    expect(fixture.read().config.clips).toEqual([]);
+    expect(fixture.read().documentVersion).toBe(2);
+  });
+
+  it('protects a concurrent publication between the editor read and Runtime CAS', async () => {
+    const fixture = runtimeFixture();
+    const remote = new RuntimeDataProvider({ projectId: PROJECT_ID, transport: fixture.transport });
+    let intervene = true;
+    const transport: typeof fixture.transport = async (...args) => {
+      if (intervene && args[0] === 'POST' && args[1].endsWith('/composition-revisions')) {
+        intervene = false;
+        const base = await remote.loadTimeline(TIMELINE_ID);
+        await remote.saveTimelineAtHead(TIMELINE_ID, { ...base.config, clips: [{ id: 'remote', track: 'V1', clipType: 'hold', at: 0, hold: 1 }] }, base.head!);
+      }
+      return fixture.transport(...args);
+    };
+    const local = new RuntimeDataProvider({ projectId: PROJECT_ID, transport });
+    const base = await local.loadTimeline(TIMELINE_ID);
+    await expect(local.saveTimelineAtHead(TIMELINE_ID, base.config, base.head!)).rejects.toMatchObject({ code: 'timeline_version_conflict' });
+    expect(fixture.read().config.clips[0]?.id).toBe('remote');
+    expect(fixture.read().documentVersion).toBe(2);
+  });
+
+  it('fails closed for numeric-only saves and heads from another project or timeline', async () => {
+    const fixture = runtimeFixture();
+    const provider = new RuntimeDataProvider({ projectId: PROJECT_ID, transport: fixture.transport });
+    const base = await provider.loadTimeline(TIMELINE_ID);
+    await expect(provider.saveTimeline(TIMELINE_ID, base.config, base.configVersion)).rejects.toMatchObject({ code: 'timeline_version_conflict' });
+    for (const head of [{ ...base.head!, projectId: 'another' }, { ...base.head!, timelineId: 'another' }]) {
+      await expect(provider.saveTimelineAtHead(TIMELINE_ID, base.config, head)).rejects.toMatchObject({ code: 'timeline_version_conflict' });
+    }
+    expect(fixture.requests.filter((r) => r.method === 'POST' && r.path.endsWith('/composition-revisions'))).toHaveLength(0);
+  });
+
+  it('replays a lost acknowledgement after provider restart with the original head, payload and key', async () => {
+    const fixture = runtimeFixture();
+    let loseAck = true;
+    const transport: typeof fixture.transport = async (...args) => {
+      const response = await fixture.transport(...args);
+      if (loseAck && args[0] === 'POST' && args[1].endsWith('/composition-revisions')) {
+        loseAck = false;
+        throw new Error('lost acknowledgement');
+      }
+      return response;
+    };
+    const original = new RuntimeDataProvider({ projectId: PROJECT_ID, transport });
+    const base = await original.loadTimeline(TIMELINE_ID);
+    await expect(original.saveTimelineAtHead(TIMELINE_ID, base.config, base.head!)).rejects.toThrow('lost acknowledgement');
+    const restarted = new RuntimeDataProvider({ projectId: PROJECT_ID, transport: fixture.transport });
+    await expect(restarted.saveTimelineAtHead(TIMELINE_ID, base.config, base.head!)).resolves.toHaveProperty('head');
+    const publications = fixture.requests.filter((r) => r.method === 'POST' && r.path.endsWith('/composition-revisions'));
+    expect(publications).toHaveLength(2);
+    expect(publications[1].body).toEqual(publications[0].body);
+    expect(publications[1].headers['Idempotency-Key']).toBe(publications[0].headers['Idempotency-Key']);
+    expect(fixture.read().documentVersion).toBe(2);
+  });
+
   it('loads project-scoped canonical revisions and restores through a current-head CAS', async () => {
     const fixture = runtimeFixture();
     const provider = new RuntimeDataProvider({ projectId: PROJECT_ID, transport: fixture.transport });
@@ -498,11 +599,11 @@ describe('RuntimeDataProvider', () => {
     const initial = await provider.loadTimeline(TIMELINE_ID);
     expect(initial.configVersion).toBe(1);
     const edited = { ...initial.config, tracks: initial.config.tracks.map((track, index) => index === 0 ? { ...track, label: 'Edited V1' } : track) };
-    const savedVersion = await provider.saveTimeline(TIMELINE_ID, edited, initial.configVersion, await provider.loadAssetRegistry(TIMELINE_ID));
+    const savedVersion = await provider.saveTimelineAtHead(TIMELINE_ID, edited, initial.head!, await provider.loadAssetRegistry(TIMELINE_ID));
     const readback = await provider.loadTimeline(TIMELINE_ID);
     const reloaded = await provider.loadTimeline(TIMELINE_ID);
 
-    expect(savedVersion).toBe(2);
+    expect(savedVersion.configVersion).toBe(2);
     expect(readback.config.tracks[0]?.label).toBe('Edited V1');
     expect(reloaded.config.tracks[0]?.label).toBe('Edited V1');
     expect(reloaded.configVersion).toBe(2);
@@ -532,15 +633,15 @@ describe('RuntimeDataProvider', () => {
     delayRead = true;
     const registryRead = provider.loadAssetRegistry(TIMELINE_ID);
     await started;
-    const save = provider.saveTimeline(TIMELINE_ID, initial.config, initial.configVersion);
+    const save = provider.saveTimelineAtHead(TIMELINE_ID, initial.config, initial.head!);
     // Give an unguarded save time to commit while the old read is suspended.
     await new Promise((resolve) => setTimeout(resolve, 0));
     // The old immutable response must finish before publication can advance state.
     release();
     await registryRead;
     const version = await save;
-    expect(version).toBe(2);
-    expect(await provider.saveTimeline(TIMELINE_ID, initial.config, version)).toBe(3);
+    expect(version.configVersion).toBe(2);
+    expect((await provider.saveTimelineAtHead(TIMELINE_ID, initial.config, version.head)).configVersion).toBe(3);
     expect((await provider.loadTimeline(TIMELINE_ID)).configVersion).toBe(3);
   });
 
@@ -560,7 +661,7 @@ describe('RuntimeDataProvider', () => {
     };
     const provider = new RuntimeDataProvider({ projectId: PROJECT_ID, transport });
     const initial = await provider.loadTimeline(TIMELINE_ID);
-    const save = provider.saveTimeline(TIMELINE_ID, initial.config, initial.configVersion);
+    const save = provider.saveTimelineAtHead(TIMELINE_ID, initial.config, initial.head!);
     await started;
     const readsBefore = fixture.requests.filter((r) => r.path.endsWith('/inspect')).length;
     const poll = provider.loadTimeline(TIMELINE_ID);
@@ -568,7 +669,7 @@ describe('RuntimeDataProvider', () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(fixture.requests.filter((r) => r.path.endsWith('/inspect'))).toHaveLength(readsBefore);
     release();
-    expect(await save).toBe(2);
+    expect((await save).configVersion).toBe(2);
     expect((await poll).configVersion).toBe(2);
     await registryPoll;
     expect((await provider.loadTimeline(TIMELINE_ID)).configVersion).toBe(2);
@@ -578,14 +679,15 @@ describe('RuntimeDataProvider', () => {
     const fixture = runtimeFixture();
     const provider = new RuntimeDataProvider({ projectId: PROJECT_ID, transport: fixture.transport });
     const initial = await provider.loadTimeline(TIMELINE_ID);
-    const first = provider.saveTimeline(TIMELINE_ID, initial.config, initial.configVersion);
-    const second = provider.saveTimeline(TIMELINE_ID, initial.config, initial.configVersion);
+    const first = provider.saveTimelineAtHead(TIMELINE_ID, initial.config, initial.head!);
+    const second = provider.saveTimelineAtHead(TIMELINE_ID, { ...initial.config, clips: [{ id: 'stale', track: 'V1', clipType: 'hold', at: 0, hold: 1 }] }, initial.head!);
     const rejected = expect(second).rejects.toMatchObject({ code: 'timeline_version_conflict' });
-    expect(await first).toBe(2);
+    expect((await first).configVersion).toBe(2);
     await rejected;
-    expect(fixture.requests.filter((r) => r.path.endsWith('/composition-revisions'))).toHaveLength(1);
-    expect((await provider.loadTimeline(TIMELINE_ID)).configVersion).toBe(2);
-    expect(await provider.saveTimeline(TIMELINE_ID, initial.config, 2)).toBe(3);
+    expect(fixture.requests.filter((r) => r.path.endsWith('/composition-revisions'))).toHaveLength(2);
+    const reloaded = await provider.loadTimeline(TIMELINE_ID);
+    expect(reloaded.configVersion).toBe(2);
+    expect((await provider.saveTimelineAtHead(TIMELINE_ID, initial.config, reloaded.head!)).configVersion).toBe(3);
   });
 
   it('still rejects a genuine external publication without overwriting it', async () => {
@@ -595,8 +697,8 @@ describe('RuntimeDataProvider', () => {
     const initial = await local.loadTimeline(TIMELINE_ID);
     const other = await remote.loadTimeline(TIMELINE_ID);
     const remoteConfig = { ...other.config, tracks: other.config.tracks.map((t) => ({ ...t, label: 'Remote edit' })) };
-    await remote.saveTimeline(TIMELINE_ID, remoteConfig, other.configVersion);
-    await expect(local.saveTimeline(TIMELINE_ID, initial.config, initial.configVersion))
+    await remote.saveTimelineAtHead(TIMELINE_ID, remoteConfig, other.head!);
+    await expect(local.saveTimelineAtHead(TIMELINE_ID, initial.config, initial.head!))
       .rejects.toMatchObject({ code: 'timeline_version_conflict' });
     expect(fixture.read().config.tracks[0]?.label).toBe('Remote edit');
     expect((await local.loadTimeline(TIMELINE_ID)).configVersion).toBe(2);
@@ -615,17 +717,18 @@ describe('RuntimeDataProvider', () => {
     };
     const provider = new RuntimeDataProvider({ projectId: PROJECT_ID, transport });
     const initial = await provider.loadTimeline(TIMELINE_ID);
-    await expect(provider.saveTimeline(TIMELINE_ID, initial.config, 1)).rejects.toThrow('response lost');
+    await expect(provider.saveTimelineAtHead(TIMELINE_ID, initial.config, initial.head!)).rejects.toThrow('response lost');
     expect((await provider.loadTimeline(TIMELINE_ID)).configVersion).toBe(2);
     const changed = { ...initial.config, tracks: initial.config.tracks.map((t) => ({ ...t, label: 'Unsent edit' })) };
-    await expect(provider.saveTimeline(TIMELINE_ID, changed, 1)).rejects.toMatchObject({ code: 'timeline_version_conflict' });
-    expect(await provider.saveTimeline(TIMELINE_ID, initial.config, 1)).toBe(2);
+    await expect(provider.saveTimelineAtHead(TIMELINE_ID, changed, initial.head!)).rejects.toMatchObject({ code: 'timeline_version_conflict' });
+    const replay = await provider.saveTimelineAtHead(TIMELINE_ID, initial.config, initial.head!);
+    expect(replay.configVersion).toBe(2);
     const requests = fixture.requests.filter((r) => r.path.endsWith('/composition-revisions'));
     expect(requests).toHaveLength(2);
     expect(requests[1].body).toEqual(requests[0].body);
     expect(requests[1].headers['Idempotency-Key']).toBe(requests[0].headers['Idempotency-Key']);
     expect(fixture.read().documentVersion).toBe(2);
-    expect(await provider.saveTimeline(TIMELINE_ID, changed, 2)).toBe(3);
+    expect((await provider.saveTimelineAtHead(TIMELINE_ID, changed, replay.head)).configVersion).toBe(3);
   });
 
   it('allows a fresh edit based on an explicitly reloaded head after an ambiguous save', async () => {
@@ -641,10 +744,10 @@ describe('RuntimeDataProvider', () => {
     };
     const provider = new RuntimeDataProvider({ projectId: PROJECT_ID, transport });
     const initial = await provider.loadTimeline(TIMELINE_ID);
-    await expect(provider.saveTimeline(TIMELINE_ID, initial.config, 1)).rejects.toThrow('response lost');
+    await expect(provider.saveTimelineAtHead(TIMELINE_ID, initial.config, initial.head!)).rejects.toThrow('response lost');
     const reloaded = await provider.loadTimeline(TIMELINE_ID);
     const changed = { ...reloaded.config, tracks: reloaded.config.tracks.map((t) => ({ ...t, label: 'After reload' })) };
-    expect(await provider.saveTimeline(TIMELINE_ID, changed, reloaded.configVersion)).toBe(3);
+    expect((await provider.saveTimelineAtHead(TIMELINE_ID, changed, reloaded.head!)).configVersion).toBe(3);
     expect(fixture.read().config.tracks[0]?.label).toBe('After reload');
   });
 
@@ -661,13 +764,13 @@ describe('RuntimeDataProvider', () => {
     };
     const local = new RuntimeDataProvider({ projectId: PROJECT_ID, transport });
     const initial = await local.loadTimeline(TIMELINE_ID);
-    await expect(local.saveTimeline(TIMELINE_ID, initial.config, 1)).rejects.toThrow('response lost');
+    await expect(local.saveTimelineAtHead(TIMELINE_ID, initial.config, initial.head!)).rejects.toThrow('response lost');
     const remote = new RuntimeDataProvider({ projectId: PROJECT_ID, transport: fixture.transport });
     const other = await remote.loadTimeline(TIMELINE_ID);
     const config = { ...other.config, tracks: other.config.tracks.map((t) => ({ ...t, label: 'Remote after lost ack' })) };
-    await remote.saveTimeline(TIMELINE_ID, config, other.configVersion);
+    await remote.saveTimelineAtHead(TIMELINE_ID, config, other.head!);
     const latest = await local.loadTimeline(TIMELINE_ID);
-    await expect(local.saveTimeline(TIMELINE_ID, initial.config, 1)).rejects.toMatchObject({ code: 'timeline_version_conflict' });
+    await expect(local.saveTimelineAtHead(TIMELINE_ID, initial.config, initial.head!)).rejects.toMatchObject({ code: 'timeline_version_conflict' });
     expect(fixture.read().documentVersion).toBe(3);
     expect((await local.loadTimeline(TIMELINE_ID)).configVersion).toBe(latest.configVersion);
     expect(fixture.read().config.tracks[0]?.label).toBe('Remote after lost ack');
@@ -724,16 +827,16 @@ describe('RuntimeDataProvider', () => {
         to: 2,
       }],
     };
-    const placedVersion = await provider.saveTimeline(
+    const placedVersion = await provider.saveTimelineAtHead(
       TIMELINE_ID,
       placedConfig,
-      afterUpload.configVersion,
+      afterUpload.head!,
       registry,
     );
     const persisted = await provider.loadTimeline(TIMELINE_ID);
     const persistedRegistry = await provider.loadAssetRegistry(TIMELINE_ID);
 
-    expect(placedVersion).toBe(3);
+    expect(placedVersion.configVersion).toBe(3);
     expect(persisted.config.clips[0]).toMatchObject({
       id: 'clip-r3-managed',
       asset: MANAGED_OBJECT_ID,
@@ -833,10 +936,10 @@ describe('RuntimeDataProvider', () => {
         },
       ],
     };
-    const initialSavedVersion = await provider.saveTimeline(
+    const initialSavedVersion = await provider.saveTimelineAtHead(
       TIMELINE_ID,
       initialConfig,
-      afterInitialIngest.configVersion,
+      afterInitialIngest.head!,
       initialRegistry,
     );
 
@@ -900,17 +1003,17 @@ describe('RuntimeDataProvider', () => {
         app: { ...clip.app, liveScene: winningLiveScene },
       })),
     };
-    const winningVersion = await provider.saveTimeline(
+    const winningVersion = await provider.saveTimelineAtHead(
       TIMELINE_ID,
       winningConfig,
-      initialSavedVersion,
+      initialSavedVersion.head,
       await provider.loadAssetRegistry(TIMELINE_ID),
     );
 
-    await expect(staleProvider.saveTimeline(
+    await expect(staleProvider.saveTimelineAtHead(
       TIMELINE_ID,
       { ...staleInitial.config, clips: [] },
-      staleInitial.configVersion,
+      staleInitial.head!,
       staleRegistry,
     )).rejects.toBeInstanceOf(TimelineVersionConflictError);
 
@@ -924,7 +1027,7 @@ describe('RuntimeDataProvider', () => {
     const reopenedRegistry = await reloadedProvider.loadAssetRegistry(TIMELINE_ID);
     const reopenedData = await buildTimelineData(reopened.config, reopenedRegistry);
     const clips = createTimelineReader({ data: reopenedData }).snapshot().clips;
-    expect(winningVersion).toBe(3);
+    expect(winningVersion.configVersion).toBe(3);
     expect(reopened.config.clips[0]?.app?.liveScene).toEqual({
       revision: winningPackageObject.digest,
       html: new TextDecoder().decode(winningSourceBytes),
@@ -1093,14 +1196,12 @@ describe('RuntimeDataProvider', () => {
     const provider = new RuntimeDataProvider({ projectId: PROJECT_ID, baseUrl: 'http://runtime.test', token: 'fixture-token', transport: fixture.transport });
     const initial = await provider.loadTimeline(TIMELINE_ID);
     const firstEdit = { ...initial.config, tracks: initial.config.tracks.map((track, index) => index === 0 ? { ...track, label: 'First V1' } : track) };
-    await provider.saveTimeline(TIMELINE_ID, firstEdit, initial.configVersion);
+    await provider.saveTimelineAtHead(TIMELINE_ID, firstEdit, initial.head!);
     const staleEdit = { ...initial.config, tracks: initial.config.tracks.map((track, index) => index === 0 ? { ...track, label: 'Stale V1' } : track) };
 
-    await expect(provider.saveTimeline(TIMELINE_ID, staleEdit, initial.configVersion)).rejects.toMatchObject({
+    await expect(provider.saveTimelineAtHead(TIMELINE_ID, staleEdit, initial.head!)).rejects.toMatchObject({
       name: 'TimelineVersionConflictError',
       code: 'timeline_version_conflict',
-      expectedVersion: 1,
-      actualVersion: 2,
     });
     expect(fixture.read().documentVersion).toBe(2);
     expect(fixture.read().config.tracks[0]?.label).toBe('First V1');
@@ -1118,6 +1219,54 @@ describe('RuntimeDataProvider', () => {
       code: 'runtime_unavailable',
       recoveryAction: 'Start the supported Runtime and configure its authenticated connector, then retry.',
     });
+  });
+
+  it('surfaces a storage admission failure instead of misclassifying it as a timeline conflict', async () => {
+    const fixture = runtimeFixture();
+    const onRuntimeError = vi.fn();
+    const publishPath = `/v1/projects/${PROJECT_ID}/timelines/${TIMELINE_ID}/composition-revisions`;
+    const provider = new RuntimeDataProvider({
+      projectId: PROJECT_ID,
+      baseUrl: 'http://runtime.test',
+      token: 'fixture-token',
+      onRuntimeError,
+      transport: async (method, path, headers, body) => {
+        if (method === 'POST' && path === publishPath) {
+          return {
+            status: 409,
+            headers: {},
+            body: json({
+              code: 'realm_admission_failed',
+              message: 'Runtime realm admission failed',
+              details: {
+                checks: {
+                  sqlite: { result: 'error: [Errno 28] No space left on device' },
+                },
+              },
+            }),
+          };
+        }
+        return fixture.transport(method, path, headers, body);
+      },
+    });
+    const initial = await provider.loadTimeline(TIMELINE_ID);
+    const edited = {
+      ...initial.config,
+      tracks: initial.config.tracks?.map((track, index) => (
+        index === 0 ? { ...track, label: 'Storage failure' } : track
+      )),
+    };
+
+    await expect(provider.saveTimelineAtHead(TIMELINE_ID, edited, initial.head!)).rejects.toMatchObject({
+      code: 'runtime_unavailable',
+      causeCode: 'realm_admission_failed',
+      failureKind: 'storage',
+      status: 409,
+    });
+    expect(onRuntimeError).toHaveBeenCalledWith(expect.objectContaining({
+      code: 'runtime_unavailable',
+      recoveryAction: 'Check the Runtime data volume and restart it, then retry; your timeline draft is preserved.',
+    }));
   });
 
   it('reports rejected Runtime credentials to the page recovery seam', async () => {

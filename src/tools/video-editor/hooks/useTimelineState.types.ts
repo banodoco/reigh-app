@@ -256,7 +256,7 @@ export interface TimelineChromeContextValue {
    * One-slot recovery draft (plan-v5 B9): non-null when a previous session
    * left unsaved work. The shell offers Retry / Discard.
    */
-  recoveryDraft: { updatedAt: string; baseVersion: number } | null;
+  recoveryDraft: { updatedAt: string; baseVersion: number; retryAllowed?: boolean } | null;
   retryRecoveredDraft: () => void;
   discardRecoveredDraft: () => void;
   startRender: TimelineStartRender;

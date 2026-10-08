@@ -83,6 +83,7 @@ export type ClipOrderMap = Record<string, string[]>;
 export interface TimelineData {
   config: TimelineConfig;
   configVersion: number;
+  head?: import('../data/DataProvider.ts').TimelineHeadRevision;
   registry: AssetRegistry;
   resolvedConfig: ResolvedTimelineConfig;
   rows: TimelineRow[];
@@ -413,6 +414,7 @@ Object.freeze(EMPTY_DATA_LANES);
 interface AssembleTimelineDataParams {
   config: TimelineConfig;
   configVersion: number;
+  head?: import('../data/DataProvider.ts').TimelineHeadRevision;
   registry: AssetRegistry;
   resolvedConfig: ResolvedTimelineConfig;
   output: TimelineOutput;
@@ -428,6 +430,7 @@ interface AssembleTimelineDataParams {
 export const assembleTimelineData = ({
   config,
   configVersion,
+  head,
   registry,
   resolvedConfig,
   assetMap,
@@ -455,6 +458,7 @@ export const assembleTimelineData = ({
   return {
     config: canonicalConfig,
     configVersion,
+    ...(head ? { head } : {}),
     registry,
     resolvedConfig: canonicalResolvedConfig,
     rows: rowData.rows,
@@ -479,6 +483,7 @@ export const buildTimelineData = async (
   urlResolver?: UrlResolver,
   configVersion = 1,
   sourceItemsBySchemaRef?: Readonly<Record<string, readonly SourceFrozenDataItem[]>>,
+  head?: import('../data/DataProvider.ts').TimelineHeadRevision,
 ): Promise<TimelineData> => {
   const canonical = canonicalizeTimelinePair(config, registry);
   const resolvedConfig = await resolveTimelineConfig(canonical.config, canonical.registry, urlResolver);
@@ -486,6 +491,7 @@ export const buildTimelineData = async (
   return assembleTimelineData({
     config: canonical.config,
     configVersion,
+    head,
     registry: canonical.registry,
     resolvedConfig,
     output: { ...canonical.config.output },
@@ -515,6 +521,7 @@ export const buildTimelineDataWithResolver = async (
   configVersion = 1,
   timelineId?: string,
   sourceItemsBySchemaRef?: Readonly<Record<string, readonly SourceFrozenDataItem[]>>,
+  head?: import('../data/DataProvider.ts').TimelineHeadRevision,
 ): Promise<TimelineData> => {
   const canonical = canonicalizeTimelinePair(config, registry);
 
@@ -554,6 +561,7 @@ export const buildTimelineDataWithResolver = async (
   return assembleTimelineData({
     config: canonical.config,
     configVersion,
+    head,
     registry: canonical.registry,
     resolvedConfig,
     output: { ...canonical.config.output },
@@ -573,10 +581,10 @@ export function loadTimelineJsonFromProvider(
     const assetResolver = timelineIdOrResolver;
     const timelineId = String(resolverOrTimelineId ?? '');
     return (async () => {
-      const [loadedTimeline, registry] = await Promise.all([
-        provider.loadTimeline(timelineId),
-        provider.loadAssetRegistry(timelineId),
-      ]);
+      const { timeline: loadedTimeline, registry } = provider.saveTimelineAtHead && provider.loadReferencedTimeline
+        ? await provider.loadReferencedTimeline(timelineId)
+        : await Promise.all([provider.loadTimeline(timelineId), provider.loadAssetRegistry(timelineId)])
+            .then(([timeline, registry]) => ({ timeline, registry }));
       // E4 seam 4/5: the loaded bundle's SOURCE items ride into assembly
       // data so lanes repaint after reload (views still derive render-side).
       return buildTimelineDataWithResolver(
@@ -586,26 +594,36 @@ export function loadTimelineJsonFromProvider(
         loadedTimeline.configVersion,
         timelineId,
         loadedTimeline.bundle?.itemsBySchemaRef,
+        loadedTimeline.head,
       );
     })();
   }
 
   // Legacy shape: (provider, timelineId, urlResolver?)
   const timelineId = timelineIdOrResolver as string;
-  const urlResolver = (resolverOrTimelineId as UrlResolver | undefined)
+  const explicitUrlResolver = (resolverOrTimelineId as UrlResolver | undefined)
     ?? legacyUrlResolver
-    ?? ((file: string) => provider.resolveAssetUrl(file));
+    ?? null;
   return (async () => {
-    const [loadedTimeline, registry] = await Promise.all([
-      provider.loadTimeline(timelineId),
-      provider.loadAssetRegistry(timelineId),
-    ]);
+    const loaded = provider.saveTimelineAtHead && provider.loadReferencedTimeline
+      ? await provider.loadReferencedTimeline(timelineId)
+      : await Promise.all([provider.loadTimeline(timelineId), provider.loadAssetRegistry(timelineId)])
+          .then(([timeline, registry]) => ({ timeline, registry, resolveAssetUrl: undefined }));
+    const { timeline: loadedTimeline, registry } = loaded;
+    // Runtime loads return a resolver bound to the exact immutable timeline
+    // snapshot. Prefer it over DataProvider.resolveAssetUrl, whose legacy
+    // implementation reads mutable activeRegistry state populated by a
+    // separate request and can therefore lag the head we just loaded.
+    const urlResolver = explicitUrlResolver
+      ?? loaded.resolveAssetUrl
+      ?? ((file: string) => provider.resolveAssetUrl(file));
     return buildTimelineData(
       loadedTimeline.config,
       registry,
       urlResolver,
       loadedTimeline.configVersion,
       loadedTimeline.bundle?.itemsBySchemaRef,
+      loadedTimeline.head,
     );
   })();
 }

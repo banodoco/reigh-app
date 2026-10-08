@@ -5,7 +5,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createFakeIndexedDB, resetFakeIndexedDB } from 'fake-indexeddb';
 import { VideoEditorRuntimeProvider, type VideoEditorRuntimeContextValue } from '@/tools/video-editor/contexts/VideoEditorRuntimeContext.tsx';
-import type { DataProvider } from '@/tools/video-editor/data/DataProvider.ts';
+import { TimelineVersionConflictError, type DataProvider, type TimelineHeadRevision } from '@/tools/video-editor/data/DataProvider.ts';
+import type { TimelineDraftRecoveryMetadata } from '@/tools/video-editor/data/timelineDraftIndexedDb.ts';
 import { clearTimelineDraft, loadTimelineDraft, saveTimelineDraft } from '@/tools/video-editor/data/timelineDraftIndexedDb.ts';
 import { createTimelineStore } from '@/tools/video-editor/hooks/timelineStore.ts';
 import { useTimelineSave } from '@/tools/video-editor/hooks/useTimelineSave.ts';
@@ -39,13 +40,17 @@ async function mountRecoveryEditor(options?: {
   loadCanonicalTimeline?: NonNullable<DataProvider['loadCanonicalTimeline']>;
   initialConfig?: TimelineConfig;
   seedRecovery?: boolean;
+  head?: TimelineHeadRevision;
+  draftMetadata?: TimelineDraftRecoveryMetadata;
+  saveTimelineAtHead?: NonNullable<DataProvider['saveTimelineAtHead']>;
 }) {
   const canonical = timelineConfig('canonical');
   const recovered = timelineConfig('recovered');
   if (options?.seedRecovery !== false) {
-    await saveTimelineDraft('previous-shot-session', { config: recovered, registry }, 5, {
+    await saveTimelineDraft(options?.head ? timelineId : 'previous-shot-session', { config: recovered, registry }, 5, {
       recoveryKey,
       draftIdentity: 'crashed-retryable-draft',
+      ...options?.draftMetadata,
     });
   }
 
@@ -57,6 +62,7 @@ async function mountRecoveryEditor(options?: {
       ?? vi.fn(async () => ({ config: canonical, configVersion: 12 })),
     loadAssetRegistry: vi.fn(async () => registry),
     saveTimeline: options?.saveTimeline ?? vi.fn(async () => 13),
+    ...(options?.head ? { saveTimelineAtHead: options.saveTimelineAtHead ?? vi.fn(async () => ({ configVersion: 1, head: { ...options.head!, headRevisionId: 'acknowledged-head' } })) } : {}),
     resolveAssetUrl: vi.fn(async (file: string) => file),
     getTimelineDraftRecoveryMetadata: () => ({
       recoveryKey,
@@ -69,6 +75,8 @@ async function mountRecoveryEditor(options?: {
     registry,
     provider.resolveAssetUrl,
     12,
+    undefined,
+    options?.head,
   );
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
   const store = createTimelineStore();
@@ -98,6 +106,7 @@ async function mountRecoveryEditor(options?: {
     provider,
     { current: createInteractionState() },
     store,
+    options?.head ? canonicalData : undefined,
   ), { wrapper });
   act(() => {
     hook.result.current.commitData(canonicalData, {
@@ -131,6 +140,52 @@ describe('useTimelineSave recovered Retry/Discard with real persistence', () => 
     vi.clearAllTimers();
     vi.useRealTimers();
     vi.restoreAllMocks();
+  });
+
+  it.each([
+    {},
+    { baseHeadRevisionId: 'unscoped-old-head' },
+    { baseHeadRevisionId: 'old-head', baseHeadProjectId: 'another-project', baseHeadTimelineId: timelineId },
+  ])('preserves an unknown/untrusted Runtime draft and never publishes Retry (%j)', async (draftMetadata) => {
+    const saveTimelineAtHead = vi.fn();
+    const { hook, provider } = await mountRecoveryEditor({
+      head: { projectId: 'project', timelineId, headRevisionId: 'current-head' },
+      draftMetadata,
+      saveTimelineAtHead,
+    });
+    const before = await loadTimelineDraft(recoveryKey);
+    expect(hook.result.current.recoveryDraft?.retryAllowed).toBe(false);
+    vi.useFakeTimers();
+    await act(async () => { await hook.result.current.retryRecoveredDraft(); });
+    await advance(1000);
+    expect(saveTimelineAtHead).not.toHaveBeenCalled();
+    expect(provider.saveTimeline).not.toHaveBeenCalled();
+    expect(await loadTimelineDraft(recoveryKey)).toEqual(before);
+    hook.unmount();
+  });
+
+  it('retries a scoped draft using its original head and hides recovery after a real conflict', async () => {
+    const saveTimelineAtHead = vi.fn(async () => { throw new TimelineVersionConflictError('remote publication'); });
+    const { hook, provider } = await mountRecoveryEditor({
+      head: { projectId: 'project', timelineId, headRevisionId: 'current-head' },
+      draftMetadata: { baseHeadProjectId: 'project', baseHeadTimelineId: timelineId, baseHeadRevisionId: 'original-head' },
+      saveTimelineAtHead,
+    });
+    expect(hook.result.current.recoveryDraft?.retryAllowed).toBe(true);
+    vi.useFakeTimers();
+    await act(async () => { await hook.result.current.retryRecoveredDraft(); });
+    await advance(600);
+    expect(saveTimelineAtHead).toHaveBeenCalledWith(timelineId, expect.anything(), {
+      projectId: 'project', timelineId, headRevisionId: 'original-head',
+    }, registry, undefined);
+    expect(provider.saveTimeline).not.toHaveBeenCalled();
+    expect(hook.result.current.isConflictExhausted).toBe(true);
+    expect(hook.result.current.recoveryDraft).toBeNull();
+    expect(await loadTimelineDraft(recoveryKey)).toMatchObject({ baseHeadRevisionId: 'original-head', baseHeadProjectId: 'project', baseHeadTimelineId: timelineId });
+    await act(async () => { await hook.result.current.retryRecoveredDraft(); });
+    await advance(1000);
+    expect(saveTimelineAtHead).toHaveBeenCalledTimes(1);
+    hook.unmount();
   });
 
   it('Retry then Discard before debounce cancels the recovered save and a reopened editor remains canonical', async () => {

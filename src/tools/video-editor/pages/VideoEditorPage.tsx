@@ -53,6 +53,7 @@ import {
 import { RuntimeDataProvider } from '@/integrations/runtime/dataProvider.ts';
 import {
   RuntimeAuthenticationError,
+  RuntimeUnavailableError,
   type RuntimeConnectorError,
 } from '@/integrations/runtime/client.ts';
 import type { SaveStatus } from '@/tools/video-editor/hooks/useTimelinePersistence.ts';
@@ -146,6 +147,14 @@ export function RuntimeConnectorRecoveryBanner({
   retrying?: boolean;
 }) {
   const authenticationFailed = error instanceof RuntimeAuthenticationError;
+  const runtimeUnavailable = error instanceof RuntimeUnavailableError;
+  const title = authenticationFailed
+    ? 'Workspace Runtime authentication failed'
+    : runtimeUnavailable && error.failureKind === 'admission'
+      ? 'Workspace Runtime failed its startup checks'
+      : runtimeUnavailable && error.failureKind === 'storage'
+        ? 'Workspace Runtime reported a storage failure'
+        : 'Workspace Runtime is unavailable';
 
   return (
     <div
@@ -155,7 +164,7 @@ export function RuntimeConnectorRecoveryBanner({
     >
       <div className="min-w-0">
         <p className="text-sm font-medium text-foreground">
-          {authenticationFailed ? 'Workspace Runtime authentication failed' : 'Workspace Runtime is unavailable'}
+          {title}
         </p>
         <p className="mt-1 text-xs text-muted-foreground">{error.recoveryAction}</p>
       </div>

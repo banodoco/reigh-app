@@ -57,6 +57,7 @@ export function buildDataFromCurrentRegistry(
   return assembleTimelineData({
     config: canonicalConfig,
     configVersion: current.configVersion,
+    head: current.head,
     registry,
     resolvedConfig,
     assetMap: buildAssetReferenceMap(registry),
@@ -98,6 +99,7 @@ export function buildDataFromSnapshot(
   return assembleTimelineData({
     config: canonicalConfig,
     configVersion: current.configVersion,
+    head: current.head,
     registry,
     resolvedConfig,
     assetMap: buildAssetReferenceMap(registry),

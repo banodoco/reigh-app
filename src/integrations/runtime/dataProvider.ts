@@ -4,6 +4,7 @@ import {
   RuntimeAuthenticationError,
   RuntimeUnavailableError,
   isRuntimeConflict,
+  isRuntimeUnavailableFailure,
   type RuntimeConnectorError,
 } from './client.ts';
 import {
@@ -12,6 +13,8 @@ import {
   TimelineVersionConflictError,
   type DataProvider,
   type LoadedTimeline,
+  type TimelineHeadRevision,
+  type TimelineSaveReceipt,
   type LoadedReferencedTimeline,
   type ProjectObjectStorage,
   type UploadedAssetResult,
@@ -130,8 +133,20 @@ export class RuntimeDataProvider implements DataProvider {
         : null;
       return objectId ? this.client.objectContentUrl(objectId) : null;
     },
-    load: async (request) => this.loadRuntimeShotComposition(request.projectId, request.parentDocumentId),
-    loadAtHead: async (request) => this.loadRuntimeShotCompositionAtHead(request),
+    load: async (request) => {
+      try {
+        return await this.loadRuntimeShotComposition(request.projectId, request.parentDocumentId);
+      } catch (error) {
+        throw this.toProviderError(error, request.parentDocumentId);
+      }
+    },
+    loadAtHead: async (request) => {
+      try {
+        return await this.loadRuntimeShotCompositionAtHead(request);
+      } catch (error) {
+        throw this.toProviderError(error, request.parentDocumentId);
+      }
+    },
     listHistory: async (request) => {
       const entries: CanonicalShotCompositionHistoryEntry[] = [];
       let cursor: string | undefined;
@@ -263,10 +278,10 @@ export class RuntimeDataProvider implements DataProvider {
         this.logShotTimelineLatency('runtime-publish-total', publishStartedAt, request.timingTraceId);
         return publishedGraph;
       } catch (error) {
-        if (error instanceof ApiError && error.status === 409) {
+        if (isRuntimeConflict(error)) {
           throw new StaleWriteError(`Workspace Runtime rejected a stale shot-composition write: ${error.message}`);
         }
-        throw error;
+        throw this.toProviderError(error, request.parentDocumentId);
       }
     },
   };
@@ -453,6 +468,7 @@ export class RuntimeDataProvider implements DataProvider {
     return {
       config: withDefaultTimelineOutput(configWithoutBundle as Partial<TimelineConfig>),
       configVersion: runtimeVersion(record),
+      head: this.timelineHead(timelineId, record.head_revision_id as string | null),
       ...(bundle === null ? { bundle: null } : bundle === undefined ? {} : { bundle: bundle as TimelineBundleEnvelope }),
     };
   }
@@ -476,6 +492,7 @@ export class RuntimeDataProvider implements DataProvider {
       timeline: {
         config: withDefaultTimelineOutput(configWithoutBundle as Partial<TimelineConfig>),
         configVersion: runtimeVersion(record),
+        head: this.timelineHead(timelineId, record.head_revision_id as string | null),
         ...(bundle === null ? { bundle: null } : bundle === undefined ? {} : { bundle: bundle as TimelineBundleEnvelope }),
       },
       registry: normalizeRegistry(record.registry),
@@ -498,20 +515,39 @@ export class RuntimeDataProvider implements DataProvider {
     timelineId: string,
     config: TimelineConfig,
     expectedVersion: number,
+    _registry?: AssetRegistry,
+    _bundle?: TimelineBundleEnvelope | null,
+  ): Promise<number> {
+    throw new TimelineVersionConflictError('Workspace Runtime requires the original scoped timeline head; numeric versions cannot authorize a save.', expectedVersion);
+  }
+
+  private timelineHead(timelineId: string, headRevisionId: string | null): TimelineHeadRevision {
+    return { projectId: this.projectId, timelineId, headRevisionId };
+  }
+
+  async saveTimelineAtHead(
+    timelineId: string,
+    config: TimelineConfig,
+    expectedHead: TimelineHeadRevision,
     registry?: AssetRegistry,
     bundle?: TimelineBundleEnvelope | null,
-  ): Promise<number> {
+  ): Promise<TimelineSaveReceipt> {
+    if (expectedHead?.projectId !== this.projectId || expectedHead.timelineId !== timelineId
+      || !(expectedHead.headRevisionId === null || (typeof expectedHead.headRevisionId === 'string' && expectedHead.headRevisionId.length > 0))) {
+      throw new TimelineVersionConflictError('Workspace Runtime save has missing or untrusted timeline head provenance.');
+    }
+    const base = { ...expectedHead };
     return this.withTimelineOperation(timelineId, () =>
-      this.saveTimelineInOrder(timelineId, config, expectedVersion, registry, bundle));
+      this.saveTimelineInOrder(timelineId, config, base, registry, bundle));
   }
 
   private async saveTimelineInOrder(
     timelineId: string,
     config: TimelineConfig,
-    expectedVersion: number,
+    base: TimelineHeadRevision,
     registry?: AssetRegistry,
     bundle?: TimelineBundleEnvelope | null,
-  ): Promise<number> {
+  ): Promise<TimelineSaveReceipt> {
     if (bundle !== undefined && bundle !== null) parseTimelineBundle(bundle);
     let current = this.canonicalTimelineState.get(timelineId);
     if (!current) {
@@ -521,30 +557,44 @@ export class RuntimeDataProvider implements DataProvider {
     if (!current) {
       throw new TimelineSchemaIncompatibleError('Workspace Runtime canonical timeline state was not loaded');
     }
+    const expectedVersion = current.version;
     const requestSignature = stableJson({ config, registry, bundle });
     const pending = this.unacknowledgedSaves.get(timelineId);
-    const replay = pending?.expectedVersion === expectedVersion
+    const replay = pending?.expectedHead === base.headRevisionId
       && pending.requestSignature === requestSignature ? pending : undefined;
-    if (!replay && expectedVersion !== current.version) {
-      throw new TimelineVersionConflictError(
-        'Workspace Runtime rejected a stale timeline version; reload to review the canonical head.',
-        expectedVersion,
-        current.version,
-      );
+    if (pending && !replay && pending.expectedHead === base.headRevisionId) {
+      throw new TimelineVersionConflictError('An unacknowledged save owns this timeline head and payload; resolve its acknowledgement before publishing another edit.');
     }
-    const nextRegistry = registry ?? normalizeRegistry(current.parentComposition.registry);
+    // Load the immutable base payload, not a newer cached/polled head. Runtime
+    // owns CAS (and checks idempotency replay first), including read/publish races.
+    const baseComposition = replay ? replay.parentComposition
+      : current.headRevisionId === base.headRevisionId ? current.parentComposition
+      : base.headRevisionId === null ? { config: {}, registry: { assets: {} }, clips: [], occurrences: [] }
+      : await this.client.getProjectParentCompositionRevision(this.projectId, timelineId, base.headRevisionId)
+          .then((record) => {
+            assertRuntimeIdentity(record, this.projectId, timelineId, 'parent composition revision');
+            assertRevisionIdentity(record, base.headRevisionId!, 'parent composition revision');
+            return requiredRecord(record.payload, 'parent composition revision.payload');
+          });
+    const nextRegistry = registry ?? normalizeRegistry(baseComposition.registry);
     const { output: _derivedOutput, ...configWithoutOutput } = config;
+    const baseConfig = asRecord(baseComposition.config);
+    const storedBundle = baseConfig?.bundle;
     const configForWire: RuntimeRecord = {
       ...configWithoutOutput,
       tracks: config.tracks ?? [],
-      ...(bundle !== undefined ? { bundle } : {}),
+      ...(bundle !== undefined
+        ? { bundle }
+        : storedBundle !== undefined
+          ? { bundle: storedBundle }
+          : {}),
     };
     const parentComposition: RuntimeRecord = replay?.parentComposition ?? {
-      ...current.parentComposition,
+      ...baseComposition,
       config: configForWire,
       registry: nextRegistry,
     };
-    const expectedHead = replay ? replay.expectedHead : current.headRevisionId;
+    const expectedHead = base.headRevisionId;
     const idempotencyKey = replay?.idempotencyKey ?? await stableTimelinePublicationKey(
       this.projectId,
       timelineId,
@@ -596,7 +646,7 @@ export class RuntimeDataProvider implements DataProvider {
       });
       this.activeRegistry = savedRegistry;
       this.unacknowledgedSaves.delete(timelineId);
-      return nextVersion;
+      return { configVersion: nextVersion, head: this.timelineHead(timelineId, committedHead) };
     } catch (error) {
       if (error instanceof TimelineVersionConflictError
         || (error instanceof ApiError && error.status >= 400 && error.status < 500
@@ -675,7 +725,7 @@ export class RuntimeDataProvider implements DataProvider {
       await this.saveTimelineInOrder(
         timelineId,
         withDefaultTimelineOutput(configRecord as Partial<TimelineConfig>),
-        runtimeVersion(record),
+        this.timelineHead(timelineId, record.head_revision_id as string | null),
         {
           assets: { ...normalizeRegistry(record.registry).assets, [assetId]: entry },
         },
@@ -817,6 +867,7 @@ export class RuntimeDataProvider implements DataProvider {
         project_id: this.projectId,
         timeline_id: timelineId,
         version,
+        head_revision_id: headRevisionId,
         config,
         registry: parentComposition.registry ?? { assets: {} },
       };
@@ -858,6 +909,10 @@ export class RuntimeDataProvider implements DataProvider {
     let providerError: Error;
     if (error instanceof TimelineSchemaIncompatibleError || error instanceof TimelineVersionConflictError) {
       providerError = error;
+    } else if (isRuntimeUnavailableFailure(error)) {
+      providerError = error instanceof RuntimeUnavailableError
+        ? error
+        : new RuntimeUnavailableError(error, this.apiBaseUrl);
     } else if (isRuntimeConflict(error)) {
       const actual = asRecord(error.details)?.actual;
       providerError = new TimelineVersionConflictError(

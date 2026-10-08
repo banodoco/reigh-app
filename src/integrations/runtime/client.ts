@@ -43,15 +43,41 @@ export const RUNTIME_CLIENT_SCOPES = [
 export class RuntimeUnavailableError extends Error {
   readonly code = 'runtime_unavailable' as const;
   readonly recoveryAction: string;
+  readonly status?: number;
+  readonly causeCode?: string;
+  readonly failureKind: 'storage' | 'admission' | 'transport' | 'unknown';
 
   constructor(cause: unknown, baseUrl: string) {
     const detail = cause instanceof Error ? cause.message : String(cause);
+    const apiError = cause instanceof ApiError ? cause : undefined;
+    const diagnostic = `${detail} ${apiError ? JSON.stringify(apiError.details) : ''}`;
+    const storageFailure = /no space left on device|enospc|disk full|storage full/i.test(diagnostic);
+    const admissionFailure = apiError?.code === 'realm_admission_failed'
+      || /startup admission|integrity check|dependency_graph_mismatch/i.test(diagnostic);
+    const failureKind = storageFailure
+      ? 'storage'
+      : admissionFailure
+        ? 'admission'
+        : apiError
+          ? 'unknown'
+          : 'transport';
     super(
       `Workspace Runtime is unavailable at ${baseUrl}: ${detail}. `
-      + 'Start the supported Runtime and configure its authenticated connector, then retry.',
+      + (storageFailure
+        ? 'The Runtime reported a storage-capacity failure; your timeline draft is preserved.'
+        : admissionFailure
+          ? 'The Runtime failed its startup or integrity checks; your timeline draft is preserved.'
+          : 'Start the supported Runtime and configure its authenticated connector, then retry.'),
     );
     this.name = 'RuntimeUnavailableError';
-    this.recoveryAction = 'Start the supported Runtime and configure its authenticated connector, then retry.';
+    this.status = apiError?.status;
+    this.causeCode = apiError?.code;
+    this.failureKind = failureKind;
+    this.recoveryAction = storageFailure
+      ? 'Check the Runtime data volume and restart it, then retry; your timeline draft is preserved.'
+      : admissionFailure
+        ? 'Repair or restore the Runtime realm, restart it, then retry; your timeline draft is preserved.'
+        : 'Start the supported Runtime and configure its authenticated connector, then retry.';
   }
 }
 
@@ -82,8 +108,21 @@ export class RuntimeCompatibilityError extends Error {
 
 export type RuntimeConnectorError = RuntimeAuthenticationError | RuntimeUnavailableError | RuntimeCompatibilityError;
 
+export function isRuntimeUnavailableFailure(error: unknown): boolean {
+  if (error instanceof RuntimeUnavailableError) return true;
+  if (!(error instanceof ApiError)) return false;
+  return error.status >= 500
+    || error.code === 'realm_admission_failed'
+    || error.code === 'runtime_unhealthy'
+    || error.code === 'service_unavailable';
+}
+
 export function isRuntimeConflict(error: unknown): error is ApiError {
-  return error instanceof ApiError && error.status === 409;
+  if (!(error instanceof ApiError) || error.status !== 409) return false;
+  if (error.code === 'realm_admission_failed' || error.code === 'runtime_unhealthy') return false;
+  if (error.code === 'timeline_version_conflict' || error.code === 'stale_write') return true;
+  const diagnostic = `${error.message} ${JSON.stringify(error.details)}`;
+  return error.code === 'conflict' && /head|version|timeline|stale/i.test(diagnostic);
 }
 
 export class ReighRuntimeClient {
@@ -117,6 +156,9 @@ export class ReighRuntimeClient {
   private async openSession() {
     try {
       const health = await this.client.health();
+      if (health.status !== 'ok') {
+        throw new ApiError(503, 'runtime_unhealthy', `Runtime health is ${health.status}`, '', { health });
+      }
       const handshake = await this.client.handshake(
         'reigh-browser',
         RUNTIME_CLIENT_VERSION,
