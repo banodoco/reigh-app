@@ -39,18 +39,22 @@ describe('canonical composition readiness', () => {
   });
 
   it('projects the prepared graph for both preview and export consumers', () => {
-    const result = resolveCanonicalComposition({
+    const inputs = {
       userId: null,
       hasShotClips: true,
       hasShotComposition: true,
       composition,
       compositionError: null,
       baseConfig,
-    });
+    };
+    const preview = resolveCanonicalComposition(inputs);
+    const exportProjection = resolveCanonicalComposition(inputs);
 
-    expect(result.source).toBe('canonical');
-    expect(result.status).toBe('ready');
-    expect(result.config?.clips.some((clip) => clip.clipType === 'shot')).toBe(false);
+    expect(preview.source).toBe('canonical');
+    expect(preview.status).toBe('ready');
+    expect(preview.config?.clips.some((clip) => clip.clipType === 'shot')).toBe(false);
+    expect(preview.config?.app?.visualSeamContract).toEqual(exportProjection.config?.app?.visualSeamContract);
+    expect(preview.config?.app?.visualSeamContract).toMatchObject({ version: 1, mode: 'enforced' });
   });
 
   it('lets a prepared canonical graph win when the legacy config has no shot shells', () => {

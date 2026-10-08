@@ -36,6 +36,39 @@ function withOccurrenceRevision(
 }
 
 describe('canonical shot-composition downstream projection', () => {
+  it('attaches one frame-domain seam report to the canonical config shared by preview and export', () => {
+    const projection = projectCanonicalComposition(prepared);
+    const contract = projection.config.app?.visualSeamContract as Record<string, unknown> | undefined;
+    const report = contract?.report as Record<string, unknown> | undefined;
+
+    expect(contract).toMatchObject({ version: 1, mode: 'enforced' });
+    expect(report).toMatchObject({ version: 1, fps: 30, guardFrames: 2 });
+    expect(Array.isArray(report?.boundaries)).toBe(true);
+    expect(report?.opaqueElements).toEqual([]);
+    expect(report).toEqual((projectCanonicalComposition(prepared).config.app?.visualSeamContract as Record<string, unknown>).report);
+  });
+
+  it('preserves frame-level seam intent while refreshing canonical report metadata', () => {
+    const projection = projectCanonicalComposition(prepared, {
+      output: { resolution: '1920x1080', fps: 30, file: 'intent.mp4' },
+      tracks: [],
+      clips: [],
+      registry: {},
+      app: {
+        visualSeamContract: {
+          intents: { '1259': 'synchronized' },
+          customDisclosure: 'kept',
+        },
+      },
+    });
+    expect(projection.config.app?.visualSeamContract).toMatchObject({
+      version: 1,
+      mode: 'enforced',
+      intents: { '1259': 'synchronized' },
+      customDisclosure: 'kept',
+    });
+  });
+
   it('projects occurrence timing and source/audio controls without legacy group or shot clips', () => {
     const graph = JSON.parse(JSON.stringify(fixture)) as typeof fixture;
     graph.occurrences[0] = {

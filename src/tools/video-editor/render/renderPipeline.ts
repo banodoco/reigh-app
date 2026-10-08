@@ -5,6 +5,7 @@ import {
   type RenderProviderId,
   type RenderRouteDecision,
 } from '@/tools/video-editor/lib/renderRouter.ts';
+import { assertVisualSeamAdmission } from '@/tools/video-editor/data/visualSeamContract.ts';
 
 export type RenderPipelineEvent =
   | {
@@ -69,6 +70,20 @@ async function executeProviderRoute({
   request,
   startBrowserRender,
 }: Pick<ExecuteRenderPipelineOptions, 'decision' | 'request' | 'startBrowserRender'>): Promise<ExecuteRenderPipelineResult> {
+  const seamContract = request.resolvedConfig?.app?.visualSeamContract;
+  if (request.resolvedConfig && seamContract && typeof seamContract === 'object' && !Array.isArray(seamContract)
+    && (seamContract as { mode?: unknown }).mode === 'enforced') {
+    try {
+      assertVisualSeamAdmission(request.resolvedConfig, { enforceIntent: true });
+    } catch (error) {
+      return {
+        status: 'error',
+        providerId: decision.route,
+        message: error instanceof Error ? error.message : 'visual seam admission blocked',
+      };
+    }
+  }
+
   switch (decision.route) {
     case 'browser-remotion': {
       const result = await startBrowserRender();

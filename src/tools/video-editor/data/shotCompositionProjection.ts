@@ -14,6 +14,7 @@ import {
   timelineContentExtentMs,
   timelineOccurrenceEffectiveDurationMs,
 } from './shotCompositionTiming.ts';
+import { analyzeVisualSeams } from './visualSeamContract.ts';
 
 type JsonObject = Record<string, unknown>;
 
@@ -473,7 +474,7 @@ export function projectCanonicalComposition(
   });
   const output = baseConfig?.output ?? { resolution: '1920x1080', fps: 30, file: `timeline-${composition.parentDocumentId}.mp4` };
   const baseApp = record(baseConfig?.app) ?? {};
-  const config: ResolvedTimelineConfig = {
+  const configBase: ResolvedTimelineConfig = {
     output,
     tracks: tracksFor(composition, baseConfig),
     clips: projectedClips,
@@ -488,6 +489,20 @@ export function projectCanonicalComposition(
         parentDocumentId: composition.parentDocumentId,
         headRevisionId: composition.headRevisionId,
         occurrenceIds: composition.occurrences.map((occurrence) => occurrence.occurrenceId),
+      },
+    },
+  };
+  const visualSeamReport = analyzeVisualSeams(configBase, { enforceIntent: true });
+  const baseVisualSeamContract = record(baseApp.visualSeamContract) ?? {};
+  const config: ResolvedTimelineConfig = {
+    ...configBase,
+    app: {
+      ...(configBase.app ?? {}),
+      visualSeamContract: {
+        ...baseVisualSeamContract,
+        version: visualSeamReport.version,
+        mode: 'enforced',
+        report: visualSeamReport,
       },
     },
   };
