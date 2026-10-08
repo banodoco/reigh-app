@@ -4,7 +4,13 @@ import { describe, expect, it } from 'vitest';
 import type { TimelineShotGroupView } from '@/tools/video-editor/lib/timeline-domain';
 import type { TimelineAction, TimelineRow } from '@/tools/video-editor/types/timeline-canvas';
 import type { CanonicalShotOccurrence } from '@/tools/video-editor/data/shotCompositionAdapter';
-import { getShotColor, projectCanonicalShotRows, useShotGroups } from './useShotGroups';
+import {
+  canonicalShotThumbnailUrl,
+  getShotColor,
+  maxShotGroupEndSeconds,
+  projectCanonicalShotRows,
+  useShotGroups,
+} from './useShotGroups';
 
 function buildAction(id: string, start: number, end: number): TimelineAction {
   return { id, start, end, effectId: `effect-${id}` };
@@ -41,10 +47,64 @@ function buildGroup(
 }
 
 describe('useShotGroups', () => {
+  it('resolves the first authored canonical image as the group thumbnail', () => {
+    const occurrence = {
+      projectId: 'project-1',
+      occurrenceId: 'occ-1',
+      parentDocumentId: 'timeline-1',
+      shotId: 'shot-1',
+      revisionId: 'rev-1',
+      ordinal: 0,
+      atMs: 0,
+      durationMs: 2_000,
+      stableDeepLink: 'project/project-1/document/timeline-1/shot/shot-1/revision/rev-1/occurrence/occ-1',
+      outputIdentity: 'project/project-1/timeline-1/occ-1',
+      revision: {
+        assets: [{
+          asset_id: 'hero',
+          object_id: 'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+          media_type: 'image/png',
+        }],
+        internal_timeline_revision: {
+          timeline: { clips: [{ asset_id: 'hero', clip_type: 'image', at_ms: 0, duration_ms: 2_000 }] },
+        },
+      },
+    } satisfies CanonicalShotOccurrence;
+
+    expect(canonicalShotThumbnailUrl(occurrence)).toBe(
+      '/api/astrid/v1/objects/sha256%3Aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    );
+    const { result } = renderHook(() => useShotGroups([{ id: 'V1', actions: [] }], [], [occurrence]));
+    expect(result.current[0]?.thumbnailSrc).toContain('/api/astrid/v1/objects/');
+  });
+
+  it('does not treat a video object as an image without an explicit poster', () => {
+    const occurrence = {
+      projectId: 'project-1', occurrenceId: 'occ-1', parentDocumentId: 'timeline-1',
+      shotId: 'shot-1', revisionId: 'rev-1', ordinal: 0, atMs: 0, durationMs: 2_000,
+      stableDeepLink: 'shot/occ-1', outputIdentity: 'output-1',
+      revision: {
+        assets: [{ asset_id: 'video', object_id: 'video-object', media_type: 'video/mp4' }],
+        internal_timeline_revision: { timeline: { clips: [{ asset_id: 'video', clip_type: 'media', at_ms: 0, duration_ms: 2_000 }] } },
+      },
+    } satisfies CanonicalShotOccurrence;
+
+    expect(canonicalShotThumbnailUrl(occurrence)).toBeUndefined();
+  });
+
+  it('uses canonical shot ends when computing the shared timeline extent', () => {
+    expect(maxShotGroupEndSeconds([
+      {
+        shotId: 'shot-1', shotName: 'Shot 1', rowId: 'V1', rowIndex: 0, start: 0, end: 44,
+        clipIds: [], children: [], color: '#fff', poolGenerationIds: [], variantIdsByGenerationId: {},
+      },
+    ])).toBe(44);
+  });
+
   it('prefers the occurrence track when another full-length row overlaps it', () => {
     const rows: TimelineRow[] = [
       { id: 'frame', actions: [buildAction('frame-overlay', 0, 120)] },
-      { id: 'picture', actions: [buildAction('shot-child', 10, 12)] },
+      { id: 'picture', actions: [buildAction('occ-1:shot-child', 10, 12)] },
     ];
     const occurrence = {
       projectId: 'project-1',
@@ -66,9 +126,70 @@ describe('useShotGroups', () => {
     expect(result.current[0]).toMatchObject({
       rowId: 'picture',
       rowIndex: 1,
-      clipIds: ['shot-child'],
-      children: [{ clipId: 'shot-child', offset: 0, duration: 2 }],
+      clipIds: ['occ-1:shot-child'],
+      children: [{ clipId: 'occ-1:shot-child', offset: 0, duration: 2 }],
     });
+  });
+
+  it('does not assign one long shared base clip to overlapping canonical occurrences', () => {
+    const rows: TimelineRow[] = [
+      { id: 'frame', actions: [buildAction('shared-base', 0, 120)] },
+      { id: 'picture', actions: [] },
+    ];
+    const occurrences: CanonicalShotOccurrence[] = [0, 1, 2].map((ordinal) => ({
+      projectId: 'project-1', occurrenceId: `occ-${ordinal}`, parentDocumentId: 'timeline-1',
+      shotId: 'same-shot', revisionId: 'rev-1', ordinal,
+      atMs: ordinal * 5_000, durationMs: 5_000,
+      stableDeepLink: `shot/occ-${ordinal}`, outputIdentity: `output-${ordinal}`,
+      trackId: 'picture', revision: {},
+    }));
+
+    const { result } = renderHook(() => useShotGroups(rows, [], occurrences));
+
+    expect(result.current).toHaveLength(3);
+    expect(result.current.map(({ rowId, clipIds, start, end }) => ({ rowId, clipIds, start, end }))).toEqual([
+      { rowId: 'picture', clipIds: [], start: 0, end: 5 },
+      { rowId: 'picture', clipIds: [], start: 5, end: 10 },
+      { rowId: 'picture', clipIds: [], start: 10, end: 15 },
+    ]);
+  });
+
+  it('keeps the committed occurrence window when child content is shorter', () => {
+    const rows: TimelineRow[] = [{ id: 'picture', actions: [] }];
+    const occurrence = {
+      projectId: 'project-1', occurrenceId: 'occ-window', parentDocumentId: 'timeline-1',
+      shotId: 'shot-window', revisionId: 'rev-1', ordinal: 0,
+      atMs: 1_000, durationMs: 7_000,
+      stableDeepLink: 'shot/occ-window', outputIdentity: 'output-window', trackId: 'picture',
+      revision: { internal_timeline_revision: { timeline: { clips: [
+        { id: 'brief', at_ms: 0, duration_ms: 500 },
+      ] } } },
+    } satisfies CanonicalShotOccurrence;
+
+    const { result } = renderHook(() => useShotGroups(rows, [], [occurrence]));
+
+    expect(result.current[0]).toMatchObject({ start: 1, end: 8, rowId: 'picture', clipIds: [] });
+  });
+
+  it('keeps occurrences on their declared empty track without adopting an overlapping frame', () => {
+    const rows: TimelineRow[] = [
+      { id: 'frame', actions: [buildAction('frame-overlay', 0, 120)] },
+      { id: 'picture', actions: [buildAction('later-picture', 30, 120)] },
+    ];
+    const occurrences: CanonicalShotOccurrence[] = [0, 1].map((ordinal) => ({
+      projectId: 'project-1', occurrenceId: `occ-${ordinal}`, parentDocumentId: 'timeline-1',
+      shotId: `shot-${ordinal}`, revisionId: `rev-${ordinal}`, ordinal,
+      atMs: ordinal * 4_000, durationMs: 4_000,
+      stableDeepLink: `shot/occ-${ordinal}`, outputIdentity: `output-${ordinal}`,
+      trackId: 'picture', revision: {},
+    }));
+    const { result } = renderHook(() => useShotGroups(rows, [], occurrences));
+
+    expect(result.current).toHaveLength(2);
+    for (const group of result.current) {
+      expect(group).toMatchObject({ rowId: 'picture', rowIndex: 1, clipIds: [], children: [] });
+    }
+    expect(projectCanonicalShotRows(rows, result.current)).toEqual(rows);
   });
 
   it('preserves authored canonical child offsets when the occurrence moves', () => {
@@ -95,8 +216,8 @@ describe('useShotGroups', () => {
     const { result } = renderHook(() => useShotGroups(rows, [], [occurrence]));
 
     expect(result.current[0]).toMatchObject({
-      rowId: 'V2',
-      rowIndex: 2,
+      rowId: 'picture',
+      rowIndex: 1,
       start: 10,
       end: 12,
       clipIds: ['occ-1:shot-child'],
@@ -108,7 +229,7 @@ describe('useShotGroups', () => {
     expect(projectedAction).toMatchObject({ id: 'occ-1:shot-child', start: 20, end: 22 });
   });
 
-  it('caps content-derived group and row geometry at the next contiguous cut', () => {
+  it('uses exact committed occurrence intervals at contiguous cuts', () => {
     const rows: TimelineRow[] = [{
       id: 'picture',
       actions: [
@@ -197,7 +318,7 @@ describe('useShotGroups', () => {
       outputIdentity: 'project/project-1/document/timeline-1/occurrence/occ-1/output/final-video',
       trackId: 'picture', revision: {},
     } satisfies CanonicalShotOccurrence;
-    const { result } = renderHook(() => useShotGroups(rows, [], [occurrence]));
+    const { result } = renderHook(() => useShotGroups(rows, [], [occurrence], undefined, new Set(['old-shell'])));
 
     expect(projectCanonicalShotRows(rows, result.current, new Set(['old-shell']))[0]?.actions[0])
       .toMatchObject({ start: 10, end: 12 });

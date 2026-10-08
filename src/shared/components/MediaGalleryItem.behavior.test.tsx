@@ -240,6 +240,33 @@ describe('MediaGalleryItem behavior', () => {
     expect(props.actions.onOpenLightbox).toHaveBeenCalledWith(props.image);
   });
 
+  it.each([{ type: 'audio' }, { contentType: 'audio/mpeg' }])('plays catalog audio without image or shot-edit affordances: %j', (mediaType) => {
+    const onImageClick = vi.fn();
+    const props = buildProps({
+      image: { id: 'audio-1', url: 'sha256:audio-object', name: 'Soundtrack', ...mediaType },
+      actions: { onImageClick, onOpenLightbox: vi.fn(), onImageLoaded: vi.fn() },
+    });
+    const { container } = render(<MediaGalleryItem {...props} />);
+    const audio = screen.getByLabelText('Soundtrack');
+    expect(audio.tagName).toBe('AUDIO');
+    expect(audio).toHaveAttribute('controls');
+    expect(audio).toHaveAttribute('src', '/api/astrid/v1/objects/sha256%3Aaudio-object');
+    expect(container.querySelector('img')).toBeNull();
+    expect(screen.queryByTitle('Edit image')).toBeNull();
+    expect(screen.queryByLabelText("Add to 'Shot 1' at final position")).toBeNull();
+    fireEvent.pointerDown(audio, { pointerType: 'mouse', pointerId: 1, button: 0, isPrimary: true });
+    fireEvent.pointerUp(audio, { pointerType: 'mouse', pointerId: 1, button: 0, isPrimary: true });
+    expect(onImageClick).not.toHaveBeenCalled();
+    fireEvent.loadedMetadata(audio);
+    expect(props.actions.onImageLoaded).toHaveBeenCalledWith('audio-1');
+    fireEvent.click(screen.getByLabelText('Open audio: Soundtrack'));
+    expect(props.actions.onOpenLightbox).toHaveBeenCalledWith(props.image);
+    fireEvent.dragStart(container.querySelector('[data-gallery-item-id="audio-1"]') as HTMLElement, {
+      dataTransfer: { setData: vi.fn(), setDragImage: vi.fn() },
+    });
+    expect(mocks.setGenerationDragData).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ variantType: 'audio' }));
+  });
+
   it('keeps mouse double-click lightbox access at a mobile-width breakpoint', async () => {
     mocks.hasLoadedImage.mockReturnValue(true);
     const props = buildProps({

@@ -89,6 +89,7 @@ function setup(
   const runtime = {
     provider,
     timelineId: 'timeline-1',
+    shots: { canonicalDraft: null },
     assetResolver: { resolveAssetUrl: vi.fn(async (file: string) => file) },
     timelineEditability,
   } as unknown as VideoEditorRuntimeContextValue;

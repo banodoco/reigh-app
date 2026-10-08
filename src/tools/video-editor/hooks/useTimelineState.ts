@@ -359,7 +359,7 @@ function useTimelineChromeContextValue({
   render: Pick<RenderStateHook, 'renderStatus' | 'renderLog' | 'renderDirty' | 'renderProgress' | 'renderResultUrl' | 'renderResultFilename' | 'activeRenderTaskId' | 'renderDestination' | 'setRenderDestination' | 'cancelRender'>;
   queuedRender: TimelineQueuedRender;
   renderRequest: TimelineRenderRequest;
-  history: Pick<TimelineHistoryHook, 'undo' | 'redo' | 'canUndo' | 'canRedo' | 'historyPausedForUploads' | 'checkpoints' | 'jumpToCheckpoint' | 'createManualCheckpoint'>;
+  history: Pick<TimelineHistoryHook, 'undo' | 'redo' | 'canUndo' | 'canRedo' | 'historyPausedForUploads' | 'checkpoints' | 'jumpToCheckpoint' | 'createManualCheckpoint' | 'canonicalHistory' | 'canonicalHistorySupported' | 'canonicalHistoryError' | 'refreshCanonicalHistory' | 'restoringCanonicalRevisionId' | 'restoreCanonicalRevision'>;
   setScaleWidth: ReturnType<typeof useEditorPreferences>['setScaleWidth'];
   trackManagement: Pick<TimelineTrackManagementHook, 'handleAddTrack' | 'handleClearUnusedTracks' | 'unusedTrackCount'>;
   clipEditing: Pick<ClipEditingHook, 'handleAddText' | 'handleAddTextAt'>;
@@ -398,6 +398,12 @@ function useTimelineChromeContextValue({
     checkpoints: history.checkpoints,
     jumpToCheckpoint: history.jumpToCheckpoint,
     createManualCheckpoint: history.createManualCheckpoint,
+    canonicalHistory: history.canonicalHistory,
+    canonicalHistorySupported: history.canonicalHistorySupported,
+    canonicalHistoryError: history.canonicalHistoryError,
+    refreshCanonicalHistory: history.refreshCanonicalHistory,
+    restoringCanonicalRevisionId: history.restoringCanonicalRevisionId,
+    restoreCanonicalRevision: history.restoreCanonicalRevision,
     setScaleWidth,
     handleAddTrack: trackManagement.handleAddTrack,
     handleClearUnusedTracks: trackManagement.handleClearUnusedTracks,
@@ -426,6 +432,12 @@ function useTimelineChromeContextValue({
     history.checkpoints,
     history.createManualCheckpoint,
     history.jumpToCheckpoint,
+    history.canonicalHistory,
+    history.canonicalHistorySupported,
+    history.canonicalHistoryError,
+    history.refreshCanonicalHistory,
+    history.restoringCanonicalRevisionId,
+    history.restoreCanonicalRevision,
     history.redo,
     history.undo,
     isConflictExhausted,
@@ -771,6 +783,12 @@ export function useTimelineState(initialTimelineData?: TimelineData): UseTimelin
     finalVideoMap,
   });
 
+  const canonicalShotTrackIds = useMemo(
+    () => new Set((runtime.shots?.canonicalOccurrences ?? [])
+      .map((occurrence) => occurrence.trackId)
+      .filter((trackId): trackId is string => typeof trackId === 'string' && trackId.length > 0)),
+    [runtime.shots?.canonicalOccurrences],
+  );
   const trackManagement = useTimelineTrackManagement({
     dataRef,
     resolvedConfig: selection.resolvedConfig,
@@ -779,6 +797,7 @@ export function useTimelineState(initialTimelineData?: TimelineData): UseTimelin
     applyEdit,
     eventBus: save.eventBus,
     editability: runtime.timelineEditability,
+    protectedTrackIds: canonicalShotTrackIds,
   });
 
   const timelineCommands = useMemo<TimelineEditorCommands>(() => {
@@ -1044,6 +1063,12 @@ export function useTimelineState(initialTimelineData?: TimelineData): UseTimelin
       checkpoints,
       jumpToCheckpoint,
       createManualCheckpoint,
+      canonicalHistory: history.canonicalHistory,
+      canonicalHistorySupported: history.canonicalHistorySupported,
+      canonicalHistoryError: history.canonicalHistoryError,
+      refreshCanonicalHistory: history.refreshCanonicalHistory,
+      restoringCanonicalRevisionId: history.restoringCanonicalRevisionId,
+      restoreCanonicalRevision: history.restoreCanonicalRevision,
     },
     setScaleWidth,
     trackManagement: {

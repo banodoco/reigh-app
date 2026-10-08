@@ -239,6 +239,16 @@ export class ReighRuntimeClient {
     return this.withSession(() => this.client.getProjectParentCompositionRevision(projectId, timelineId, revision));
   }
 
+  async listProjectParentCompositionRevisions(projectId: string, timelineId: string, cursor?: string, limit = 50): Promise<Page<Record<string, unknown>>> {
+    return this.withSession(() => this.client.listProjectParentCompositionRevisions(projectId, timelineId, cursor, limit));
+  }
+
+  async restoreProjectParentCompositionRevision(projectId: string, timelineId: string, revision: string, expectedHead: string | null, key?: string): Promise<MutationResult<Record<string, unknown>>> {
+    return this.withSession(() => this.client.restoreProjectParentCompositionRevision(
+      projectId, timelineId, revision, expectedHead, key ?? idempotencyKey(),
+    ));
+  }
+
   async getProjectShotRevision(projectId: string, shotId: string, revision: string): Promise<Record<string, unknown>> {
     return this.withSession(() => this.client.getProjectShotRevision(projectId, shotId, revision));
   }
@@ -369,6 +379,34 @@ export class ReighRuntimeClient {
       destinationFilename,
       idempotencyKey(),
       expected,
+    ));
+  }
+
+  /** Read a Runtime-owned thumbnail selected from a source video frame. */
+  async getSourceFrameThumbnail(
+    projectId: string,
+    sourceObjectId: string,
+    sourceTimeSeconds: number,
+    recipeVersion = 1,
+  ): Promise<Record<string, unknown> | null> {
+    return this.withSession(() => this.client.getSourceFrameThumbnail(
+      projectId,
+      sourceObjectId,
+      sourceTimeSeconds,
+      recipeVersion,
+    ));
+  }
+
+  /** Ensure a typed source-frame thumbnail relation exists, idempotently. */
+  async ensureSourceFrameThumbnail(
+    projectId: string,
+    thumbnail: Record<string, unknown>,
+    idempotencyKeyValue: string,
+  ): Promise<MutationResult<Record<string, unknown>>> {
+    return this.withSession(() => this.client.ensureSourceFrameThumbnail(
+      projectId,
+      thumbnail,
+      idempotencyKeyValue,
     ));
   }
 

@@ -17,6 +17,7 @@ import type {
 import type {
   TimelineApplyEdit,
   TimelineCheckpoints,
+  TimelineCanonicalHistory,
   TimelineCreateManualCheckpoint,
   TimelineDataRef,
   TimelineJumpToCheckpoint,
@@ -27,8 +28,10 @@ import type {
   TimelineRenderRequest,
   TimelineReloadFromServer,
   TimelineRenderProgress,
+  TimelineRefreshCanonicalHistory,
   TimelineResolvedConfig,
   TimelineRetrySaveAfterConflict,
+  TimelineRestoreCanonicalRevision,
   TimelineSelectedClip,
   TimelineSelectedTrack,
   TimelineSetScaleWidth,
@@ -227,6 +230,12 @@ export interface TimelineChromeContextValue {
   checkpoints: TimelineCheckpoints;
   jumpToCheckpoint: TimelineJumpToCheckpoint;
   createManualCheckpoint: TimelineCreateManualCheckpoint;
+  canonicalHistory: TimelineCanonicalHistory;
+  canonicalHistorySupported: boolean;
+  canonicalHistoryError: string | null;
+  refreshCanonicalHistory: TimelineRefreshCanonicalHistory;
+  restoringCanonicalRevisionId: string | null;
+  restoreCanonicalRevision: TimelineRestoreCanonicalRevision;
   setScaleWidth: TimelineSetScaleWidth;
   handleAddTrack: TimelineTrackManagementHook['handleAddTrack'];
   handleClearUnusedTracks: TimelineTrackManagementHook['handleClearUnusedTracks'];

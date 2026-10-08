@@ -26,15 +26,37 @@ import {
 } from '@/tools/video-editor/contexts/VideoEditorRuntimeContext.tsx';
 import type { ResolvedTimelineConfig } from '@/tools/video-editor/types';
 
+const mockSequenceState = vi.hoisted(() => ({ frame: 0, windowing: false }));
+
 vi.mock('remotion', async () => {
   return {
     AbsoluteFill: ({ children, ...props }: PropsWithChildren<Record<string, unknown>>) => (
       <div data-testid="absolute-fill" {...props}>{children}</div>
     ),
-    Sequence: ({ children, ...props }: PropsWithChildren<Record<string, unknown>>) => (
-      <div data-testid="sequence" data-premount-for={props.premountFor}>{children}</div>
-    ),
-    useCurrentFrame: () => 0,
+    Sequence: ({ children, ...props }: PropsWithChildren<Record<string, unknown>>) => {
+      const from = typeof props.from === 'number' ? props.from : 0;
+      const duration = typeof props.durationInFrames === 'number' ? props.durationInFrames : Infinity;
+      const premountFor = typeof props.premountFor === 'number' ? props.premountFor : 0;
+      const frame = mockSequenceState.frame;
+      const active = frame >= from && frame < from + duration;
+      const mounted = !mockSequenceState.windowing || (
+        frame >= from - premountFor && frame < from + duration
+      );
+      if (!mounted) return null;
+      return (
+        <div
+          data-testid="sequence"
+          data-from={from}
+          data-duration={duration}
+          data-premount-for={premountFor}
+          data-active={String(active)}
+          style={active ? undefined : { display: 'none' }}
+        >
+          {children}
+        </div>
+      );
+    },
+    useCurrentFrame: () => mockSequenceState.frame,
     useRemotionEnvironment: () => ({ isRendering: false, isClientSideRendering: false }),
   };
 });
@@ -112,6 +134,8 @@ describe('ShotClipSequence referenced-timeline cache', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     vi.clearAllMocks();
+    mockSequenceState.frame = 0;
+    mockSequenceState.windowing = false;
   });
 
   it('deduplicates repeated sequential mounts: one load, second mount synchronous', async () => {
@@ -197,6 +221,50 @@ describe('ShotClipSequence referenced-timeline cache', () => {
 
     const sequence = screen.getByTestId('sequence');
     expect(sequence.getAttribute('data-premount-for')).toBe('60'); // fps 30 * 2
+  });
+
+  it('keeps nested child content mounted while hidden before a canonical shot boundary', async () => {
+    const { provider, loadSpy } = makeProvider({ load: async () => loadedChild() });
+    mockSequenceState.frame = 29;
+    mockSequenceState.windowing = true;
+
+    const contextValue = { provider } as unknown as VideoEditorRuntimeContextValue;
+    const config: ResolvedTimelineConfig = {
+      ...parentConfig('canonical-child'),
+      clips: [{
+        id: 'canonical-shot',
+        clipType: 'shot',
+        track: 'V1',
+        at: 1,
+        hold: 1,
+        params: { timeline_document_id: 'canonical-child' },
+        app: { canonicalTiming: { start: 1, duration: 1 } },
+      } as never],
+    };
+    const view = render(
+      <VideoEditorRuntimeContext.Provider value={contextValue}>
+        <TimelineRenderer config={config} />
+      </VideoEditorRuntimeContext.Provider>,
+    );
+
+    const marker = await screen.findByTestId('child-shot-content');
+    const hiddenPremount = screen.getAllByTestId('sequence').find((sequence) => (
+      sequence.contains(marker) && sequence.getAttribute('data-premount-for') === '60'
+    ));
+    expect(hiddenPremount).toBeTruthy();
+    expect(hiddenPremount?.getAttribute('data-premount-for')).toBe('60');
+    expect(hiddenPremount?.getAttribute('data-active')).toBe('false');
+    expect((hiddenPremount as HTMLElement).style.display).toBe('none');
+    expect(loadSpy).toHaveBeenCalledTimes(1);
+
+    mockSequenceState.frame = 30;
+    view.rerender(
+      <VideoEditorRuntimeContext.Provider value={contextValue}>
+        <TimelineRenderer config={config} />
+      </VideoEditorRuntimeContext.Provider>,
+    );
+    expect(screen.getByTestId('child-shot-content')).toBe(marker);
+    expect(loadSpy).toHaveBeenCalledTimes(1);
   });
 
   it('invalidates a specific timeline after a save so the next mount reloads fresh data', async () => {

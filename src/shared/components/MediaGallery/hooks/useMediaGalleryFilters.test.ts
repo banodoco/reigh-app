@@ -21,6 +21,9 @@ describe('useMediaGalleryFilters media type filtering', () => {
 
     act(() => result.current.setMediaTypeFilter('video'));
     expect(result.current.filteredImages.map((item) => item.id)).toEqual(['video']);
+
+    act(() => result.current.setMediaTypeFilter('audio'));
+    expect(result.current.filteredImages.map((item) => item.id)).toEqual(['audio']);
   });
 
   it('keeps audio available in the all view', () => {

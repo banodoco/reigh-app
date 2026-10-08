@@ -31,6 +31,7 @@ import type {
   UndoEntry,
   UndoSnapshot,
 } from '@/tools/video-editor/types/history.ts';
+import type { CanonicalShotCompositionHistoryEntry } from '@/tools/video-editor/data/shotCompositionAdapter.ts';
 
 const UNDO_STACK_LIMIT = 100;
 const CHECKPOINT_LIMIT = 30;
@@ -63,6 +64,12 @@ export interface UseTimelineHistoryResult {
   /** True while undo/redo are paused because media uploads are in flight. */
   historyPausedForUploads: boolean;
   checkpoints: Checkpoint[];
+  canonicalHistory: readonly CanonicalShotCompositionHistoryEntry[];
+  canonicalHistorySupported: boolean;
+  canonicalHistoryError: string | null;
+  refreshCanonicalHistory: () => Promise<void>;
+  restoringCanonicalRevisionId: string | null;
+  restoreCanonicalRevision: (revisionId: string) => Promise<void>;
   onBeforeCommit: (currentData: TimelineData, options: CommitHistoryOptions) => void;
   onRemoteData: (currentData: TimelineData, nextData: TimelineData) => void;
   undo: () => void;
@@ -198,7 +205,8 @@ export function useTimelineHistory({
   pendingOpsRef,
   editability,
 }: UseTimelineHistoryArgs): UseTimelineHistoryResult {
-  const { provider, timelineId } = useVideoEditorRuntime();
+  const { provider, timelineId, project, toast } = useVideoEditorRuntime();
+  const historyProjectId = project.projectId;
   const undoStackRef = useRef<UndoEntry[]>([]);
   const redoStackRef = useRef<UndoEntry[]>([]);
   const lastEditTimestampRef = useRef<number | null>(null);
@@ -207,6 +215,11 @@ export function useTimelineHistory({
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
   const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([]);
+  const [canonicalHistory, setCanonicalHistory] = useState<readonly CanonicalShotCompositionHistoryEntry[]>([]);
+  const [canonicalHistoryError, setCanonicalHistoryError] = useState<string | null>(null);
+  const [restoringCanonicalRevisionId, setRestoringCanonicalRevisionId] = useState<string | null>(null);
+  const canonicalHistoryRequestRef = useRef(0);
+  const canonicalHistorySupported = Boolean(provider.shotComposition?.listHistory && provider.shotComposition?.restoreHistory);
 
   const syncHistoryState = useCallback(() => {
     const nextCanUndo = undoStackRef.current.length > 0;
@@ -530,6 +543,65 @@ export function useTimelineHistory({
     };
   }, [provider, timelineId]);
 
+  const refreshCanonicalHistory = useCallback(async () => {
+    const requestId = ++canonicalHistoryRequestRef.current;
+    const listHistory = provider.shotComposition?.listHistory;
+    if (!listHistory || !timelineId || !historyProjectId) {
+      setCanonicalHistory([]);
+      setCanonicalHistoryError(null);
+      return;
+    }
+
+    setCanonicalHistoryError(null);
+    try {
+      const entries = await listHistory({ projectId: historyProjectId, parentDocumentId: timelineId });
+      if (requestId === canonicalHistoryRequestRef.current) setCanonicalHistory(entries);
+    } catch (error: unknown) {
+      if (requestId === canonicalHistoryRequestRef.current) {
+        setCanonicalHistory([]);
+        setCanonicalHistoryError(error instanceof Error ? error.message : String(error));
+      }
+    }
+  }, [historyProjectId, provider, timelineId]);
+
+  useEffect(() => {
+    void refreshCanonicalHistory();
+    return () => {
+      canonicalHistoryRequestRef.current += 1;
+    };
+  }, [refreshCanonicalHistory]);
+
+  const restoreCanonicalRevision = useCallback(async (revisionId: string) => {
+    const restoreHistory = provider.shotComposition?.restoreHistory;
+    if (!restoreHistory || !timelineId || !historyProjectId) return;
+    if (editability?.checkTimeline && !editability.checkTimeline().allowed) return;
+    if (pendingOpsRef.current > 0 || isInteractionActive(interactionStateRef)) {
+      setCanonicalHistoryError('History restore is paused while an edit or media upload is active.');
+      return;
+    }
+
+    setCanonicalHistoryError(null);
+    setRestoringCanonicalRevisionId(revisionId);
+    try {
+      await restoreHistory({ projectId: historyProjectId, parentDocumentId: timelineId, revisionId });
+      const entries = await provider.shotComposition?.listHistory?.({
+        projectId: historyProjectId,
+        parentDocumentId: timelineId,
+      });
+      if (entries) setCanonicalHistory(entries);
+      undoStackRef.current = [];
+      redoStackRef.current = [];
+      syncHistoryState();
+      toast.success('Timeline history restored', { description: `Restored revision ${revisionId.slice(0, 16)}.` });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      setCanonicalHistoryError(message);
+      toast.error('Could not restore timeline history', { description: message });
+    } finally {
+      setRestoringCanonicalRevisionId(null);
+    }
+  }, [editability, historyProjectId, interactionStateRef, pendingOpsRef, provider, syncHistoryState, timelineId, toast]);
+
   // Read at render time. Every pendingOps transition is bracketed by a data
   // commit (skeleton insert on increment; skeleton removal / failure cleanup
   // before the `finally` decrement), so the tree re-renders right after each
@@ -541,6 +613,12 @@ export function useTimelineHistory({
     canRedo: canRedo && !historyPausedForUploads,
     historyPausedForUploads,
     checkpoints,
+    canonicalHistory,
+    canonicalHistorySupported,
+    canonicalHistoryError,
+    refreshCanonicalHistory,
+    restoringCanonicalRevisionId,
+    restoreCanonicalRevision,
     onBeforeCommit,
     onRemoteData,
     undo,

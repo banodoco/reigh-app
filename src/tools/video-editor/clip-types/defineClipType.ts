@@ -21,7 +21,7 @@ export type ClipTypeHoldSupport =
   | { kind: 'unsupported' }
   | ({ kind: 'supported' | 'required' } & ClipTypeHoldTiming);
 
-export type ClipTypeSequenceParamKind = 'string' | 'asset-list';
+export type ClipTypeSequenceParamKind = 'string' | 'asset-list' | 'json';
 
 export type ClipTypeSequenceParamDefinition = {
   key: string;
@@ -29,10 +29,11 @@ export type ClipTypeSequenceParamDefinition = {
   kind: ClipTypeSequenceParamKind;
   description: string;
   required?: boolean;
-  defaultValue?: string | readonly string[];
+  defaultValue?: string | readonly string[] | JsonValue;
   options?: readonly string[];
   maxItems?: number;
   componentParam?: string;
+  jsonSchema?: Readonly<Record<string, unknown>>;
 };
 
 export type ClipTypeParamsSchema =

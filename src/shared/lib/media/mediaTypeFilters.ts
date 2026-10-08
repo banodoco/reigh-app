@@ -12,8 +12,19 @@ export interface MediaTypeFilterItem {
   thumbUrl?: string | null;
 }
 
-function hasMimePrefix(value: string | null | undefined, prefix: 'image' | 'video'): boolean {
+function hasMimePrefix(value: string | null | undefined, prefix: 'image' | 'video' | 'audio'): boolean {
   return typeof value === 'string' && value.trim().toLowerCase().startsWith(`${prefix}/`);
+}
+
+/** Audio can use opaque object URLs, so prefer its catalog type and MIME. */
+export function isAudioMedia(item: MediaTypeFilterItem): boolean {
+  const type = normalizedType(item.type);
+  return type === 'audio'
+    || type.startsWith('audio/')
+    || hasMimePrefix(item.contentType, 'audio')
+    || hasMimePrefix(item.local_file_mime, 'audio')
+    || [item.url, item.location].some((url) =>
+      !!url && /\.(?:aac|aif|aiff|flac|m4a|mp3|oga|ogg|opus|wav)(?:[?#]|$)/i.test(url));
 }
 
 function normalizedType(value: string | null | undefined): string {
@@ -43,7 +54,7 @@ export function isVideoMedia(item: MediaTypeFilterItem): boolean {
  * be inferred as images merely because they are not videos.
  */
 export function isImageMedia(item: MediaTypeFilterItem): boolean {
-  if (isVideoMedia(item)) return false;
+  if (isVideoMedia(item) || isAudioMedia(item)) return false;
 
   const type = normalizedType(item.type);
   const hasImageType = type === 'image'

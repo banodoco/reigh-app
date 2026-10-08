@@ -18,6 +18,7 @@ import {
 } from '@/tools/video-editor/lib/timeline-dom';
 import { createCommandRegistry, type CommandRegistry } from '@/tools/video-editor/runtime/commandRegistry';
 import type { TimelinePostprocessShaderMetadata, TrackDefinition } from '@/tools/video-editor/types';
+import type { CanonicalShotOccurrence } from '@/tools/video-editor/data/shotCompositionAdapter';
 import type { TimelineAction, TimelineRow } from '@/tools/video-editor/types/timeline-canvas';
 import type {
   ReighExtension,
@@ -339,6 +340,7 @@ function renderCanvas(params?: {
   onShotGroupDelete?: React.ComponentProps<typeof TimelineCanvas>['onShotGroupDelete'];
   onShotGroupDuplicate?: React.ComponentProps<typeof TimelineCanvas>['onShotGroupDuplicate'];
   onShotGroupPromotePrimary?: React.ComponentProps<typeof TimelineCanvas>['onShotGroupPromotePrimary'];
+  selectedCanonicalOccurrenceId?: React.ComponentProps<typeof TimelineCanvas>['selectedCanonicalOccurrenceId'];
   onShotGroupSwitchToFinalVideo?: React.ComponentProps<typeof TimelineCanvas>['onShotGroupSwitchToFinalVideo'];
   onShotGroupExportManagedOutput?: React.ComponentProps<typeof TimelineCanvas>['onShotGroupExportManagedOutput'];
   onShotGroupSwitchToImages?: React.ComponentProps<typeof TimelineCanvas>['onShotGroupSwitchToImages'];
@@ -430,6 +432,7 @@ function renderCanvas(params?: {
       onShotGroupDelete={params?.onShotGroupDelete}
       onShotGroupDuplicate={params?.onShotGroupDuplicate}
       onShotGroupPromotePrimary={params?.onShotGroupPromotePrimary}
+      selectedCanonicalOccurrenceId={params?.selectedCanonicalOccurrenceId}
       onShotGroupSwitchToFinalVideo={params?.onShotGroupSwitchToFinalVideo}
       onShotGroupExportManagedOutput={params?.onShotGroupExportManagedOutput}
       onShotGroupSwitchToImages={params?.onShotGroupSwitchToImages}
@@ -1461,6 +1464,37 @@ describe('TimelineCanvas resize pending ops', () => {
     expect(last.rightHandle).not.toBeNull();
   });
 
+  it('reveals only the hovered shot label across its body and label, then collapses on exit', () => {
+    const { container, getByTitle } = renderCanvas({
+      row: shiftedPinnedGroupRow,
+      shotGroups: [
+        { ...pinnedShotGroup, start: 1 },
+        { ...pinnedShotGroup, shotId: 'shot-2', shotName: 'Second Shot', start: 5 },
+      ],
+      allowMissingHandles: true,
+    });
+    const scroller = container.querySelector<HTMLElement>(EDIT_AREA_SELECTOR)!;
+    const label = getByTitle('Pinned Shot');
+    const otherLabel = getByTitle('Second Shot');
+    expect(label.classList.contains('h-1')).toBe(true);
+
+    // A pointer entering anywhere inside the body reveals its label.
+    fireEvent.pointerOver(scroller, { pointerType: 'mouse', clientX: 200, clientY: 24 });
+    expect(label.classList.contains('z-10')).toBe(true);
+    expect(label.classList.contains('h-[18px]')).toBe(true);
+    expect(otherLabel.classList.contains('h-1')).toBe(true);
+
+    // Body -> floating label does not collapse, despite separate DOM layers.
+    fireEvent.pointerOver(label, { pointerType: 'mouse', clientX: 200, clientY: -8 });
+    expect(label.classList.contains('h-[18px]')).toBe(true);
+    fireEvent.pointerMove(scroller, { pointerType: 'mouse', clientX: 450, clientY: 24 });
+    expect(label.classList.contains('h-1')).toBe(true);
+    fireEvent.pointerOver(label, { pointerType: 'mouse', clientX: 200, clientY: 2 });
+    expect(label.classList.contains('h-[18px]')).toBe(true);
+    fireEvent.pointerLeave(label, { relatedTarget: document.body });
+    expect(label.classList.contains('h-1')).toBe(true);
+  });
+
   it('renders pinned shot groups from group.start and children rather than clip array order', () => {
     const unorderedRow: TimelineRow = {
       id: 'V1',
@@ -1666,8 +1700,8 @@ describe('TimelineCanvas resize pending ops', () => {
     expect(gridSurface.style.paddingTop).toBe('');
     expect(getByTitle('Pinned Shot')).toHaveStyle({
       top: '16px',
-      height: '18px',
     });
+    expect(getByTitle('Pinned Shot').classList.contains('h-1')).toBe(true);
   });
 
   it('hides shot overlays while a clip drag is active', () => {
@@ -1704,6 +1738,70 @@ describe('TimelineCanvas resize pending ops', () => {
     fireEvent.click(getByTitle('Pinned Shot'));
 
     expect(onSelectClips).toHaveBeenCalledWith(['clip-1', 'clip-2', 'clip-3']);
+  });
+
+  it('selects a canonical occurrence identity without selecting its child clip IDs', () => {
+    const occurrence = {
+      projectId: 'project-1',
+      occurrenceId: 'occurrence-opening',
+      parentDocumentId: 'timeline-1',
+      shotId: 'shot-opening',
+      revisionId: 'revision-opening',
+      ordinal: 0,
+      atMs: 1_000,
+      durationMs: 4_000,
+      stableDeepLink: '/shot/opening',
+      outputIdentity: 'output-opening',
+      trackId: 'picture',
+      revision: {},
+    } satisfies CanonicalShotOccurrence;
+    const onSelectTrack = vi.fn();
+    const onSelectClips = vi.fn();
+    const clearSelection = vi.fn();
+    const setInspectorTarget = vi.fn();
+    const { getByTitle } = renderCanvas({
+      rows: [
+        { id: 'frame', actions: [{ id: 'frame-overlay', start: 0, end: 120, effectId: 'frame-overlay' }] },
+        { id: 'picture', actions: [] },
+      ],
+      tracks: [
+        { id: 'frame', kind: 'visual', label: 'Frame' },
+        { id: 'picture', kind: 'visual', label: 'Picture' },
+      ],
+      shotGroups: [{
+        shotId: occurrence.shotId,
+        shotName: 'Opening',
+        rowId: 'picture',
+        rowIndex: 1,
+        start: 1,
+        end: 5,
+        clipIds: ['occurrence-opening:child'],
+        children: [{ clipId: 'occurrence-opening:child', offset: 0, duration: 4 }],
+        color: '#a855f7',
+        canonicalIdentity: occurrence,
+      }],
+      onSelectTrack,
+      onSelectClips,
+      ops: { clearSelection, setContextTarget: vi.fn(), setInspectorTarget },
+      allowMissingHandles: true,
+    });
+
+    fireEvent.click(getByTitle('Opening'));
+
+    expect(onSelectTrack).toHaveBeenCalledWith('picture');
+    expect(clearSelection).toHaveBeenCalledTimes(1);
+    expect(setInspectorTarget).toHaveBeenCalledWith({
+      kind: 'shotOccurrence',
+      occurrenceId: 'occurrence-opening',
+      shotId: 'shot-opening',
+      revisionId: 'revision-opening',
+      parentDocumentId: 'timeline-1',
+      shotName: 'Opening',
+      trackId: 'picture',
+      start: 1,
+      end: 5,
+    });
+    expect(onSelectClips).not.toHaveBeenCalled();
   });
 
   it('shows deconstruct/delete and switch-to-video actions for pinned groups with a final video', () => {

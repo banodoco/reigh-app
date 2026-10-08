@@ -44,9 +44,16 @@ describe('ShotGroupLabels', () => {
     expect(label.getAttribute(ACTION_ID_ATTR)).toBe(SHOT_GROUP_LABEL_ACTION_ID);
     expect(label.getAttribute(SHOT_GROUP_DRAG_ANCHOR_CLIP_ID_ATTR)).toBe('clip-1');
     expect(label.getAttribute(SHOT_GROUP_DRAG_ANCHOR_ROW_ID_ATTR)).toBe('V1');
-    expect(label.className).toContain('opacity-30');
+    expect(label.className).toContain('opacity-70');
+    expect(label.classList.contains('h-1')).toBe(true);
+    expect(label.className).toContain('translate-y-[14px]');
+    expect(label.className).toContain('focus-within:h-[18px]');
     expect(label.className).toContain('hover:opacity-100');
-    expect(label.style.zIndex).toBe('10');
+    expect(label.className).toContain('z-[1]');
+    expect(label.className).toContain('hover:z-10');
+    expect(label.className).toContain('focus-within:z-10');
+    // An inline z-index would override the hover/focus utilities.
+    expect(label.style.zIndex).toBe('');
   });
 
   it('lets pointerdown bubble so label drags reach the shared drag listener', () => {
@@ -107,6 +114,7 @@ describe('ShotGroupLabels', () => {
   it('selects a canonical shot on click and opens it on double-click', () => {
     const onShotGroupOpen = vi.fn();
     const onSelectClips = vi.fn();
+    const onSelectShotGroup = vi.fn();
     const canonicalIdentity = {
       projectId: 'project-1',
       occurrenceId: 'occ-1',
@@ -129,18 +137,69 @@ describe('ShotGroupLabels', () => {
         scrollTop={0}
         openShotGroupMenu={vi.fn()}
         onSelectClips={onSelectClips}
+        onSelectShotGroup={onSelectShotGroup}
         onShotGroupOpen={onShotGroupOpen}
       />,
     );
 
     fireEvent.click(getByTitle('Opening'));
-    expect(onSelectClips).toHaveBeenCalledWith(['clip-1', 'clip-2']);
+    expect(onSelectShotGroup).toHaveBeenCalledTimes(1);
+    expect(onSelectShotGroup.mock.calls[0][0].canonicalIdentity).toBe(canonicalIdentity);
     expect(onShotGroupOpen).not.toHaveBeenCalled();
 
     onSelectClips.mockClear();
     fireEvent.doubleClick(getByTitle('Opening'));
     expect(onSelectClips).not.toHaveBeenCalled();
+    expect(onSelectShotGroup).toHaveBeenCalledTimes(2);
     expect(onShotGroupOpen).toHaveBeenCalledWith(canonicalIdentity);
+  });
+
+  it('selects and anchors an empty canonical group by occurrence identity', () => {
+    const onSelectClips = vi.fn();
+    const onSelectTrack = vi.fn();
+    const canonicalIdentity = {
+      projectId: 'project-1',
+      occurrenceId: 'opening7',
+      parentDocumentId: 'timeline-1',
+      shotId: 'shot-7',
+      revisionId: 'rev-1',
+      ordinal: 6,
+      atMs: 0,
+      durationMs: 1000,
+      stableDeepLink: 'shot/opening7',
+      outputIdentity: 'output-opening7',
+      revision: {},
+    } as const;
+    const { getByTitle } = render(
+      <ShotGroupLabels
+        positionedShotGroups={[{
+          ...positionedShotGroups[0],
+          key: 'opening7:V1',
+          shotId: 'shot-7',
+          shotName: 'Opening 7',
+          clipIds: [],
+          rowId: 'V1',
+          canonicalIdentity,
+        }]}
+        hidden={false}
+        showTouchActions={false}
+        scrollLeft={0}
+        scrollTop={0}
+        openShotGroupMenu={vi.fn()}
+        onSelectClips={onSelectClips}
+        onSelectTrack={onSelectTrack}
+        selectedCanonicalOccurrenceId="opening7"
+      />,
+    );
+    const label = getByTitle('Opening 7');
+
+    expect(label.getAttribute(SHOT_GROUP_DRAG_ANCHOR_CLIP_ID_ATTR)).toBe('opening7');
+    expect(label.getAttribute('aria-pressed')).toBe('true');
+    expect(label.classList.contains('h-1')).toBe(true);
+    fireEvent.click(label);
+
+    expect(onSelectTrack).toHaveBeenCalledWith('V1');
+    expect(onSelectClips).toHaveBeenCalledWith(['opening7']);
   });
 
 });

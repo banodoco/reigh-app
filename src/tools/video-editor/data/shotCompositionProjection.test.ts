@@ -106,6 +106,44 @@ describe('canonical shot-composition downstream projection', () => {
       .toBe(projection.occurrenceIdentities.get('occ-2')?.revisionId);
   });
 
+  it('keeps selected asset keys scoped to each occurrence when immutable revisions bind different objects', () => {
+    const source: PreparedShotComposition = {
+      ...prepared,
+      occurrences: prepared.occurrences.map((occurrence, index) => index !== 1 ? occurrence : {
+        ...occurrence,
+        revisionId: 'rev-a-revised',
+        revision: {
+          ...occurrence.revision,
+          revision_id: 'rev-a-revised',
+          assets: (occurrence.revision.assets as Array<Record<string, unknown>>).map((asset) => (
+            asset.asset_id === 'alpha-image' ? { ...asset, object_id: 'object-revised-alpha-image' } : asset
+          )),
+        },
+      }),
+    };
+    const projection = projectCanonicalComposition(source);
+    const first = projection.config.clips.find((clip) => clip.id === 'occ-1:alpha-video');
+    const revised = projection.config.clips.find((clip) => clip.id === 'occ-2:alpha-video');
+    expect(first?.asset).not.toBe(revised?.asset);
+    expect(first?.assetEntry?.file).toBe('object-alpha-image');
+    expect(revised?.assetEntry?.file).toBe('object-revised-alpha-image');
+    expect(source.occurrences[0]?.revision.assets).toEqual(prepared.occurrences[0]?.revision.assets);
+  });
+
+  it('preserves parent clip media when a child uses the same asset key for a different object', () => {
+    const projection = projectCanonicalComposition(prepared, {
+      output: { resolution: '1920x1080', fps: 30, file: 'test.mp4' },
+      tracks: [{ id: 'parent', kind: 'visual' }],
+      clips: [{ id: 'parent-image', at: 0, track: 'parent', asset: 'alpha-image', hold: 1 }],
+      registry: { 'alpha-image': { file: 'object-parent-image', media_id: 'object-parent-image', type: 'image' } },
+    });
+    const parent = projection.config.clips.find((clip) => clip.id === 'parent-image');
+    const child = projection.config.clips.find((clip) => clip.id === 'occ-1:alpha-video');
+    expect(parent?.assetEntry?.file).toBe('object-parent-image');
+    expect(child?.assetEntry?.file).toBe('object-alpha-image');
+    expect(parent?.asset).not.toBe(child?.asset);
+  });
+
   it('clips an overlong child to the occurrence in the parent projection', () => {
     const source = withOccurrenceRevision(prepared, 0, (timeline) => ({
       ...timeline,

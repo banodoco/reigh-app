@@ -1,7 +1,7 @@
 import { useReducer, useCallback, useMemo, useRef, useEffect } from 'react';
 import type { GeneratedImageWithMetadata } from '../types';
 import { GalleryFilterState, DEFAULT_GALLERY_FILTERS } from '../types';
-import { isImageMedia, isVideoMedia } from '@/shared/lib/media/mediaTypeFilters';
+import { isAudioMedia, isImageMedia, isVideoMedia } from '@/shared/lib/media/mediaTypeFilters';
 
 // Maps GalleryFilterState keys to reducer action types
 const FILTER_ACTIONS = {
@@ -14,7 +14,7 @@ const FILTER_ACTIONS = {
 } as const;
 
 interface InternalFiltersState {
-  mediaType: 'all' | 'image' | 'video';
+  mediaType: 'all' | 'image' | 'video' | 'audio';
   shotFilter: string;
   excludePositioned: boolean;
   starredOnly: boolean;
@@ -24,7 +24,7 @@ interface InternalFiltersState {
 }
 
 type InternalFiltersAction =
-  | { type: 'SET_MEDIA_TYPE'; payload: 'all' | 'image' | 'video' }
+  | { type: 'SET_MEDIA_TYPE'; payload: 'all' | 'image' | 'video' | 'audio' }
   | { type: 'SET_SHOT_FILTER'; payload: string }
   | { type: 'SET_EXCLUDE_POSITIONED'; payload: boolean }
   | { type: 'SET_STARRED_ONLY'; payload: boolean }
@@ -133,7 +133,7 @@ export const useMediaGalleryFilters = ({
     }
   }, [isControlled, controlledFilters, onFiltersChange]);
 
-  const setMediaTypeFilter = useCallback((v: 'all' | 'image' | 'video') => updateFilter('mediaType', v), [updateFilter]);
+  const setMediaTypeFilter = useCallback((v: 'all' | 'image' | 'video' | 'audio') => updateFilter('mediaType', v), [updateFilter]);
   const setShotFilter = useCallback((v: string) => updateFilter('shotFilter', v), [updateFilter]);
   const setExcludePositioned = useCallback((v: boolean) => updateFilter('excludePositioned', v), [updateFilter]);
   const setShowStarredOnly = useCallback((v: boolean) => updateFilter('starredOnly', v), [updateFilter]);
@@ -189,6 +189,7 @@ export const useMediaGalleryFilters = ({
       currentFiltered = currentFiltered.filter(image => {
         if (currentFilters.mediaType === 'image') return isImageMedia(image);
         if (currentFilters.mediaType === 'video') return isVideoMedia(image);
+        if (currentFilters.mediaType === 'audio') return isAudioMedia(image);
         return true;
       });
     }

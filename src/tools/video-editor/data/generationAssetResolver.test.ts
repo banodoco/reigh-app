@@ -43,6 +43,50 @@ describe('resolveGenerationAsset (neutral generation detail read → Runtime CAS
     expect(result.asset.entry.url_expires_at).toBeUndefined();
   });
 
+  it('uses the Runtime variant thumbnail descriptor when it matches the source object', async () => {
+    const detail = createJourneyState().galleryDetails[0];
+    const sourceId = `sha256:${'a'.repeat(64)}`;
+    const thumbnailId = `sha256:${'e'.repeat(64)}`;
+    router.state.galleryDetails[0] = {
+      ...detail,
+      variants: [{
+        ...detail.variants[0]!,
+        thumbnail: {
+          object_id: thumbnailId,
+          source_object_id: sourceId,
+          recipe_version: 1,
+        },
+      }, ...detail.variants.slice(1)],
+    };
+
+    const result = await resolveGenerationAsset({
+      generationId: detail.generation_id,
+      projectSlug: FIXTURE_PROJECT.slug,
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.asset.thumbnailUrl).toBe(`/api/astrid/v1/objects/${encodeURIComponent(thumbnailId)}`);
+    expect(result.asset.url).not.toBe(result.asset.thumbnailUrl);
+  });
+
+  it('does not use a video source URL as its image thumbnail', async () => {
+    const detail = createJourneyState().galleryDetails[1];
+    router.state.galleryDetails[1] = { ...detail, type: 'video' };
+
+    const result = await resolveGenerationAsset({
+      generationId: detail.generation_id,
+      entry: { type: 'video/mp4', url: '/source.mp4', thumbnailUrl: '/source.mp4' },
+      projectSlug: FIXTURE_PROJECT.slug,
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.asset.mediaType).toBe('video');
+    expect(result.asset.thumbnailUrl).toBeUndefined();
+    expect(result.asset.entry.thumbnailUrl).toBeUndefined();
+  });
+
   it('reports a missing-asset failure for an unknown generation (404)', async () => {
     const result = await resolveGenerationAsset({
       generationId: '01j8zcex4q7m4sjdy6g6missinggenaa',

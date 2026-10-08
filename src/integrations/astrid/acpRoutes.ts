@@ -26,6 +26,21 @@ const eventsResponseSchema = z.strictObject({
 
 export type AstridAcpConnection = z.infer<typeof connectionSchema>;
 export type AstridAcpRpcParams = Record<string, unknown>;
+const projectChatSchema = z.object({
+  project_id: z.string(),
+  scope_key: z.string(),
+  revision: z.number().int(),
+  selected_session_id: z.string().nullable(),
+  operation_session_id: z.string().optional(),
+  sessions: z.array(z.object({ id: z.string(), title: z.string().optional(), missing: z.boolean().optional() })),
+  draft: z.object({
+    text: z.string(), revision: z.number().int(),
+    queued_messages: z.array(z.object({ id: z.string(), text: z.string(), session_id: z.string(), attachments: z.array(z.unknown()).optional() })).optional(),
+  }),
+});
+export type ProjectChatState = z.infer<typeof projectChatSchema>;
+const unassignedSessionsSchema = z.object({ sessions: z.array(z.object({ id: z.string(), title: z.string().optional() })) });
+export type ProjectChatCandidate = z.infer<typeof unassignedSessionsSchema>['sessions'][number];
 
 /**
  * Browser-side controls for the host-owned ACP lifecycle. The connection id
@@ -34,6 +49,46 @@ export type AstridAcpRpcParams = Record<string, unknown>;
  */
 export class AstridLocalAcpRoutes {
   constructor(private readonly transport: AstridBridgeTransport) {}
+
+  async projectChat(projectId: string): Promise<ProjectChatState> {
+    return this.transport.requestJson(`/acp/projects/${encodeURIComponent(projectId)}/chat`, { method: 'GET' }, projectChatSchema, 'Read project chat');
+  }
+
+  async createProjectSession(projectId: string, connectionId: string, mode: 'ensure' | 'new', operationId: string): Promise<ProjectChatState> {
+    return this.transport.requestJson(`/acp/projects/${encodeURIComponent(projectId)}/chat/sessions`, {
+      method: 'POST', body: { connection_id: connectionId, mode, operation_id: operationId },
+    }, projectChatSchema, 'Create project chat session');
+  }
+
+  async unassignedProjectSessions(projectId: string, connectionId: string): Promise<ProjectChatCandidate[]> {
+    const result = await this.transport.requestJson(`/acp/projects/${encodeURIComponent(projectId)}/chat/unassigned?connection_id=${encodeURIComponent(connectionId)}`, { method: 'GET' }, unassignedSessionsSchema, 'List unassigned OMP sessions');
+    return result.sessions;
+  }
+
+  async associateProjectSession(projectId: string, connectionId: string, expectedRevision: number, sessionId: string): Promise<ProjectChatState> {
+    return this.transport.requestJson(`/acp/projects/${encodeURIComponent(projectId)}/chat/associate`, {
+      method: 'POST', body: { connection_id: connectionId, expected_revision: expectedRevision, session_id: sessionId },
+    }, projectChatSchema, 'Attach existing OMP session');
+  }
+
+  async saveProjectDraft(projectId: string, expectedRevision: number, text: string, queuedMessages: ProjectChatState['draft']['queued_messages'] = []): Promise<ProjectChatState> {
+    return this.transport.requestJson(`/acp/projects/${encodeURIComponent(projectId)}/chat/draft`, {
+      method: 'PATCH', body: { expected_revision: expectedRevision, text, queued_messages: queuedMessages },
+    }, projectChatSchema, 'Save project chat draft');
+  }
+
+  async selectProjectSession(projectId: string, expectedRevision: number, selectedSessionId: string | null): Promise<ProjectChatState> {
+    return this.transport.requestJson(`/acp/projects/${encodeURIComponent(projectId)}/chat`, {
+      method: 'PATCH', body: { expected_revision: expectedRevision, selected_session_id: selectedSessionId },
+    }, projectChatSchema, 'Select project chat session');
+  }
+
+  async promptProjectSession(projectId: string, connectionId: string, sessionId: string, prompt: Array<Record<string, unknown>>): Promise<unknown> {
+    const response = await this.transport.requestJson(`/acp/projects/${encodeURIComponent(projectId)}/chat/prompt`, {
+      method: 'POST', body: { connection_id: connectionId, session_id: sessionId, prompt },
+    }, rpcResponseSchema, 'Prompt project chat session');
+    return response.result;
+  }
 
   async connect(): Promise<AstridAcpConnection> {
     return this.transport.requestJson(

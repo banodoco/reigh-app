@@ -104,7 +104,8 @@ const RemotionPreviewComponent = forwardRef<PreviewHandle, RemotionPreviewProps>
         cancelAnimationFrame(rafRef.current);
         rafRef.current = null;
       }
-      const nextConfig = latestConfigRef.current ?? config;
+      // The mailbox only selects flush timing; current props own the newest config.
+      const nextConfig = config;
       const delayMs = latestConfigRef.current ? 0 : 150;
       latestConfigRef.current = null;
       flushDeferredConfig(nextConfig, delayMs);

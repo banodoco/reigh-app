@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, renderHook } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   __getSelectionStateForTests,
@@ -8,7 +8,7 @@ import {
 import { applyTimelineMutation, previewTimelineMutation } from '@/tools/video-editor/lib/timeline-mutation-engine';
 import { useTimelineCommit } from './useTimelineCommit';
 import { TimelineEventBus } from './useTimelineEventBus';
-import { configToRows, type TimelineData } from '../lib/timeline-data';
+import { buildTimelineData, configToRows, type TimelineData } from '../lib/timeline-data';
 import { getConfigSignature, getStableConfigSignature } from '../lib/config-utils';
 import type { PinnedShotImageClipSnapshot, TimelineConfig } from '../types';
 
@@ -131,6 +131,56 @@ function makeSelectionForwardingData(): TimelineData {
 describe('useTimelineCommit — delete-shot / auto-restore regression', () => {
   beforeEach(() => {
     __resetSelectionStoreForTests();
+  });
+
+  it('retains managed image URLs through track reorder followed by a row edit without persisting URLs', async () => {
+    const fixture = makeSelectionForwardingData();
+    const registry = { assets: { overlay: { type: 'image', media_id: 'sha256:overlay' } } };
+    const config = { ...fixture.config, clips: fixture.config.clips.map((clip) => ({ ...clip, asset: 'overlay' })) };
+    const url = '/api/runtime/v1/objects/sha256%3Aoverlay';
+    const initial = await buildTimelineData(config, registry, async () => url);
+    const eventBus = new TimelineEventBus();
+    const saved = vi.fn();
+    eventBus.on('scheduleSave', saved);
+    const { result } = renderHook(() => useTimelineCommit({
+      eventBus, lastSavedSignatureRef: { current: '' }, initialData: initial,
+    }));
+    act(() => result.current.applyEdit({ type: 'config', resolvedConfig: {
+      ...initial.resolvedConfig, tracks: [...initial.resolvedConfig.tracks].reverse(),
+    } }));
+    act(() => result.current.applyEdit({ type: 'rows', rows: result.current.dataRef.current!.rows }));
+    const actual = result.current.dataRef.current!;
+    expect(actual.resolvedConfig.registry.overlay.src).toBe(url);
+    expect(actual.resolvedConfig.clips[0].assetEntry?.src).toBe(url);
+    expect(actual.registry).toEqual(registry);
+    expect(saved.mock.calls.at(-1)?.[0].registry).toEqual(registry);
+  });
+
+  it('resolves replaced managed identities without reusing old URLs or overwriting a newer edit', async () => {
+    const fixture = makeSelectionForwardingData();
+    const registry = { assets: { overlay: { type: 'image', media_id: 'sha256:old' } } };
+    const config = { ...fixture.config, clips: fixture.config.clips.map((clip) => ({ ...clip, asset: 'overlay' })) };
+    const initial = await buildTimelineData(config, registry, async () => '/objects/old');
+    const pending = new Map<string, (src: string) => void>();
+    const resolveAssetUrl = vi.fn((token: string) => new Promise<string>((resolve) => pending.set(token, resolve)));
+    const eventBus = new TimelineEventBus();
+    const saved = vi.fn();
+    eventBus.on('scheduleSave', saved);
+    const { result } = renderHook(() => useTimelineCommit({
+      eventBus, lastSavedSignatureRef: { current: '' }, initialData: initial, resolveAssetUrl,
+    }));
+    act(() => result.current.applyEdit({ type: 'rows', rows: initial.rows,
+      registryOverride: { assets: { overlay: { type: 'image', media_id: 'sha256:new' } } },
+    }));
+    expect(result.current.dataRef.current!.resolvedConfig.registry.overlay).toBeUndefined();
+    act(() => result.current.patchRegistry('overlay', { type: 'image', media_id: 'sha256:newest' }));
+    await act(async () => { pending.get('sha256:newest')!('/objects/newest'); });
+    await waitFor(() => expect(result.current.dataRef.current!.resolvedConfig.registry.overlay.src).toBe('/objects/newest'));
+    await act(async () => { pending.get('sha256:new')!('/objects/new'); });
+    expect(result.current.dataRef.current!.resolvedConfig.registry.overlay.src).toBe('/objects/newest');
+    expect(result.current.dataRef.current!.resolvedConfig.clips[0].assetEntry?.src).toBe('/objects/newest');
+    expect(result.current.dataRef.current!.registry.assets.overlay).toEqual({ type: 'image', media_id: 'sha256:newest' });
+    expect(saved).toHaveBeenCalledTimes(2); // Only the edits, never URL hydration.
   });
 
   it('refuses an edit before changing data or scheduling persistence when the timeline guard denies it', () => {

@@ -277,7 +277,9 @@ function RowActionLayer({
           top: ACTION_VERTICAL_MARGIN + placement.lane * laneHeight,
           width,
           height: laneHeight,
-          ...(placement.laneCount > 1 ? { zIndex: placement.lane + 1 } : {}),
+          // Clip bodies cover idle shot labels from the row below. Keep
+          // overlapping lanes ordered within the clip layer.
+          zIndex: placement.lane + 2,
         }}
       >
         {getActionRender?.(renderedAction, row, width)}

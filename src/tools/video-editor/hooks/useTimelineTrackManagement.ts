@@ -17,6 +17,9 @@ import type { TimelineApplyEdit } from '@/tools/video-editor/hooks/timeline-stat
 import type { TimelineEventBus } from '@/tools/video-editor/hooks/useTimelineEventBus.ts';
 import type { TimelineRow } from '@/tools/video-editor/types/timeline-canvas.ts';
 import { allowTimelineEdits, type TimelineEditability } from '@/tools/video-editor/lib/timeline-editability.ts';
+import { toast } from '@/shared/components/ui/toast.tsx';
+
+const NO_PROTECTED_TRACKS: ReadonlySet<string> = new Set();
 
 export interface UseTimelineTrackManagementArgs {
   dataRef: React.MutableRefObject<TimelineData | null>;
@@ -31,6 +34,8 @@ export interface UseTimelineTrackManagementArgs {
    */
   eventBus?: TimelineEventBus;
   editability?: TimelineEditability;
+  /** Tracks referenced by canonical shot placements, even when they have no parent clips. */
+  protectedTrackIds?: ReadonlySet<string>;
 }
 
 export interface UseTimelineTrackManagementResult {
@@ -235,6 +240,7 @@ export function useTimelineTrackManagement({
   applyEdit,
   eventBus,
   editability = allowTimelineEdits,
+  protectedTrackIds = NO_PROTECTED_TRACKS,
 }: UseTimelineTrackManagementArgs): UseTimelineTrackManagementResult {
   const applyResolvedClipMove = useCallback((
     clipId: string,
@@ -918,6 +924,13 @@ export function useTimelineTrackManagement({
       return;
     }
 
+    if (protectedTrackIds.has(trackId)) {
+      toast.warning('Track is used by canonical shot placements', {
+        description: 'Remove or move its shot placements before removing this track.',
+      });
+      return;
+    }
+
     const sameKind = resolvedConfig.tracks.filter((entry) => entry.kind === track.kind);
     if (sameKind.length <= 1) {
       return;
@@ -929,7 +942,7 @@ export function useTimelineTrackManagement({
       clips: resolvedConfig.clips.filter((clip) => clip.track !== trackId),
     };
     applyEdit({ type: 'config', resolvedConfig: nextConfig }, { selectedTrackId: null, semantic: true });
-  }, [applyEdit, resolvedConfig]);
+  }, [applyEdit, protectedTrackIds, resolvedConfig]);
 
   const unusedTrackCount = useMemo(() => {
     if (!resolvedConfig) {
@@ -937,6 +950,7 @@ export function useTimelineTrackManagement({
     }
 
     const tracksWithClips = new Set(resolvedConfig.clips.map((clip) => clip.track));
+    for (const trackId of protectedTrackIds) tracksWithClips.add(trackId);
     const defaultTrackIds = new Set(DEFAULT_VIDEO_TRACKS.map((track) => track.id));
 
     // Count how many tracks would actually be removed (matching handleClearUnusedTracks logic).
@@ -970,7 +984,7 @@ export function useTimelineTrackManagement({
     }
 
     return removable;
-  }, [resolvedConfig]);
+  }, [protectedTrackIds, resolvedConfig]);
 
   const handleClearUnusedTracks = useCallback(() => {
     if (!resolvedConfig || unusedTrackCount === 0) {
@@ -978,6 +992,7 @@ export function useTimelineTrackManagement({
     }
 
     const tracksWithClips = new Set(resolvedConfig.clips.map((clip) => clip.track));
+    for (const trackId of protectedTrackIds) tracksWithClips.add(trackId);
     const defaultTrackIds = new Set(DEFAULT_VIDEO_TRACKS.map((track) => track.id));
     const visualWithClips = resolvedConfig.tracks.filter((track) => track.kind === 'visual' && tracksWithClips.has(track.id));
     const audioWithClips = resolvedConfig.tracks.filter((track) => track.kind === 'audio' && tracksWithClips.has(track.id));
@@ -1005,7 +1020,7 @@ export function useTimelineTrackManagement({
     });
 
     applyEdit({ type: 'config', resolvedConfig: { ...resolvedConfig, tracks: nextTracks } }, { selectedTrackId: null, semantic: true });
-  }, [applyEdit, resolvedConfig, unusedTrackCount]);
+  }, [applyEdit, protectedTrackIds, resolvedConfig, unusedTrackCount]);
 
   return {
     handleAddTrack,

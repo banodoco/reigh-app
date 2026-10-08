@@ -22,6 +22,7 @@ const mockShaderRegistryGet = vi.hoisted(() => vi.fn());
 const mockShaderRegistryHas = vi.hoisted(() => vi.fn());
 const astridElementComponentMock = vi.hoisted(() => vi.fn());
 let currentFrame = 0;
+let simulatePremount = false;
 let currentEnvironment = {
   isRendering: false,
   isClientSideRendering: false,
@@ -40,6 +41,19 @@ vi.mock('remotion', async () => {
       ...props
     }: PropsWithChildren<Record<string, unknown>>) => {
       sequenceProps.push(props);
+      const from = typeof props.from === 'number' ? props.from : 0;
+      const duration = typeof props.durationInFrames === 'number' ? props.durationInFrames : Infinity;
+      const premountFor = typeof props.premountFor === 'number' ? props.premountFor : 0;
+      if (simulatePremount) {
+        const active = currentFrame >= from && currentFrame < from + duration;
+        const mounted = currentFrame >= from - premountFor && currentFrame < from + duration;
+        if (!mounted) return null;
+        return (
+          <div data-testid="sequence" data-from={from} data-active={String(active)} style={active ? undefined : { opacity: 0 }}>
+            {children}
+          </div>
+        );
+      }
       return <div data-testid="sequence">{children}</div>;
     },
     Series: ({ children }: PropsWithChildren) => <div data-testid="series">{children}</div>,
@@ -322,6 +336,7 @@ const buildConfig = (
 
 beforeEach(() => {
   currentFrame = 0;
+  simulatePremount = false;
   currentEnvironment = {
     isRendering: false,
     isClientSideRendering: false,
@@ -452,13 +467,58 @@ describe('TimelineRenderer registered sequences', () => {
         at: 1,
         hold: 3,
         params: { side: 'left' },
+        app: { canonicalTiming: { occurrenceStartMs: 1000, occurrenceDurationMs: 3000 } },
       }],
     }} />);
 
     expect(screen.queryByTestId('unknown-clip-placeholder')).not.toBeInTheDocument();
     expect(screen.getByTestId('astrid-effect-renderer')).toHaveAttribute('data-clip-id', 'closing-v6-scrolling-guide');
     expect(screen.getByTestId('astrid-effect-renderer')).toHaveAttribute('data-side', 'left');
-    expect(sequenceProps[0]).toMatchObject({ from: 30, durationInFrames: 90 });
+    expect(sequenceProps[0]).toMatchObject({ from: 30, durationInFrames: 90, premountFor: 60 });
+  });
+
+  it('premounts flattened canonical Astrid effect content hidden before its boundary', () => {
+    const ScrollingGuideMock: FC<{ clip: { id: string } }> = ({ clip }) => (
+      <div data-testid="canonical-effect-content" data-clip-id={clip.id} />
+    );
+    astridElementComponentMock.mockImplementation((elementId: string, kind: string) => (
+      elementId === 'animated-media-transform' && kind === 'effect' ? ScrollingGuideMock : undefined
+    ));
+    const config: ResolvedTimelineConfig = {
+      ...buildConfig(),
+      clips: [{
+        id: 'shot-6-image-transform',
+        clipType: 'animated-media-transform',
+        track: 'V1',
+        at: 1,
+        hold: 3,
+        params: { fit: 'cover' },
+        app: { canonicalTiming: { occurrenceStartMs: 1000, occurrenceDurationMs: 3000 } },
+      }],
+    };
+    simulatePremount = true;
+    currentFrame = 29;
+    const view = render(<TimelineRenderer config={config} />);
+
+    const content = screen.getByTestId('canonical-effect-content');
+    const hiddenSequence = screen.getAllByTestId('sequence').find((sequence) => (
+      sequence.contains(content) && sequence.getAttribute('data-from') === '30'
+    ));
+    expect(hiddenSequence).toHaveAttribute('data-active', 'false');
+    expect(hiddenSequence).toHaveStyle({ opacity: 0 });
+    expect(sequenceProps.find((props) => props.from === 30)).toMatchObject({
+      from: 30,
+      premountFor: 60,
+    });
+
+    currentFrame = 30;
+    view.rerender(<TimelineRenderer config={{ ...config }} />);
+    expect(screen.getByTestId('canonical-effect-content')).toBe(content);
+    const activeSequence = screen.getAllByTestId('sequence').find((sequence) => (
+      sequence.contains(content) && sequence.getAttribute('data-from') === '30'
+    ));
+    expect(activeSequence).toHaveAttribute('data-active', 'true');
+    expect(activeSequence).not.toHaveStyle({ opacity: 0 });
   });
 
   it('passes the host-resolved asset URL to legacy Astrid effects', () => {

@@ -127,6 +127,13 @@ function setupHarness(options: {
       {
         value: {
           provider,
+          project: { projectId: 'project-1' },
+          toast: {
+            error: vi.fn(() => 'toast-error'),
+            success: vi.fn(() => 'toast-success'),
+            warning: vi.fn(() => 'toast-warning'),
+            info: vi.fn(() => 'toast-info'),
+          },
           timelineId: 'timeline-1',
           userId: 'user-1',
           timelineName: 'Timeline 1',

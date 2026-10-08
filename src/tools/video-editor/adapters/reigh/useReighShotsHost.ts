@@ -4,6 +4,7 @@ import type { VideoEditorShotsHost, CanonicalShotTimelineDraft, CanonicalShotTim
 import {
   createShotCompositionAdapter,
   ShotCompositionUnavailableError,
+  canonicalSourceFrameRequest,
   type ShotCompositionPort,
 } from '@/tools/video-editor/data/shotCompositionAdapter.ts';
 import { selectCanonicalShotViewModels } from '@/tools/video-editor/data/canonicalShotViewModel.ts';
@@ -28,6 +29,7 @@ export function useReighShotsHost(
   const [canonicalLoading, setCanonicalLoading] = useState(false);
   const [reloadToken, setReloadToken] = useState(0);
   const [canonicalDraftState, setCanonicalDraftState] = useState<CanonicalShotTimelineDraft | null>(null);
+  const [canonicalThumbnailUrls, setCanonicalThumbnailUrls] = useState<ReadonlyMap<string, string>>(() => new Map());
   const refreshInFlightRef = useRef(false);
   const hasPreparedCompositionRef = useRef(false);
   const mountedRef = useRef(false);
@@ -131,6 +133,34 @@ export function useReighShotsHost(
     }
   }, [clearCanonicalDraftProjection, draftScopeMatchesHost, parentDocumentId, projectId]);
 
+  const loadSourceFrameThumbnails = useCallback(async (
+    composition: NonNullable<typeof preparedComposition>,
+    generation: number,
+  ) => {
+    const lookup = shotComposition?.getSourceFrameThumbnailUrl;
+    if (!lookup) {
+      setCanonicalThumbnailUrls(new Map());
+      return;
+    }
+    const requests = composition.occurrences
+      .map((occurrence) => {
+        const request = canonicalSourceFrameRequest(occurrence);
+        return request ? { occurrenceId: occurrence.occurrenceId, request } : null;
+      })
+      .filter((value): value is NonNullable<typeof value> => value !== null);
+    const resolved = await Promise.all(requests.map(async ({ occurrenceId, request }) => {
+      try {
+        const url = await lookup(request);
+        return url ? [occurrenceId, url] as const : null;
+      } catch {
+        // A missing backfill must leave the authored-image fallback intact.
+        return null;
+      }
+    }));
+    if (generation !== loadGenerationRef.current) return;
+    setCanonicalThumbnailUrls(new Map(resolved.filter((value): value is readonly [string, string] => value !== null)));
+  }, [shotComposition]);
+
   const loadCanonicalComposition = useCallback(async (showLoading: boolean, generation: number) => {
     if (generation !== loadGenerationRef.current) return;
     if (!projectId || !parentDocumentId || !shotComposition) {
@@ -166,6 +196,7 @@ export function useReighShotsHost(
       }
       setCanonicalCompositionError(null);
       setCanonicalLoading(false);
+      void loadSourceFrameThumbnails(composition, generation);
     } catch (loadError: unknown) {
       if (!mountedRef.current || generation !== loadGenerationRef.current) return;
       // Keep the last coherent pinned head (and any local draft) visible, but
@@ -175,7 +206,7 @@ export function useReighShotsHost(
     } finally {
       refreshInFlightRef.current = false;
     }
-  }, [draftScopeMatchesHost, parentDocumentId, projectId, shotComposition]);
+  }, [loadSourceFrameThumbnails, parentDocumentId, projectId, shotComposition]);
 
   useEffect(() => {
     canonicalDraftRef.current = null;
@@ -183,6 +214,7 @@ export function useReighShotsHost(
     activeDraftSessionsRef.current.clear();
     ignoredStaleHeadsRef.current.clear();
     preparedCompositionRef.current = null;
+    setCanonicalThumbnailUrls(new Map());
   }, [parentDocumentId, projectId, shotComposition]);
 
   useEffect(() => {
@@ -251,6 +283,7 @@ export function useReighShotsHost(
     dismissFinalVideo,
     shotComposition,
     canonicalOccurrences: activeCanonicalOccurrences,
+    canonicalThumbnailUrls,
     canonicalComposition: scopedComposition,
     canonicalCompositionError,
     canonicalDraft: canonicalDraftState,
@@ -270,6 +303,7 @@ export function useReighShotsHost(
     canonicalCompositionError,
     canonicalDraftState,
     activeCanonicalOccurrences,
+    canonicalThumbnailUrls,
     beginCanonicalDraftSession,
     endCanonicalDraftSession,
     setCanonicalDraftProjection,

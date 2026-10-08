@@ -15,7 +15,7 @@ import { useCurrentShot, useLastAffectedShot } from '@/shared/state/selectionSto
 
 interface UseGenerationsPageLogicOptions {
   itemsPerPage?: number;
-  mediaType?: 'all' | 'image' | 'video';
+  mediaType?: 'all' | 'image' | 'video' | 'audio';
   toolType?: string;
   enableDataLoading?: boolean;
   runtimeProjectId?: string | null;

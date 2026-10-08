@@ -8,7 +8,7 @@ import { RuntimeTaskList } from './RuntimeTaskList';
 import { cn } from '@/shared/components/ui/contracts/cn';
 import { Button } from '@/shared/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/components/ui/tooltip';
-import { ChevronDown, ChevronUp, Loader2, MessageSquareText, Mic, Square } from 'lucide-react';
+import { ListTodo, Loader2, Lock, MessageSquareText, Mic, Square, Unlock } from 'lucide-react';
 import { PaneControlTab } from '@/shared/components/PaneControlTab';
 import { useAgentChatActions } from '@/shared/contexts/AgentChatContext';
 import { AgentChatPanel } from '@/tools/video-editor/components/AgentChat';
@@ -34,18 +34,19 @@ import { useTasksPaneSlidingPane } from './hooks/useTasksPaneSlidingPane';
 import { useRenderBudget } from '@/shared/dev/useRenderBudget';
 import { UI_Z_LAYERS } from '@/shared/lib/uiLayers';
 import { usePanesStore } from '@/shared/state/panesStore';
+import { isElementWithinKnownOverlay } from '@/shared/components/ui/overlay';
 
 interface TasksPaneProps {
   onOpenSettings: () => void;
 }
 
 const EXPANDED_HALF_STORAGE_KEY = 'tasksPane:expandedHalf';
-type ExpandedHalf = 'tasks' | 'chat' | null;
+type ExpandedHalf = 'chat' | null;
 
 function readPersistedExpandedHalf(): ExpandedHalf {
-  if (typeof window === 'undefined') return null;
+  if (typeof window === 'undefined') return 'chat';
   const stored = window.localStorage.getItem(EXPANDED_HALF_STORAGE_KEY);
-  return stored === 'tasks' || stored === 'chat' ? stored : null;
+  return stored === 'split' || stored === 'tasks' ? null : 'chat';
 }
 
 const TasksPaneComponent: React.FC<TasksPaneProps> = ({ onOpenSettings }) => {
@@ -191,22 +192,31 @@ const TasksPaneComponent: React.FC<TasksPaneProps> = ({ onOpenSettings }) => {
   const agentChatActions = useAgentChatActions();
   const readyAgentChatActions = isToolRoute ? agentChatActions : null;
 
-  // Expand state: which half (if any) is currently filling the entire pane.
-  // null = 50/50 split. Keep this preference outside the open/close lifecycle
-  // so reopening the sidebar restores the user's chosen working layout.
+  // Keep the established stored preference: chat = compact tasks; split =
+  // tasks pinned at their normal half-height. Legacy tasks-full maps to split.
   const [expandedHalf, setExpandedHalf] = useState<ExpandedHalf>(readPersistedExpandedHalf);
   useEffect(() => {
     if (typeof window === 'undefined') return;
     if (expandedHalf) {
       window.localStorage.setItem(EXPANDED_HALF_STORAGE_KEY, expandedHalf);
     } else {
-      // Some embedded/test storage shims only expose getItem/setItem. The
-      // preference is already absent in that case, so cleanup is optional.
-      window.localStorage.removeItem?.(EXPANDED_HALF_STORAGE_KEY);
+      window.localStorage.setItem(EXPANDED_HALF_STORAGE_KEY, 'split');
     }
   }, [expandedHalf]);
-  const showChatHalf = isToolRoute && expandedHalf !== 'tasks';
-  const showTasksHalf = expandedHalf !== 'chat';
+  const showChatHalf = isToolRoute;
+  const [isTasksPeeking, setIsTasksPeeking] = useState(false);
+  const compactTasks = isToolRoute;
+  const isTasksPinned = expandedHalf === null;
+  const showTasksHalf = !isToolRoute || isTasksPinned || isTasksPeeking;
+  const toggleTasksPinned = () => setExpandedHalf(isTasksPinned ? 'chat' : null);
+  useEffect(() => { setIsTasksPeeking(false); }, [expandedHalf, isOpen]);
+  const leaveTaskPeek = (event: React.MouseEvent | React.FocusEvent) => {
+    if (event.relatedTarget instanceof Element && (
+      event.relatedTarget.closest('[data-task-peek-surface]')
+      || isElementWithinKnownOverlay(event.relatedTarget)
+    )) return;
+    setIsTasksPeeking(false);
+  };
 
   // Which agent action was used most recently. Drives which control sits as
   // the primary in the pane-control split button — secondary appears on hover.
@@ -304,47 +314,82 @@ const TasksPaneComponent: React.FC<TasksPaneProps> = ({ onOpenSettings }) => {
               former popup — it lived outside the pane and was never gated, so
               we keep it always interactive to preserve that. Otherwise the
               attachment X buttons drop clicks during the 300ms slide-in. */}
-          <div className="flex flex-col h-full">
-            {/* Top half: tasks. Hidden when the chat half is expanded; otherwise
-                flex-1 min-h-0 to share vertical space with the chat half on tool
-                routes (or fill the pane on non-tool routes). `relative` anchors
-                the absolute-positioned expand handle that bleeds into the bottom. */}
+          <div
+            className="relative flex flex-col h-full"
+            onPointerDownCapture={(event) => {
+              if (event.target instanceof Element && !event.target.closest('[data-task-peek-surface]') && !isElementWithinKnownOverlay(event.target)) setIsTasksPeeking(false);
+            }}
+          >
+            {compactTasks && (
+              <div
+                data-task-peek-surface="header"
+                role="region"
+                aria-label="Tasks"
+                className="group/tasks-header z-30 flex h-20 shrink-0 flex-col justify-center gap-1 border-b border-zinc-600/70 bg-zinc-800/80 px-2 py-2"
+                onMouseEnter={() => setIsTasksPeeking(true)}
+                onMouseLeave={leaveTaskPeek}
+                onFocus={() => setIsTasksPeeking(true)}
+                onBlur={leaveTaskPeek}
+              >
+                <div className="flex h-6 items-center justify-between pl-1">
+                  <h2 className="flex items-center gap-1.5 text-xs font-medium text-zinc-200">
+                    <ListTodo className="h-3.5 w-3.5 text-zinc-400" aria-hidden="true" />
+                    Tasks
+                  </h2>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6 shrink-0 text-zinc-400 opacity-0 transition-opacity [&_svg]:size-3 group-hover/tasks-header:opacity-100 group-focus-within/tasks-header:opacity-100 focus-visible:opacity-100"
+                    aria-label={isTasksPinned ? 'Unlock tasks' : 'Lock tasks open'}
+                    aria-pressed={isTasksPinned}
+                    title={isTasksPinned ? 'Unlock tasks' : 'Lock tasks open'}
+                    onClick={toggleTasksPinned}
+                  >
+                    {isTasksPinned ? <Unlock className="h-3 w-3" /> : <Lock className="h-3 w-3" />}
+                  </Button>
+                </div>
+                <div className="flex items-center gap-1 rounded-md bg-zinc-950/30 p-0.5">
+                {(['Processing', 'Succeeded', 'Failed'] as FilterGroup[]).map((filter) => {
+                  const count = filter === 'Processing' ? cancellableTaskCount
+                    : filter === 'Succeeded' ? (displayStatusCounts?.recentSuccesses ?? 0)
+                      : (displayStatusCounts?.recentFailures ?? 0);
+                  return (
+                    <Button
+                      key={filter}
+                      variant="ghost"
+                      size="sm"
+                      aria-pressed={selectedFilter === filter}
+                      aria-label={`Show ${filter.toLowerCase()} tasks (${count})`}
+                      onClick={() => { handleFilterChange(filter); setIsTasksPeeking(true); }}
+                      className={cn('min-w-0 flex-1 gap-1 px-1 text-[11px]', selectedFilter === filter ? 'bg-zinc-700 text-zinc-100' : 'text-zinc-400')}
+                    >
+                      <span className="truncate">{filter}</span>
+                      <span className="tabular-nums opacity-70">({count})</span>
+                    </Button>
+                  );
+                })}
+                </div>
+              </div>
+            )}
+            {/* Header plus task body reserve exactly half the pane while
+                peeking or pinned, so chat resizes without being remounted. */}
             {showTasksHalf && (
-            <div className={cn(
-              'flex-1 min-h-0 flex flex-col overflow-hidden relative',
+            <div
+              data-task-peek-surface="tasks"
+              onMouseEnter={() => { if (compactTasks) setIsTasksPeeking(true); }}
+              onMouseLeave={leaveTaskPeek}
+              onFocus={() => { if (compactTasks) setIsTasksPeeking(true); }}
+              onBlur={leaveTaskPeek}
+              className={cn(
+              'min-h-0 flex flex-col overflow-hidden',
+              isToolRoute
+                ? 'relative h-[calc(50%_-_5rem)] shrink-0 bg-zinc-900'
+                : 'relative flex-1',
               isPointerEventsEnabled ? 'pointer-events-auto' : 'pointer-events-none'
             )}>
-            {/* Header */}
-            <div className="p-2 border-b border-zinc-800 flex items-center justify-between flex-shrink-0">
-              <h2 className="text-xl font-light text-zinc-200 ml-2">Action</h2>
-              <div className="flex gap-2">
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={handleCancelAllPending}
-                      disabled={isCancelAllPending || cancellableTaskCount === 0}
-                      className="flex items-center gap-2"
-                    >
-                      {isCancelAllPending ? (
-                        <>
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          Cancel All
-                        </>
-                      ) : (
-                        'Cancel All'
-                      )}
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Cancel all queued tasks</TooltipContent>
-                </Tooltip>
-              </div>
-            </div>
-          
             {/* Status Filter Toggle — three buttons side-by-side, count inline as (N) so the row never overflows */}
-            <div className="p-4 border-b border-zinc-800 flex-shrink-0">
-              <div className="bg-zinc-800 rounded-lg p-1">
+            <div className="p-2 border-b border-zinc-800 flex-shrink-0">
+              {!compactTasks && <div className="bg-zinc-800 rounded-lg p-1">
                 <div className="flex gap-1">
                   {(['Processing', 'Succeeded', 'Failed'] as FilterGroup[]).map((filter) => {
                     const count = filter === 'Processing'
@@ -377,7 +422,7 @@ const TasksPaneComponent: React.FC<TasksPaneProps> = ({ onOpenSettings }) => {
                     );
                   })}
                 </div>
-              </div>
+              </div>}
 
               {isStatusCountsDegraded && (
                 <p className="mt-2 text-[11px] text-amber-300">
@@ -387,7 +432,7 @@ const TasksPaneComponent: React.FC<TasksPaneProps> = ({ onOpenSettings }) => {
               )}
               
               {/* Task Type + Project Scope Filters */}
-              <div className="mt-2 flex items-center gap-2">
+              <div className={cn('flex items-center gap-1', !compactTasks && 'mt-2')}>
                 <Select
                   value={selectedTaskType || 'all'}
                   onValueChange={(value) => handleTaskTypeChange(value === 'all' ? null : value)}
@@ -412,7 +457,7 @@ const TasksPaneComponent: React.FC<TasksPaneProps> = ({ onOpenSettings }) => {
                     data-runtime-task-project={runtimeProjectId ?? ''}
                     title={runtimeProjectId ?? undefined}
                   >
-                    Runtime project
+                    <span className="truncate">Runtime project</span>
                   </div>
                 ) : (
                   <Select
@@ -444,6 +489,21 @@ const TasksPaneComponent: React.FC<TasksPaneProps> = ({ onOpenSettings }) => {
                     </SelectContent>
                   </Select>
                 )}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={handleCancelAllPending}
+                      disabled={isCancelAllPending || cancellableTaskCount === 0}
+                      className="h-7 shrink-0 gap-1 px-2 text-[10px]"
+                    >
+                      {isCancelAllPending && <Loader2 className="h-3 w-3 animate-spin" />}
+                      Cancel All
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Cancel all queued tasks</TooltipContent>
+                </Tooltip>
               </div>
             </div>
 
@@ -509,32 +569,9 @@ const TasksPaneComponent: React.FC<TasksPaneProps> = ({ onOpenSettings }) => {
                 <div className="pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-zinc-900 via-zinc-900/70 to-transparent" />
               )}
             </div>
-            {/* Tasks expand / restore handle — bleeds into the bottom of the
-                tasks content as an overlay. Doesn't take its own flex row, so
-                the divider line below sits flush against the wrapper edge. */}
-            {isToolRoute && (
-              <button
-                type="button"
-                onClick={() => setExpandedHalf(expandedHalf === 'tasks' ? null : 'tasks')}
-                className={cn(
-                  'absolute bottom-0 left-0 right-0 z-20 flex items-center justify-center h-5',
-                  'text-zinc-500 opacity-50 hover:opacity-100 hover:bg-zinc-800/60 hover:text-zinc-200',
-                  'transition-all'
-                )}
-                aria-label={expandedHalf === 'tasks' ? 'Restore split layout' : 'Expand tasks to fill pane'}
-                title={expandedHalf === 'tasks' ? 'Restore split' : 'Expand tasks'}
-              >
-                {expandedHalf === 'tasks'
-                  ? <ChevronUp className="h-3 w-3" />
-                  : <ChevronDown className="h-3 w-3" />}
-              </button>
-            )}
             </div>
             )}
-            {/* Bottom half: agent chat thread. Only renders on tool routes and
-                when not collapsed by the tasks-expanded state. The wrapper's
-                top border IS the divider; the chat handle overlays the chat
-                content rather than taking its own row. */}
+            {/* Chat remains mounted while tasks peek, pin, or collapse. */}
             {showChatHalf && (
               <div
                 className={cn(
@@ -542,26 +579,10 @@ const TasksPaneComponent: React.FC<TasksPaneProps> = ({ onOpenSettings }) => {
                   // pane bg → chat bg transition happens precisely at the
                   // border-t-2 divider line.
                   'overflow-hidden border-t-2 border-zinc-700 relative bg-zinc-950/60',
-                  expandedHalf === 'chat' ? 'flex-1' : 'flex-1 min-h-0'
+                  'flex-1 min-h-0'
                 )}
               >
-                <AgentChatPanel isExpanded={expandedHalf === 'chat'} />
-                {/* Chat expand / restore handle — bleeds into the top of the chat */}
-                <button
-                  type="button"
-                  onClick={() => setExpandedHalf(expandedHalf === 'chat' ? null : 'chat')}
-                  className={cn(
-                    'absolute top-0 left-0 right-0 z-20 flex items-center justify-center h-5',
-                    'text-zinc-500 opacity-50 hover:opacity-100 hover:bg-zinc-800/60 hover:text-zinc-200',
-                    'transition-all'
-                  )}
-                  aria-label={expandedHalf === 'chat' ? 'Restore split layout' : 'Expand chat to fill pane'}
-                  title={expandedHalf === 'chat' ? 'Restore split' : 'Expand chat'}
-                >
-                  {expandedHalf === 'chat'
-                    ? <ChevronDown className="h-3 w-3" />
-                    : <ChevronUp className="h-3 w-3" />}
-                </button>
+                <AgentChatPanel isExpanded={!showTasksHalf} />
               </div>
             )}
           </div>

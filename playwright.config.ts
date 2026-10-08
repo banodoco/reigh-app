@@ -175,6 +175,11 @@ export default defineConfig({
         // keeps its normal font policy because this env is dev-server-only.
         VITE_DISABLE_REMOTE_FONTS: process.env.VITE_DISABLE_REMOTE_FONTS ?? '1',
         VITE_ASTRID_BRIDGE_PORT: String(bridgePort),
+        // The ordinary timeline project uses one deterministic stub for both
+        // the timeline bridge and the narrow project-chat read. Do not inherit
+        // the developer machine's default ACP listener/credential in browser
+        // tests; real-bridge runs retain their independently configured ACP.
+        ...(!useRealBridge ? { VITE_ASTRID_ACP_BRIDGE_PORT: String(bridgePort) } : {}),
         ASTRID_BRIDGE_ALLOW_UNAUTHENTICATED_STUB: useRealBridge ? '0' : '1',
         ...(realBridgeToken
           ? { ASTRID_BRIDGE_TOKEN: realBridgeToken }

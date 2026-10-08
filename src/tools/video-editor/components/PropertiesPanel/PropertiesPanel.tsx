@@ -42,6 +42,7 @@ import {
 } from '@/tools/video-editor/components/ExtensionManager';
 import { ProcessDashboard } from '@/tools/video-editor/components/ProcessDashboard/ProcessDashboard';
 import { TimelineOutlinePanel } from '@/tools/video-editor/components/PropertiesPanel/TimelineOutlinePanel.tsx';
+import type { TimelineInspectorTarget } from '@/tools/video-editor/lib/mobile-interaction-model.ts';
 
 function InspectorRegistrySections({
   placement,
@@ -166,6 +167,26 @@ function DataLaneSummarySection({ lane }: { lane: DataLaneView }) {
   );
 }
 
+function ShotOccurrenceInspectorSection({ target }: { target: NonNullable<TimelineInspectorTarget> }) {
+  return (
+    <div data-testid="shot-occurrence-inspector" className="rounded-xl border bg-card/80 p-3 text-xs">
+      <div className="mb-2 text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+        Canonical shot occurrence
+      </div>
+      <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
+        {target.shotName && <><dt className="text-muted-foreground">shot</dt><dd>{target.shotName}</dd></>}
+        <dt className="text-muted-foreground">occurrence</dt>
+        <dd data-testid="shot-occurrence-inspector-id" className="break-all font-mono">{target.occurrenceId}</dd>
+        {target.revisionId && <><dt className="text-muted-foreground">revision</dt><dd className="break-all font-mono">{target.revisionId}</dd></>}
+        {target.trackId && <><dt className="text-muted-foreground">track</dt><dd>{target.trackId}</dd></>}
+        {typeof target.start === 'number' && typeof target.end === 'number' && (
+          <><dt className="text-muted-foreground">interval</dt><dd>{target.start.toFixed(3)}–{target.end.toFixed(3)}s</dd></>
+        )}
+      </dl>
+    </div>
+  );
+}
+
 export interface PropertiesPanelProps {
   /** Timeline-scoped assets live behind this tab so they do not hide the editor tabs. */
   assetPanel?: ReactNode;
@@ -234,6 +255,19 @@ function PropertiesPanelComponent({ assetPanel }: PropertiesPanelProps) {
   // no store writes here, so duration/rows/export neutrality is untouched.
   const lanePlane = useDataLanes({ base: data });
   const inspectorSelectionTarget = useMemo(() => {
+    if (inspectorTarget?.kind === 'shotOccurrence' && selectedClipIdsList.length === 0) {
+      return {
+        kind: 'shotOccurrence' as const,
+        occurrenceId: inspectorTarget.occurrenceId ?? undefined,
+        shotId: inspectorTarget.shotId ?? undefined,
+        revisionId: inspectorTarget.revisionId ?? undefined,
+        parentDocumentId: inspectorTarget.parentDocumentId ?? undefined,
+        shotName: inspectorTarget.shotName ?? undefined,
+        trackId: inspectorTarget.trackId ?? undefined,
+        start: inspectorTarget.start,
+        end: inspectorTarget.end,
+      };
+    }
     if (
       inspectorTarget?.kind === 'shader'
       && inspectorTarget.shaderScope === 'postprocess'
@@ -472,7 +506,9 @@ function PropertiesPanelComponent({ assetPanel }: PropertiesPanelProps) {
         {/* dataKind V1 rework R3c: a data target owns the body — the data
             inspector / lane summary renders INSTEAD of the clip panels. The
             multi-select check deliberately comes after this branch. */}
-        {selectedDataItemView ? (
+        {inspectorSelectionTarget.kind === 'shotOccurrence' ? (
+          <ShotOccurrenceInspectorSection target={inspectorSelectionTarget} />
+        ) : selectedDataItemView ? (
           <DataItemInspectorSection
             lane={selectedDataItemView.lane}
             view={selectedDataItemView.view}
