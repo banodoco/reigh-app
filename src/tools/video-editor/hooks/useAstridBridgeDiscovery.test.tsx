@@ -210,7 +210,7 @@ describe('useAstridBridgeDiscovery', () => {
     });
   });
 
-  it('polls health every 3s while open and the bridge is down, then stops after success', async () => {
+  it('polls health every 3s while a local editor is waiting, then stops after success', async () => {
     vi.useFakeTimers();
     let healthy = false;
     const healthCalls: string[] = [];
@@ -227,7 +227,7 @@ describe('useAstridBridgeDiscovery', () => {
     }));
 
     const { result } = renderHook(
-      () => useAstridBridgeDiscovery({ open: true, currentLocal: true, selectedProjectSlug: 'ados-talks' }),
+      () => useAstridBridgeDiscovery({ open: false, currentLocal: true, selectedProjectSlug: 'ados-talks' }),
       { wrapper: createWrapper() },
     );
 
@@ -259,7 +259,7 @@ describe('useAstridBridgeDiscovery', () => {
     expect(result.current.bridgeHealthy).toBe(true);
     const countAfterSuccess = healthCalls.length;
 
-    // No further polls while open with a healthy bridge and a non-empty list.
+    // No further polls while the local editor has a healthy bridge.
     await act(async () => {
       await vi.advanceTimersByTimeAsync(9_000);
     });

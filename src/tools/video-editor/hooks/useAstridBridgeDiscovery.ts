@@ -34,10 +34,11 @@ import {
  *   the bridge is healthy (timelines additionally need a project slug).
  * - Opening the selector dropdowns refetches projects and timelines, so a
  *   bridge started while the editor is open shows up immediately.
- * - While a dropdown is open and the current selection is local, health
- *   polls every 3s while the bridge is down, and projects poll every 3s
- *   while the bridge is down or the projects list is empty. Polling stops
- *   once the data is healthy/non-empty or the dropdown closes.
+ * - While the current selection is local, health polls every 3s while the
+ *   bridge is down, even when the setup/reconnect modal or editor is waiting
+ *   with the selectors closed. Projects poll every 3s while a dropdown is
+ *   open and the projects list is empty. Polling stops once the data is
+ *   healthy/non-empty.
  */
 export const LOCAL_BRIDGE_BASE_URL = '/api/astrid';
 
@@ -198,10 +199,12 @@ export function useAstridBridgeDiscovery({
     enabled: currentLocal || open,
     staleTime: 0,
     retry: 0,
-    // Poll only while the bridge is down AND a dropdown is open over a local
-    // selection. Once healthy the interval drops to false.
+    // Keep probing for a local editor even with the selectors closed. The
+    // runtime setup/reconnect flow can bring the workspace up while the page
+    // is waiting on its initial project discovery; polling here lets the page
+    // continue without a manual reload.
     refetchInterval: (query) =>
-      open && currentLocal && (query.state.status === 'error' || query.state.data === false)
+      currentLocal && (query.state.status === 'error' || query.state.data === false)
         ? BRIDGE_DISCOVERY_POLL_MS
         : false,
   });

@@ -10,6 +10,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { homedir } from 'node:os';
 import { resolve } from 'node:path';
+import { createConnection } from 'node:net';
 import { readGeneratedSchemaDigest, schemaDigestMismatch } from './runtime-schema-guard.mjs';
 import {
   parseDevLocalWorkspaceArgs,
@@ -136,18 +137,45 @@ if (!token) process.exit(process.exitCode ?? 1);
 if (!(await verifyRuntime(endpoint, token))) process.exit(process.exitCode ?? 1);
 if (paired && !pairedRelayOrigin) process.exit(fail('--paired requires REIGH_PAIRED_RELAY_ORIGIN') ? 1 : 1);
 
+const runtimeProxyPort = process.env.VITE_ASTRID_DYNAMIC_PROXY_PORT?.trim() || '17336';
+if (!/^\d+$/.test(runtimeProxyPort) || Number(runtimeProxyPort) < 1 || Number(runtimeProxyPort) > 65535) {
+  process.exit(fail('VITE_ASTRID_DYNAMIC_PROXY_PORT must be an integer from 1 to 65535') ? 1 : 1);
+}
+
+function waitForPort(portValue, timeoutMs = 3000) {
+  const deadline = Date.now() + timeoutMs;
+  return new Promise((resolveReady) => {
+    const attempt = () => {
+      const socket = createConnection({ host: '127.0.0.1', port: Number(portValue) });
+      socket.once('connect', () => {
+        socket.destroy();
+        resolveReady(true);
+      });
+      socket.once('error', () => {
+        socket.destroy();
+        if (Date.now() >= deadline) resolveReady(false);
+        else setTimeout(attempt, 50);
+      });
+    };
+    attempt();
+  });
+}
+
 const env = {
   ...process.env,
   ...(astridCheckout ? { ASTRID_CHECKOUT: astridCheckout } : {}),
   PORT: port,
   VITE_ASTRID_WORKSPACE_V1: '1',
-  VITE_ASTRID_BRIDGE_PORT: endpoint.port,
+  // Both browser-facing Runtime routes use a stable local proxy. The proxy
+  // rereads discovery, so restarting Astrid on a new ephemeral port does not
+  // require restarting Reigh.
+  VITE_ASTRID_BRIDGE_PORT: runtimeProxyPort,
   ASTRID_BRIDGE_TOKEN: token,
   // The editor's RuntimeDataProvider talks to `/api/runtime`, which is a
   // separate Vite proxy from the historical `/api/astrid` bridge. Keep the
   // Runtime endpoint and credential server-side so the browser never sees the
   // owner token.
-  VITE_WORKSPACE_RUNTIME_URL: endpoint.origin,
+  VITE_WORKSPACE_RUNTIME_URL: `http://127.0.0.1:${runtimeProxyPort}`,
   WORKSPACE_RUNTIME_TOKEN_FILE: credentialPath,
   ASTRID_LOCAL_COMPOSE_URL: `http://127.0.0.1:${port}/api/astrid/generation/compose`,
   // The ACP bridge is a sibling user-machine process. Keep its cwd explicit so
@@ -166,6 +194,18 @@ console.log(`workspace.v1 runtime healthy at ${endpoint.origin}; Reigh will use 
 if (checkOnly) process.exit(0);
 
 let connector;
+const runtimeProxy = spawn(process.execPath, ['scripts/runtime-discovery-proxy.mjs'], {
+  stdio: 'inherit',
+  env: {
+    ...env,
+    ASTRID_RUNTIME_PROXY_PORT: runtimeProxyPort,
+    ASTRID_WORKSPACE_DISCOVERY: discoveryPath,
+  },
+});
+if (!(await waitForPort(runtimeProxyPort))) {
+  runtimeProxy.kill('SIGTERM');
+  process.exit(fail(`runtime discovery proxy did not start on port ${runtimeProxyPort}`) ? 1 : 1);
+}
 const acpBridge = spawn('npm', ['run', 'dev:astrid-acp'], {
   stdio: 'inherit',
   env,
@@ -193,6 +233,7 @@ const shutdown = (signal) => {
   if (child.exitCode === null) child.kill(signal);
   if (connector?.exitCode === null) connector.kill(signal);
   if (acpBridge.exitCode === null) acpBridge.kill(signal);
+  if (runtimeProxy.exitCode === null) runtimeProxy.kill(signal);
 };
 process.on('SIGINT', () => shutdown('SIGINT'));
 process.on('SIGTERM', () => shutdown('SIGTERM'));
@@ -200,6 +241,7 @@ child.on('error', (error) => { fail(`could not start Vite: ${error.message}`); }
 child.on('exit', (code, signal) => {
   if (connector?.exitCode === null) connector.kill('SIGTERM');
   if (acpBridge.exitCode === null) acpBridge.kill('SIGTERM');
+  if (runtimeProxy.exitCode === null) runtimeProxy.kill('SIGTERM');
   if (signal && !shuttingDown) process.kill(process.pid, signal);
   else process.exitCode = code ?? 0;
 });

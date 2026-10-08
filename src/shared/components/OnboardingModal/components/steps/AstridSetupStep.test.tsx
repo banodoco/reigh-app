@@ -127,4 +127,12 @@ describe('AstridSetupStep', () => {
 
     expect(screen.getByText(RECONNECT_COMMANDS.unix)).toBeTruthy();
   });
+
+  it('returns directly to Astrid when a reconnecting Runtime becomes ready', async () => {
+    inspectMock.mockResolvedValue(ready);
+    const onNext = vi.fn();
+    renderInDialog(<AstridSetupStep reconnect onNext={onNext} onClose={vi.fn()} />);
+
+    await waitFor(() => expect(onNext).toHaveBeenCalledTimes(1));
+  });
 });

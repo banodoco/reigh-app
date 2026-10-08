@@ -8,6 +8,7 @@ import {
   type AstridDoctorAvailability,
 } from '@/integrations/astrid/doctorAvailability.ts';
 import { getBridgeRecoveryGuidance } from '@/integrations/astrid/bridgeRecovery.ts';
+import { hasLocalModeUrlParams } from '@/shared/dev/devSession';
 
 export function useOnboardingFlow() {
   const { showOnboardingModal, onboardingMode, closeOnboardingModal } = useOnboarding();
@@ -41,7 +42,7 @@ export function useOnboardingFlow() {
   // runtime instead, then enter the tool without fabricating a shot identity.
   const handleOnboardingClose = useCallback(async () => {
     // Coming back to a Runtime that had stopped: the person was mid-work, so just return them to it.
-    if (onboardingMode === 'reconnect') {
+    if (onboardingMode === 'reconnect' || hasLocalModeUrlParams(window.location.search)) {
       closeOnboardingModal();
       return;
     }

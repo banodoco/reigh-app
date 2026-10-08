@@ -1,4 +1,4 @@
-import { useCallback, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 import { Bot, Check, CheckCircle2, Copy, Cpu, ExternalLink, Loader2, Minus, Terminal } from 'lucide-react';
 import { MinkRunner } from '@/shared/components/MinkRunner/MinkRunner';
 import { DialogHeader, DialogTitle } from '@/shared/components/ui/dialog';
@@ -227,6 +227,10 @@ export function AstridSetupStep({ onNext, reconnect = false }: OnboardingStepPro
   const [route, setRoute] = useState<SetupRoute>('agent');
   const [platform, setPlatform] = useState<SetupPlatform>(detectSetupPlatform);
   const checks = useSetupChecks();
+
+  useEffect(() => {
+    if (reconnect && checks.ready) onNext();
+  }, [checks.ready, onNext, reconnect]);
 
   if (checks.ready && (reconnect || route === 'agent')) {
     return (

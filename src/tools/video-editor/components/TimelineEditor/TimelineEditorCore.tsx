@@ -207,6 +207,24 @@ export function resolveWaveformAudioSrc(
   return undefined;
 }
 
+/** Installed hosts keep existing audio behavior; a public host may skip only hash-verified silent visual clips. */
+export function resolveHostWaveformAudioSrc(
+  clip: ResolvedTimelineClip | undefined,
+  track: TrackDefinition | undefined,
+  silentVideoAssetHashes?: Readonly<Record<string, string>>,
+): string | undefined {
+  const silentHash = clip?.asset ? silentVideoAssetHashes?.[clip.asset] : undefined;
+  if (
+    track?.kind === 'visual'
+    && clip?.assetEntry?.type?.startsWith('video/')
+    && silentHash
+    && clip.assetEntry.content_sha256 === silentHash
+  ) {
+    return undefined;
+  }
+  return resolveWaveformAudioSrc(clip, track);
+}
+
 export interface TimelineEditorCoreProps {
   onOpenSequenceCreator?: () => void;
   onOpenElementCreationPrompt?: (prompt: string) => void;

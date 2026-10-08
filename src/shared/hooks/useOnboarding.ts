@@ -38,10 +38,11 @@ export function useOnboarding() {
   const localTestMode = isLocalTestMode();
   // A local editor link is always local, whatever the build's default authority.
   const isLocalEditorLink = hasLocalModeUrlParams(typeof window === 'undefined' ? '' : window.location.search);
+  const skipOnboarding = localTestMode && !isLocalEditorLink;
   const isDeferredCloudMode = isDeferredCloudDataAuthority() && !isLocalEditorLink;
 
   useEffect(() => {
-    if (localTestMode) return undefined;
+    if (skipOnboarding) return undefined;
     let cancelled = false;
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
     const open = (next: OnboardingMode) => {
@@ -78,10 +79,10 @@ export function useOnboarding() {
       cancelled = true;
       if (timeoutId) clearTimeout(timeoutId);
     };
-  }, [isDeferredCloudMode, localTestMode]);
+  }, [isDeferredCloudMode, skipOnboarding]);
 
   const completeOnboarding = async () => {
-    if (localTestMode) return;
+    if (skipOnboarding) return;
     writeSetupComplete();
     if (!isDeferredCloudMode) return;
     try {

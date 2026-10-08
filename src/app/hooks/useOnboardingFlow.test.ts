@@ -108,6 +108,24 @@ describe('useOnboardingFlow', () => {
     vi.useRealTimers();
   });
 
+  it('keeps a local editor link open after first-run setup completes', async () => {
+    window.history.replaceState({}, '', '/tools/video-editor?localProject=demo-project&localTimeline=demo-timeline');
+    const { result, unmount } = renderHook(() => useOnboardingFlow());
+
+    await act(async () => {
+      await result.current.handleOnboardingClose();
+    });
+
+    expect(closeOnboardingModalMock).toHaveBeenCalledTimes(1);
+    expect(checkAstridDoctorAvailabilityMock).not.toHaveBeenCalled();
+    expect(navigateMock).not.toHaveBeenCalled();
+    expect(startTourMock).not.toHaveBeenCalled();
+
+    unmount();
+    window.history.replaceState({}, '', '/');
+    vi.useRealTimers();
+  });
+
   it('cancels a pending tour start on unmount', async () => {
     const { result, unmount } = renderHook(() => useOnboardingFlow());
 

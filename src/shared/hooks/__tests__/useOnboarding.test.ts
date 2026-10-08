@@ -96,6 +96,23 @@ describe('useOnboarding', () => {
     expect(mockGetSupabaseClient).not.toHaveBeenCalled();
   });
 
+  it('keeps the setup popup in local editor test links and persists completion', async () => {
+    window.history.replaceState({}, '', '/tools/video-editor?localProject=demo-project&localTimeline=demo-timeline&localTest=1');
+
+    const { result } = renderHook(() => useOnboarding());
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(600);
+    });
+
+    expect(result.current.showOnboardingModal).toBe(true);
+    expect(result.current.onboardingMode).toBe('first-run');
+    expect(mockGetSupabaseClient).not.toHaveBeenCalled();
+
+    act(() => result.current.closeOnboardingModal());
+    expect(window.localStorage.getItem(ASTRID_SETUP_COMPLETE_KEY)).toBe('true');
+  });
+
   it('shows modal when onboarding not completed after delay', async () => {
     mockSelect.mockResolvedValue({ data: { onboarding_completed: false }, error: null });
     const { result } = renderHook(() => useOnboarding());
