@@ -5,8 +5,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PublicAstridCallouts } from './PublicAstridCallouts';
 import {
   CALLOUT_VACUUM_EXTEND_MS,
+  CALLOUT_VACUUM_CANONICALIZE_MS,
   CALLOUT_VACUUM_PHONE_RETRACT_MS,
   CALLOUT_VACUUM_PHONE_EXTEND_MS,
+  CALLOUT_VACUUM_POST_CONNECT_SETTLE_MS,
   CALLOUT_VACUUM_RECONNECT_STAGGER_MS,
   CALLOUT_VACUUM_RETRACT_MS,
   CALLOUT_VACUUM_RESIDUAL_RATIO,
@@ -172,7 +174,7 @@ describe('bounded stage passes', () => {
       paint();
       const beforeArrival = path.getAttribute('d');
       if (arrivalAt > 1240) {
-        now = 2300;
+        now = 2600;
         settle();
         expect(path.getAttribute('data-connector-target')).toBe('community');
       }
@@ -209,7 +211,7 @@ describe('bounded stage passes', () => {
       settle();
       const cards = [...view.container.querySelectorAll('article')];
       const paths = [...view.container.querySelectorAll('path')];
-      const oldEnd = view.container.querySelector('.astrid-callout-dot-end')?.getAttribute('cx');
+      const oldPath = paths[0].getAttribute('d');
       view.rerender(<Stage audience="agent" />);
       const stage = view.getByTestId('stage');
       const sample = () => { fireEvent.transitionRun(stage); paint(); };
@@ -220,11 +222,13 @@ describe('bounded stage passes', () => {
       expect(view.container.querySelectorAll('article > .astrid-callout-outgoing')).toHaveLength(3);
       sample();
       expect(paths[0].getAttribute('data-connector-target')).toBe('transition');
-      expect(view.container.querySelector('.astrid-callout-dot-end')?.getAttribute('cx')).not.toBe(oldEnd);
+      // The first draw must preserve the exact synchronously primed curve; its
+      // endpoint can retain the old x coordinate when the contraction is vertical.
+      expect(paths[0].getAttribute('d')).not.toBe(oldPath);
       const retractUntil = isPhone ? CALLOUT_VACUUM_PHONE_RETRACT_MS : CALLOUT_VACUUM_RETRACT_MS;
       now += 60;
       sample();
-      expect(view.container.querySelector('.astrid-callout-dot-end')?.getAttribute('cx')).not.toBe(oldEnd);
+      expect(paths[0].getAttribute('d')).not.toBe(oldPath);
       now = 1000 + retractUntil - 1;
       sample();
       const heldPath = paths[0].getAttribute('d');
@@ -239,7 +243,6 @@ describe('bounded stage passes', () => {
       now += 1200;
       settle();
       expect(paths[0].getAttribute('data-connector-target')).toBe('community');
-      expect(view.container.querySelector('.astrid-callout-dot-end')?.getAttribute('cx')).not.toBe(oldEnd);
       expect([...view.container.querySelectorAll<SVGCircleElement>('.astrid-callout-ping')]
         .every(ping => ping.getAttribute('data-astrid-reconnect-pulse') === 'true')).toBe(true);
       view.rerender(<Stage audience="app" />);
@@ -274,7 +277,10 @@ describe('bounded stage passes', () => {
       now = 1000 + CALLOUT_VACUUM_RETRACT_MS - 1;
       paint();
       const residual = distance();
-      now += 250;
+      // In the fixed-clock harness the destination cards are already settled,
+      // so slot zero opens exactly at the retract boundary. Sample that gate
+      // rather than stepping 250ms into its scheduled extension.
+      now += 1;
       paint();
       expect(distance()).toBeCloseTo(residual, 1);
       now = 1000 + CALLOUT_VACUUM_RETRACT_MS + 2 * CALLOUT_VACUUM_RECONNECT_STAGGER_MS + 1;
@@ -312,6 +318,97 @@ describe('bounded stage passes', () => {
       paint();
       expect(path.getAttribute('data-connector-target')).toBe(firstCallout);
       expect(ping.getAttribute('data-astrid-reconnect-pulse')).toBe('true');
+    } finally { HTMLElement.prototype.animate = original; }
+  });
+
+  it.each([false, true])('keeps a finite organic settle after each reconnect (phone=%s)', (isPhone) => {
+    phone = isPhone;
+    const original = HTMLElement.prototype.animate;
+    HTMLElement.prototype.animate = vi.fn(() => ({ cancel: vi.fn(), onfinish: null }) as unknown as Animation);
+    let now = 1000;
+    vi.spyOn(performance, 'now').mockImplementation(() => now);
+    try {
+      const view = render(<Stage />);
+      settle();
+      view.rerender(<Stage audience="agent" />);
+      const firstCallout = isPhone ? 'tools' : 'community';
+      const path = view.container.querySelector<SVGPathElement>(`path[data-callout="${firstCallout}"]`)!;
+      const retractUntil = isPhone ? CALLOUT_VACUUM_PHONE_RETRACT_MS : CALLOUT_VACUUM_RETRACT_MS;
+      const extendDuration = isPhone ? CALLOUT_VACUUM_PHONE_EXTEND_MS : CALLOUT_VACUUM_EXTEND_MS;
+      for (const index of [0, 1, 2]) {
+        now = 1000 + retractUntil + index * CALLOUT_VACUUM_RECONNECT_STAGGER_MS + 1;
+        paint();
+      }
+      now = 1000 + retractUntil + extendDuration + 1;
+      paint();
+      const atExtensionEnd = path.getAttribute('d');
+      expect(view.container.querySelector<SVGCircleElement>(`circle[data-callout-ping="${firstCallout}"]`)
+        ?.getAttribute('data-astrid-reconnect-pulse')).toBe('true');
+      now += CALLOUT_VACUUM_SETTLE_MS + CALLOUT_VACUUM_POST_CONNECT_SETTLE_MS / 2;
+      paint();
+      const duringSettle = path.getAttribute('d');
+      expect(duringSettle).not.toBe(atExtensionEnd);
+      now = 1000 + retractUntil + 2 * CALLOUT_VACUUM_RECONNECT_STAGGER_MS
+        + extendDuration + CALLOUT_VACUUM_SETTLE_MS + CALLOUT_VACUUM_POST_CONNECT_SETTLE_MS
+        + CALLOUT_VACUUM_CANONICALIZE_MS + 1;
+      settle();
+      const settled = path.getAttribute('d');
+      expect(settled).not.toBe(duringSettle);
+      expect(path.getAttribute('data-connector-target')).toBe(firstCallout);
+    } finally { HTMLElement.prototype.animate = original; }
+  });
+
+  it.each([false, true])('canonicalizes controls before clearing the transition (phone=%s)', (isPhone) => {
+    phone = isPhone;
+    const original = HTMLElement.prototype.animate;
+    HTMLElement.prototype.animate = vi.fn(() => ({ cancel: vi.fn(), onfinish: null }) as unknown as Animation);
+    let now = 1000;
+    vi.spyOn(performance, 'now').mockImplementation(() => now);
+    try {
+      const view = render(<Stage />);
+      settle();
+      view.rerender(<Stage audience="agent" />);
+      const firstCallout = isPhone ? 'tools' : 'community';
+      const path = view.container.querySelector<SVGPathElement>(`path[data-callout="${firstCallout}"]`)!;
+      const start = view.container.querySelector<SVGCircleElement>(`.astrid-callout-dot-start[data-callout="${firstCallout}"]`)!;
+      const end = view.container.querySelector<SVGCircleElement>(`.astrid-callout-dot-end[data-callout="${firstCallout}"]`)!;
+      const retractUntil = isPhone ? CALLOUT_VACUUM_PHONE_RETRACT_MS : CALLOUT_VACUUM_RETRACT_MS;
+      const extendDuration = isPhone ? CALLOUT_VACUUM_PHONE_EXTEND_MS : CALLOUT_VACUUM_EXTEND_MS;
+      const postSettleAt = 1000 + retractUntil + extendDuration + CALLOUT_VACUUM_SETTLE_MS + CALLOUT_VACUUM_POST_CONNECT_SETTLE_MS;
+      // Establish every slot's extension clock before sampling the terminal
+      // phase; otherwise a deliberately late test frame would redefine a
+      // staggered extension start instead of exercising canonicalization.
+      for (const index of [0, 1, 2]) {
+        now = 1000 + retractUntil + index * CALLOUT_VACUUM_RECONNECT_STAGGER_MS + 1;
+        paint();
+      }
+      now = postSettleAt - 1;
+      paint();
+      const beforeCanonicalization = path.getAttribute('d');
+      now = postSettleAt + CALLOUT_VACUUM_CANONICALIZE_MS / 2;
+      paint();
+      expect(path.getAttribute('d')).not.toBe(beforeCanonicalization);
+      now = postSettleAt + CALLOUT_VACUUM_CANONICALIZE_MS + 1;
+      paint();
+      const canonical = path.getAttribute('d');
+      const numbers = (canonical?.match(/-?\d+(?:\.\d+)?/g) ?? []).map(Number);
+      expect(numbers).toHaveLength(8);
+      expect(numbers[0]).toBe(Number(start.getAttribute('cx')));
+      expect(numbers[1]).toBe(Number(start.getAttribute('cy')));
+      expect(numbers[6]).toBe(Number(end.getAttribute('cx')));
+      expect(numbers[7]).toBe(Number(end.getAttribute('cy')));
+      now += 1;
+      paint();
+      expect(path.getAttribute('d')).toBe(canonical);
+
+      now = 1000 + retractUntil + 2 * CALLOUT_VACUUM_RECONNECT_STAGGER_MS
+        + extendDuration + CALLOUT_VACUUM_SETTLE_MS + CALLOUT_VACUUM_POST_CONNECT_SETTLE_MS
+        + CALLOUT_VACUUM_CANONICALIZE_MS + 1;
+      settle();
+      const settled = path.getAttribute('d');
+      expect(frames.size).toBe(0);
+      paint();
+      expect(path.getAttribute('d')).toBe(settled);
     } finally { HTMLElement.prototype.animate = original; }
   });
 

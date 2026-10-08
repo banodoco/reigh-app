@@ -9,6 +9,8 @@ const CALLOUT_VACUUM_EXTEND_MS = 380;
 const CALLOUT_VACUUM_PHONE_EXTEND_MS = 440;
 const CALLOUT_VACUUM_RECONNECT_STAGGER_MS = 140;
 const CALLOUT_VACUUM_SETTLE_MS = 24;
+const CALLOUT_VACUUM_POST_CONNECT_SETTLE_MS = 180;
+const CALLOUT_VACUUM_CANONICALIZE_MS = 140;
 const CALLOUT_VACUUM_RESIDUAL_RATIO = 0.2;
 const base = process.argv[2] || 'http://127.0.0.1:2245';
 const out = process.argv[3] || '/tmp/astrid-callout-layout';
@@ -44,7 +46,7 @@ fs.mkdirSync(out, {recursive:true});
                 return {id:c.dataset.callout,box:box(c),moving:!!c.dataset.layoutMoving,opacity:getComputedStyle(c).opacity,
                   textOpacity:+getComputedStyle(c.querySelector(':scope > .astrid-callout-content')).opacity,
                   outgoingOpacity:c.querySelector(':scope > .astrid-callout-outgoing') ? +getComputedStyle(c.querySelector(':scope > .astrid-callout-outgoing')).opacity : 0,
-                  target:paths[i].dataset.connectorTarget,pulse:root.querySelectorAll('.astrid-callout-ping')[i]?.dataset.astridReconnectPulse==='true',start:point(start),end:point(end),endOpacity:+(end.getAttribute('opacity') || '1'),path:paths[i].getAttribute('d')};
+                  target:paths[i].dataset.connectorTarget,pulse:root.querySelectorAll('.astrid-callout-ping')[i]?.dataset.astridReconnectPulse==='true',start:point(start),end:point(end),curve:(paths[i].getAttribute('d')?.match(/-?\d+(?:\.\d+)?/g)||[]).map(Number),endOpacity:+(end.getAttribute('opacity') || '1'),path:paths[i].getAttribute('d')};
               })});
             // Sample after the page's measurement RAF has updated SVG for this frame.
             if(!state.done)requestAnimationFrame(()=>setTimeout(sample,0));
@@ -92,7 +94,13 @@ fs.mkdirSync(out, {recursive:true});
           const extendAt=audience==='agent'?Math.max(retractUntil,relative(geometrySettled)+CALLOUT_VACUUM_SETTLE_MS):retractUntil;
           const baseExtendDuration=width<=640?CALLOUT_VACUUM_PHONE_EXTEND_MS:CALLOUT_VACUUM_EXTEND_MS;
           const extendDuration=baseExtendDuration;
-          const expansionEnd=extendAt+extendDuration;
+          // Each slot has its own reconnect gate. Keep the verifier aligned with
+          // the breakpoint-aware introduction order instead of treating the
+          // third slot's residual hold as extension frames.
+          const slotExtendAt=extendAt+reconnectOrder.indexOf(newIds[i])*CALLOUT_VACUUM_RECONNECT_STAGGER_MS;
+          const expansionEnd=slotExtendAt+extendDuration;
+          const postSettleEnd=expansionEnd+CALLOUT_VACUUM_SETTLE_MS+CALLOUT_VACUUM_POST_CONNECT_SETTLE_MS;
+          const canonicalizeEnd=postSettleEnd+CALLOUT_VACUUM_CANONICALIZE_MS;
           const lead=switched.filter(f=>relative(f)<CALLOUT_VACUUM_RETRACT_START_MS);
           assert(lead.length>0,'Missing connector lead phase');
           const retracting=switched.filter(f=>relative(f)>=CALLOUT_VACUUM_RETRACT_START_MS && relative(f)<retractUntil);
@@ -108,12 +116,42 @@ fs.mkdirSync(out, {recursive:true});
           assert(minimumRetractDistance<leadDistance*0.9
             || Math.abs(minimumRetractDistance-finalDistance*CALLOUT_VACUUM_RESIDUAL_RATIO)<Math.max(4,finalDistance*0.08),
           'Vacuum retraction did not pull the endpoint inward');
-          const expansion=switched.filter(f=>relative(f)>=extendAt && relative(f)<expansionEnd);
+          const expansion=switched.filter(f=>relative(f)>=slotExtendAt && relative(f)<expansionEnd);
+          const postSettle=switched.filter(f=>relative(f)>=expansionEnd && relative(f)<postSettleEnd);
+          const canonicalizing=switched.filter(f=>relative(f)>=postSettleEnd && relative(f)<canonicalizeEnd);
           const pulseFrames=switched.filter(f=>f.cards[i].pulse);
           assert(pulseFrames.length>0,'Connector did not pulse after reattachment');
-          assert(relative(pulseFrames[0])>=extendAt+extendDuration-100,'Connector pulsed before its extension finished');
+          assert(relative(pulseFrames[0])>=slotExtendAt+extendDuration-100,'Connector pulsed before its extension finished');
+          assert(postSettle.length>0,'Connector had no observable post-connect settle window');
+          assert(canonicalizing.length>0,'Connector had no observable canonicalization window');
+          const transitionCurves=switched.filter(f=>f.cards[i].target==='transition');
+          assert(transitionCurves.every(f=>f.cards[i].curve.length===8 && f.cards[i].curve.every(Number.isFinite)),'Connector curve became invalid during motion');
+          for(let j=1;j<transitionCurves.length;j++) {
+            const a=transitionCurves[j-1],b=transitionCurves[j];
+            const dt=Math.max(16,b.t-a.t);
+            const maxCurveDelta=Math.max(...b.cards[i].curve.map((value,k)=>Math.abs(value-a.cards[i].curve[k])));
+            assert(maxCurveDelta<3*dt+48,'Connector control points jumped during motion');
+          }
+          const postCurves=[expansion.at(-1),...postSettle].filter(Boolean);
+          for(let j=1;j<postCurves.length;j++) {
+            const a=postCurves[j-1],b=postCurves[j];
+            const dt=Math.max(16,b.t-a.t);
+            const maxCurveDelta=Math.max(...b.cards[i].curve.map((value,k)=>Math.abs(value-a.cards[i].curve[k])));
+            assert(maxCurveDelta<3*dt+48,'Post-connect organic settle jumped');
+          }
+          const canonicalCurves=[postSettle.at(-1),...canonicalizing].filter(Boolean);
+          for(let j=1;j<canonicalCurves.length;j++) {
+            const a=canonicalCurves[j-1],b=canonicalCurves[j];
+            const dt=Math.max(16,b.t-a.t);
+            const maxCurveDelta=Math.max(...b.cards[i].curve.map((value,k)=>Math.abs(value-a.cards[i].curve[k])));
+            assert(maxCurveDelta<3*dt+48,'Canonicalization control points jumped');
+          }
+          const terminal=switched.filter(f=>relative(f)>=canonicalizeEnd);
+          assert(terminal.length>0,'Missing exact canonical terminal frame');
+          const terminalCurve=terminal.at(-1).cards[i].curve;
+          assert(terminal.every(f=>f.cards[i].curve.every((value,k)=>Math.abs(value-terminalCurve[k])<=0.1)),'Canonical curve drifted after cleanup');
           const hold=audience==='agent'
-            ? switched.filter(f=>relative(f)>=retractUntil && relative(f)<extendAt)
+            ? switched.filter(f=>relative(f)>=retractUntil && relative(f)<slotExtendAt)
             : [];
           assert(new Set(expansion.map(f=>f.cards[i].end.join(','))).size>4,'Connector did not re-expand after its extension start');
           if(audience==='agent') {

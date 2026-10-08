@@ -12,11 +12,19 @@ export const CALLOUT_VACUUM_EXTEND_MS = 380;
 export const CALLOUT_VACUUM_PHONE_EXTEND_MS = 440;
 export const CALLOUT_VACUUM_RECONNECT_STAGGER_MS = 140;
 export const CALLOUT_VACUUM_SETTLE_MS = 24;
+export const CALLOUT_VACUUM_POST_CONNECT_SETTLE_MS = 180;
+// Keep the final control-point convergence finite so the last painted organic
+// frame cannot be followed by an ungated canonical snap.
+export const CALLOUT_VACUUM_CANONICALIZE_MS = 140;
 export const CALLOUT_GEOMETRY_EPSILON_PX = 2;
 export const CALLOUT_VACUUM_PRIME_DISTANCE_PX = 64;
 export const CALLOUT_VACUUM_RESIDUAL_RATIO = 0.2;
+// The organic control handoff is intentionally longer than the prime lead. The
+// first painted curve must remain the exact synchronous prime, then ease into the
+// S-bend without a visible control-point jump on the next compositor frame.
+export const CALLOUT_CURVE_HANDOFF_MS = 240;
 const CALLOUT_CONTENT_FADE_OUT_MS = 360;
-export type CalloutTransitionPhase = 'retracting' | 'waiting-for-layout' | 'extending';
+export type CalloutTransitionPhase = 'retracting' | 'waiting-for-layout' | 'extending' | 'canonicalizing';
 export interface CalloutMove {
   epoch: number;
   phase: CalloutTransitionPhase;
@@ -25,6 +33,16 @@ export interface CalloutMove {
   boxes: DOMRect[];
   destinations: DOMRect[];
   curves: number[][];
+  /** The exact local SVG curves painted synchronously before the new audience layout is exposed. */
+  primedCurves: number[][];
+  /** Last painted time per slot; controls use it for a frame-rate-independent handoff. */
+  curveLastPaintedAt: Array<number | undefined>;
+  paintedCurves: number[][];
+  canonicalizeFrom: number[][];
+  /** Exact settled canonical curve captured per slot for the terminal frame. */
+  canonicalTarget: number[][];
+  canonicalizeStartedAt: Array<number | undefined>;
+  canonicalFramePainted: boolean[];
   extensionStartedAt: Array<number | undefined>;
   staggerIndices: number[];
   pulseEpoch: Array<number | undefined>;
@@ -74,6 +92,13 @@ export class PublicAstridCalloutLayout extends Component<Props> {
       boxes: cards.map(card => card.getBoundingClientRect()),
       destinations: [],
       curves: [],
+      primedCurves: [],
+      curveLastPaintedAt: [],
+      paintedCurves: [],
+      canonicalizeFrom: [],
+      canonicalTarget: [],
+      canonicalizeStartedAt: [],
+      canonicalFramePainted: [],
       extensionStartedAt: cards.map(() => undefined),
       staggerIndices: [],
       pulseEpoch: cards.map(() => undefined),
@@ -141,12 +166,21 @@ export class PublicAstridCalloutLayout extends Component<Props> {
     move.boxes = snapshot.boxes;
     move.destinations = destinations;
     move.curves = snapshot.curves;
+    move.primedCurves = cards.map(() => []);
+    move.curveLastPaintedAt = cards.map(() => undefined);
+    move.paintedCurves = cards.map(() => []);
+    move.canonicalizeFrom = cards.map(() => []);
+    move.canonicalTarget = cards.map(() => []);
+    move.canonicalizeStartedAt = cards.map(() => undefined);
+    move.canonicalFramePainted = cards.map(() => false);
     // A mobile audience change can shift the stage origin. Rebase the captured SVG before paint;
     // synchronously prime every path into a visibly retracted state so the new audience
     // cannot paint beside a fully extended old connector.
     root.querySelectorAll('path').forEach((path, index) => {
       const curve = primeRetractedCurve(snapshot.curves[index]).map((value, coordinate) => value - (coordinate % 2 ? origin.top : origin.left));
       if (curve.length !== 8) return;
+      move.primedCurves[index] = curve;
+      move.paintedCurves[index] = curve.slice();
       path.setAttribute('d', `M${curve[0]} ${curve[1]} C${curve.slice(2).join(' ')}`);
       path.setAttribute('data-connector-target', 'transition');
       const dots = path.parentElement!.querySelectorAll('circle[data-callout]');

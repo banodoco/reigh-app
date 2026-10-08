@@ -3,11 +3,14 @@ import type { PublicAstridAudience } from './publicAstridMotion';
 import { readPublicAstridPlayerHeight } from './usePublicAstridPlayerHeight';
 import {
   PublicAstridCalloutLayout,
+  CALLOUT_CURVE_HANDOFF_MS,
   CALLOUT_MOVE_MS,
   CALLOUT_GEOMETRY_EPSILON_PX,
   CALLOUT_VACUUM_EXTEND_MS,
   CALLOUT_VACUUM_LEAD_MS,
   CALLOUT_VACUUM_PHONE_EXTEND_MS,
+  CALLOUT_VACUUM_CANONICALIZE_MS,
+  CALLOUT_VACUUM_POST_CONNECT_SETTLE_MS,
   CALLOUT_VACUUM_PRIME_DISTANCE_PX,
   CALLOUT_VACUUM_RECONNECT_STAGGER_MS,
   CALLOUT_VACUUM_RETRACT_MS,
@@ -174,6 +177,13 @@ const APP_CALLOUTS: readonly CalloutDefinition[] = [
 ];
 
 const PARALLAX_EASE = 0.1;
+const CALLOUT_RESTING_BEND_MIN_PX = 2;
+const CALLOUT_RESTING_BEND_MAX_PX = 4;
+const CALLOUT_RESTING_BEND_RATIO = 0.012;
+// A terminal curve may be reused only while its live endpoints are effectively
+// unchanged. Larger movement means the layout is still settling and the slot
+// must keep its endpoints live and recanonicalize instead of freezing stale work.
+const CALLOUT_CANONICAL_ENDPOINT_EPSILON_PX = 0.25;
 const PARALLAX_TILT_X_DEG = 4;
 const PARALLAX_TILT_Y_DEG = 5;
 /** Keep in step with the phone and tablet breakpoints in PublicAstridShell.css. */
@@ -267,6 +277,51 @@ function connectorControls(start: Point, end: Point, side: CalloutSide, swing?: 
     : { c1: { x: start.x, y: start.y + direction * reach }, c2: { x: end.x, y: end.y - direction * reach } };
 }
 
+function blendPoint(from: Point, to: Point, progress: number): Point {
+  return {
+    x: from.x + (to.x - from.x) * progress,
+    y: from.y + (to.y - from.y) * progress,
+  };
+}
+
+/** Add a bounded S-bend without moving either endpoint. The opposite control-point offsets
+ * make the connector breathe laterally instead of translating as one rigid curve. */
+function snakeBend(controls: CurveControls, start: Point, end: Point, amount: number): CurveControls {
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const length = Math.hypot(dx, dy);
+  if (!amount || !length) return controls;
+  const normal = { x: -dy / length, y: dx / length };
+  return {
+    c1: { x: controls.c1.x + normal.x * amount, y: controls.c1.y + normal.y * amount },
+    c2: { x: controls.c2.x - normal.x * amount * .72, y: controls.c2.y - normal.y * amount * .72 },
+  };
+}
+
+function restingBendAmount(length: number) {
+  return Math.min(CALLOUT_RESTING_BEND_MAX_PX,
+    Math.max(CALLOUT_RESTING_BEND_MIN_PX, length * CALLOUT_RESTING_BEND_RATIO));
+}
+
+/** A zero-at-rest bend envelope for retract/extension plus a finite post-connect settle.
+ * The extension arrives at unit bend with zero velocity; the after-motion starts
+ * at that same value and damps to exactly zero without moving either endpoint. */
+function connectorSnakeWave(elapsed: number, retractUntil: number, extensionAt: number, extendDuration: number) {
+  if (elapsed < retractUntil) {
+    const progress = Math.max(0, Math.min(1, elapsed / Math.max(1, retractUntil)));
+    return Math.sin(Math.PI * eased(progress));
+  }
+  if (Number.isFinite(extensionAt) && elapsed >= extensionAt) {
+    const progress = Math.max(0, Math.min(1, (elapsed - extensionAt) / Math.max(1, extendDuration)));
+    if (progress < 1) return Math.sin((Math.PI / 2) * eased(progress));
+    const settleProgress = Math.max(0, Math.min(1,
+      (elapsed - extensionAt - extendDuration) / CALLOUT_VACUUM_POST_CONNECT_SETTLE_MS));
+    const envelope = (1 - eased(settleProgress)) * Math.exp(-4 * settleProgress * settleProgress);
+    return envelope * Math.cos(Math.PI * 2 * settleProgress);
+  }
+  return 0;
+}
+
 function eased(value: number) {
   const t = Math.max(0, Math.min(1, value));
   return t * t * (3 - 2 * t);
@@ -309,6 +364,8 @@ export function PublicAstridCallouts({ stageRef, audience, reducedMotion, active
   const svgRef = useRef<SVGSVGElement>(null);
   const cardRefs = useRef(new Map<string, HTMLElement>());
   const moveRef = useRef<CalloutMove | null>(null);
+  const settledCanonicalCurves = useRef<number[][]>([]);
+  const settledCanonicalEpoch = useRef<number | undefined>(undefined);
 
   // Connectors, plus the flat App controls that must follow tilted surfaces: the
   // transport rides the player, and the agent launcher sits on the conversation
@@ -412,6 +469,12 @@ export function PublicAstridCallouts({ stageRef, audience, reducedMotion, active
       }
 
       const move = moveRef.current;
+      if (move && settledCanonicalEpoch.current !== move.epoch) {
+        // A new epoch owns a new slot order and must not inherit a terminal
+        // curve from the audience that is being replaced.
+        settledCanonicalCurves.current = [];
+        settledCanonicalEpoch.current = move.epoch;
+      }
       const elapsed = move ? performance.now() - move.started : Infinity;
       const retractUntil = phone ? CALLOUT_VACUUM_PHONE_RETRACT_MS : CALLOUT_VACUUM_RETRACT_MS;
       if (move && move.staggerIndices.length === 0) {
@@ -507,7 +570,7 @@ export function PublicAstridCallouts({ stageRef, audience, reducedMotion, active
               : 1;
             const travelled = Math.min(
               retractDistance,
-              primeDistance + remainingDistance * retractProgress,
+              primeDistance + remainingDistance * eased(retractProgress),
             );
             const progress = retractDistance > 0 ? Math.min(1, travelled / retractDistance) : 1;
             // Retarget the residual point as the card moves. At settled geometry
@@ -531,9 +594,20 @@ export function PublicAstridCallouts({ stageRef, audience, reducedMotion, active
             // Keep this slot retracted until its target is measurable.
             effectiveEnd = partialEndAt(slotExtendAt);
           } else {
-            // Keep this timestamp in the same relative clock as `elapsed`; mixing
-            // it with performance.now() would leave the slot in transition forever.
-            if (move.extensionStartedAt[index] === undefined) move.extensionStartedAt[index] = elapsed;
+            // A target that was already measurable when its geometry gate opened
+            // owns the scheduled slot clock. This keeps canonicalization aligned
+            // with the actual settled layout even when the next RAF is late.
+            // A genuinely late target starts now instead, so missing-target slots
+            // never skip their visible extension.
+            if (move.extensionStartedAt[index] === undefined) {
+              // Agent entry has a real destination-geometry gate, so its
+              // ready slots use the scheduled clock even if RAF observation is
+              // late. App reverse transitions do not have that gate; preserve
+              // their observed-frame start to avoid a first-sample curve jump.
+              move.extensionStartedAt[index] = !appView && move.targetReady[index]
+                ? slotExtendAt
+                : elapsed;
+            }
             const extensionElapsed = elapsed - move.extensionStartedAt[index]!;
             const partialEnd = partialEndAt(slotExtendAt);
             const expandProgress = eased(extensionElapsed / extendDuration);
@@ -547,20 +621,143 @@ export function PublicAstridCallouts({ stageRef, audience, reducedMotion, active
           ey = effectiveEnd.y;
         }
         const effectiveEnd = { x: ex, y: ey };
-        const controls = connectorControls({ x: sx, y: sy }, effectiveEnd, side, swing);
+        const curveStart = { x: sx, y: sy };
+        const baseControls = connectorControls(curveStart, effectiveEnd, side, swing);
+        const extensionAt = move?.extensionStartedAt[index] ?? slotExtendAt;
+        const wave = move
+          ? connectorSnakeWave(elapsed, retractUntil, extensionAt, extendDuration)
+          : 0;
+        const curveLength = Math.hypot(effectiveEnd.x - sx, effectiveEnd.y - sy);
+        const bendAmount = Math.min(12, Math.max(4, curveLength * .04)) * wave;
+        // Keep a small shared normal offset in the resting shape. The animated
+        // bend is layered on top of that same canonical curve so the connector
+        // retains a little tension instead of becoming rigid at rest.
+        const canonicalControls = snakeBend(baseControls, curveStart, effectiveEnd, restingBendAmount(curveLength));
+        const organicControls = snakeBend(canonicalControls, curveStart, effectiveEnd, bendAmount);
+        const primedCurve = move?.primedCurves[index];
+        const baseline = [
+          curveStart.x, curveStart.y,
+          organicControls.c1.x, organicControls.c1.y,
+          organicControls.c2.x, organicControls.c2.y,
+          effectiveEnd.x, effectiveEnd.y,
+        ];
+        const canonicalCurve = [
+          curveStart.x, curveStart.y,
+          canonicalControls.c1.x, canonicalControls.c1.y,
+          canonicalControls.c2.x, canonicalControls.c2.y,
+          effectiveEnd.x, effectiveEnd.y,
+        ];
+        const endpointDelta = (a: number[], b: number[]) => a.length === 8 && b.length === 8
+          ? Math.max(...[0, 1, 6, 7].map(coordinate => Math.abs(a[coordinate] - b[coordinate])))
+          : Infinity;
+        const settledCurve = settledCanonicalCurves.current[index];
+        // After cleanup, keep using the exact curve that completed
+        // canonicalization while the live geometry agrees with its endpoints.
+        // If the layout moves again, discard it and return to live geometry.
+        const staticCanonical = !move && settledCurve?.length === 8
+          && endpointDelta(settledCurve, canonicalCurve) <= CALLOUT_CANONICAL_ENDPOINT_EPSILON_PX
+          ? settledCurve
+          : canonicalCurve;
+        const painted = move?.paintedCurves[index];
+        // Endpoints are never handed off from a previously painted curve. The
+        // card anchor and target are live geometry, so both ends stay attached
+        // while a card is moving and throughout the post-connect settle. Only
+        // the cubic controls may blend toward the organic curve.
+        const renderedBaseline = baseline;
+        const handoffFrom = painted?.length === 8
+          ? painted
+          : primedCurve?.length === 8 ? primedCurve : baseline;
+        const firstPaint = !!move && move.curveLastPaintedAt[index] === undefined && handoffFrom.length === 8;
+        const frameDelta = move && move.curveLastPaintedAt[index] !== undefined
+          ? Math.max(0, elapsed - move.curveLastPaintedAt[index]!)
+          : 0;
+        // Frame-delta exponential easing is time-normalized and never snaps when
+        // a target or card geometry changes between measurements. It is applied
+        // only to controls; endpoints remain the exact residual/extension result.
+        const handoffProgress = move && !firstPaint
+          ? 1 - Math.exp(-frameDelta / Math.max(1, CALLOUT_CURVE_HANDOFF_MS))
+          : 0;
+        const postSettleAt = move?.extensionStartedAt[index] === undefined
+          ? Infinity
+          : move.extensionStartedAt[index]! + extendDuration + CALLOUT_VACUUM_SETTLE_MS + CALLOUT_VACUUM_POST_CONNECT_SETTLE_MS;
+        const canonicalizing = !!move && !!destination
+          && move.extensionStartedAt[index] !== undefined
+          && elapsed >= postSettleAt;
+        let canonicalProgress = 0;
+        let canonicalFrom = handoffFrom;
+        let capturedCanonical = canonicalCurve;
+        if (canonicalizing) {
+          if (move!.canonicalizeStartedAt[index] === undefined) {
+            // Anchor the finite phase to the scheduled post-settle boundary,
+            // not to the first draw that happens to observe it. A dropped or
+            // delayed frame must not strand cleanup at a fixed test/browser
+            // clock, and a late observation should never resurrect an old curve.
+            move!.canonicalizeStartedAt[index] = postSettleAt;
+            move!.canonicalizeFrom[index] = painted?.length === 8
+              ? painted.slice()
+              : renderedBaseline.slice();
+            move!.canonicalTarget[index] = canonicalCurve.slice();
+            move!.phase = 'canonicalizing';
+          }
+          capturedCanonical = move!.canonicalTarget[index].length === 8
+            ? move!.canonicalTarget[index]
+            : canonicalCurve;
+          // If the target/card still moved after the post-connect delay, do not
+          // freeze the previous geometry into the terminal frame. Rebase from
+          // the curve actually painted and restart only this slot's finite
+          // canonicalization against the new live target.
+          if (endpointDelta(capturedCanonical, canonicalCurve) > CALLOUT_CANONICAL_ENDPOINT_EPSILON_PX) {
+            move!.canonicalTarget[index] = canonicalCurve.slice();
+            move!.canonicalizeFrom[index] = painted?.length === 8
+              ? painted.slice()
+              : renderedBaseline.slice();
+            move!.canonicalizeStartedAt[index] = elapsed;
+            move!.canonicalFramePainted[index] = false;
+            capturedCanonical = move!.canonicalTarget[index];
+          }
+          canonicalFrom = move!.canonicalizeFrom[index].length === 8
+            ? move!.canonicalizeFrom[index]
+            : renderedBaseline;
+          canonicalProgress = Math.min(1, Math.max(0,
+            (elapsed - move!.canonicalizeStartedAt[index]!) / CALLOUT_VACUUM_CANONICALIZE_MS));
+        }
+        // The captured/primed curve is a controls-only handoff source. Endpoints
+        // always come from the live card anchor and target, including the first
+        // post-commit frame and every reversal/post-settle frame. This keeps the
+        // path attached while preserving continuity in the organic controls.
+        const curve = canonicalizing
+          ? canonicalProgress >= 1
+            ? capturedCanonical.slice()
+            : canonicalCurve.map((value, coordinate) => coordinate >= 2 && coordinate <= 5
+              ? canonicalFrom[coordinate] + (capturedCanonical[coordinate] - canonicalFrom[coordinate]) * eased(canonicalProgress)
+              : value)
+          : move
+            ? renderedBaseline.map((value, coordinate) => coordinate >= 2 && coordinate <= 5
+              ? handoffFrom[coordinate] + (value - handoffFrom[coordinate]) * handoffProgress
+              : value)
+            : staticCanonical.slice();
+        if (canonicalizing && canonicalProgress >= 1) move!.canonicalFramePainted[index] = true;
+        // The first post-commit draw keeps the exact live endpoints and captured
+        // controls. Later frames store their actual painted controls for the next
+        // frame's continuous handoff.
+        const exactHandoffFrame = firstPaint;
+        const paintedCurve = exactHandoffFrame ? curve.slice() : curve.map(value => Number(value.toFixed(1)));
         setAttribute(path, 'data-connector-target', move && elapsed < slotTransitionEnd ? 'transition' : callout.id);
-        setAttribute(path, 'd', `M${sx.toFixed(1)} ${sy.toFixed(1)} C${controls.c1.x.toFixed(1)} ${controls.c1.y.toFixed(1)} ${controls.c2.x.toFixed(1)} ${controls.c2.y.toFixed(1)} ${ex.toFixed(1)} ${ey.toFixed(1)}`);
-        setAttribute(dots[0], 'cx', sx.toFixed(1));
-        setAttribute(dots[0], 'cy', sy.toFixed(1));
+        const pathValue = exactHandoffFrame
+          ? `M${paintedCurve[0]} ${paintedCurve[1]} C${paintedCurve.slice(2).join(' ')}`
+          : `M${paintedCurve[0].toFixed(1)} ${paintedCurve[1].toFixed(1)} C${paintedCurve.slice(2).map(value => value.toFixed(1)).join(' ')}`;
+        setAttribute(path, 'd', pathValue);
+        setAttribute(dots[0], 'cx', paintedCurve[0].toFixed(1));
+        setAttribute(dots[0], 'cy', paintedCurve[1].toFixed(1));
         setAttribute(dots[0], 'r', '4');
-        setAttribute(dots[1], 'cx', ex.toFixed(1));
-        setAttribute(dots[1], 'cy', ey.toFixed(1));
+        setAttribute(dots[1], 'cx', paintedCurve[6].toFixed(1));
+        setAttribute(dots[1], 'cy', paintedCurve[7].toFixed(1));
         setAttribute(dots[1], 'r', '4');
         setAttribute(dots[1], 'opacity', '1');
         const ping = svgElement.querySelector<SVGCircleElement>(`circle[data-callout-ping="${callout.id}"]`);
         if (ping) {
-          setAttribute(ping, 'cx', ex.toFixed(1));
-          setAttribute(ping, 'cy', ey.toFixed(1));
+          setAttribute(ping, 'cx', paintedCurve[6].toFixed(1));
+          setAttribute(ping, 'cy', paintedCurve[7].toFixed(1));
           // Reuse the initial connection ring, but only after this slot has finished
           // extending. The epoch guard keeps a late frame from pulsing a stale target.
           const extensionFinished = !!move && !!destination
@@ -570,6 +767,10 @@ export function PublicAstridCallouts({ stageRef, audience, reducedMotion, active
             move!.pulseEpoch[index] = move!.epoch;
             setAttribute(ping, 'data-astrid-reconnect-pulse', 'true');
           }
+        }
+        if (move) {
+          move.paintedCurves[index] = paintedCurve;
+          move.curveLastPaintedAt[index] = elapsed;
         }
       }
       // Follow only finite geometry animations, including their delays. Decorative infinite pulses
@@ -593,10 +794,13 @@ export function PublicAstridCallouts({ stageRef, audience, reducedMotion, active
       }
       writes.forEach((write) => write());
       const allTargetsReady = move?.targetReady.every(Boolean) ?? true;
-      const allExtensionsDone = move?.extensionStartedAt.every((startedAt) => startedAt !== undefined
-        && elapsed >= startedAt + extendDuration + CALLOUT_VACUUM_SETTLE_MS) ?? true;
-      const connectorAnimating = move?.extensionStartedAt.some((startedAt) => startedAt !== undefined
-        && elapsed < startedAt + extendDuration + CALLOUT_VACUUM_SETTLE_MS) ?? false;
+      const allCanonicalFramesPainted = move?.canonicalFramePainted.every(Boolean) ?? true;
+      const allExtensionsDone = move?.extensionStartedAt.every((startedAt, index) => startedAt !== undefined
+        && move.canonicalFramePainted[index]
+        && elapsed >= startedAt + extendDuration + CALLOUT_VACUUM_SETTLE_MS
+          + CALLOUT_VACUUM_POST_CONNECT_SETTLE_MS + CALLOUT_VACUUM_CANONICALIZE_MS) ?? true;
+      const connectorAnimating = move?.extensionStartedAt.some((startedAt, index) => startedAt !== undefined
+        && !move.canonicalFramePainted[index]) ?? false;
       // Keep the RAF loop alive through the retract/hold gate even when a test
       // harness or browser reports no running WAAPI animation yet. Once a target
       // is unavailable and the partial retract is complete, Mutation/ResizeObserver
@@ -606,7 +810,14 @@ export function PublicAstridCallouts({ stageRef, audience, reducedMotion, active
         ? Math.max(...move.staggerIndices.map(index => baseExtendAt + index * CALLOUT_VACUUM_RECONNECT_STAGGER_MS))
         : baseExtendAt;
       const connectorRetracting = move !== null && elapsed < (Number.isFinite(lastScheduledExtensionAt) ? lastScheduledExtensionAt : retractUntil);
-      if (move && allTargetsReady && allExtensionsDone) moveRef.current = null;
+      if (move && allTargetsReady && allCanonicalFramesPainted && allExtensionsDone) {
+        // Keep the exact terminal target available for subsequent static paints.
+        // This prevents a post-cleanup live recomputation from changing the
+        // resting bend while the settled layout is otherwise unchanged.
+        settledCanonicalCurves.current = move.canonicalTarget.map(curve => curve.slice());
+        settledCanonicalEpoch.current = move.epoch;
+        moveRef.current = null;
+      }
       if (trackedChanged || !settled || moving || waitingForLayout || connectorRetracting || connectorAnimating) schedule();
     }
     const resizeObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(schedule);
