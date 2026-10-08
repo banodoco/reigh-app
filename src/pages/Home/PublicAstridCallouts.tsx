@@ -1,12 +1,18 @@
-import { useEffect, useRef, type CSSProperties, type RefObject } from 'react';
+import { useEffect, useLayoutEffect, useRef, type CSSProperties, type RefObject } from 'react';
 import type { PublicAstridAudience } from './publicAstridMotion';
 import { readPublicAstridPlayerHeight } from './usePublicAstridPlayerHeight';
 import {
   PublicAstridCalloutLayout,
-  CALLOUT_VACUUM_EXTEND_AT_MS,
+  CALLOUT_MOVE_MS,
+  CALLOUT_GEOMETRY_EPSILON_PX,
   CALLOUT_VACUUM_EXTEND_MS,
   CALLOUT_VACUUM_LEAD_MS,
-  CALLOUT_VACUUM_RETRACT_SPEED_PX_MS,
+  CALLOUT_VACUUM_PHONE_EXTEND_MS,
+  CALLOUT_VACUUM_PRIME_DISTANCE_PX,
+  CALLOUT_VACUUM_RECONNECT_STAGGER_MS,
+  CALLOUT_VACUUM_RETRACT_MS,
+  CALLOUT_VACUUM_PHONE_RETRACT_MS,
+  CALLOUT_VACUUM_RESIDUAL_RATIO,
   CALLOUT_VACUUM_SETTLE_MS,
   type CalloutMove,
 } from './PublicAstridCalloutLayout';
@@ -37,7 +43,7 @@ interface CalloutDefinition {
   phoneAt?: readonly [number, number];
   /**
    * A more specific target on phones, where the cards sit above and below the conversation and can each
-   * point at a different part of it. The connector waits until the conversation is mounted.
+   * point at a different part of it. Until that content is measurable, use the chat surface edge.
    */
   phoneTarget?: string;
   /** Fraction along the card edge where the phone connector leaves. */
@@ -176,10 +182,20 @@ const TABLET_MEDIA_QUERY = '(max-width: 1099px)';
 
 function calloutsFor(audience: PublicAstridAudience) {
   const definitions = audience === 'agent' ? AGENT_CALLOUTS : APP_CALLOUTS;
-  // Keep the established desktop composition. Phone timing below uses a separate
-  // slot map so its top rail can introduce the most useful card first.
+  // This is the established desktop introduction order. Phone timing below uses
+  // the same source with a separate slot map for the top rail.
   const order = audience === 'agent' ? ['community', 'tools', 'workflows'] : ['timeline', 'effects', 'models'];
   return order.map(id => definitions.find(callout => callout.id === id)!);
+}
+
+const MOBILE_CALLOUT_ORDER: Record<PublicAstridAudience, readonly string[]> = {
+  agent: ['tools', 'community', 'workflows'],
+  app: ['effects', 'timeline', 'models'],
+};
+
+function calloutSequenceIndex(audience: PublicAstridAudience, id: string, phone: boolean) {
+  const order = phone ? MOBILE_CALLOUT_ORDER[audience] : calloutsFor(audience).map(callout => callout.id);
+  return Math.max(0, order.indexOf(id));
 }
 
 // One complete turn: card settles, line draws, endpoint lands, then a short breath.
@@ -189,9 +205,7 @@ function calloutTiming(index: number, audience: PublicAstridAudience, id: string
   const connector = 200;
   const endpoint = 100;
   const connectorLead = 250;
-  const mobileIndex = (audience === 'agent'
-    ? ({ tools: 0, community: 1, workflows: 2 } as Record<string, number>)
-    : ({ effects: 0, timeline: 1, models: 2 } as Record<string, number>))[id] ?? index;
+  const mobileIndex = calloutSequenceIndex(audience, id, true);
   const start = 450 + index * (card + connector + endpoint + 20);
   return {
     '--astrid-callout-index': index,
@@ -253,14 +267,6 @@ function connectorControls(start: Point, end: Point, side: CalloutSide, swing?: 
     : { c1: { x: start.x, y: start.y + direction * reach }, c2: { x: end.x, y: end.y - direction * reach } };
 }
 
-function cubicPoint(start: Point, controls: CurveControls, end: Point, t: number): Point {
-  const u = 1 - t;
-  return {
-    x: u ** 3 * start.x + 3 * u ** 2 * t * controls.c1.x + 3 * u * t ** 2 * controls.c2.x + t ** 3 * end.x,
-    y: u ** 3 * start.y + 3 * u ** 2 * t * controls.c1.y + 3 * u * t ** 2 * controls.c2.y + t ** 3 * end.y,
-  };
-}
-
 function eased(value: number) {
   const t = Math.max(0, Math.min(1, value));
   return t * t * (3 - 2 * t);
@@ -275,13 +281,20 @@ function resolveVisibleTarget(stage: HTMLElement, selector: string) {
 }
 
 function connectorGeometry(stage: HTMLElement, callout: CalloutDefinition, phone: boolean, tablet: boolean) {
-  const resolved = resolveVisibleTarget(stage, phone && callout.phoneTarget ? callout.phoneTarget : callout.target);
+  const precise = resolveVisibleTarget(stage, phone && callout.phoneTarget ? callout.phoneTarget : callout.target);
+  // Chat content can mount or become measurable after the surface has landed. Its
+  // readiness must not hide/restart the connector or delay the card-settle clock.
+  const chatFallback = !precise && phone && callout.target === PHONE_CLAMP_SELECTOR;
+  const resolved = precise ?? (chatFallback ? resolveVisibleTarget(stage, callout.target) : null);
   if (!resolved) return null;
   const side = phone ? callout.phoneSide : tablet ? callout.tabletSide ?? callout.side : callout.side;
-  const [ax, ay] = phone ? callout.phoneAt ?? callout.at : tablet ? callout.tabletAt ?? callout.at : callout.at;
+  const [ax, preferredY] = phone ? callout.phoneAt ?? callout.at : tablet ? callout.tabletAt ?? callout.at : callout.at;
+  const ay = chatFallback ? callout.at[1] : preferredY;
   const box = resolved.rect;
   const end = { x: box.left + box.width * ax, y: box.top + (!phone && callout.atTop !== undefined ? callout.atTop : box.height * ay) };
-  const clampBox = phone && callout.phoneTarget ? resolved.element.closest(PHONE_CLAMP_SELECTOR)?.getBoundingClientRect() : undefined;
+  // Surface-relative fallback coordinates are already inside the panel, even if
+  // an empty mobile conversation has not acquired its content height yet.
+  const clampBox = !chatFallback && phone && callout.phoneTarget ? resolved.element.closest(PHONE_CLAMP_SELECTOR)?.getBoundingClientRect() : undefined;
   if (clampBox) end.y = Math.max(clampBox.top + 56, Math.min(clampBox.bottom - 16, end.y));
   return { end, side, swing: phone ? callout.phoneSwing : undefined };
 }
@@ -301,9 +314,14 @@ export function PublicAstridCallouts({ stageRef, audience, reducedMotion, active
   // transport rides the player, and the agent launcher sits on the conversation
   // once it has bundled itself into its corner circle.
   const appView = audience === 'app';
-  useEffect(() => {
-    const stage = stageRef.current;
+  // This owns the measured SVG and tracked flat controls. It must switch in the
+  // layout phase: a passive effect leaves one painted frame where the new cards
+  // are committed but the old audience's connector loop is still alive.
+  useLayoutEffect(() => {
     const svg = svgRef.current;
+    // The stage ref belongs to the parent shell and can still be assigned after
+    // this child layout effect; the committed SVG gives us the same stable owner.
+    const stage = stageRef.current ?? svg?.closest<HTMLDivElement>('.astrid-editor-stage, [data-testid="stage"]');
     if (!active || !stage || !svg) return undefined;
     const stageElement: HTMLDivElement = stage;
     const svgElement: SVGSVGElement = svg;
@@ -395,81 +413,142 @@ export function PublicAstridCallouts({ stageRef, audience, reducedMotion, active
 
       const move = moveRef.current;
       const elapsed = move ? performance.now() - move.started : Infinity;
-      const transitionEnd = phone
-        ? 240 + 440 + CALLOUT_VACUUM_SETTLE_MS
-        : CALLOUT_VACUUM_EXTEND_AT_MS + CALLOUT_VACUUM_EXTEND_MS + CALLOUT_VACUUM_SETTLE_MS;
+      const retractUntil = phone ? CALLOUT_VACUUM_PHONE_RETRACT_MS : CALLOUT_VACUUM_RETRACT_MS;
+      if (move && move.staggerIndices.length === 0) {
+        // Freeze the breakpoint-aware introduction order for this epoch. A resize
+        // during the move must not reorder slots halfway through reconnection.
+        move.staggerIndices = callouts.map(callout => calloutSequenceIndex(audience, callout.id, phone));
+      }
+      const cardBoxes = callouts.map((callout) => cardRefs.current.get(callout.id)?.getBoundingClientRect() ?? null);
+      // The destination cards can be effectively final before their 720ms animation
+      // lifecycle ends. This gate reads card geometry only; inner chat readiness is irrelevant.
+      const isEffectivelySettled = (box: DOMRect | null, destination: DOMRect) => !!box
+        && Math.abs(box.left - destination.left) <= CALLOUT_GEOMETRY_EPSILON_PX
+        && Math.abs(box.top - destination.top) <= CALLOUT_GEOMETRY_EPSILON_PX
+        && Math.abs(box.width - destination.width) <= CALLOUT_GEOMETRY_EPSILON_PX
+        && Math.abs(box.height - destination.height) <= CALLOUT_GEOMETRY_EPSILON_PX;
+      const cardsEffectivelySettled = move?.destinations.length === cardBoxes.length
+        && cardBoxes.every((box, index) => isEffectivelySettled(box, move.destinations[index]));
+      // Entering Agent waits for the real retract and destination card geometry, not content readiness.
+      const baseExtendAt = !appView && move
+        ? move.settledAt === undefined ? Infinity : Math.max(retractUntil, move.settledAt - move.started + CALLOUT_VACUUM_SETTLE_MS)
+        : retractUntil;
+      const baseExtendDuration = phone ? CALLOUT_VACUUM_PHONE_EXTEND_MS : CALLOUT_VACUUM_EXTEND_MS;
+      // Both audiences use the natural extension duration after the same
+      // final-geometry gate; retraction and the residual hold remain separate.
+      const extendDuration = baseExtendDuration;
       for (const [index, callout] of callouts.entries()) {
         const path = svgElement.querySelector<SVGPathElement>(`path[data-callout="${callout.id}"]`);
         const dots = svgElement.querySelectorAll<SVGCircleElement>(`circle[data-callout="${callout.id}"]`);
         const card = cardRefs.current.get(callout.id);
         const incoming = connectorGeometry(stageElement, callout, phone, tablet);
-        if (!path || dots.length !== 2) continue;
-        if (!card || !incoming) {
-          writes.push(() => path.removeAttribute('d'));
-          dots.forEach((dot) => setAttribute(dot, 'r', '0'));
-          continue;
-        }
-  const destination = incoming;
-  const end = destination.end;
-  const side = destination.side;
-        const cardBox = card.getBoundingClientRect();
-        const swing = destination.swing;
-        const anchor = (geometry: typeof destination) => geometry.swing === undefined
-          ? cardAnchor(cardBox, geometry.side, end, phone ? callout.phoneAnchor : undefined)
-          : { x: cardBox.left + cardBox.width * geometry.swing, y: geometry.side === 'top' ? cardBox.top : cardBox.bottom };
-        const start = anchor(destination);
+        if (!path || dots.length !== 2 || !card) continue;
+        const destination = incoming;
+        if (move) move.targetReady[index] = !!destination;
+        const side = destination?.side ?? (phone ? callout.phoneSide : tablet ? callout.tabletSide ?? callout.side : callout.side);
+        const swing = destination?.swing ?? (phone ? callout.phoneSwing : undefined);
+        const cardBox = cardBoxes[index];
+        if (!cardBox) continue;
+        const staggerIndex = move?.staggerIndices[index] ?? calloutSequenceIndex(audience, callout.id, phone);
+        const slotExtendAt = Number.isFinite(baseExtendAt)
+          ? baseExtendAt + staggerIndex * CALLOUT_VACUUM_RECONNECT_STAGGER_MS
+          : Infinity;
+        const previous = move?.curves[index];
+        const oldEnd = previous?.length === 8
+          ? { x: previous[6] - originX, y: previous[7] - originY }
+          : null;
+        // A missing target must still pass through the retract phase. Use its last
+        // endpoint as a temporary destination, then hold the retracted endpoint.
+        const end = destination?.end ?? (oldEnd ? { x: oldEnd.x + originX, y: oldEnd.y + originY } : null);
+        if (!end) continue;
+        const anchor = (box: DOMRect, geometry: { side: CalloutSide; swing?: number; end: Point }) => geometry.swing === undefined
+          ? cardAnchor(box, geometry.side, geometry.end, phone ? callout.phoneAnchor : undefined)
+          : { x: box.left + box.width * geometry.swing, y: geometry.side === 'top' ? box.top : box.bottom };
+        const start = anchor(cardBox, { side, swing, end });
         let sx = start.x - originX;
         let sy = start.y - originY;
         let ex = end.x - originX;
         let ey = end.y - originY;
-        const previous = move?.curves[index];
+        let slotTransitionEnd = slotExtendAt + extendDuration + CALLOUT_VACUUM_SETTLE_MS;
+        if (move && !destination) slotTransitionEnd = Infinity;
         if (move && previous?.length === 8) {
           const oldEx = previous[6] - originX;
           const oldEy = previous[7] - originY;
           const currentStart = { x: sx, y: sy };
           const newEnd = { x: ex, y: ey };
-          const oldEnd = { x: oldEx, y: oldEy };
-          const oldCurve = connectorControls(currentStart, oldEnd, side, swing);
-          const oldLength = Math.hypot(oldEnd.x - currentStart.x, oldEnd.y - currentStart.y);
-          const retractDistance = Math.min(
-            Math.max(0, oldLength - 24),
-            Math.min(120, Math.max(48, oldLength * 0.32)),
-          );
-          const retractSpeed = phone ? 0.5 : CALLOUT_VACUUM_RETRACT_SPEED_PX_MS;
-          const extendAt = phone ? 240 : CALLOUT_VACUUM_EXTEND_AT_MS;
-          const extendDuration = phone ? 440 : CALLOUT_VACUUM_EXTEND_MS;
-          const transitionEnd = extendAt + extendDuration + CALLOUT_VACUUM_SETTLE_MS;
+          const lastEnd = { x: oldEx, y: oldEy };
+          const currentLength = Math.hypot(lastEnd.x - currentStart.x, lastEnd.y - currentStart.y);
+          const oldLength = move.retractLengths[index] ?? (move.retractLengths[index] = currentLength);
+          const settledBox = move.destinations[index];
+          const settledStart = destination && settledBox
+            ? anchor(settledBox, { side, swing, end: destination.end })
+            : currentStart;
+          const settledStartLocal = { x: settledStart.x - originX, y: settledStart.y - originY };
+          const finalDirection = destination
+            ? { x: newEnd.x - settledStartLocal.x, y: newEnd.y - settledStartLocal.y }
+            : { x: lastEnd.x - currentStart.x, y: lastEnd.y - currentStart.y };
+          const finalLength = Math.hypot(finalDirection.x, finalDirection.y);
+          const directionLength = finalLength || oldLength || 1;
+          const unit = { x: finalDirection.x / directionLength, y: finalDirection.y / directionLength };
+          const residualLength = (finalLength || oldLength) * CALLOUT_VACUUM_RESIDUAL_RATIO;
           const partialEndAt = (time: number) => {
-            const travelled = Math.min(retractDistance, Math.max(0, time - CALLOUT_VACUUM_LEAD_MS) * retractSpeed);
-            const progress = retractDistance > 0 ? travelled / retractDistance : 1;
-            return cubicPoint(currentStart, oldCurve, oldEnd, 1 - progress);
+            // Prime a small visible contraction before the first browser paint, then
+            // move more slowly toward a residual stub rather than collapsing to zero.
+            const retractClock = Math.max(0, Math.min(time, retractUntil) - CALLOUT_VACUUM_LEAD_MS);
+            const residualEnd = {
+              x: currentStart.x + unit.x * residualLength,
+              y: currentStart.y + unit.y * residualLength,
+            };
+            const retractDistance = Math.hypot(residualEnd.x - lastEnd.x, residualEnd.y - lastEnd.y);
+            const primeDistance = Math.min(retractDistance, CALLOUT_VACUUM_PRIME_DISTANCE_PX);
+            const remainingDistance = Math.max(0, retractDistance - primeDistance);
+            const retractProgress = retractUntil > CALLOUT_VACUUM_LEAD_MS
+              ? retractClock / (retractUntil - CALLOUT_VACUUM_LEAD_MS)
+              : 1;
+            const travelled = Math.min(
+              retractDistance,
+              primeDistance + remainingDistance * retractProgress,
+            );
+            const progress = retractDistance > 0 ? Math.min(1, travelled / retractDistance) : 1;
+            // Retarget the residual point as the card moves. At settled geometry
+            // this is exactly 20% of the final extension length from card to target.
+            return {
+              x: lastEnd.x + (residualEnd.x - lastEnd.x) * progress,
+              y: lastEnd.y + (residualEnd.y - lastEnd.y) * progress,
+            };
           };
-          let effectiveEnd = oldEnd;
+          let effectiveEnd = lastEnd;
           if (elapsed < CALLOUT_VACUUM_LEAD_MS) {
-            // The new card-side anchor leads while the old far target stays put.
-            effectiveEnd = oldEnd;
-          } else if (elapsed < extendAt) {
-            // Retract at a real speed, stopping at a visible partial distance instead
-            // of sucking the connector all the way into the card.
+            // Start the visible contraction in the first painted frame. The lead
+            // clock still controls the speed, but never leaves the new cards
+            // exposed with a fully extended connector to the old target.
             effectiveEnd = partialEndAt(elapsed);
-          } else if (elapsed < transitionEnd - CALLOUT_VACUUM_SETTLE_MS) {
-            // Hold the partial retraction until the explicit extension start, then
-            // reconnect while the card is still finishing its own move.
-            const partialEnd = partialEndAt(extendAt);
-            const expandProgress = eased((elapsed - extendAt) / extendDuration);
+          } else if (elapsed < slotExtendAt) {
+            // Retract at the slower bounded speed, stopping at the residual stub
+            // instead of sucking the connector all the way into the card.
+            effectiveEnd = partialEndAt(elapsed);
+          } else if (!destination) {
+            // Keep this slot retracted until its target is measurable.
+            effectiveEnd = partialEndAt(slotExtendAt);
+          } else {
+            // Keep this timestamp in the same relative clock as `elapsed`; mixing
+            // it with performance.now() would leave the slot in transition forever.
+            if (move.extensionStartedAt[index] === undefined) move.extensionStartedAt[index] = elapsed;
+            const extensionElapsed = elapsed - move.extensionStartedAt[index]!;
+            const partialEnd = partialEndAt(slotExtendAt);
+            const expandProgress = eased(extensionElapsed / extendDuration);
             effectiveEnd = {
               x: partialEnd.x + (newEnd.x - partialEnd.x) * expandProgress,
               y: partialEnd.y + (newEnd.y - partialEnd.y) * expandProgress,
             };
-          } else {
-            effectiveEnd = newEnd;
+            slotTransitionEnd = move.extensionStartedAt[index]! + extendDuration + CALLOUT_VACUUM_SETTLE_MS;
           }
           ex = effectiveEnd.x;
           ey = effectiveEnd.y;
         }
         const effectiveEnd = { x: ex, y: ey };
         const controls = connectorControls({ x: sx, y: sy }, effectiveEnd, side, swing);
-        setAttribute(path, 'data-connector-target', move && elapsed < transitionEnd ? 'transition' : callout.id);
+        setAttribute(path, 'data-connector-target', move && elapsed < slotTransitionEnd ? 'transition' : callout.id);
         setAttribute(path, 'd', `M${sx.toFixed(1)} ${sy.toFixed(1)} C${controls.c1.x.toFixed(1)} ${controls.c1.y.toFixed(1)} ${controls.c2.x.toFixed(1)} ${controls.c2.y.toFixed(1)} ${ex.toFixed(1)} ${ey.toFixed(1)}`);
         setAttribute(dots[0], 'cx', sx.toFixed(1));
         setAttribute(dots[0], 'cy', sy.toFixed(1));
@@ -479,7 +558,19 @@ export function PublicAstridCallouts({ stageRef, audience, reducedMotion, active
         setAttribute(dots[1], 'r', '4');
         setAttribute(dots[1], 'opacity', '1');
         const ping = svgElement.querySelector<SVGCircleElement>(`circle[data-callout-ping="${callout.id}"]`);
-        if (ping) { setAttribute(ping, 'cx', ex.toFixed(1)); setAttribute(ping, 'cy', ey.toFixed(1)); }
+        if (ping) {
+          setAttribute(ping, 'cx', ex.toFixed(1));
+          setAttribute(ping, 'cy', ey.toFixed(1));
+          // Reuse the initial connection ring, but only after this slot has finished
+          // extending. The epoch guard keeps a late frame from pulsing a stale target.
+          const extensionFinished = !!move && !!destination
+            && move.extensionStartedAt[index] !== undefined
+            && elapsed >= move.extensionStartedAt[index]! + extendDuration;
+          if (extensionFinished && move!.pulseEpoch[index] !== move!.epoch) {
+            move!.pulseEpoch[index] = move!.epoch;
+            setAttribute(ping, 'data-astrid-reconnect-pulse', 'true');
+          }
+        }
       }
       // Follow only finite geometry animations, including their delays. Decorative infinite pulses
       // and opacity-only animations cannot keep the measurement loop alive.
@@ -490,9 +581,33 @@ export function PublicAstridCallouts({ stageRef, audience, reducedMotion, active
           && effect.getTiming().iterations !== Infinity
           && effect.getKeyframes().some((keyframe) => ['transform', 'translate', 'scale', 'rotate', ...TRACKED_PROPERTIES].some((property) => keyframe[property] !== undefined));
       });
+      // A final WAAPI frame can be missed by the geometry epsilon. Treat the end
+      // of the finite card motion as the fallback settle signal, but keep sampling
+      // until then so the gate cannot strand the old endpoint forever.
+      if (move && !appView && move.settledAt === undefined
+        && (cardsEffectivelySettled || (!moving && elapsed >= CALLOUT_MOVE_MS))) {
+        move.settledAt = performance.now();
+        move.phase = 'extending';
+      } else if (move && !appView && move.settledAt === undefined) {
+        move.phase = elapsed < retractUntil ? 'retracting' : 'waiting-for-layout';
+      }
       writes.forEach((write) => write());
-      if (move && elapsed >= transitionEnd) moveRef.current = null;
-      if (trackedChanged || !settled || moving || (move && elapsed < transitionEnd)) schedule();
+      const allTargetsReady = move?.targetReady.every(Boolean) ?? true;
+      const allExtensionsDone = move?.extensionStartedAt.every((startedAt) => startedAt !== undefined
+        && elapsed >= startedAt + extendDuration + CALLOUT_VACUUM_SETTLE_MS) ?? true;
+      const connectorAnimating = move?.extensionStartedAt.some((startedAt) => startedAt !== undefined
+        && elapsed < startedAt + extendDuration + CALLOUT_VACUUM_SETTLE_MS) ?? false;
+      // Keep the RAF loop alive through the retract/hold gate even when a test
+      // harness or browser reports no running WAAPI animation yet. Once a target
+      // is unavailable and the partial retract is complete, Mutation/ResizeObserver
+      // callbacks can wake the loop when that target actually arrives.
+      const waitingForLayout = move !== null && !appView && move.settledAt === undefined;
+      const lastScheduledExtensionAt = move && Number.isFinite(baseExtendAt)
+        ? Math.max(...move.staggerIndices.map(index => baseExtendAt + index * CALLOUT_VACUUM_RECONNECT_STAGGER_MS))
+        : baseExtendAt;
+      const connectorRetracting = move !== null && elapsed < (Number.isFinite(lastScheduledExtensionAt) ? lastScheduledExtensionAt : retractUntil);
+      if (move && allTargetsReady && allExtensionsDone) moveRef.current = null;
+      if (trackedChanged || !settled || moving || waitingForLayout || connectorRetracting || connectorAnimating) schedule();
     }
     const resizeObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(schedule);
     const observeGeometry = () => {
@@ -500,12 +615,20 @@ export function PublicAstridCallouts({ stageRef, audience, reducedMotion, active
       resizeObserver?.disconnect();
       resizeObserver?.observe(stageElement);
       stageElement.querySelectorAll('.astrid-editor-surfaces, .astrid-surface, .astrid-callout').forEach((element) => resizeObserver?.observe(element));
+      // Content can resize inside a fixed-size chat panel after the move has ended.
+      // Mutation observation handles arrival; target resize observation handles later layout.
+      for (const callout of callouts) {
+        if (callout.phoneTarget) stageElement.querySelectorAll(callout.phoneTarget).forEach((element) => resizeObserver?.observe(element));
+      }
       schedule();
     };
-    // The lazy editor and conversation arrive after the callouts. Observe structure, never the
+      // The lazy editor and conversation arrive after the callouts. Observe structure, never the
     // inline styles / SVG attributes written by draw(), so this cannot restart its own work.
     const mutationObserver = new MutationObserver(observeGeometry);
     mutationObserver.observe(stageElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'data-revealed', 'data-audience'] });
+    // Paint the retracted transition state synchronously before the browser can
+    // expose the newly committed audience surface/card arrangement.
+    draw();
     observeGeometry();
     const onPointerMove = (event: PointerEvent) => {
       if (reducedMotion || phoneQuery.matches || event.pointerType !== 'mouse') return;

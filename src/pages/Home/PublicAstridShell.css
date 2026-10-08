@@ -1870,6 +1870,14 @@
   animation: none;
 }
 
+/* Audience switches reuse the same initial-connection ring. JS sets this per slot only after
+   that slot reaches its new target; clearing it at the next epoch prevents stale pulses. */
+@media (prefers-reduced-motion: no-preference) {
+  .astrid-public-site:not([data-astrid-direct-entry]) .astrid-callout-connectors .astrid-callout-ping[data-astrid-reconnect-pulse="true"] {
+    animation: astrid-dot-ping 900ms cubic-bezier(.2, .7, .3, 1);
+  }
+}
+
 @media (max-width: 380px) {
   .astrid-callout[data-callout="workflows"] h2 { font-size: clamp(10.5px, calc(6.25vw - 9.5px), 13px); }
 }
