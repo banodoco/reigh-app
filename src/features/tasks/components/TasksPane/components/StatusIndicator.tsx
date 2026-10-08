@@ -16,10 +16,10 @@ export const StatusIndicator: React.FC<StatusIndicatorProps> = ({
   isSelected
 }) => {
   const borderStyle = type === 'Processing' ? 'border-solid' : 'border-dashed';
-  const borderColor = 'border-zinc-500';
+  const borderColor = 'border-border';
 
   // Use consistent zinc colors for all badge types
-  const textColor = isSelected ? 'text-zinc-100' : 'text-zinc-400';
+  const textColor = isSelected ? 'text-foreground' : 'text-muted-foreground';
 
   return (
     <div

@@ -99,8 +99,8 @@ export const TaskItemTooltip: React.FC<TaskItemTooltipProps> = ({
 
           {/* Click to view indicator */}
           {hasClickableContent && (
-            <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-zinc-900/90 via-zinc-800/60 to-transparent p-2 rounded-t-lg opacity-0 group-hover:opacity-100 transition-opacity">
-              <div className="text-xs text-zinc-100 text-center font-medium drop-shadow-md">
+            <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-background/95 via-card/70 to-transparent p-2 rounded-t-lg opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="text-xs text-foreground text-center font-medium drop-shadow-md">
                 {isVideoTask ? "Click to view video" : "Click to view image"}
               </div>
             </div>

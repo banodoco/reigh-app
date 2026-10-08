@@ -49,11 +49,11 @@ export const TaskItemPreview: React.FC<TaskItemPreviewProps> = ({
                 key={idx}
                 src={url}
                 alt={`input-${idx}`}
-                className="w-12 h-12 object-cover rounded mr-1 border border-zinc-700"
+                className="w-12 h-12 object-cover rounded mr-1 border border-border"
               />
             ))}
             {extraImageCount > 0 && (
-              <span className="text-xs text-zinc-400 ml-1">+ {extraImageCount}</span>
+              <span className="text-xs text-muted-foreground ml-1">+ {extraImageCount}</span>
             )}
           </div>
         </div>
@@ -62,7 +62,7 @@ export const TaskItemPreview: React.FC<TaskItemPreviewProps> = ({
       {shouldShowPromptPreview && (
         <div className="mb-1 mt-3">
           <div className="bg-blue-500/10 border border-blue-400/20 rounded px-2 py-1.5 flex items-center justify-between">
-            <div className="text-xs text-zinc-200 flex-1 min-w-0 pr-2 preserve-case">
+            <div className="text-xs text-card-foreground flex-1 min-w-0 pr-2 preserve-case">
               "{promptPreviewText}"
             </div>
             {generationData && (
@@ -71,7 +71,7 @@ export const TaskItemPreview: React.FC<TaskItemPreviewProps> = ({
                   const initialVariantId = getTaskVariantId(generationData, imageVariantId);
                   onOpenImageLightbox?.(task, generationData, initialVariantId);
                 }}
-                className="w-8 h-8 rounded border border-zinc-500 overflow-hidden hover:border-zinc-400 transition-colors flex-shrink-0"
+                className="w-8 h-8 rounded border border-border overflow-hidden hover:border-ring transition-colors flex-shrink-0"
               >
                 <img
                   src={generationData.imageUrl}
@@ -90,23 +90,23 @@ export const TaskItemPreview: React.FC<TaskItemPreviewProps> = ({
           {cascadedTaskId ? (
             <div>
               {isCascadedTaskLoading ? (
-                <div className="text-zinc-400 text-[10px] mb-1">
+                <div className="text-muted-foreground text-[10px] mb-1">
                   Loading error from related task...
                 </div>
               ) : cascadedTask?.error_message ? (
                 <div>
-                  <div className="text-zinc-400 text-[10px] mb-1">
+                  <div className="text-muted-foreground text-[10px] mb-1">
                     Cascaded from related task ({getTaskDisplayName(cascadedTask.task_type)}):
                   </div>
                   <div className="whitespace-pre-wrap break-words">{cascadedTask.error_message}</div>
                 </div>
               ) : (
                 <div>
-                  <div className="text-zinc-400 text-[10px] mb-1">
+                  <div className="text-muted-foreground text-[10px] mb-1">
                     Cascaded from related task{cascadedTask ? ` (${getTaskDisplayName(cascadedTask.task_type)})` : ''}:
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-zinc-400">No error message available</span>
+                    <span className="text-muted-foreground">No error message available</span>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -117,7 +117,7 @@ export const TaskItemPreview: React.FC<TaskItemPreviewProps> = ({
                           variant: 'default',
                         });
                       }}
-                      className="px-1.5 py-0.5 text-[10px] text-zinc-400 hover:text-zinc-200 hover:bg-zinc-700 rounded transition-colors border border-zinc-600 hover:border-zinc-400"
+                      className="px-1.5 py-0.5 text-[10px] text-muted-foreground hover:text-foreground hover:bg-accent rounded transition-colors border border-border hover:border-ring"
                     >
                       copy id
                     </button>

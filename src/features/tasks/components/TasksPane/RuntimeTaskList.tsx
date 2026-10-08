@@ -38,20 +38,20 @@ function RuntimeTaskItem({
 
   return (
     <article
-      className="rounded-md border border-zinc-700 bg-zinc-900/60 p-3 text-xs text-zinc-200"
+      className="rounded-md border border-border bg-card/60 p-3 text-xs text-card-foreground"
       data-runtime-task-id={task.task_id}
       data-runtime-task-version={String(task.version)}
       data-runtime-task-project-id={task.project_id ?? ''}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 space-y-1">
-          <div className="font-medium text-zinc-100">{runtimeTaskType(task)}</div>
-          <div className="truncate text-zinc-400" title={task.task_id}>Task {task.task_id}</div>
-          <div className="text-zinc-500">
+          <div className="font-medium text-card-foreground">{runtimeTaskType(task)}</div>
+          <div className="truncate text-muted-foreground" title={task.task_id}>Task {task.task_id}</div>
+          <div className="text-muted-foreground/80">
             {task.state} · version {task.version}
           </div>
           {task.input_object_ids.length > 0 && (
-            <div className="truncate text-zinc-500" title={task.input_object_ids.join(', ')}>
+            <div className="truncate text-muted-foreground/80" title={task.input_object_ids.join(', ')}>
               input {task.input_object_ids[0]}
               {task.input_object_ids.length > 1 ? ` +${task.input_object_ids.length - 1}` : ''}
             </div>
@@ -121,18 +121,18 @@ export function RuntimeTaskList({
   }
 
   if (isLoading && tasks.length === 0) {
-    return <div className="p-4 text-sm text-zinc-400">Loading Runtime tasks…</div>;
+    return <div className="p-4 text-sm text-muted-foreground">Loading Runtime tasks…</div>;
   }
 
   return (
-    <div className="space-y-2 p-4 text-zinc-200" data-runtime-task-list="true">
+    <div className="space-y-2 p-4 text-sidebar-foreground" data-runtime-task-list="true">
       {actionError && (
         <div className="rounded-md border border-red-800/80 bg-red-950/30 p-3 text-sm text-red-300" role="alert">
           Runtime task action failed: {actionError.message}
         </div>
       )}
       {tasks.length === 0 ? (
-        <p className="text-center text-sm text-zinc-400">No Runtime tasks found</p>
+        <p className="text-center text-sm text-muted-foreground">No Runtime tasks found</p>
       ) : (
         tasks.map((task) => (
           <RuntimeTaskItem

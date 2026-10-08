@@ -305,7 +305,7 @@ const TasksPaneComponent: React.FC<TasksPaneProps> = ({ onOpenSettings }) => {
           data-tasks-pane="true"
           data-scroll-lock-scrollable="true"
           className={cn(
-            'absolute top-0 right-0 h-full w-full bg-zinc-900/95 border-l border-zinc-700 shadow-xl transform transition-transform duration-300 ease-smooth flex flex-col pointer-events-auto',
+            'absolute top-0 right-0 h-full w-full bg-sidebar/95 border-l border-sidebar-border text-sidebar-foreground shadow-xl transform transition-transform duration-300 ease-smooth flex flex-col pointer-events-auto',
             transformClass
           )}
         >
@@ -325,21 +325,21 @@ const TasksPaneComponent: React.FC<TasksPaneProps> = ({ onOpenSettings }) => {
                 data-task-peek-surface="header"
                 role="region"
                 aria-label="Tasks"
-                className="group/tasks-header z-30 flex h-20 shrink-0 flex-col justify-center gap-1 border-b border-zinc-600/70 bg-zinc-800/80 px-2 py-2"
+                className="group/tasks-header z-30 flex h-20 shrink-0 flex-col justify-center gap-1 border-b border-sidebar-border/70 bg-sidebar/80 px-2 py-2"
                 onMouseEnter={() => setIsTasksPeeking(true)}
                 onMouseLeave={leaveTaskPeek}
                 onFocus={() => setIsTasksPeeking(true)}
                 onBlur={leaveTaskPeek}
               >
                 <div className="flex h-6 items-center justify-between pl-1">
-                  <h2 className="flex items-center gap-1.5 text-xs font-medium text-zinc-200">
-                    <ListTodo className="h-3.5 w-3.5 text-zinc-400" aria-hidden="true" />
+                  <h2 className="flex items-center gap-1.5 text-xs font-medium text-sidebar-foreground">
+                    <ListTodo className="h-3.5 w-3.5 text-sidebar-foreground/70" aria-hidden="true" />
                     Tasks
                   </h2>
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-6 w-6 shrink-0 text-zinc-400 opacity-0 transition-opacity [&_svg]:size-3 group-hover/tasks-header:opacity-100 group-focus-within/tasks-header:opacity-100 focus-visible:opacity-100"
+                    className="h-6 w-6 shrink-0 text-sidebar-foreground/70 opacity-0 transition-opacity [&_svg]:size-3 group-hover/tasks-header:opacity-100 group-focus-within/tasks-header:opacity-100 focus-visible:opacity-100"
                     aria-label={isTasksPinned ? 'Unlock tasks' : 'Lock tasks open'}
                     aria-pressed={isTasksPinned}
                     title={isTasksPinned ? 'Unlock tasks' : 'Lock tasks open'}
@@ -348,7 +348,7 @@ const TasksPaneComponent: React.FC<TasksPaneProps> = ({ onOpenSettings }) => {
                     {isTasksPinned ? <Unlock className="h-3 w-3" /> : <Lock className="h-3 w-3" />}
                   </Button>
                 </div>
-                <div className="flex items-center gap-1 rounded-md bg-zinc-950/30 p-0.5">
+                <div className="flex items-center gap-1 rounded-md bg-sidebar-accent/40 p-0.5">
                 {(['Processing', 'Succeeded', 'Failed'] as FilterGroup[]).map((filter) => {
                   const count = filter === 'Processing' ? cancellableTaskCount
                     : filter === 'Succeeded' ? (displayStatusCounts?.recentSuccesses ?? 0)
@@ -361,7 +361,7 @@ const TasksPaneComponent: React.FC<TasksPaneProps> = ({ onOpenSettings }) => {
                       aria-pressed={selectedFilter === filter}
                       aria-label={`Show ${filter.toLowerCase()} tasks (${count})`}
                       onClick={() => { handleFilterChange(filter); setIsTasksPeeking(true); }}
-                      className={cn('min-w-0 flex-1 gap-1 px-1 text-[11px]', selectedFilter === filter ? 'bg-zinc-700 text-zinc-100' : 'text-zinc-400')}
+                      className={cn('min-w-0 flex-1 gap-1 px-1 text-[11px]', selectedFilter === filter ? 'bg-sidebar-accent text-sidebar-accent-foreground' : 'text-sidebar-foreground/70')}
                     >
                       <span className="truncate">{filter}</span>
                       <span className="tabular-nums opacity-70">({count})</span>
@@ -383,13 +383,13 @@ const TasksPaneComponent: React.FC<TasksPaneProps> = ({ onOpenSettings }) => {
               className={cn(
               'min-h-0 flex flex-col overflow-hidden',
               isToolRoute
-                ? 'relative h-[calc(50%_-_5rem)] shrink-0 bg-zinc-900'
+                ? 'relative h-[calc(50%_-_5rem)] shrink-0 bg-sidebar'
                 : 'relative flex-1',
               isPointerEventsEnabled ? 'pointer-events-auto' : 'pointer-events-none'
             )}>
             {/* Status Filter Toggle — three buttons side-by-side, count inline as (N) so the row never overflows */}
-            <div className="p-2 border-b border-zinc-800 flex-shrink-0">
-              {!compactTasks && <div className="bg-zinc-800 rounded-lg p-1">
+            <div className="p-2 border-b border-sidebar-border flex-shrink-0">
+              {!compactTasks && <div className="bg-sidebar-accent rounded-lg p-1">
                 <div className="flex gap-1">
                   {(['Processing', 'Succeeded', 'Failed'] as FilterGroup[]).map((filter) => {
                     const count = filter === 'Processing'
@@ -407,8 +407,8 @@ const TasksPaneComponent: React.FC<TasksPaneProps> = ({ onOpenSettings }) => {
                         className={cn(
                           "flex-1 text-xs flex items-center justify-center gap-1 px-2 min-w-0",
                           selectedFilter === filter
-                            ? "bg-zinc-600 text-zinc-100 md:hover:bg-zinc-500"
-                            : "text-zinc-400 md:hover:text-zinc-200 md:hover:bg-zinc-700"
+                            ? "bg-sidebar-primary text-sidebar-primary-foreground md:hover:bg-sidebar-primary/90"
+                            : "text-sidebar-foreground/70 md:hover:text-sidebar-foreground md:hover:bg-sidebar-accent"
                         )}
                       >
                         <span className="truncate">{filter}</span>
@@ -437,14 +437,14 @@ const TasksPaneComponent: React.FC<TasksPaneProps> = ({ onOpenSettings }) => {
                   value={selectedTaskType || 'all'}
                   onValueChange={(value) => handleTaskTypeChange(value === 'all' ? null : value)}
                 >
-                  <SelectTrigger variant="retro-dark" size="sm" colorScheme="zinc" className="h-7 !text-xs flex-1 min-w-0">
+                  <SelectTrigger variant="default" size="sm" className="h-7 !text-xs flex-1 min-w-0">
                     <SelectValue placeholder="All task types" />
                   </SelectTrigger>
-                  <SelectContent variant="zinc">
-                    <SelectItem variant="zinc" value="all" className="!text-xs">All task types</SelectItem>
-                    {taskTypeOptions.length > 0 && <SelectSeparator className="bg-zinc-700" />}
+                  <SelectContent variant="default">
+                    <SelectItem variant="default" value="all" className="!text-xs">All task types</SelectItem>
+                    {taskTypeOptions.length > 0 && <SelectSeparator className="bg-border" />}
                     {taskTypeOptions.map((type) => (
-                      <SelectItem variant="zinc" key={type.value} value={type.value} className="!text-xs">
+                      <SelectItem variant="default" key={type.value} value={type.value} className="!text-xs">
                         {type.label}
                       </SelectItem>
                     ))}
@@ -453,7 +453,7 @@ const TasksPaneComponent: React.FC<TasksPaneProps> = ({ onOpenSettings }) => {
                 
                 {isRuntimeMode ? (
                   <div
-                    className="flex h-7 min-w-0 flex-1 items-center rounded-md border border-zinc-700 px-2 text-xs text-zinc-300"
+                    className="flex h-7 min-w-0 flex-1 items-center rounded-md border border-sidebar-border px-2 text-xs text-sidebar-foreground/80"
                     data-runtime-task-project={runtimeProjectId ?? ''}
                     title={runtimeProjectId ?? undefined}
                   >
@@ -467,13 +467,13 @@ const TasksPaneComponent: React.FC<TasksPaneProps> = ({ onOpenSettings }) => {
                       handlePageChange(1);
                     }}
                   >
-                    <SelectTrigger variant="retro-dark" size="sm" colorScheme="zinc" className="h-7 !text-xs flex-1 min-w-0">
+                    <SelectTrigger variant="default" size="sm" className="h-7 !text-xs flex-1 min-w-0">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent variant="zinc">
-                      <SelectItem variant="zinc" value="current" className="!text-xs">This project</SelectItem>
-                      <SelectItem variant="zinc" value="all" className="!text-xs">All projects</SelectItem>
-                      {projects.filter(p => p.id !== selectedProjectId).length > 0 && <SelectSeparator className="bg-zinc-700" />}
+                    <SelectContent variant="default">
+                      <SelectItem variant="default" value="current" className="!text-xs">This project</SelectItem>
+                      <SelectItem variant="default" value="all" className="!text-xs">All projects</SelectItem>
+                      {projects.filter(p => p.id !== selectedProjectId).length > 0 && <SelectSeparator className="bg-border" />}
                       {projects
                         .filter(p => p.id !== selectedProjectId)
                         .sort((a, b) => {
@@ -482,7 +482,7 @@ const TasksPaneComponent: React.FC<TasksPaneProps> = ({ onOpenSettings }) => {
                           return bDate - aDate;
                         })
                         .map((project) => (
-                          <SelectItem variant="zinc" key={project.id} value={project.id} className="!text-xs preserve-case">
+                          <SelectItem variant="default" key={project.id} value={project.id} className="!text-xs preserve-case">
                             {project.name}
                           </SelectItem>
                         ))}
@@ -566,7 +566,7 @@ const TasksPaneComponent: React.FC<TasksPaneProps> = ({ onOpenSettings }) => {
               </div>
               {/* Bottom fade — only visible when the chat half sits below */}
               {showChatHalf && (
-                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-zinc-900 via-zinc-900/70 to-transparent" />
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-sidebar via-sidebar/70 to-transparent" />
               )}
             </div>
             </div>
@@ -578,7 +578,7 @@ const TasksPaneComponent: React.FC<TasksPaneProps> = ({ onOpenSettings }) => {
                   // bg sits on the wrapper, NOT inside AgentChatPanel, so the
                   // pane bg → chat bg transition happens precisely at the
                   // border-t-2 divider line.
-                  'overflow-hidden border-t-2 border-zinc-700 relative bg-zinc-950/60',
+                  'overflow-hidden border-t-2 border-sidebar-border relative bg-background/60',
                   'flex-1 min-h-0'
                 )}
               >

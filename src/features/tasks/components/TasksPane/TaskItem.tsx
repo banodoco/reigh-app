@@ -177,12 +177,12 @@ const TaskItemComponent: React.FC<TaskItemProps> = ({
   };
 
   const containerClass = cn(
-    'relative p-3 mb-2 bg-zinc-800/95 rounded-md shadow border transition-colors overflow-hidden',
+    'relative p-3 mb-2 bg-card/95 text-card-foreground rounded-md shadow border border-border transition-colors overflow-hidden',
     isNew
       ? 'border-teal-400 animate-[flash_3s_ease-in-out]'
       : isActive
         ? 'border-blue-500 bg-blue-900/20 ring-2 ring-blue-400/50'
-        : 'border-zinc-600 hover:border-zinc-400',
+        : 'border-border hover:border-ring',
   );
 
   const taskItemContent = (
@@ -194,7 +194,7 @@ const TaskItemComponent: React.FC<TaskItemProps> = ({
     >
       <div className="flex justify-between items-center mb-1 gap-2">
         <div className="flex items-center gap-1 flex-1 min-w-0">
-          <span className="text-sm font-light text-zinc-200 whitespace-nowrap overflow-hidden text-ellipsis cursor-default min-w-0">
+          <span className="text-sm font-light text-card-foreground whitespace-nowrap overflow-hidden text-ellipsis cursor-default min-w-0">
             {abbreviatedTaskType}
           </span>
 
@@ -237,7 +237,7 @@ const TaskItemComponent: React.FC<TaskItemProps> = ({
         isCascadedTaskLoading={isCascadedTaskLoading}
       />
 
-      <div className="flex items-center text-[11px] text-zinc-400">
+      <div className="flex items-center text-[11px] text-muted-foreground">
         <span className="flex-1">
           {task.status === 'In Progress' && processingTime
             ? processingTime
@@ -247,7 +247,7 @@ const TaskItemComponent: React.FC<TaskItemProps> = ({
         </span>
 
         {variantName && (
-          <span className="ml-2 px-1.5 py-0.5 bg-black/50 text-white text-[10px] rounded-md flex-shrink-0 preserve-case">
+          <span className="ml-2 px-1.5 py-0.5 bg-foreground/10 text-card-foreground text-[10px] rounded-md flex-shrink-0 preserve-case">
             {variantName}
           </span>
         )}

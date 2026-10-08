@@ -43,7 +43,7 @@ export const PaginationControls: React.FC<PaginationControlsProps> = ({
   const showRecentInfo = recentCount && recentCount > 0 && (filterType === 'Succeeded' || filterType === 'Failed');
 
   return (
-    <div className="flex items-center justify-between px-4 py-2 text-[11px] text-zinc-400">
+    <div className="flex items-center justify-between px-4 py-2 text-[11px] text-muted-foreground">
       <span>
         {showRecentInfo ? (
           filterType === 'Succeeded' ? 
@@ -73,18 +73,18 @@ export const PaginationControls: React.FC<PaginationControlsProps> = ({
           }}
           disabled={isLoading}
         >
-          <SelectTrigger variant="retro-dark" colorScheme="zinc" size="sm" className="h-6 w-9 text-xs px-1 !justify-center [&>span]:!text-center" hideIcon>
+          <SelectTrigger variant="default" size="sm" className="h-6 w-9 text-xs px-1 !justify-center [&>span]:!text-center" hideIcon>
             <SelectValue />
           </SelectTrigger>
-          <SelectContent variant="zinc" className="!min-w-0 w-11 text-xs">
+          <SelectContent variant="default" className="!min-w-0 w-11 text-xs">
             {Array.from({ length: totalPages }, (_, i) => (
-              <SelectItem variant="zinc" key={i + 1} value={(i + 1).toString()} className="text-xs !px-0 !justify-center [&>span]:!text-center [&>span]:!w-full">
+              <SelectItem variant="default" key={i + 1} value={(i + 1).toString()} className="text-xs !px-0 !justify-center [&>span]:!text-center [&>span]:!w-full">
                 {i + 1}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
-        <span className="text-zinc-300 text-[11px] ml-1">
+        <span className="text-foreground/80 text-[11px] ml-1">
           of {totalPages}
         </span>
         

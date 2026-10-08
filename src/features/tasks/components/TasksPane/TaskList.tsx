@@ -79,9 +79,9 @@ const TaskListComponent: React.FC<TaskListProps> = ({
     && !summaryMessage;
 
   return (
-    <div className="p-4 h-full flex flex-col text-zinc-200">
+    <div className="p-4 h-full flex flex-col text-sidebar-foreground">
       {summaryMessage && !showSkeleton && (
-        <div className="p-3 mb-4 bg-zinc-800/95 rounded-md text-sm text-zinc-300 border border-zinc-700">
+        <div className="p-3 mb-4 bg-card/95 rounded-md text-sm text-card-foreground border border-border">
           {summaryMessage}
         </div>
       )}
@@ -99,14 +99,14 @@ const TaskListComponent: React.FC<TaskListProps> = ({
             {Array.from({ length: skeletonCount }, (_, i) => (
               <React.Fragment key={i}>
                 <TaskItemSkeleton variant={variant} showImages={i % 2 === 0} showPrompt={i % 2 === 1} />
-                {i < skeletonCount - 1 && <div className="h-0 border-b border-zinc-700/40 my-1" />}
+                {i < skeletonCount - 1 && <div className="h-0 border-b border-border/40 my-1" />}
               </React.Fragment>
             ))}
           </div>
         );
       })()}
 
-      {showEmptyMessage && <p className="text-zinc-400 text-center">{emptyMessage}</p>}
+      {showEmptyMessage && <p className="text-muted-foreground text-center">{emptyMessage}</p>}
 
       {!showSkeleton && hasTaskContent && (
         <div className="flex-grow -mr-4">
@@ -127,7 +127,7 @@ const TaskListComponent: React.FC<TaskListProps> = ({
                 />
                 {(idx < filteredTasks.length - 1
                   || (activeFilter === 'Processing' && visibleIncomingTasks.length > 0)) && (
-                  <div className="h-0 border-b border-zinc-700/40 my-1" />
+                  <div className="h-0 border-b border-border/40 my-1" />
                 )}
               </React.Fragment>
             ))}
@@ -136,7 +136,7 @@ const TaskListComponent: React.FC<TaskListProps> = ({
               <React.Fragment key={incomingTask.id}>
                 <IncomingTaskItem task={incomingTask} />
                 {idx < visibleIncomingTasks.length - 1 && (
-                  <div className="h-0 border-b border-zinc-700/40 my-1" />
+                  <div className="h-0 border-b border-border/40 my-1" />
                 )}
               </React.Fragment>
             ))}

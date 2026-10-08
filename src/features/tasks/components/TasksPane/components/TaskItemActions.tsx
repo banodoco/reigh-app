@@ -78,7 +78,7 @@ export const TaskItemActions: React.FC<TaskItemActionsProps> = ({
               isMobile ? "px-1.5 py-0.5" : "px-1 py-0.5",
               idCopied
                 ? "text-green-400"
-                : "text-zinc-500 hover:text-zinc-200 hover:bg-zinc-700"
+                : "text-muted-foreground hover:text-foreground hover:bg-accent"
             )}
           >
             {idCopied ? 'copied' : 'id'}
@@ -105,7 +105,7 @@ export const TaskItemActions: React.FC<TaskItemActionsProps> = ({
                 onSwitchProject(task.projectId);
               }}
               className={cn(
-                "rounded transition-colors text-zinc-500 hover:text-zinc-200 hover:bg-zinc-700",
+                "rounded transition-colors text-muted-foreground hover:text-foreground hover:bg-accent",
                 isMobile ? "p-1" : "p-0.5"
               )}
               title={`Go to project: ${projectName}`}
@@ -133,7 +133,7 @@ export const TaskItemActions: React.FC<TaskItemActionsProps> = ({
                 }
               }}
               className={cn(
-                "rounded transition-colors text-zinc-500 hover:text-zinc-200 hover:bg-zinc-700",
+                "rounded transition-colors text-muted-foreground hover:text-foreground hover:bg-accent",
                 isMobile ? "p-1" : "p-0.5"
               )}
               disabled={isLoadingVideoGen && waitingForVideoToOpen}
@@ -159,7 +159,7 @@ export const TaskItemActions: React.FC<TaskItemActionsProps> = ({
                 onViewImage(e);
               }}
               className={cn(
-                "rounded transition-colors text-zinc-500 hover:text-zinc-200 hover:bg-zinc-700",
+                "rounded transition-colors text-muted-foreground hover:text-foreground hover:bg-accent",
                 isMobile ? "p-1" : "p-0.5"
               )}
             >
@@ -184,7 +184,7 @@ export const TaskItemActions: React.FC<TaskItemActionsProps> = ({
                 onVisitShot(e);
               }}
               className={cn(
-                "rounded transition-colors text-zinc-500 hover:text-zinc-200 hover:bg-zinc-700",
+                "rounded transition-colors text-muted-foreground hover:text-foreground hover:bg-accent",
                 isMobile ? "p-1" : "p-0.5"
               )}
             >
