@@ -14,7 +14,7 @@ let phone: boolean;
 const originalResizeObserver = window.ResizeObserver;
 const originalMutationObserver = window.MutationObserver;
 
-function Stage({ active = true, beforeReveal = false, audience = 'app' }: { active?: boolean; beforeReveal?: boolean; audience?: 'app' | 'agent' }) {
+function Stage({ active = true, beforeReveal = false, audience = 'app', reducedMotion = false }: { active?: boolean; beforeReveal?: boolean; audience?: 'app' | 'agent'; reducedMotion?: boolean }) {
   const stage = useRef<HTMLDivElement>(null);
   usePublicAstridPlayerHeight(stage, active && beforeReveal);
   return <div ref={stage} data-testid="stage">
@@ -34,7 +34,7 @@ function Stage({ active = true, beforeReveal = false, audience = 'app' }: { acti
     </div></div>
     <div className="astrid-preview-transport-outlet" />
     <button data-astrid-agent-launcher />
-    {!beforeReveal && <PublicAstridCallouts stageRef={stage} audience={audience} reducedMotion={false} active={active} />}
+    {!beforeReveal && <PublicAstridCallouts stageRef={stage} audience={audience} reducedMotion={reducedMotion} active={active} />}
   </div>;
 }
 function paint() {
@@ -69,7 +69,7 @@ beforeEach(() => {
   } as unknown as MediaQueryList));
   vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
     events.push('read');
-    if (this.dataset.testid === 'stage') return new DOMRect(0, 0, 500, 500);
+    if (this.dataset.testid === 'stage' || this.classList.contains('astrid-callouts')) return new DOMRect(0, 0, 500, 500);
     if (this.closest('[data-test-hidden-tablist]')) return new DOMRect(0, 0, 0, 0);
     return new DOMRect(100, 100, 100, 80);
   });
@@ -90,6 +90,47 @@ afterEach(() => {
 });
 
 describe('bounded stage passes', () => {
+  it('keeps card/SVG identities, interpolates endpoints during movement, crossfades text and stops', () => {
+    const original = HTMLElement.prototype.animate;
+    const cancel = vi.fn();
+    const animate = vi.fn(() => ({ cancel, onfinish: null }) as unknown as Animation);
+    HTMLElement.prototype.animate = animate;
+    let now = 1000;
+    vi.spyOn(performance, 'now').mockImplementation(() => now);
+    try {
+      const view = render(<Stage />);
+      settle();
+      const cards = [...view.container.querySelectorAll('article')];
+      const paths = [...view.container.querySelectorAll('path')];
+      view.rerender(<Stage audience="agent" />);
+      expect([...view.container.querySelectorAll('article')]).toEqual(cards);
+      expect([...view.container.querySelectorAll('path')]).toEqual(paths);
+      expect(animate).toHaveBeenCalledTimes(9);
+      expect(animate).toHaveBeenCalledWith([{opacity: 0, translate: '0 4px'}, {opacity: 1, translate: '0 0'}], expect.objectContaining({duration: 720}));
+      expect(view.container.querySelectorAll('article > .astrid-callout-outgoing')).toHaveLength(3);
+      paint();
+      expect(paths[0].getAttribute('data-connector-target')).toBe('transition');
+      expect(view.container.querySelector('.astrid-callout-dot-end')?.getAttribute('cx')).toBe('127.0');
+      now += 360;
+      paint();
+      const middle = Number(view.container.querySelector('.astrid-callout-dot-end')?.getAttribute('cx'));
+      expect(middle).toBeGreaterThan(100);
+      expect(middle).toBeLessThan(127);
+      now += 370;
+      settle();
+      expect(paths[0].getAttribute('data-connector-target')).toBe('community');
+      expect(view.container.querySelector('.astrid-callout-dot-end')?.getAttribute('cx')).toBe('100.0');
+      view.rerender(<Stage audience="app" />);
+      expect(cancel).toHaveBeenCalledTimes(9);
+      view.rerender(<Stage audience="agent" reducedMotion />);
+      expect(cancel).toHaveBeenCalledTimes(18);
+      expect(animate).toHaveBeenCalledTimes(18);
+      settle();
+      expect(view.container.querySelector('[data-layout-moving]')).toBeNull();
+      expect(view.container.querySelector('.astrid-callout-outgoing')).toBeNull();
+    } finally { HTMLElement.prototype.animate = original; }
+  });
+
   it.each([
     ['app', ['timeline', 'effects', 'models']],
     ['agent', ['community', 'tools', 'workflows']],

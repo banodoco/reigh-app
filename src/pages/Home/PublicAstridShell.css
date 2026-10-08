@@ -962,8 +962,9 @@
   z-index: 40;
   inset: 0;
   pointer-events: none;
-  /* Remounted per audience; each label pops in once the surfaces have mostly settled. */
+  /* Persistent slots morph between audiences; only direct entry runs the label sequence. */
 }
+.astrid-callout[data-layout-moving] { overflow: hidden; box-sizing: border-box; }
 .astrid-callout-connectors {
   position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible;
 }
@@ -1336,10 +1337,10 @@
 .astrid-editor-tilt { view-transition-name: astrid-panels; }
 ::view-transition-old(astrid-panels) { display: none; }
 ::view-transition-new(astrid-panels) { animation: none; }
-/* The outgoing labels step aside quickly rather than lingering through the whole wash; the incoming
-   ones run their own entrance once the panels settle. */
+/* Show the live shared-layout cards and measured connectors, never a fading outgoing snapshot. */
 .astrid-callouts { view-transition-name: astrid-labels; }
-::view-transition-old(astrid-labels) { animation-duration: 180ms; }
+::view-transition-group(astrid-labels) { animation: none; }
+::view-transition-old(astrid-labels) { display: none; }
 ::view-transition-new(astrid-labels) { animation: none; }
 /* The agent launcher sits over the panels, so in the page snapshot they would cover it for the whole
    wash. It shows live above them instead, its disc blending with the dusk like theirs. */

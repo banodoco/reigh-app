@@ -1,6 +1,7 @@
 import { useEffect, useRef, type CSSProperties, type RefObject } from 'react';
 import type { PublicAstridAudience } from './publicAstridMotion';
 import { readPublicAstridPlayerHeight } from './usePublicAstridPlayerHeight';
+import { PublicAstridCalloutLayout, CALLOUT_MOVE_MS, type CalloutMove } from './PublicAstridCalloutLayout';
 
 type CalloutSide = 'left' | 'right' | 'top' | 'bottom';
 
@@ -219,6 +220,18 @@ function resolveVisibleTarget(stage: HTMLElement, selector: string) {
   return null;
 }
 
+function connectorGeometry(stage: HTMLElement, callout: CalloutDefinition, phone: boolean, tablet: boolean) {
+  const resolved = resolveVisibleTarget(stage, phone && callout.phoneTarget ? callout.phoneTarget : callout.target);
+  if (!resolved) return null;
+  const side = phone ? callout.phoneSide : tablet ? callout.tabletSide ?? callout.side : callout.side;
+  const [ax, ay] = phone ? callout.phoneAt ?? callout.at : tablet ? callout.tabletAt ?? callout.at : callout.at;
+  const box = resolved.rect;
+  const end = { x: box.left + box.width * ax, y: box.top + (!phone && callout.atTop !== undefined ? callout.atTop : box.height * ay) };
+  const clampBox = phone && callout.phoneTarget ? resolved.element.closest(PHONE_CLAMP_SELECTOR)?.getBoundingClientRect() : undefined;
+  if (clampBox) end.y = Math.max(clampBox.top + 56, Math.min(clampBox.bottom - 16, end.y));
+  return { end, side, swing: phone ? callout.phoneSwing : undefined };
+}
+
 /**
  * Callouts drawn flat above the tilted editor. Connectors are
  * measured from the projected on-screen boxes every frame so their end dots sit
@@ -228,6 +241,7 @@ export function PublicAstridCallouts({ stageRef, audience, reducedMotion, active
   const callouts = audience === 'agent' ? ORDERED_AGENT_CALLOUTS : ORDERED_APP_CALLOUTS;
   const svgRef = useRef<SVGSVGElement>(null);
   const cardRefs = useRef(new Map<string, HTMLElement>());
+  const moveRef = useRef<CalloutMove | null>(null);
 
   // Connectors, plus the flat App controls that must follow tilted surfaces: the
   // transport rides the player, and the agent launcher sits on the conversation
@@ -325,47 +339,64 @@ export function PublicAstridCallouts({ stageRef, audience, reducedMotion, active
         setStyle(launcher, 'bottom', 'auto');
       }
 
-      for (const callout of callouts) {
+      const move = moveRef.current;
+      const elapsed = move ? performance.now() - move.started : Infinity;
+      const retarget = Math.max(0, Math.min(1, elapsed / CALLOUT_MOVE_MS));
+      const blend = retarget * retarget * (3 - 2 * retarget);
+      for (const [index, callout] of callouts.entries()) {
         const path = svgElement.querySelector<SVGPathElement>(`path[data-callout="${callout.id}"]`);
         const dots = svgElement.querySelectorAll<SVGCircleElement>(`circle[data-callout="${callout.id}"]`);
         const card = cardRefs.current.get(callout.id);
-        const resolvedTarget = resolveVisibleTarget(
-          stageElement,
-          phone && callout.phoneTarget ? callout.phoneTarget : callout.target,
-        );
-        const target = resolvedTarget?.element;
+        const incoming = connectorGeometry(stageElement, callout, phone, tablet);
         if (!path || dots.length !== 2) continue;
-        if (!card || !target) {
+        if (!card || !incoming) {
           writes.push(() => path.removeAttribute('d'));
           dots.forEach((dot) => setAttribute(dot, 'r', '0'));
           continue;
         }
-        const side = phone ? callout.phoneSide : tablet ? callout.tabletSide ?? callout.side : callout.side;
-        const box = resolvedTarget.rect;
-        const [ax, ay] = phone ? callout.phoneAt ?? callout.at : tablet ? callout.tabletAt ?? callout.at : callout.at;
-        const end = { x: box.left + box.width * ax, y: box.top + (!phone && callout.atTop !== undefined ? callout.atTop : box.height * ay) };
-        const clampBox = phone && callout.phoneTarget ? target.closest(PHONE_CLAMP_SELECTOR)?.getBoundingClientRect() : undefined;
-        if (clampBox) end.y = Math.max(clampBox.top + 56, Math.min(clampBox.bottom - 16, end.y));
+        const destination = incoming;
+        const end = destination.end;
+        const side = destination.side;
         const cardBox = card.getBoundingClientRect();
-        const swing = phone ? callout.phoneSwing : undefined;
-        const start = swing === undefined
-          ? cardAnchor(cardBox, side, end)
-          : { x: cardBox.left + cardBox.width * swing, y: side === 'top' ? cardBox.top : cardBox.bottom };
-        const sx = start.x - originX;
-        const sy = start.y - originY;
-        const ex = end.x - originX;
-        const ey = end.y - originY;
+        const swing = destination.swing;
+        const anchor = (geometry: typeof destination) => geometry.swing === undefined
+          ? cardAnchor(cardBox, geometry.side, end)
+          : { x: cardBox.left + cardBox.width * geometry.swing, y: geometry.side === 'top' ? cardBox.top : cardBox.bottom };
+        const start = anchor(destination);
+        setAttribute(path, 'data-connector-target', move && blend < 1 ? 'transition' : callout.id);
+        let sx = start.x - originX;
+        let sy = start.y - originY;
+        let ex = end.x - originX;
+        let ey = end.y - originY;
         const horizontal = side === 'left' || side === 'right';
         const reach = horizontal ? Math.abs(ex - sx) * 0.5 : Math.abs(ey - sy) * 0.5;
         const direction = side === 'left' || side === 'top' ? -1 : 1;
-        let c1 = horizontal ? `${sx + direction * reach} ${sy}` : `${sx} ${sy + direction * reach}`;
-        let c2 = horizontal ? `${ex - direction * reach} ${ey}` : `${ex} ${ey - direction * reach}`;
+        let c1 = horizontal ? [sx + direction * reach, sy] : [sx, sy + direction * reach];
+        let c2 = horizontal ? [ex - direction * reach, ey] : [ex, ey - direction * reach];
         if (swing !== undefined) {
           // Down (or up) the margin, then a turn in to the target's side.
-          c1 = `${sx} ${sy + direction * Math.abs(ey - sy) * 0.9}`;
-          c2 = `${ex + Math.sign(sx - ex) * Math.abs(ex - sx) * 0.9} ${ey}`;
+          c1 = [sx, sy + direction * Math.abs(ey - sy) * 0.9];
+          c2 = [ex + Math.sign(sx - ex) * Math.abs(ex - sx) * 0.9, ey];
         }
-        setAttribute(path, 'd', `M${sx.toFixed(1)} ${sy.toFixed(1)} C${c1} ${c2} ${ex.toFixed(1)} ${ey.toFixed(1)}`);
+        const previous = move?.curves[index];
+        if (move && previous?.length === 8) {
+          const box = move.boxes[index];
+          const source = previous.map((value, coordinate) => {
+            // Carry the source anchor/control handle along with the moving/resizing card.
+            // The other handle and endpoint interpolate from their actual pre-switch positions
+            // to the newly measured target on every frame (also on rapid reversal).
+            if (coordinate < 4) return coordinate % 2
+              ? cardBox.top + (value - box.top) * cardBox.height / Math.max(1, box.height) - originY
+              : cardBox.left + (value - box.left) * cardBox.width / Math.max(1, box.width) - originX;
+            return value - (coordinate % 2 ? originY : originX);
+          });
+          const next = [sx, sy, ...c1, ...c2, ex, ey];
+          const curve = source.map((value, coordinate) => value + (next[coordinate] - value) * blend);
+          [sx, sy] = curve;
+          c1 = curve.slice(2, 4); c2 = curve.slice(4, 6);
+          [ex, ey] = curve.slice(6);
+        }
+        setAttribute(path, 'd', `M${sx.toFixed(1)} ${sy.toFixed(1)} C${c1.join(' ')} ${c2.join(' ')} ${ex.toFixed(1)} ${ey.toFixed(1)}`);
         setAttribute(dots[0], 'cx', sx.toFixed(1));
         setAttribute(dots[0], 'cy', sy.toFixed(1));
         setAttribute(dots[0], 'r', '4');
@@ -385,7 +416,8 @@ export function PublicAstridCallouts({ stageRef, audience, reducedMotion, active
           && effect.getKeyframes().some((keyframe) => ['transform', 'translate', 'scale', 'rotate', ...TRACKED_PROPERTIES].some((property) => keyframe[property] !== undefined));
       });
       writes.forEach((write) => write());
-      if (trackedChanged || !settled || moving) schedule();
+      if (move && retarget === 1) moveRef.current = null;
+      if (trackedChanged || !settled || moving || (move && retarget < 1)) schedule();
     }
     const resizeObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(schedule);
     const observeGeometry = () => {
@@ -443,20 +475,15 @@ export function PublicAstridCallouts({ stageRef, audience, reducedMotion, active
       tabletQuery.removeEventListener('change', schedule);
       stageElement.querySelector<HTMLElement>('.astrid-editor-tilt')?.style.removeProperty('transform');
       releaseTracked(stageElement.querySelector<HTMLElement>('.astrid-preview-transport-outlet'));
-      releaseTracked(stageElement.querySelector<HTMLElement>('[data-astrid-agent-launcher]'));
+      // The outgoing launcher stays at its tracked box until the connector retargets.
     };
   }, [active, appView, callouts, reducedMotion, stageRef]);
 
   return (
-    <div
-      className="astrid-callouts"
-      key={audience}
-      data-audience={audience}
-      aria-label={audience === 'agent' ? 'Example agent capabilities' : 'How the editor fits together'}
-    >
+    <PublicAstridCalloutLayout audience={audience} reducedMotion={reducedMotion} active={active} move={moveRef}>
       <svg ref={svgRef} className="astrid-callout-connectors" aria-hidden="true">
         {callouts.map((callout, index) => (
-          <g key={callout.id} style={calloutTiming(index)}>
+          <g key={index} style={calloutTiming(index)}>
             <path data-callout={callout.id} pathLength={1} />
             <circle className="astrid-callout-ping" data-callout-ping={callout.id} r="0" />
             <circle className="astrid-callout-dot-start" data-callout={callout.id} r="0" />
@@ -466,7 +493,7 @@ export function PublicAstridCallouts({ stageRef, audience, reducedMotion, active
       </svg>
       {callouts.map((callout, index) => (
         <article
-          key={callout.id}
+          key={index}
           className="astrid-callout"
           data-callout={callout.id}
           style={calloutTiming(index)}
@@ -475,11 +502,13 @@ export function PublicAstridCallouts({ stageRef, audience, reducedMotion, active
             else cardRefs.current.delete(callout.id);
           }}
         >
+          <div className="astrid-callout-content">
           <h2>{callout.id === 'workflows' ? <><span className="astrid-workflows-title-line">Leverages reusable</span>{' '}<span className="astrid-workflows-title-line">agent workflows</span></> : callout.title}</h2>
           {callout.id === 'tools' && <><p>For example:</p><IntegrationLinks /></>}
           <p>{callout.body}</p>
+          </div>
         </article>
       ))}
-    </div>
+    </PublicAstridCalloutLayout>
   );
 }
