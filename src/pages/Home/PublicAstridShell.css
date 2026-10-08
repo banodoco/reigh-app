@@ -144,6 +144,27 @@
 /* The selected side is marked in the brand orange, like the calls to action, the same day and night. */
 .astrid-audience-switch button[aria-pressed="true"],
 .astrid-public-site[data-dusk] .astrid-audience-switch button[aria-pressed="true"] { background: #ed6b23; color: #1d1914; }
+.astrid-audience-phrase {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  text-decoration-line: underline;
+  text-decoration-style: dashed;
+  text-decoration-color: rgba(237, 107, 35, .68);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  transition: color 420ms cubic-bezier(.22, .61, .36, 1), text-decoration-color 420ms cubic-bezier(.22, .61, .36, 1);
+}
+.astrid-audience-phrase:hover {
+  color: #ed6b23;
+  text-decoration-color: #ed6b23;
+}
+.astrid-audience-phrase:focus-visible { outline: 2px solid #ed6b23; outline-offset: 3px; }
 
 .astrid-landing-grid {
   width: min(100%, 1312px);
@@ -1576,6 +1597,17 @@
   .astrid-callout:is([data-callout="effects"], [data-callout="tools"], [data-callout="models"]) { right: 8px; }
   .astrid-callout:is([data-callout="community"], [data-callout="tools"], [data-callout="effects"]) { top: -20px; }
   .astrid-callout:is([data-callout="timeline"], [data-callout="workflows"], [data-callout="models"]) { bottom: -20px; }
+  /* On phones the App rail reads more cleanly as a pair: Effects right, editing left. */
+  .astrid-public-site[data-audience="app"] .astrid-callout[data-callout="timeline"] {
+    top: -20px;
+    bottom: auto;
+    left: 8px;
+  }
+  .astrid-public-site[data-audience="app"] .astrid-callout[data-callout="models"] {
+    left: 0;
+    right: 0;
+    margin-inline: auto;
+  }
   .astrid-result-handoff-button { min-height: 44px; }
 
 }
@@ -1700,48 +1732,20 @@
   /* Callouts remount for each audience and first appear when the editor reveals. Bring the whole
      card in together: no blurred text, scale, or separate animation for each line. */
   .astrid-public-site .astrid-callout {
-    animation: astrid-mobile-callout-arrive 220ms ease-out calc(80ms + var(--astrid-mobile-callout-order, var(--astrid-callout-index, 0)) * 60ms) backwards;
+    animation: astrid-mobile-callout-arrive 220ms ease-out calc(80ms + var(--astrid-mobile-callout-index, 0) * 60ms) backwards;
   }
-  .astrid-callout[data-callout="tools"] { --astrid-mobile-callout-order: 0; }
-  .astrid-callout[data-callout="workflows"] { --astrid-mobile-callout-order: 1; }
-  .astrid-callout[data-callout="community"] { --astrid-mobile-callout-order: 2; }
   .astrid-public-site .astrid-callout-connectors g {
-    /* Each card settles before its connector starts; animationend refreshes final geometry. */
-    --astrid-mobile-connector-start: calc(340ms + var(--astrid-callout-index, 0) * 60ms);
+    /* Card and connector share the same start; the path no longer trails the card arrival. */
+    --astrid-mobile-callout-start: calc(80ms + var(--astrid-mobile-callout-index, 0) * 60ms);
   }
-  .astrid-public-site[data-audience="agent"] .astrid-callout-connectors g:has([data-callout="tools"]) { --astrid-mobile-connector-start: 340ms; }
-  .astrid-public-site[data-audience="agent"] .astrid-callout-connectors g:has([data-callout="workflows"]) { --astrid-mobile-connector-start: 400ms; }
-  .astrid-public-site[data-audience="agent"] .astrid-callout-connectors g:has([data-callout="community"]) { --astrid-mobile-connector-start: 460ms; }
   .astrid-public-site .astrid-callout-connectors path {
-    animation: astrid-connector-draw 320ms ease-out var(--astrid-mobile-connector-start) backwards;
+    animation: astrid-connector-draw 220ms ease-out var(--astrid-mobile-callout-start) backwards;
   }
   .astrid-public-site .astrid-callout-connectors .astrid-callout-dot-start {
-    animation: astrid-dot-in 100ms ease-out var(--astrid-mobile-connector-start) backwards;
+    animation: astrid-dot-in 100ms ease-out var(--astrid-mobile-callout-start) backwards;
   }
   .astrid-public-site .astrid-callout-connectors .astrid-callout-dot-end {
-    animation: astrid-dot-in 120ms ease-out calc(var(--astrid-mobile-connector-start) + 300ms) backwards;
-  }
-
-  /* App's mobile labels switch with the foreground editor. The desktop stagger left the bottom-right
-     Models card and its connector visibly trailing the 220ms surface handoff. */
-  .astrid-public-site[data-audience="app"] .astrid-callout,
-  .astrid-public-site[data-audience="app"] .astrid-callout > :is(h2, p) {
-    animation-delay: 0ms;
-    animation-duration: 220ms;
-  }
-  .astrid-public-site[data-audience="app"] .astrid-callout-connectors g {
-    --astrid-mobile-connector-start: 0ms;
-  }
-  .astrid-public-site[data-audience="app"] .astrid-callout-connectors path {
-    animation-duration: 220ms;
-  }
-  .astrid-public-site[data-audience="app"] .astrid-callout-connectors .astrid-callout-dot-start {
-    animation-delay: 0ms;
-    animation-duration: 100ms;
-  }
-  .astrid-public-site[data-audience="app"] .astrid-callout-connectors .astrid-callout-dot-end {
-    animation-delay: 100ms;
-    animation-duration: 120ms;
+    animation: astrid-dot-in 120ms ease-out calc(var(--astrid-mobile-callout-start) + 220ms) backwards;
   }
   .astrid-public-site[data-audience="app"] .astrid-callout-connectors .astrid-callout-ping {
     animation: none;
@@ -1833,6 +1837,29 @@
   }
   .astrid-public-site[data-astrid-direct-entry] .astrid-callout-connectors .astrid-callout-ping {
     animation: astrid-dot-ping var(--astrid-endpoint-duration) ease-out var(--astrid-endpoint-start);
+  }
+}
+
+/* On phones, direct entry uses the same slot clock for each card and its connector. */
+@media (max-width: 640px) and (prefers-reduced-motion: no-preference) {
+  .astrid-public-site[data-astrid-direct-entry] .astrid-callout {
+    animation-duration: 220ms;
+    animation-delay: calc(80ms + var(--astrid-mobile-callout-index, 0) * 60ms);
+  }
+  .astrid-public-site[data-astrid-direct-entry] .astrid-callout-connectors path {
+    animation-duration: 220ms;
+    animation-delay: calc(80ms + var(--astrid-mobile-callout-index, 0) * 60ms);
+  }
+  .astrid-public-site[data-astrid-direct-entry] .astrid-callout-connectors .astrid-callout-dot-start {
+    animation-duration: 100ms;
+    animation-delay: calc(80ms + var(--astrid-mobile-callout-index, 0) * 60ms);
+  }
+  .astrid-public-site[data-astrid-direct-entry] .astrid-callout-connectors .astrid-callout-dot-end {
+    animation-duration: 120ms;
+    animation-delay: calc(300ms + var(--astrid-mobile-callout-index, 0) * 60ms);
+  }
+  .astrid-public-site[data-astrid-direct-entry] .astrid-callout-connectors .astrid-callout-ping {
+    animation-delay: calc(320ms + var(--astrid-mobile-callout-index, 0) * 60ms);
   }
 }
 

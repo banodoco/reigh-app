@@ -58,28 +58,48 @@ fs.mkdirSync(out, {recursive:true});
       assert(visible.length>20);
       assert(visible.every(f=>f.decoded && !f.failed), 'Revealed before decoded media or with media error');
       assert.equal(errors.length,0,errors.join('\n'));
-      const order=audience==='agent'?['community','tools','workflows']:['timeline','effects','models'];
       const calls=initial.starts.filter(e=>['astrid-callout-in','astrid-connector-draw','astrid-dot-land'].includes(e.name));
-      assert.deepEqual(calls.map(e=>`${e.id}:${e.name}`),order.flatMap(id=>[
-        `${id}:astrid-callout-in`,`${id}:astrid-connector-draw`,`${id}:astrid-dot-land`
-      ]),'Card -> connector -> endpoint narrative order');
+      const mobile=width<=640;
+      const order=audience==='agent'
+        ? (mobile?['tools','community','workflows']:['community','tools','workflows'])
+        : (mobile?['effects','timeline','models']:['timeline','effects','models']);
+      if (mobile) {
+        assert.deepEqual(calls.filter(e=>e.name==='astrid-callout-in').map(e=>e.id),order,'Mobile card narrative order');
+      } else {
+        assert.deepEqual(calls.map(e=>`${e.id}:${e.name}`),order.flatMap(id=>[
+          `${id}:astrid-callout-in`,`${id}:astrid-connector-draw`,`${id}:astrid-dot-land`
+        ]),'Card -> connector -> endpoint narrative order');
+      }
+      const frameCard=(frame,id)=>frame.cards.find(card=>card.id===id);
       for(let i=0;i<3;i++) {
-        const [card,line,dot]=calls.slice(i*3,i*3+3);
-        assert(line.t-card.t>=220,'Connector began too late after card appeared');
+        const card=calls.find(e=>e.id===order[i] && e.name==='astrid-callout-in');
+        const line=calls.find(e=>e.id===order[i] && e.name==='astrid-connector-draw');
+        const dot=calls.find(e=>e.id===order[i] && e.name==='astrid-dot-land');
+        assert(card && line && dot,'Missing card/connector/endpoint entrance event');
+        assert(mobile ? Math.abs(line.t-card.t)<50 : line.t-card.t>=220,'Connector began at the wrong time');
         assert(dot.t-line.t>=170,'Endpoint began before line finished');
         if(i<2) {
-          assert(calls[i*3+3].t-dot.t>=90,'Next card began before endpoint landed');
-          assert(Math.abs(calls[i*3+3].t-card.t-680)<60,'Callout cadence drifted from 680ms');
+          const nextCard=calls.find(e=>e.id===order[i+1] && e.name==='astrid-callout-in');
+          assert(nextCard.t-card.t>=(mobile?40:680)-60,'Callout cadence started too early');
+          if (!mobile) assert(nextCard.t-card.t-680<60,'Callout cadence drifted from 680ms');
         }
-        assert(visible.some(f=>f.cards.length===3 && f.cards[i].opacity>0.2 && f.cards[i].line>0.99 && f.cards.slice(i+1).every(c=>c.opacity===0)), 'Missing isolated card entrance frame');
-        assert(visible.some(f=>f.cards.length===3 && f.cards[i].opacity===1 && f.cards[i].line>0.05 && f.cards[i].line<0.95 && f.cards.slice(i+1).every(c=>c.opacity===0)), 'Missing isolated connector draw frame');
-        const settling=visible.filter(f=>f.t-card.t>=100 && f.t-card.t<=250 && f.cards.length===3).map(f=>f.cards[i]);
-        assert(settling.filter(c=>c.opacity>0.1 && c.opacity<0.98 && parseFloat(c.scale)<1 && c.translate!=='none').length>=3, 'Card popped in instead of visibly fading, translating and scaling');
+        if (mobile) {
+          // Mobile deliberately starts the connector on the same clock as its card;
+          // the three 60ms slots overlap instead of creating desktop-style isolated beats.
+          assert(visible.some(f=>f.cards.length===3 && frameCard(f,order[i]).opacity>0.2 && frameCard(f,order[i]).opacity<1 && frameCard(f,order[i]).line>0.05 && frameCard(f,order[i]).line<0.99), 'Missing synchronized card/connector entrance frame');
+        } else {
+          assert(visible.some(f=>f.cards.length===3 && frameCard(f,order[i]).opacity>0.2 && frameCard(f,order[i]).line>0.99 && order.slice(i+1).every(id=>frameCard(f,id).opacity===0)), 'Missing isolated card entrance frame');
+          assert(visible.some(f=>f.cards.length===3 && frameCard(f,order[i]).opacity===1 && frameCard(f,order[i]).line>0.05 && frameCard(f,order[i]).line<0.95 && order.slice(i+1).every(id=>frameCard(f,id).opacity===0)), 'Missing isolated connector draw frame');
+        }
+        const settling=visible.filter(f=>f.t-card.t>=100 && f.t-card.t<=250 && f.cards.length===3).map(f=>frameCard(f,order[i]));
+        assert(settling.filter(c=>c.opacity>0.1 && c.opacity<0.98 && (mobile || parseFloat(c.scale)<1) && c.translate!=='none').length>=(mobile?1:3), mobile ? 'Card did not visibly translate while its connector drew' : 'Card popped in instead of visibly fading, translating and scaling');
         assert(new Set(settling.map(c=>c.translate)).size>=3,'Missing progressive card movement');
       }
-      assert.equal(visible.find(f=>f.cards.length)?.cards[0].delay,450,'First card CSS delay changed');
+      const firstVisible=visible.find(f=>f.cards.length);
+      assert.equal(frameCard(firstVisible,order[0]).delay,mobile?80:450,'First card CSS delay changed');
       // Animation events can arrive a few frames late during cold-load/screenshot work.
-      assert(Math.abs(calls[0].t-visible[0].t-450)<100,'First card missed its 450ms arrival');
+      const firstCard=calls.find(e=>e.id===order[0] && e.name==='astrid-callout-in');
+      assert(Math.abs(firstCard.t-visible[0].t-(mobile?80:450))<100,'First card missed its arrival');
       assert(calls.at(-1).t+100-visible[0].t<2460,'Callout sequence exceeded its 2.36-second arrival budget');
       assert(media.some(m=>m.url.endsWith('/astrid/light-study/first-light.mp4') && [200,206].includes(m.status)));
       // App intentionally uses the launcher instead of the hidden chat window.

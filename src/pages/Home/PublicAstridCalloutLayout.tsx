@@ -1,10 +1,14 @@
 import { Component, createRef, type MutableRefObject, type ReactNode } from 'react';
 
 export const CALLOUT_MOVE_MS = 720;
-// Let the card-side endpoint lead visibly, then retarget the far endpoint while
-// the card is still moving so the connector performs one continuous double move.
-export const CALLOUT_RETARGET_START_MS = 260;
-export const CALLOUT_RETARGET_MS = 420;
+// Alternate connector choreography: lead, partially retract at a controlled speed,
+// wait for an explicit extension time, then reconnect while the card is still moving.
+export const CALLOUT_VACUUM_LEAD_MS = 80;
+export const CALLOUT_VACUUM_RETRACT_SPEED_PX_MS = 0.4;
+export const CALLOUT_VACUUM_EXTEND_AT_MS = 300;
+export const CALLOUT_VACUUM_EXTEND_MS = 380;
+export const CALLOUT_VACUUM_SETTLE_MS = 40;
+const CALLOUT_CONTENT_FADE_OUT_MS = 360;
 export interface CalloutMove {
   started: number;
   boxes: DOMRect[];
@@ -82,11 +86,20 @@ export class PublicAstridCalloutLayout extends Component<Props> {
       const content = card.querySelector<HTMLElement>(':scope > .astrid-callout-content')!;
       const padding = getComputedStyle(card);
       content.style.width = `${content.getBoundingClientRect().width}px`;
+      const horizontalPadding = parseFloat(padding.paddingLeft) + parseFloat(padding.paddingRight);
+      const outgoingScale = Math.max(.78, Math.min(1, to.height / Math.max(1, from.height), to.width / Math.max(1, from.width)));
       const outgoing = document.createElement('div');
       outgoing.className = 'astrid-callout-outgoing';
       outgoing.setAttribute('aria-hidden', 'true');
       outgoing.setAttribute('inert', '');
-      Object.assign(outgoing.style, { position: 'absolute', top: padding.paddingTop, left: padding.paddingLeft, pointerEvents: 'none' });
+      Object.assign(outgoing.style, {
+        position: 'absolute',
+        top: padding.paddingTop,
+        left: padding.paddingLeft,
+        width: `${Math.max(0, from.width - horizontalPadding)}px`,
+        transformOrigin: 'top left',
+        pointerEvents: 'none',
+      });
       outgoing.append(...snapshot.content[index]);
       card.append(outgoing);
       // Animate from the captured geometry with a FLIP transform. The cards deliberately
@@ -114,7 +127,10 @@ export class PublicAstridCalloutLayout extends Component<Props> {
         outgoing.remove();
       };
       const fadeIn = content.animate([{opacity: 0, translate: '0 4px'}, {opacity: 1, translate: '0 0'}], {duration: CALLOUT_MOVE_MS, easing: 'linear'});
-      const fadeOut = outgoing.animate([{opacity: 1, translate: '0 0'}, {opacity: 0, translate: '0 -4px'}], {duration: CALLOUT_MOVE_MS, easing: 'linear', fill: 'forwards'});
+      const fadeOut = outgoing.animate([
+        {opacity: 1, translate: '0 0', scale: '1'},
+        {opacity: 0, translate: '0 -4px', scale: `${outgoingScale}`},
+      ], {duration: CALLOUT_CONTENT_FADE_OUT_MS, easing: 'ease-in', fill: 'forwards'});
       return [animation, fadeIn, fadeOut];
     });
   }

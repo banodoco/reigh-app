@@ -111,7 +111,8 @@ beforeEach(() => {
   queries = new Map();
   motion = false;
   hidden = false;
-  window.history.replaceState(null, '', '/home');
+  // App is explicit now; an unqualified home URL intentionally lands in Agent.
+  window.history.replaceState(null, '', '/home?experience=app');
   delete (document as Document & { startViewTransition?: unknown }).startViewTransition;
   delete document.documentElement.dataset.astridPageTransition;
   vi.spyOn(document, 'hidden', 'get').mockImplementation(() => hidden);
@@ -220,7 +221,7 @@ describe('public Site lifecycle and navigation ownership', () => {
     const audience = transitions[0];
     fireEvent.click(screen.getByRole('link', { name: 'Vision & Issues' }));
     const oldVision = transitions[1];
-    historyAt('/home');
+    historyAt('/home?experience=app');
     const home = transitions[2];
     fireEvent.click(screen.getByRole('link', { name: 'Vision & Issues' }));
     const currentVision = transitions[3];
@@ -249,7 +250,7 @@ describe('public Site lifecycle and navigation ownership', () => {
     await update(transitions[0]);
     await finish(transitions[0], true);
     expect(document.querySelector('.astrid-public-site')).toHaveAttribute('data-audience', 'app');
-    expect(window.location.search).toBe('');
+    expect(window.location.search).toBe('?experience=app');
   });
 
   it('deduplicates Vision links and invalidates pending commits at disposal', async () => {

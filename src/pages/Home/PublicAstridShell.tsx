@@ -115,11 +115,6 @@ function useInactiveSurface<T extends HTMLElement = HTMLElement>(inactive: boole
 }
 
 
-const HERO_SUBTITLE: Record<ExperienceState['audience'], string> = {
-  app: 'An agent-powered video editor built to unlock the artistic potential of open-source models.',
-  agent: 'An editor-powered creative agent built to unlock the artistic potential of open-source models.',
-};
-
 /**
  * Switching audience also switches theme (light App, dark Agent). A root View Transition crossfades the
  * whole page in one piece — the old view stays frozen while the live new one fades in over it — so no
@@ -132,6 +127,21 @@ function drawnAt(element: Element, x: number, y: number) {
 
 function routeAnnouncement(state: ExperienceState): string {
   return state.audience === 'app' ? 'App.' : 'Agent.';
+}
+
+function HeroSubtitle({ audience, onSwitch }: { audience: ExperienceState['audience']; onSwitch: (audience: ExperienceState['audience']) => void }) {
+  if (audience === 'app') {
+    return (
+      <p className="astrid-hero-subtitle">
+        An <button type="button" className="astrid-audience-phrase" onClick={() => onSwitch('agent')} aria-label="Switch to Agent">agent-powered</button> video editor built to unlock the artistic potential of open-source models.
+      </p>
+    );
+  }
+  return (
+    <p className="astrid-hero-subtitle">
+      An <button type="button" className="astrid-audience-phrase" onClick={() => onSwitch('app')} aria-label="Switch to App">editor-powered</button> creative agent built to unlock the artistic potential of open-source models.
+    </p>
+  );
 }
 
 function sameExperience(left: ExperienceState, right: ExperienceState): boolean {
@@ -735,16 +745,16 @@ export function PublicAstridShell({ onOpenVision, lifecycle = 'active', environm
             </a>
           </div>
           <nav className="astrid-audience-switch" aria-label="Explore Astrid">
-            <button type="button" data-audience="app" aria-pressed={state.audience === 'app'} onClick={() => updateState({ audience: 'app' })}>
-              App
-            </button>
             <button type="button" data-audience="agent" aria-pressed={state.audience === 'agent'} onClick={() => updateState({ audience: 'agent' })}>
               Agent
+            </button>
+            <button type="button" data-audience="app" aria-pressed={state.audience === 'app'} onClick={() => updateState({ audience: 'app' })}>
+              App
             </button>
           </nav>
           <h1 id="astrid-hero-title">Push local AI to its creative limits.</h1>
           <div className="astrid-hero-detail">
-            <p className="astrid-hero-subtitle">{HERO_SUBTITLE[state.audience]}</p>
+            <HeroSubtitle audience={state.audience} onSwitch={(audience) => updateState({ audience })} />
             <div className="astrid-hero-actions">
               <PublicAstridHeroCta audience={state.audience} pixelIcons={sky.details.pixelIcons} active={visualActive} />
             </div>

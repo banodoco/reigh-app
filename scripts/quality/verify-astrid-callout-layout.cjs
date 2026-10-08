@@ -3,7 +3,9 @@ const {chromium} = require('playwright');
 const fs = require('node:fs');
 const assert = require('node:assert/strict');
 const CALLOUT_MOVE_MS = 720;
-const CALLOUT_RETARGET_START_MS = 260;
+const CALLOUT_VACUUM_RETRACT_START_MS = 60;
+const CALLOUT_VACUUM_EXTEND_AT_MS = 260;
+const CALLOUT_VACUUM_EXPAND_END_MS = 680;
 const base = process.argv[2] || 'http://127.0.0.1:2245';
 const out = process.argv[3] || '/tmp/astrid-callout-layout';
 fs.mkdirSync(out, {recursive:true});
@@ -36,7 +38,7 @@ fs.mkdirSync(out, {recursive:true});
                 return {id:c.dataset.callout,box:box(c),moving:!!c.dataset.layoutMoving,opacity:getComputedStyle(c).opacity,
                   textOpacity:+getComputedStyle(c.querySelector(':scope > .astrid-callout-content')).opacity,
                   outgoingOpacity:c.querySelector(':scope > .astrid-callout-outgoing') ? +getComputedStyle(c.querySelector(':scope > .astrid-callout-outgoing')).opacity : 0,
-                  target:paths[i].dataset.connectorTarget,start:point(start),end:point(end),path:paths[i].getAttribute('d')};
+                  target:paths[i].dataset.connectorTarget,start:point(start),end:point(end),endOpacity:+(end.getAttribute('opacity') || '1'),path:paths[i].getAttribute('d')};
               })});
             // Sample after the page's measurement RAF has updated SVG for this frame.
             if(!state.done)requestAnimationFrame(()=>setTimeout(sample,0));
@@ -60,15 +62,16 @@ fs.mkdirSync(out, {recursive:true});
         const newIds=audience==='agent'?['community','tools','workflows']:['timeline','effects','models'];
         for(let i=0;i<3;i++) {
           assert(new Set(moving.map(f=>f.cards[i].box.join(','))).size>8,'Card snapped instead of moving/resizing');
-          // Leave a small sampling margin before the overlap phase starts; screenshots and
-          // RAF timestamps do not share the same zero point on every browser run.
-          const early=moving.filter(f=>f.t-moving[0].t<200);
-          assert(new Set(early.map(f=>f.cards[i].path)).size>4,'Connector held old geometry until the end');
-          assert(new Set(early.map(f=>f.cards[i].start.join(','))).size>4,'Card-side endpoint did not follow the moving card');
-          assert(new Set(early.map(f=>f.cards[i].end.join(','))).size<=2,'Far endpoint retargeted before the card settled');
           const switched=result.frames.filter(f=>f.audience===audience);
-          const retargeting=switched.filter(f=>f.t-switched[0].t>=CALLOUT_RETARGET_START_MS && f.t-switched[0].t<CALLOUT_MOVE_MS);
-          assert(new Set(retargeting.map(f=>f.cards[i].end.join(','))).size>4,'Far endpoint did not retarget while the card was moving');
+          const relative=f=>f.t-switched[0].t;
+          const lead=switched.filter(f=>relative(f)<CALLOUT_VACUUM_RETRACT_START_MS);
+          assert(lead.length>0,'Missing connector lead phase');
+          const collapse=switched.filter(f=>relative(f)>=CALLOUT_VACUUM_RETRACT_START_MS && relative(f)<CALLOUT_VACUUM_EXTEND_AT_MS);
+          assert(new Set(collapse.map(f=>f.cards[i].end.join(','))).size>2,'Connector did not contract toward the card');
+          const distance=(frame)=>Math.hypot(frame.cards[i].end[0]-frame.cards[i].start[0],frame.cards[i].end[1]-frame.cards[i].start[1]);
+          assert(Math.min(...collapse.map(distance))<distance(collapse[0])*0.9,'Vacuum contraction did not pull the endpoint inward');
+          const expansion=switched.filter(f=>relative(f)>=CALLOUT_VACUUM_EXTEND_AT_MS && relative(f)<CALLOUT_VACUUM_EXPAND_END_MS);
+          assert(new Set(expansion.map(f=>f.cards[i].end.join(','))).size>4,'Connector did not re-expand after its extension start');
           assert(moving.filter(f=>f.cards[i].textOpacity>0.1 && f.cards[i].textOpacity<0.9 && f.cards[i].outgoingOpacity>0.1 && f.cards[i].outgoingOpacity<0.9).length>5,'Text popped instead of crossfading');
           assert(moving.every(f=>f.cards[i].opacity==='1'),'Shared layout was replaced with a fade');
           assert(moving.every(f=>{

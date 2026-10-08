@@ -106,17 +106,18 @@ async function advance(milliseconds: number) {
 
 describe('PublicAstridShell route announcements', () => {
   beforeEach(() => {
-    vi.useFakeTimers();
-    __resetSelectionStoreForTests();
-    configureMotionPreference(false);
-    setRoute('');
+  vi.useFakeTimers();
+  __resetSelectionStoreForTests();
+  configureMotionPreference(false);
+  // App is explicit now; an unqualified home URL intentionally lands in Agent.
+  setRoute('?experience=app');
   });
 
   it.each([
-    ['/home', 'App.'],
+    ['/home', 'Agent.'],
     ['/home?experience=agent', 'Agent.'],
-    // The retired flat preview link lands on the same App view.
-    ['/home?view=preview', 'App.'],
+    // The retired flat preview link now lands on the default Agent view.
+    ['/home?view=preview', 'Agent.'],
   ])('announces the direct-link state once after shell commit: %s', async (path, expected) => {
     setRoute(path.replace('/home', ''));
     const announcements = observeRouteAnnouncements();
@@ -223,8 +224,8 @@ describe('PublicAstridShell route announcements', () => {
     expect(window.location.search).toBe('');
     await advance(720);
     await flushAnnouncementObserver();
-    expect(readRouteStatus()).toBe('App.');
-    expect(announcements.messages).toEqual(['Agent.', 'App.']);
+    expect(readRouteStatus()).toBe('Agent.');
+    expect(announcements.messages).toEqual(['Agent.']);
     announcements.disconnect();
   });
 
@@ -280,7 +281,7 @@ describe('PublicAstridShell route announcements', () => {
     expect(screen.getByRole('main')).toHaveAttribute('data-audience', 'agent');
     fireEvent.click(stage);
     expect(screen.getByRole('main')).toHaveAttribute('data-audience', 'app');
-    expect(new URL(window.location.href).searchParams.get('experience')).toBeNull();
+    expect(new URL(window.location.href).searchParams.get('experience')).toBe('app');
   });
 
   it('returns a verified result to App on its exact clip without starting playback', async () => {
@@ -290,7 +291,7 @@ describe('PublicAstridShell route announcements', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Open test verified result' }));
 
     const currentUrl = new URL(window.location.href);
-    expect(currentUrl.searchParams.get('experience')).toBeNull();
+    expect(currentUrl.searchParams.get('experience')).toBe('app');
     expect(currentUrl.searchParams.get('view')).toBeNull();
     expect(screen.getByRole('main')).toHaveAttribute('data-audience', 'app');
     expect(__getSelectionStateForTests().timeline.selectedClipId).toBe('light-study-02');
