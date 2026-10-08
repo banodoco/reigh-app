@@ -4,7 +4,6 @@ import { retargetMotionTiming, type PublicAstridExperience, type PublicAstridMot
 import { ACTIVE_PUBLIC_ASTRID_EXAMPLE_METADATA, loadActivePublicAstridExample } from './publicAstridExampleSelection.ts';
 import type { PublicAstridMountedEditorProps } from './PublicAstridMountedEditor.tsx';
 import { PublicAstridCallouts } from './PublicAstridCallouts.tsx';
-import { CALLOUT_MOVE_MS } from './PublicAstridCalloutLayout';
 import { PublicAstridHeroCta } from './PublicAstridHeroCta.tsx';
 import { MinkRunner } from '@/shared/components/MinkRunner/MinkRunner';
 import './PublicAstridShell.css';
@@ -173,13 +172,6 @@ export function PublicAstridShell({ onOpenVision, lifecycle = 'active', environm
   const standalone = navigation === undefined;
   const [directEntryAudience, setDirectEntryAudience] = useState<ExperienceState['audience'] | null>(() => state.audience);
   const previousAudienceRef = useRef(state.audience);
-  const [retainAppLauncher, setRetainAppLauncher] = useState(state.audience === 'app');
-  useEffect(() => {
-    if (state.audience === 'app') { setRetainAppLauncher(true); return; }
-    if (prefersReducedMotion || !visualActive) { setRetainAppLauncher(false); return; }
-    const timer = window.setTimeout(() => setRetainAppLauncher(false), CALLOUT_MOVE_MS);
-    return () => window.clearTimeout(timer);
-  }, [state.audience, prefersReducedMotion, visualActive]);
   useLayoutEffect(() => {
     if (state.audience === previousAudienceRef.current) return;
     previousAudienceRef.current = state.audience;
@@ -869,7 +861,7 @@ export function PublicAstridShell({ onOpenVision, lifecycle = 'active', environm
               </div>
             )}
 
-            {(appView || retainAppLauncher) && editorRevealed && (
+            {appView && editorRevealed && (
               <button
                 className="astrid-agent-launcher"
                 aria-hidden={!appView}

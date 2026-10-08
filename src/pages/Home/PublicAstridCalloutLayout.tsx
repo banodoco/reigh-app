@@ -2,17 +2,52 @@ import { Component, createRef, type MutableRefObject, type ReactNode } from 'rea
 
 export const CALLOUT_MOVE_MS = 720;
 // Alternate connector choreography: lead, partially retract at a controlled speed,
-// wait for an explicit extension time, then reconnect while the card is still moving.
+// wait for an explicit extension time (or settled cards when entering Agent), then reconnect.
 export const CALLOUT_VACUUM_LEAD_MS = 80;
-export const CALLOUT_VACUUM_RETRACT_SPEED_PX_MS = 0.4;
-export const CALLOUT_VACUUM_EXTEND_AT_MS = 300;
+// Retraction is deliberately slower than the previous 240/300ms collapse. The
+// connector remains visible while the cards travel, then holds its residual stub.
+export const CALLOUT_VACUUM_RETRACT_MS = 450;
+export const CALLOUT_VACUUM_PHONE_RETRACT_MS = 360;
 export const CALLOUT_VACUUM_EXTEND_MS = 380;
-export const CALLOUT_VACUUM_SETTLE_MS = 40;
+export const CALLOUT_VACUUM_PHONE_EXTEND_MS = 440;
+export const CALLOUT_VACUUM_RECONNECT_STAGGER_MS = 140;
+export const CALLOUT_VACUUM_SETTLE_MS = 24;
+export const CALLOUT_VACUUM_POST_CONNECT_SETTLE_MS = 180;
+// Keep the final control-point convergence finite so the last painted organic
+// frame cannot be followed by an ungated canonical snap.
+export const CALLOUT_VACUUM_CANONICALIZE_MS = 140;
+export const CALLOUT_GEOMETRY_EPSILON_PX = 2;
+export const CALLOUT_VACUUM_PRIME_DISTANCE_PX = 64;
+export const CALLOUT_VACUUM_RESIDUAL_RATIO = 0.2;
+// The organic control handoff is intentionally longer than the prime lead. The
+// first painted curve must remain the exact synchronous prime, then ease into the
+// S-bend without a visible control-point jump on the next compositor frame.
+export const CALLOUT_CURVE_HANDOFF_MS = 240;
 const CALLOUT_CONTENT_FADE_OUT_MS = 360;
+export type CalloutTransitionPhase = 'retracting' | 'waiting-for-layout' | 'extending' | 'canonicalizing';
 export interface CalloutMove {
+  epoch: number;
+  phase: CalloutTransitionPhase;
   started: number;
+  settledAt?: number;
   boxes: DOMRect[];
+  destinations: DOMRect[];
   curves: number[][];
+  /** The exact local SVG curves painted synchronously before the new audience layout is exposed. */
+  primedCurves: number[][];
+  /** Last painted time per slot; controls use it for a frame-rate-independent handoff. */
+  curveLastPaintedAt: Array<number | undefined>;
+  paintedCurves: number[][];
+  canonicalizeFrom: number[][];
+  /** Exact settled canonical curve captured per slot for the terminal frame. */
+  canonicalTarget: number[][];
+  canonicalizeStartedAt: Array<number | undefined>;
+  canonicalFramePainted: boolean[];
+  extensionStartedAt: Array<number | undefined>;
+  staggerIndices: number[];
+  pulseEpoch: Array<number | undefined>;
+  retractLengths: Array<number | undefined>;
+  targetReady: boolean[];
 }
 interface Props {
   audience: string;
@@ -21,23 +56,64 @@ interface Props {
   move: MutableRefObject<CalloutMove | null>;
   children: ReactNode;
 }
-interface Snapshot { boxes: DOMRect[]; curves: number[][]; content: HTMLElement[][] }
+interface Snapshot { epoch: number; boxes: DOMRect[]; curves: number[][]; content: HTMLElement[][] }
+
+function primeRetractedCurve(curve: number[]) {
+  if (curve.length !== 8) return curve;
+  const dx = curve[0] - curve[6];
+  const dy = curve[1] - curve[7];
+  const length = Math.hypot(dx, dy);
+  if (!length) return curve;
+  const distance = Math.min(
+    Math.max(0, length - 24),
+    Math.min(CALLOUT_VACUUM_PRIME_DISTANCE_PX, Math.max(32, length * 0.2)),
+  );
+  const progress = distance / length;
+  return [curve[0], curve[1], curve[2], curve[3], curve[4], curve[5], curve[6] + dx * progress, curve[7] + dy * progress];
+}
 
 /** Capture before React changes audience attributes/layout; a layout-effect cleanup is too late.
  * Persistent slots let interrupted switches start from the actual currently painted geometry. */
 export class PublicAstridCalloutLayout extends Component<Props> {
   private root = createRef<HTMLDivElement>();
   private animations: Animation[] = [];
+  private transitionEpoch = 0;
 
   getSnapshotBeforeUpdate(previous: Props): Snapshot | null {
     if (previous.audience === this.props.audience || !this.props.active || this.props.reducedMotion) return null;
     const root = this.root.current!;
     const origin = root.getBoundingClientRect();
     const cards = [...root.querySelectorAll<HTMLElement>('article')];
-    return {
+    const epoch = ++this.transitionEpoch;
+    this.props.move.current = {
+      epoch,
+      phase: 'retracting',
+      started: performance.now(),
       boxes: cards.map(card => card.getBoundingClientRect()),
-      curves: [...root.querySelectorAll('path')].map(path =>
-        (path.getAttribute('d')?.match(/-?\d+(?:\.\d+)?/g) ?? []).map((value, index) => Number(value) + (index % 2 ? origin.top : origin.left))),
+      destinations: [],
+      curves: [],
+      primedCurves: [],
+      curveLastPaintedAt: [],
+      paintedCurves: [],
+      canonicalizeFrom: [],
+      canonicalTarget: [],
+      canonicalizeStartedAt: [],
+      canonicalFramePainted: [],
+      extensionStartedAt: cards.map(() => undefined),
+      staggerIndices: [],
+      pulseEpoch: cards.map(() => undefined),
+      retractLengths: cards.map(() => undefined),
+      targetReady: cards.map(() => false),
+    };
+    const snapshot: Snapshot = {
+      epoch,
+      boxes: cards.map(card => card.getBoundingClientRect()),
+      curves: [...root.querySelectorAll('path')].map((path, index) => {
+        const current = (path.getAttribute('d')?.match(/-?\d+(?:\.\d+)?/g) ?? []).map((value, coordinate) => Number(value) + (coordinate % 2 ? origin.top : origin.left));
+        // A target can briefly be unavailable during a reversal. Preserve that slot's
+        // last known curve so the next move still has a real retract origin.
+        return current.length === 8 ? current : this.props.move.current?.curves[index] ?? [];
+      }),
       // Preserve the currently painted text blend too, including an interrupted crossfade.
       content: cards.map(card => [...card.querySelectorAll<HTMLElement>(':scope > .astrid-callout-content, :scope > .astrid-callout-outgoing')].map(layer => {
         const clone = layer.cloneNode(true) as HTMLElement;
@@ -46,32 +122,65 @@ export class PublicAstridCalloutLayout extends Component<Props> {
         return clone;
       })),
     };
+    snapshot.curves.forEach((curve, index) => {
+      const pending = this.props.move.current;
+      if (pending && pending.epoch === epoch) pending.curves[index] = curve;
+    });
+    // A reconnect pulse belongs to the previous epoch's endpoint. Clear it before
+    // React exposes the next audience so an interrupted switch cannot replay stale emphasis.
+    root.querySelectorAll<SVGCircleElement>('.astrid-callout-ping').forEach((ping) => {
+      ping.removeAttribute('data-astrid-reconnect-pulse');
+    });
+    return snapshot;
   }
 
-  private stop = () => {
+  private stop = (clearMove = true) => {
     this.animations.forEach(animation => animation.cancel());
     this.animations = [];
-    this.props.move.current = null;
-    this.root.current?.querySelectorAll('[data-layout-moving]').forEach(card => card.removeAttribute('data-layout-moving'));
+    if (clearMove) this.props.move.current = null;
+    this.root.current?.querySelectorAll<HTMLElement>('[data-layout-moving]').forEach(card => {
+      card.removeAttribute('data-layout-moving');
+      card.style.removeProperty('transform');
+      card.style.removeProperty('translate');
+      card.style.removeProperty('width');
+      card.style.removeProperty('height');
+    });
     this.root.current?.querySelectorAll('.astrid-callout-outgoing').forEach(layer => layer.remove());
     this.root.current?.querySelectorAll<HTMLElement>('article > .astrid-callout-content').forEach(layer => layer.style.removeProperty('width'));
+    this.root.current?.querySelectorAll<SVGCircleElement>('.astrid-callout-ping').forEach((ping) => {
+      ping.removeAttribute('data-astrid-reconnect-pulse');
+    });
   };
 
   componentDidUpdate(previous: Props, _state: unknown, snapshot: Snapshot | null) {
     if (!this.props.active || this.props.reducedMotion) { this.stop(); return; }
     if (previous.audience === this.props.audience || !snapshot) return;
-    this.stop();
+    this.stop(false);
     const root = this.root.current!;
     const cards = [...root.querySelectorAll<HTMLElement>('article')];
     if (!cards.every(card => typeof card.animate === 'function')) return;
     const origin = root.getBoundingClientRect();
     const destinations = cards.map(card => card.getBoundingClientRect());
-    this.props.move.current = { started: performance.now(), boxes: snapshot.boxes, curves: snapshot.curves };
+    const move = this.props.move.current;
+    if (!move || move.epoch !== snapshot.epoch) return;
+    move.boxes = snapshot.boxes;
+    move.destinations = destinations;
+    move.curves = snapshot.curves;
+    move.primedCurves = cards.map(() => []);
+    move.curveLastPaintedAt = cards.map(() => undefined);
+    move.paintedCurves = cards.map(() => []);
+    move.canonicalizeFrom = cards.map(() => []);
+    move.canonicalTarget = cards.map(() => []);
+    move.canonicalizeStartedAt = cards.map(() => undefined);
+    move.canonicalFramePainted = cards.map(() => false);
     // A mobile audience change can shift the stage origin. Rebase the captured SVG before paint;
-    // waiting for the measurement RAF leaves one frame with detached endpoints.
+    // synchronously prime every path into a visibly retracted state so the new audience
+    // cannot paint beside a fully extended old connector.
     root.querySelectorAll('path').forEach((path, index) => {
-      const curve = snapshot.curves[index].map((value, coordinate) => value - (coordinate % 2 ? origin.top : origin.left));
+      const curve = primeRetractedCurve(snapshot.curves[index]).map((value, coordinate) => value - (coordinate % 2 ? origin.top : origin.left));
       if (curve.length !== 8) return;
+      move.primedCurves[index] = curve;
+      move.paintedCurves[index] = curve.slice();
       path.setAttribute('d', `M${curve[0]} ${curve[1]} C${curve.slice(2).join(' ')}`);
       path.setAttribute('data-connector-target', 'transition');
       const dots = path.parentElement!.querySelectorAll('circle[data-callout]');
@@ -115,6 +224,12 @@ export class PublicAstridCalloutLayout extends Component<Props> {
         width: `${box.width}px`, height: `${box.height}px`,
       });
       card.dataset.layoutMoving = 'true';
+      // Prime the captured FLIP frame synchronously. Without this, a reversal can
+      // expose the destination layout for one commit before WAAPI applies frame 0.
+      card.style.setProperty('transform', `translate(${dx}px, ${dy}px)`);
+      card.style.setProperty('translate', '0 0');
+      card.style.setProperty('width', `${from.width}px`);
+      card.style.setProperty('height', `${from.height}px`);
       const animation = card.animate([
         frame(from, `translate(${dx}px, ${dy}px)`),
         frame(to, 'translate(0, 0)'),
@@ -122,7 +237,13 @@ export class PublicAstridCalloutLayout extends Component<Props> {
         duration: CALLOUT_MOVE_MS, easing: 'cubic-bezier(.4, 0, .2, 1)',
       });
       animation.onfinish = () => {
+        // A reversal replaces the move; late callbacks must not settle the new transition.
+        if (!this.animations.includes(animation)) return;
         card.removeAttribute('data-layout-moving');
+        card.style.removeProperty('transform');
+        card.style.removeProperty('translate');
+        card.style.removeProperty('width');
+        card.style.removeProperty('height');
         content.style.removeProperty('width');
         outgoing.remove();
       };
