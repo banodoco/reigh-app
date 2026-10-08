@@ -6,6 +6,8 @@ import type { Shot } from "@/domains/generation/types";
 import type { MediaGalleryItemProps } from "./MediaGalleryItem/types";
 import { VideoContent } from "./MediaGalleryItem/components/VideoContent";
 import { ImageContent } from "./MediaGalleryItem/components/ImageContent";
+import { AudioContent } from "./MediaGalleryItem/components/AudioContent";
+import { isAudioMedia, isVideoMedia } from '@/shared/lib/media/mediaTypeFilters';
 import { ShotActions } from "./MediaGalleryItem/components/ShotActions";
 import { ActionButtons } from "./MediaGalleryItem/components/ActionButtons";
 import { ItemShotBadges } from "./MediaGalleryItem/components/ItemShotBadges";
@@ -102,7 +104,7 @@ function toGenerationDragData(image: GeneratedImageWithMetadata): GenerationDrop
   return {
     generationId,
     variantId,
-    variantType: image.type?.includes('video') || image.isVideo ? 'video' : 'image',
+    variantType: isAudioMedia(image) ? 'audio' : isVideoMedia(image) ? 'video' : 'image',
     mediaId: image.media_id ?? undefined,
     imageUrl,
     thumbUrl: getThumbnailUrl(image),
@@ -245,6 +247,7 @@ export const MediaGalleryItem: React.FC<MediaGalleryItemProps> = ({
   });
   const {
     isVideoContent,
+    isAudioContent,
     displayUrl,
     stableDisplayUrl,
     stableVideoUrl,
@@ -350,7 +353,7 @@ export const MediaGalleryItem: React.FC<MediaGalleryItemProps> = ({
     if (!isPrimaryPointer(event.nativeEvent)) return;
     if (isMobile) return;
     const target = event.target as HTMLElement | null;
-    const targetIsButton = Boolean(target?.closest('button'));
+    const targetIsButton = Boolean(target?.closest('button, audio'));
     pointerDownRef.current = {
       x: event.clientX,
       y: event.clientY,
@@ -394,7 +397,7 @@ export const MediaGalleryItem: React.FC<MediaGalleryItemProps> = ({
     addingToShotImageId,
   });
   const aspectRatioPadding = resolveAspectRatioPadding(image, projectAspectRatio);
-  const minHeight = '120px'; // Minimum height for very small images
+  const minHeight = isAudioContent ? '160px' : '120px';
   if (isPlaceholder) {
     return (
       <div
@@ -423,8 +426,8 @@ export const MediaGalleryItem: React.FC<MediaGalleryItemProps> = ({
         onMouseEnter={handleMouseEnter}
         data-tour={dataTour}
         onContextMenu={(event) => onContextMenu?.(event, image)}
-        onTouchStart={isMobile && !enableSingleClick && !isVideoContent ? handleTouchStart : undefined}
-        onTouchEnd={isMobile && !enableSingleClick && !isVideoContent ? handleInteraction : undefined}
+        onTouchStart={isMobile && !enableSingleClick && !isVideoContent && !isAudioContent ? handleTouchStart : undefined}
+        onTouchEnd={isMobile && !enableSingleClick && !isVideoContent && !isAudioContent ? handleInteraction : undefined}
         onPointerDown={handleWrapperPointerDown}
         onPointerUp={handleWrapperPointerUp}
     >
@@ -436,7 +439,9 @@ export const MediaGalleryItem: React.FC<MediaGalleryItemProps> = ({
         }}
         className="relative bg-muted/50"
       >
-          {isVideoContent ? (
+          {isAudioContent ? (
+            <AudioContent image={image} shouldLoad={shouldLoad} onOpenLightbox={onOpenLightbox} onLoaded={() => onImageLoaded?.(image.id)} />
+          ) : isVideoContent ? (
             <VideoContent
               image={image}
               stableDisplayUrl={stableDisplayUrl}
@@ -493,7 +498,7 @@ export const MediaGalleryItem: React.FC<MediaGalleryItemProps> = ({
             }}
           />
           {/* Add to Shot UI - Top Left (for non-video content) */}
-          {showAddToShot && simplifiedShotOptions.length > 0 && onAddToLastShot && (
+          {showAddToShot && !isAudioContent && simplifiedShotOptions.length > 0 && onAddToLastShot && (
             <ShotActions
               image={image}
               selector={{
@@ -559,7 +564,7 @@ export const MediaGalleryItem: React.FC<MediaGalleryItemProps> = ({
             isTogglingStar={isTogglingStar}
             isDeleting={isCurrentDeleting}
             showStar={showStar}
-            showEdit={showEdit}
+            showEdit={showEdit && !isAudioContent}
             showDelete={showDelete}
             onToggleStar={onToggleStar}
             setIsTogglingStar={setIsTogglingStar}

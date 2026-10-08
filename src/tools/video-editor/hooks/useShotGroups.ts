@@ -3,11 +3,7 @@ import { bridgeMediaUrl } from '@/shared/lib/media/bridgeMediaUrl.ts';
 import type { TimelineShotGroupView } from '@/tools/video-editor/lib/timeline-domain.ts';
 import type { TimelineRow } from '@/tools/video-editor/types/timeline-canvas.ts';
 import type { CanonicalShotOccurrence } from '@/tools/video-editor/data/shotCompositionAdapter.ts';
-import {
-  isActiveTimelineClip,
-  timelineOccurrenceContentExtentMs,
-  timelineOccurrenceEffectiveDurationMs,
-} from '@/tools/video-editor/data/shotCompositionTiming.ts';
+import { isActiveTimelineClip } from '@/tools/video-editor/data/shotCompositionTiming.ts';
 
 const SHOT_COLORS = ['#a855f7', '#ef4444', '#22c55e', '#3b82f6', '#f59e0b', '#14b8a6', '#ec4899', '#84cc16'];
 
@@ -177,22 +173,14 @@ export function useShotGroups(
   documentGroups: readonly TimelineShotGroupView[],
   canonicalOccurrences: readonly CanonicalShotOccurrence[] = [],
   sourceFrameThumbnailUrls?: ReadonlyMap<string, string>,
+  legacyShellClipIds: ReadonlySet<string> = new Set(),
 ): ShotGroup[] {
   return useMemo(() => {
     if (canonicalOccurrences.length > 0) {
       return canonicalOccurrences.map((occurrence) => {
-        const contentDurationMs = timelineOccurrenceContentExtentMs(occurrence);
-        const effectiveOccurrence = {
-          ...occurrence,
-          durationMs: timelineOccurrenceEffectiveDurationMs(
-            occurrence,
-            canonicalOccurrences,
-            contentDurationMs ?? occurrence.durationMs,
-          ),
-        };
-        // The occurrence is the timing authority. Live projected actions are
-        // still useful for child labels/selection, but legacy row geometry must
-        // never make the visible shot boundary disagree with the occurrence.
+        // The committed occurrence interval is the geometry authority. Child
+        // content extent and adjacent occurrences do not rewrite its window.
+        const effectiveOccurrence = occurrence;
         const occurrencePrefix = `${effectiveOccurrence.occurrenceId}:`;
         const isOccurrenceAction = (action: TimelineRow['actions'][number]) => (
           action.id === occurrence.occurrenceId || action.id.startsWith(occurrencePrefix)
@@ -206,30 +194,39 @@ export function useShotGroups(
           .filter(({ actions }) => actions.length > 0);
         const canonicalStart = effectiveOccurrence.atMs / 1000;
         const canonicalEnd = canonicalStart + effectiveOccurrence.durationMs / 1000;
-        // Keep supporting older projected fixtures that do not carry the
-        // occurrence-prefixed action id.
-        const candidateRows = liveRows.length > 0
-          ? liveRows
-          : rows
-            .map((row, rowIndex) => ({
-              row,
-              rowIndex,
-              actions: row.actions.filter((action) => action.end > canonicalStart && action.start < canonicalEnd),
-            }))
-            .filter(({ actions }) => actions.length > 0);
-        const fallbackRow = rows.find((row) => row.id === effectiveOccurrence.trackId)
-          ?? rows.find((row) => row.actions.length > 0)
-          ?? rows[0];
-        // A full-length parent lane (usually the Frame track) can overlap
-        // every occurrence. Prefer the occurrence's declared track before
-        // falling back to the first overlapping row, otherwise every shot is
-        // incorrectly grouped under that parent lane.
-        const selected = candidateRows.find(({ row }) => row.id === effectiveOccurrence.trackId)
-          ?? candidateRows[0]
-          ?? (fallbackRow ? { row: fallbackRow, rowIndex: rows.indexOf(fallbackRow) } : null);
+        // Canonical membership comes only from explicit occurrence ownership
+        // encoded by the projection. Time overlap is not ownership: a long
+        // frame/base clip can span many independent occurrences.
+        const declaredRow = rows.find((row) => row.id === effectiveOccurrence.trackId);
+        const unambiguousLegacyShellIds = new Set<string>();
+        if (effectiveOccurrence.trackId && declaredRow) {
+          for (const action of declaredRow.actions) {
+            if (!legacyShellClipIds.has(action.id) || isOccurrenceAction(action)) continue;
+            const overlappingOccurrences = canonicalOccurrences.filter((candidate) => {
+              const candidateStart = candidate.atMs / 1000;
+              const candidateEnd = candidateStart + candidate.durationMs / 1000;
+              return candidate.trackId === effectiveOccurrence.trackId
+                && action.end > candidateStart
+                && action.start < candidateEnd;
+            });
+            if (overlappingOccurrences.length === 1
+              && overlappingOccurrences[0].occurrenceId === effectiveOccurrence.occurrenceId) {
+              unambiguousLegacyShellIds.add(action.id);
+            }
+          }
+        }
+        const selected = declaredRow
+          ? { row: declaredRow, rowIndex: rows.indexOf(declaredRow) }
+          : !effectiveOccurrence.trackId
+            ? liveRows[0] ?? null
+            : null;
         const row = selected?.row;
-        const rowIndex = selected?.rowIndex ?? 0;
-        const liveActions = selected?.actions ?? [];
+        const rowIndex = selected?.rowIndex ?? -1;
+        const ownedActions = [
+          ...liveRows.flatMap(({ actions }) => actions),
+          ...(declaredRow?.actions.filter((action) => unambiguousLegacyShellIds.has(action.id)) ?? []),
+        ];
+        const liveActions = ownedActions;
         const start = canonicalStart;
         const end = canonicalEnd;
         const children = liveActions
@@ -243,7 +240,7 @@ export function useShotGroups(
         return {
           shotId: occurrence.shotId,
           shotName: shotNameForOccurrence(occurrence),
-          rowId: row?.id ?? effectiveOccurrence.trackId ?? 'V1',
+          rowId: effectiveOccurrence.trackId ?? row?.id ?? '',
           rowIndex,
           start,
           end,
@@ -319,7 +316,7 @@ export function useShotGroups(
       });
     }
     return result;
-  }, [canonicalOccurrences, documentGroups, rows, sourceFrameThumbnailUrls]);
+  }, [canonicalOccurrences, documentGroups, legacyShellClipIds, rows, sourceFrameThumbnailUrls]);
 }
 
 function shotNameForOccurrence(occurrence: CanonicalShotOccurrence): string {

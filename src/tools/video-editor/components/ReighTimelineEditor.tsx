@@ -348,11 +348,15 @@ function ReighTimelineEditorComponent({ onOpenSequenceCreator, onOpenElementCrea
     }
   }, [exportRuntimeManagedOutput, finalVideoMap]);
   const documentShotGroups = usePinnedShotGroupViews(data, !isDocumentShotMode);
+  const legacyCanonicalShellClipIds = useMemo(() => new Set(Object.entries(data?.meta ?? {})
+    .filter(([, clip]) => clip.clipType === 'shot')
+    .map(([clipId]) => clipId)), [data?.meta]);
   const shotGroups = useShotGroups(
     data?.rows ?? [],
     documentShotGroups,
     isCanonicalEditor ? canonicalOccurrences : [],
     isCanonicalEditor ? runtime.shots?.canonicalThumbnailUrls : undefined,
+    legacyCanonicalShellClipIds,
   );
 
   const handleOpenCanonicalOccurrence = useCallback((occurrence: CanonicalShotOccurrence) => {

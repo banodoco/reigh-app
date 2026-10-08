@@ -31,7 +31,7 @@ import { transformGeneration, type RawGeneration } from '@/shared/lib/generation
 import { bridgeMediaUrl } from '@/shared/lib/media/bridgeMediaUrl';
 import { getProjectSelectionFallbackId } from '@/shared/contexts/projectSelectionStore';
 import { useAstridCapabilityCensus } from '@/integrations/astrid/capabilityCensus.ts';
-import { isImageMedia, isVideoMedia } from '@/shared/lib/media/mediaTypeFilters';
+import { isAudioMedia, isImageMedia, isVideoMedia } from '@/shared/lib/media/mediaTypeFilters';
 import { ReighRuntimeClient } from '@/integrations/runtime/client';
 import type { Generation, GenerationVariant } from '@/integrations/runtime/generated';
 import {
@@ -48,7 +48,7 @@ const BRIDGE_MAX_PAGE_LIMIT = 200;
 
 export interface GenerationFilters {
   toolType?: string;
-  mediaType?: 'all' | 'image' | 'video';
+  mediaType?: 'all' | 'image' | 'video' | 'audio';
   shotId?: string;
   excludePositioned?: boolean;
   starredOnly?: boolean;
@@ -232,6 +232,7 @@ export function matchesClientSideFilters(
   if (filters?.mediaType && filters.mediaType !== 'all') {
     if (filters.mediaType === 'video' && !isVideoMedia(item)) return false;
     if (filters.mediaType === 'image' && !isImageMedia(item)) return false;
+    if (filters.mediaType === 'audio' && !isAudioMedia(item)) return false;
   }
   if (filters?.toolType) {
     const toolType = item.metadata?.tool_type;

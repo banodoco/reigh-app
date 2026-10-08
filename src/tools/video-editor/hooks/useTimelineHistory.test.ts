@@ -178,6 +178,12 @@ function setup(options: {
   const interactionStateRef = { current: createInteractionState() };
   const pendingOpsRef = { current: 0 };
   const commitCalls: CommitCall[] = [];
+  const toast = {
+    error: vi.fn(() => 'toast-error'),
+    success: vi.fn(() => 'toast-success'),
+    warning: vi.fn(() => 'toast-warning'),
+    info: vi.fn(() => 'toast-info'),
+  };
   const commitData = vi.fn((nextData: TimelineData, commitOptions?: CommitCall['options']) => {
     dataRef.current = nextData;
     commitCalls.push({ nextData, options: commitOptions });
@@ -188,6 +194,8 @@ function setup(options: {
     {
       value: {
         provider,
+        project: { projectId: 'project-1' },
+        toast,
         timelineId: 'timeline-1',
         userId: 'user-1',
         timelineName: 'Timeline 1',
@@ -214,6 +222,7 @@ function setup(options: {
     pendingOpsRef,
     commitCalls,
     commitData,
+    toast,
     ...hook,
     applyEdit,
   };
@@ -228,6 +237,77 @@ afterEach(() => {
 });
 
 describe('useTimelineHistory', () => {
+  it('loads canonical history and reports a failed full-closure restore', async () => {
+    const listHistory = vi.fn(async () => [{
+      revisionId: 'parent-revision-1',
+      projectId: 'project-1',
+      parentDocumentId: 'timeline-1',
+      contentDigest: 'sha256:' + 'a'.repeat(64),
+      createdAt: '2026-10-05T12:00:00Z',
+      isCurrentHead: false,
+    }]);
+    const restoreHistory = vi.fn(async () => {
+      throw new Error('historical internal timeline revision failed immutable verification');
+    });
+    const shotComposition = {
+      load: vi.fn(),
+      listHistory,
+      restoreHistory,
+    };
+    const { result, toast } = setup({
+      providerOverrides: { shotComposition } as unknown as Partial<DataProvider>,
+    });
+
+    await waitFor(() => expect(result.current.canonicalHistory).toHaveLength(1));
+    expect(result.current.canonicalHistorySupported).toBe(true);
+
+    await act(async () => {
+      await result.current.restoreCanonicalRevision('parent-revision-1');
+    });
+
+    expect(restoreHistory).toHaveBeenCalledWith({
+      projectId: 'project-1',
+      parentDocumentId: 'timeline-1',
+      revisionId: 'parent-revision-1',
+    });
+    expect(result.current.canonicalHistoryError).toContain('failed immutable verification');
+    expect(toast.error).toHaveBeenCalledWith('Could not restore timeline history', {
+      description: 'historical internal timeline revision failed immutable verification',
+    });
+  });
+
+  it('refreshes canonical history on demand after a new revision is published', async () => {
+    const first = {
+      revisionId: 'parent-revision-1', projectId: 'project-1', parentDocumentId: 'timeline-1',
+      contentDigest: 'sha256:' + 'a'.repeat(64), createdAt: '2026-10-05T12:00:00Z', isCurrentHead: true,
+    };
+    const second = {
+      ...first, revisionId: 'parent-revision-2', isCurrentHead: true,
+    };
+    const listHistory = vi.fn()
+      .mockResolvedValueOnce([first])
+      .mockResolvedValueOnce([second, first]);
+    const { result } = setup({
+      providerOverrides: {
+        shotComposition: {
+          load: vi.fn(),
+          listHistory,
+          restoreHistory: vi.fn(),
+        } as unknown as DataProvider['shotComposition'],
+      },
+    });
+
+    await waitFor(() => expect(result.current.canonicalHistory).toHaveLength(1));
+    await act(async () => {
+      await result.current.refreshCanonicalHistory();
+    });
+
+    expect(listHistory).toHaveBeenCalledTimes(2);
+    expect(result.current.canonicalHistory.map((entry) => entry.revisionId)).toEqual([
+      'parent-revision-2', 'parent-revision-1',
+    ]);
+  });
+
   it('supports a basic undo/redo cycle', () => {
     const { result, dataRef, commitCalls, applyEdit } = setup();
 

@@ -800,7 +800,7 @@ export function VideoEditorProvider({
   }) => {
     agentChatRegistry.register({
       timelineId: value.timelineId,
-      editorContext: value.timelineId
+      editorContext: value.projectId
         ? {
             tool: 'video-editor',
             projectId: value.projectId,

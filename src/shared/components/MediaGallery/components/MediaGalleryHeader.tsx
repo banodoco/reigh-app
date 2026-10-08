@@ -30,8 +30,8 @@ interface MediaGalleryHeaderLayoutProps {
 interface MediaGalleryHeaderFilterProps {
   showStarredOnly: boolean;
   onStarredFilterChange?: (starredOnly: boolean) => void;
-  mediaTypeFilter: 'all' | 'image' | 'video';
-  onMediaTypeFilterChange?: (mediaType: 'all' | 'image' | 'video') => void;
+  mediaTypeFilter: 'all' | 'image' | 'video' | 'audio';
+  onMediaTypeFilterChange?: (mediaType: 'all' | 'image' | 'video' | 'audio') => void;
 }
 
 interface MediaGalleryHeaderShotFilterProps {

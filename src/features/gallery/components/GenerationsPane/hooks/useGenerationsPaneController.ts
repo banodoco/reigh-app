@@ -40,7 +40,7 @@ import { ADD_GENERATION_QUERY_PARAM } from '@/domains/media-lightbox/hooks/addTo
 const PANE_ROWS = 2;
 const PANE_ROWS_EXPANDED = 3;
 
-type MediaTypeFilter = 'all' | 'image' | 'video';
+type MediaTypeFilter = 'all' | 'image' | 'video' | 'audio';
 type BooleanStateSetter = (value: boolean) => void;
 type GalleryPageState = ReturnType<typeof useGalleryPageState>;
 type SelectedProjectId = ReturnType<typeof useProjectSelectionContext>['selectedProjectId'];

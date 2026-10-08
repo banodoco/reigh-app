@@ -148,6 +148,37 @@ export type UrlResolver = (
 
 export const isRemoteUrl = (url: string): boolean => /^https?:\/\//.test(url);
 
+/** Resolve per-clip card overrides without persisting browser URLs in the timeline. */
+const resolveEndSpanningCardParams = (
+  clip: TimelineClip,
+  registry: Record<string, ResolvedAssetRegistryEntry>,
+): TimelineClip['params'] => {
+  if (clip.clipType !== 'end-spanning-layer' && clip.elementRef?.id !== 'end-spanning-layer') return clip.params;
+  const params = clip.params;
+  const overrides = params?.cardAssets;
+  if (overrides === undefined) return params;
+  if (!overrides || typeof overrides !== 'object' || Array.isArray(overrides)) {
+    throw new Error('end-spanning-layer cardAssets must be an object');
+  }
+  const urls: Record<string, string> = {};
+  for (const [card, assetId] of Object.entries(overrides)) {
+    if (!/^card[0-5]$/.test(card) || typeof assetId !== 'string' || !assetId.trim()) {
+      throw new Error('end-spanning-layer cardAssets requires card0–card5 registry keys');
+    }
+    const src = registry[assetId]?.src;
+    if (!src) throw new Error(`end-spanning-layer card '${card}' references unresolved asset '${assetId}'`);
+    urls[card] = src;
+  }
+  const staged = params?.__astridAssets;
+  return {
+    ...params,
+    __astridAssets: {
+      ...(staged && typeof staged === 'object' && !Array.isArray(staged) ? staged : {}),
+      ...urls,
+    },
+  };
+};
+
 export const resolveTimelineConfig = async (
   config: TimelineConfig,
   registry: AssetRegistry,
@@ -196,7 +227,9 @@ export const resolveTimelineConfig = async (
     }),
   );
 
-  const clips = config.clips.map((clip) => {
+  const clips = config.clips.map((authoredClip) => {
+    const params = resolveEndSpanningCardParams(authoredClip, resolvedRegistry);
+    const clip = params === authoredClip.params ? authoredClip : { ...authoredClip, params };
     if (!clip.asset) {
       return {
         ...clip,

@@ -3,7 +3,6 @@ import { ChevronDown, ChevronUp, Loader2, Mic, Send, Square, X } from 'lucide-re
 import type { GenerationRow } from '@/domains/generation/types/index.ts';
 import { MediaLightbox } from '@/domains/media-lightbox/MediaLightbox.tsx';
 import { Button } from '@/shared/components/ui/button.tsx';
-import { ConversationPresentation, buildConversationItems } from '@/shared/components/conversation/index.ts';
 import { useAgentChatBridge, useAgentChatActionsRegistry, type AgentChatActionsHandlers } from '@/shared/contexts/AgentChatContext.tsx';
 import { composerClearAttachments, composerRemoveAttachment } from '@/shared/state/selectionStore.ts';
 import { useCurrentAttachmentSet } from '@/shared/state/currentAttachmentSet.ts';
@@ -27,13 +26,17 @@ import type {
   AgentTurn,
   AgentTurnAttachment,
 } from '@/tools/video-editor/types/agent-session.ts';
+import { AgentChatAttachmentStrip, AgentChatMessage, AgentChatToolGroup, type AgentChatAttachmentPreviewItem } from './AgentChatMessage.tsx';
 import { useChatScroll } from './useChatScroll';
-import { AgentChatAttachmentStrip, type AgentChatAttachmentPreviewItem } from './AgentChatMessage.tsx';
 
-export type {
-  ConversationToolCallPair as ToolCallPair,
-  ConversationItem as RenderedTurn,
-} from '@/shared/components/conversation/contracts.ts';
+export type ToolCallPair = {
+  call: AgentTurn;
+  result: AgentTurn | null;
+};
+
+export type RenderedTurn =
+  | { kind: 'message'; key: string; turn: AgentTurn }
+  | { kind: 'tool_group'; key: string; pairs: ToolCallPair[] };
 
 type QueuedMessage = {
   id: string;
@@ -121,6 +124,61 @@ function readSessionId(value: unknown): string | undefined {
   return undefined;
 }
 
+function buildRenderedTurns(turns: AgentTurn[]): RenderedTurn[] {
+  const items: RenderedTurn[] = [];
+  let pendingToolPairs: ToolCallPair[] = [];
+  let toolGroupStartIndex = 0;
+
+  const flushToolGroup = () => {
+    if (pendingToolPairs.length === 0) return;
+    items.push({
+      kind: 'tool_group',
+      key: `tool-group:${toolGroupStartIndex}`,
+      pairs: pendingToolPairs,
+    });
+    pendingToolPairs = [];
+  };
+
+  for (let index = 0; index < turns.length; index += 1) {
+    const turn = turns[index];
+
+    if (turn.role === 'tool_result') {
+      continue;
+    }
+
+    if (turn.role === 'tool_call') {
+      const nextTurn = turns[index + 1];
+      const pairedResult = nextTurn?.role === 'tool_result' ? nextTurn : null;
+
+      if (pendingToolPairs.length === 0) {
+        toolGroupStartIndex = index;
+      }
+      pendingToolPairs.push({ call: turn, result: pairedResult });
+      if (pairedResult) index += 1;
+      continue;
+    }
+
+    flushToolGroup();
+
+    // Skip assistant messages that duplicate a preceding message_user result
+    if (turn.role === 'assistant' && items.length > 0) {
+      const prev = items[items.length - 1];
+      if (prev.kind === 'message' && prev.turn.content === turn.content) {
+        continue;
+      }
+    }
+
+    items.push({
+      kind: 'message',
+      key: `${turn.timestamp}:${turn.role}:${index}`,
+      turn,
+    });
+  }
+
+  flushToolGroup();
+  return items;
+}
+
 function createMessageId() {
   return globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
 }
@@ -206,7 +264,7 @@ function AvailableAgentChatPanel({ isExpanded }: { isExpanded: boolean }) {
   // Non-editor hosts may still provide the legacy settings-backed timeline
   // bridge. Preserve that path with a timeline-only context while the loaded
   // editor supplies the full project/timeline snapshot above.
-  const sendMessage = useSendMessage(activeSessionId, editorContext ?? timelineId);
+  const sendMessage = useSendMessage(activeSessionId, editorContext ?? timelineId, projectId);
   const cancelSession = useCancelSession(activeSessionId);
   const sessionOptions = useMemo(() => readAgentSessions(sessions.data), [sessions.data]);
   const hydratedProjectDraftRef = useRef(false);
@@ -308,7 +366,7 @@ function AvailableAgentChatPanel({ isExpanded }: { isExpanded: boolean }) {
   }, []);
 
   const renderedTurns = useMemo(
-    () => buildConversationItems(activeSessionData?.turns ?? []),
+    () => buildRenderedTurns(activeSessionData?.turns ?? []),
     [activeSessionData?.turns],
   );
   const activeStatus = activeSessionData?.status;
@@ -528,7 +586,6 @@ function AvailableAgentChatPanel({ isExpanded }: { isExpanded: boolean }) {
     sendingRef.current = true;
     setOptimisticMessage({
       id: item.id,
-      sessionId: item.sessionId,
       text: item.text,
       attachments: item.attachments,
       sentAtMs,
@@ -678,21 +735,86 @@ function AvailableAgentChatPanel({ isExpanded }: { isExpanded: boolean }) {
   }, [actionsRegistry, voice.isRecording, voice.isProcessing]);
 
   return (
-    <>
-      <ConversationPresentation
-        items={renderedTurns}
-        isLoading={activeSession.isLoading}
-        isProcessing={isProcessing}
-        hasPendingWork={sendMessage.isPending || hasQueuedMessages}
-        hideEmptyState={sendMessage.isPending}
-        optimisticMessage={optimisticMessage}
-        optimisticMaterialized={optimisticTurnAlreadyMaterialized}
-        onAttachmentClick={handleAttachmentPreviewClick}
-        scrollContainerRef={scrollContainerRef}
-        scrollContentRef={scrollContentRef}
-        onScroll={onScroll}
-        emptyState={(
-          <div className="py-8 text-center text-sm text-muted-foreground">
+    // No background of its own — sits on the parent pane's bg so the only
+    // visible color change between halves is the divider line itself.
+    <div className="flex h-full w-full flex-col overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between border-b border-border/70 px-4 py-3">
+        <div className="flex items-end gap-2">
+          <img
+            src="/astrid-avatar.png"
+            alt=""
+            aria-hidden="true"
+            className="h-5 w-5 rounded-full object-cover"
+          />
+          <span className="text-sm font-medium">Astrid</span>
+          {isProcessing && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
+        </div>
+        <div className="flex items-center gap-1">
+          {sessionOptions.length > 1 && (
+            <select
+              aria-label="Project chat session"
+              className="max-w-40 rounded-md border border-border bg-background px-2 py-1 text-xs"
+              value={activeSessionId ?? ''}
+              onChange={(event) => {
+                const sessionId = event.currentTarget.value;
+                if (!projectId || !projectChat.data || !sessionId) return;
+                void selectSession.mutateAsync({ expectedRevision: projectChat.data.revision, sessionId }).then(() => setActiveSessionId(sessionId)).catch(() => undefined);
+              }}
+            >
+              {sessionOptions.map((session, index) => <option key={session.id} value={session.id}>Chat {index + 1}</option>)}
+            </select>
+          )}
+          {showKillSwitch && (
+            <Button
+              type="button"
+              size="icon"
+              variant="destructive"
+              className="h-7 w-7"
+              onClick={() => {
+                setQueue([]);
+                setPausedQueueHeadId(null);
+                setOptimisticMessage(null);
+                cancelSession.mutate();
+              }}
+              disabled={cancelSession.isPending}
+              title="Stop agent"
+            >
+              <Square className="h-3.5 w-3.5" />
+            </Button>
+          )}
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="h-7 px-2 text-xs text-muted-foreground"
+            onClick={() => void handleNewSession()}
+            disabled={createNewSession.isPending || !hasProject}
+          >
+            New
+          </Button>
+        </div>
+      </div>
+      {/* Messages */}
+      <div ref={scrollContainerRef} onScroll={onScroll} className="flex-1 overflow-y-auto overscroll-contain px-4 py-3">
+        {draftSaveError && (
+          <div role="alert" className="mb-2 rounded-md border border-destructive/40 p-2 text-xs text-destructive">
+            <p>Draft or queued messages could not be saved: {draftSaveError}</p>
+            <div className="mt-1 flex gap-2">
+              <button type="button" className="underline" onClick={() => void overwriteSavedDraft()}>Keep local and overwrite saved draft</button>
+              <button type="button" className="underline" onClick={() => void restoreSavedDraft()}>Load saved draft</button>
+            </div>
+          </div>
+        )}
+        {activeSession.isLoading && (
+          <div className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Loading...
+          </div>
+        )}
+
+        {!activeSession.isLoading && renderedTurns.length === 0 && !isProcessing && !sendMessage.isPending && (
+          <div className="flex min-h-full flex-col items-center justify-center py-8 text-center text-sm text-muted-foreground">
             {sessions.isError ? (
               <>
                 <p>Local Astrid chat is unavailable.</p>
@@ -711,40 +833,46 @@ function AvailableAgentChatPanel({ isExpanded }: { isExpanded: boolean }) {
             )}
           </div>
         )}
-        headerActions={(
-          <>
-            {showKillSwitch && (
-              <Button
-                type="button"
-                size="icon"
-                variant="destructive"
-                className="h-7 w-7"
-                onClick={() => {
-                  setQueue([]);
-                  setPausedQueueHeadId(null);
-                  setOptimisticMessage(null);
-                  cancelSession.mutate();
-                }}
-                disabled={cancelSession.isPending}
-                title="Stop agent"
-              >
-                <Square className="h-3.5 w-3.5" />
-              </Button>
-            )}
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              className="h-7 px-2 text-xs text-muted-foreground"
-              onClick={() => void handleNewSession()}
-              disabled={createSession.isPending || !hasProject}
-            >
-              New
-            </Button>
-          </>
-        )}
-        footer={(
-          <>
+
+        <div ref={scrollContentRef} className="flex flex-col gap-2.5">
+          {renderedTurns.map((item) =>
+            item.kind === 'message' ? (
+              <AgentChatMessage
+                key={item.key}
+                turn={item.turn}
+                onAttachmentClick={handleAttachmentPreviewClick}
+              />
+            ) : (
+              <AgentChatToolGroup key={item.key} pairs={item.pairs} />
+            ),
+          )}
+
+          {optimisticMessage && !optimisticTurnAlreadyMaterialized && (
+            <div className="flex w-full justify-end">
+              <div className="max-w-[85%] rounded-2xl bg-primary px-4 py-2.5 text-sm leading-relaxed text-primary-foreground shadow-sm">
+                <div>{optimisticMessage.text}</div>
+                {optimisticMessage.attachments.length > 0 && (
+                  <AgentChatAttachmentStrip
+                    attachments={optimisticMessage.attachments}
+                    isUser
+                  />
+                )}
+              </div>
+            </div>
+          )}
+
+          {(isProcessing || sendMessage.isPending || optimisticMessage || hasQueuedMessages) && (
+            <div className="flex items-center gap-2 py-1 text-xs text-muted-foreground">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              Thinking...
+            </div>
+          )}
+        </div>
+
+      </div>
+
+      {/* Input bar */}
+      <div className="border-t border-border/70 px-3 py-3">
         {queue.length > 0 && (
           <div className="mb-2 flex flex-col gap-2">
             {queue.map((item, index) => (
@@ -930,9 +1058,7 @@ function AvailableAgentChatPanel({ isExpanded }: { isExpanded: boolean }) {
             </div>
           </div>
         </div>
-          </>
-        )}
-      />
+      </div>
 
       {attachmentLightboxMedia && (
         <MediaLightbox
@@ -942,6 +1068,6 @@ function AvailableAgentChatPanel({ isExpanded }: { isExpanded: boolean }) {
           features={{ showDownload: true, showTaskDetails: true }}
         />
       )}
-    </>
+    </div>
   );
 }

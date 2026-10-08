@@ -71,7 +71,7 @@ interface GalleryFilterStateResult {
 
   // Computed
   filters: {
-    mediaType: 'all' | 'image' | 'video';
+    mediaType: 'all' | 'image' | 'video' | 'audio';
     toolType?: string;
     shotId?: string;
     excludePositioned?: boolean;
@@ -91,7 +91,7 @@ const NO_SHOT_VIEW_KEY = '__no_shot_view__';
 export function useGalleryFilterState({
   shouldLoadData,
   onShotFilterApplied,
-}: UseGalleryFilterStateOptions, mediaType: 'all' | 'image' | 'video', toolType?: string): GalleryFilterStateResult {
+}: UseGalleryFilterStateOptions, mediaType: 'all' | 'image' | 'video' | 'audio', toolType?: string): GalleryFilterStateResult {
   const { shots: shotsData, allImagesCount, noShotImagesCount } = useShots();
   const { currentShotId } = useCurrentShot();
 

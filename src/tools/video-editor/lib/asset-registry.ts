@@ -43,6 +43,27 @@ export const getAssetImmediateSource = (entry: AssetEntryWithSource | null | und
   normalizeReference(entry?.src) ?? getAssetFileLocator(entry) ?? getAssetMediaId(entry)
 );
 
+/** Reuse preview URLs only for the same canonical asset identity. A managed
+ * replacement without a prepared URL must go through the async resolver. */
+export const getAssetSourceForLocalEdit = (
+  entry: AssetEntryWithSource,
+  previous?: AssetEntryWithSource,
+): string | undefined => {
+  const identity = getAssetResolutionToken(entry);
+  const previousSource = normalizeReference(previous?.src);
+  if (identity && identity === getAssetResolutionToken(previous)
+    && previousSource && previousSource !== getAssetMediaId(previous)) {
+    return previousSource;
+  }
+  const explicitSource = normalizeReference(entry.src);
+  if (explicitSource && explicitSource !== getAssetMediaId(entry)) return explicitSource;
+  const file = getAssetFileLocator(entry);
+  if (!getAssetMediaId(entry)) return file;
+  // A newly prepared asset may supply a browser URL. A replaced managed
+  // entry's old compatibility file must never override its new identity.
+  return !previous && file !== getAssetMediaId(entry) ? file : undefined;
+};
+
 /** Return a stable user-facing reference without ever rendering an undefined value. */
 export const getAssetDisplayReference = (
   entry: AssetEntryWithSource | null | undefined,

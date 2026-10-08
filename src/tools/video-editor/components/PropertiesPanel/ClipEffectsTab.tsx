@@ -77,7 +77,7 @@ export function ClipEffectsTab({
     );
   }
 
-  if (isSequenceClip && clipTypeResolution.status === 'available') {
+  if (isSequenceClip && clipTypeResolution.status !== 'unavailable') {
     return (
       <SequenceParamEditor
         clipType={clip.clipType}

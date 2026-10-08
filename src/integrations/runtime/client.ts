@@ -242,6 +242,16 @@ export class ReighRuntimeClient {
     return this.withSession(() => this.client.getProjectParentCompositionRevision(projectId, timelineId, revision));
   }
 
+  async listProjectParentCompositionRevisions(projectId: string, timelineId: string, cursor?: string, limit = 50): Promise<Page<Record<string, unknown>>> {
+    return this.withSession(() => this.client.listProjectParentCompositionRevisions(projectId, timelineId, cursor, limit));
+  }
+
+  async restoreProjectParentCompositionRevision(projectId: string, timelineId: string, revision: string, expectedHead: string | null, key?: string): Promise<MutationResult<Record<string, unknown>>> {
+    return this.withSession(() => this.client.restoreProjectParentCompositionRevision(
+      projectId, timelineId, revision, expectedHead, key ?? idempotencyKey(),
+    ));
+  }
+
   async getProjectShotRevision(projectId: string, shotId: string, revision: string): Promise<Record<string, unknown>> {
     return this.withSession(() => this.client.getProjectShotRevision(projectId, shotId, revision));
   }

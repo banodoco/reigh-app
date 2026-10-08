@@ -161,6 +161,42 @@ describe('moveTrackWithinKind', () => {
 });
 
 describe('useTimelineTrackManagement', () => {
+  it('keeps a canonical-shot track during direct removal and clear-unused operations', () => {
+    const tracks = [
+      makeTrack('V1', 'visual'),
+      makeTrack('picture', 'visual'),
+      makeTrack('V2', 'visual'),
+      makeTrack('A1', 'audio'),
+    ];
+    const resolvedConfig = { ...makeResolvedConfig(tracks), clips: [] };
+    const dataRef = { current: {
+      rows: tracks.map((track) => ({ id: track.id, actions: [] })),
+      tracks,
+      meta: {},
+      clipOrder: Object.fromEntries(tracks.map((track) => [track.id, []])),
+      config: resolvedConfig,
+      resolvedConfig,
+    } } as any;
+    const applyEdit = vi.fn();
+    const { result } = renderHook(() => useTimelineTrackManagement({
+      dataRef,
+      resolvedConfig,
+      selectedClipId: null,
+      setSelectedTrackId: vi.fn(),
+      applyEdit,
+      protectedTrackIds: new Set(['picture']),
+    }));
+
+    expect(result.current.unusedTrackCount).toBe(1);
+    act(() => result.current.handleRemoveTrack('picture'));
+    expect(applyEdit).not.toHaveBeenCalled();
+
+    act(() => result.current.handleClearUnusedTracks());
+    const [mutation] = applyEdit.mock.calls[0];
+    expect(mutation.resolvedConfig.tracks.map((track: TrackDefinition) => track.id)).toContain('picture');
+    expect(mutation.resolvedConfig.tracks.map((track: TrackDefinition) => track.id)).not.toContain('V2');
+  });
+
   it('reroutes moveClipToRow through a group move when the clip belongs to a pinned group', () => {
     const tracks = [
       makeTrack('V1', 'visual'),

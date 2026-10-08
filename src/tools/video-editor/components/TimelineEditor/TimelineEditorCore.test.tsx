@@ -12,6 +12,7 @@ import { EDIT_AREA_SELECTOR } from '@/tools/video-editor/lib/timeline-dom';
 import { computeTimelineExtent, maxClipEndSeconds } from '@/tools/video-editor/lib/timeline-scale';
 import type { CanonicalShotOccurrence } from '@/tools/video-editor/data/shotCompositionAdapter';
 import type { ShotGroup } from '@/tools/video-editor/hooks/useShotGroups';
+import type { TimelineInspectorTarget } from '@/tools/video-editor/lib/mobile-interaction-model';
 
 // ---------------------------------------------------------------------------
 // Mocks for hooks that require deep context chains
@@ -93,6 +94,7 @@ const defaultResolvedConfig = {
 function createOverlayTestStore(options: {
   resolvedConfig?: typeof defaultResolvedConfig & { app?: Record<string, unknown> };
   canonicalShotClip?: boolean;
+  inspectorTarget?: TimelineInspectorTarget;
 } = {}) {
   const store = createTimelineStore();
   const testData = options.canonicalShotClip
@@ -113,7 +115,7 @@ function createOverlayTestStore(options: {
       gestureOwner: 'none' as const,
       precisionEnabled: false,
       contextTarget: 'timeline' as const,
-      inspectorTarget: 'none' as const,
+      inspectorTarget: options.inspectorTarget ?? 'none' as const,
       interactionPolicy: {
         deviceClass: 'desktop' as const,
         inputModality: 'mouse' as const,
@@ -121,7 +123,7 @@ function createOverlayTestStore(options: {
         gestureOwner: 'none' as const,
         precisionEnabled: false,
         contextTarget: 'timeline' as const,
-        inspectorTarget: 'none' as const,
+        inspectorTarget: options.inspectorTarget ?? 'none' as const,
       },
       selectedClipId: null,
       selectedClipIds,
@@ -210,6 +212,7 @@ function createOverlayTestStore(options: {
 function renderWithStore(ui: React.ReactElement, options: {
   resolvedConfig?: typeof defaultResolvedConfig & { app?: Record<string, unknown> };
   canonicalShotClip?: boolean;
+  inspectorTarget?: TimelineInspectorTarget;
 } = {}) {
   const store = createOverlayTestStore(options);
   return {
@@ -240,6 +243,105 @@ describe('TimelineEditorCore', () => {
     it('tracks selectedTrackId from the data store', () => {
       const { container } = renderWithStore(<TimelineEditorCore />);
       expect(container.querySelector('.timeline-wrapper')).toBeInTheDocument();
+    });
+
+    it('propagates the selected occurrence identity to its canonical overlay label', () => {
+      const occurrence: CanonicalShotOccurrence = {
+        projectId: 'project-1',
+        occurrenceId: 'occurrence-opening',
+        parentDocumentId: 'timeline-1',
+        shotId: 'shot-opening',
+        revisionId: 'revision-opening',
+        ordinal: 0,
+        atMs: 0,
+        durationMs: 2_000,
+        stableDeepLink: '/shot/opening',
+        outputIdentity: 'output-opening',
+        trackId: 'V1',
+        revision: {},
+      };
+      const group: ShotGroup = {
+        shotId: occurrence.shotId,
+        shotName: 'Opening',
+        rowId: 'V1',
+        rowIndex: 0,
+        start: 0,
+        end: 2,
+        clipIds: [],
+        children: [],
+        color: '#a855f7',
+        poolGenerationIds: [],
+        variantIdsByGenerationId: {},
+        canonicalIdentity: occurrence,
+      };
+      const target = {
+        kind: 'shotOccurrence' as const,
+        occurrenceId: occurrence.occurrenceId,
+        shotId: occurrence.shotId,
+        revisionId: occurrence.revisionId,
+        parentDocumentId: occurrence.parentDocumentId,
+        shotName: 'Opening',
+        trackId: 'V1',
+        start: 0,
+        end: 2,
+      };
+      const { getByTitle } = renderWithStore(
+        <TimelineEditorCore shotGroups={[group]} />,
+        { inspectorTarget: target },
+      );
+
+      const label = getByTitle('Opening');
+      expect(label.getAttribute('aria-pressed')).toBe('true');
+      expect(label.className).toContain('opacity-100');
+    });
+
+    it('wires canonical label clicks to Core selection ops with occurrence identity', () => {
+      const occurrence: CanonicalShotOccurrence = {
+        projectId: 'project-1',
+        occurrenceId: 'occurrence-opening',
+        parentDocumentId: 'timeline-1',
+        shotId: 'shot-opening',
+        revisionId: 'revision-opening',
+        ordinal: 0,
+        atMs: 0,
+        durationMs: 2_000,
+        stableDeepLink: '/shot/opening',
+        outputIdentity: 'output-opening',
+        trackId: 'V1',
+        revision: {},
+      };
+      const group: ShotGroup = {
+        shotId: occurrence.shotId,
+        shotName: 'Opening',
+        rowId: 'V1',
+        rowIndex: 0,
+        start: 0,
+        end: 2,
+        clipIds: ['occurrence-opening:child'],
+        children: [{ clipId: 'occurrence-opening:child', offset: 0, duration: 2 }],
+        color: '#a855f7',
+        poolGenerationIds: [],
+        variantIdsByGenerationId: {},
+        canonicalIdentity: occurrence,
+      };
+      const { getByTitle, store } = renderWithStore(<TimelineEditorCore shotGroups={[group]} />);
+
+      fireEvent.click(getByTitle('Opening'));
+
+      expect(store.getState().ops.clearSelection).toHaveBeenCalledTimes(1);
+      expect(store.getState().ops.setSelectedTrackId).toHaveBeenCalledWith('V1');
+      expect(store.getState().ops.setInspectorTarget).toHaveBeenCalledWith({
+        kind: 'shotOccurrence',
+        occurrenceId: 'occurrence-opening',
+        shotId: 'shot-opening',
+        revisionId: 'revision-opening',
+        parentDocumentId: 'timeline-1',
+        shotName: 'Opening',
+        trackId: 'V1',
+        start: 0,
+        end: 2,
+      });
+      expect(store.getState().ops.selectClips).not.toHaveBeenCalled();
     });
 
     it('selects the postprocess shader inspector target from the timeline badge', () => {

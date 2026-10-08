@@ -44,6 +44,7 @@ export type TimelineInteractionTargetKind =
   | 'overlay'
   | 'dataLane'
   | 'dataItem'
+  | 'shotOccurrence'
   | 'shell';
 
 export interface TimelineInteractionTarget {
@@ -57,6 +58,13 @@ export interface TimelineInteractionTarget {
   laneId?: string | null;
   itemId?: string | null;
   contributionId?: string | null;
+  occurrenceId?: string | null;
+  shotId?: string | null;
+  revisionId?: string | null;
+  parentDocumentId?: string | null;
+  shotName?: string | null;
+  start?: number;
+  end?: number;
 }
 
 export type TimelineContextTarget = TimelineInteractionTarget | null;

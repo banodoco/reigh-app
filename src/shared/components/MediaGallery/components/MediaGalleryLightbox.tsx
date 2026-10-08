@@ -10,6 +10,7 @@ import type { TaskDetailsData } from '@/shared/lib/taskDetails/taskDetailsContra
 import type { MediaGalleryLightboxMedia } from '../utils/lightboxMedia';
 import { useLocalMediaUrl } from '@/shared/media/localMediaResolver';
 import { LocalMediaPermissionOverlay } from '@/features/gallery/components/GenerationsPane/components/LocalMediaPermissionOverlay';
+import { isAudioMedia, isVideoMedia } from '@/shared/lib/media/mediaTypeFilters';
 
 export interface MediaGalleryLightboxSession {
   activeLightboxMedia: GeneratedImageWithMetadata | null;
@@ -209,7 +210,7 @@ export const MediaGalleryLightbox: React.FC<MediaGalleryLightboxProps> = ({
           customOverlay={localMediaOverlay}
           features={{
             showTaskDetails: true,
-            showImageEditTools: !((activeLightboxMedia?.type || '').includes('video')),
+            showImageEditTools: !isVideoMedia(activeLightboxMedia ?? effectiveLightboxMedia) && !isAudioMedia(effectiveLightboxMedia),
             showDownload: true,
             showMagicEdit: false,
             initialEditActive: effectiveAutoEnterEditMode,

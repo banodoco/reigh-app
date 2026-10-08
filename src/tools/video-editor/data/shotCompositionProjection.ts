@@ -162,12 +162,19 @@ function childTimeline(occurrence: CanonicalShotOccurrence): JsonObject {
 function assetRegistryFor(
   composition: PreparedShotComposition,
   baseConfig?: ResolvedTimelineConfig | null,
-  occurrenceScopedAssets: ReadonlySet<string> = new Set(),
-): Record<string, ResolvedAssetRegistryEntry> {
+): { registry: Record<string, ResolvedAssetRegistryEntry>; assetAliases: Map<string, string> } {
   const registry: Record<string, ResolvedAssetRegistryEntry> = {
     ...(baseConfig?.registry ?? {}),
   };
   const canonicalObjectIds = new Map<string, string>();
+  const assetAliases = new Map<string, string>();
+  const selectedAssets: Array<{ occurrenceId: string; assetId: string; asset: JsonObject; objectId: string }> = [];
+  const selectedObjectIds = new Map<string, Set<string>>();
+  for (const clip of baseConfig?.clips ?? []) {
+    if (clip.clipType === 'shot' || !clip.asset) continue;
+    const objectId = text(registry[clip.asset]?.media_id) ?? text(registry[clip.asset]?.file);
+    if (objectId) selectedObjectIds.set(clip.asset, new Set([objectId]));
+  }
 
   const mergeAsset = (assetId: string, rawAsset: JsonObject, objectId: string, canonical: boolean): void => {
     if (canonical) {
@@ -214,45 +221,40 @@ function assetRegistryFor(
   };
 
   for (const occurrence of composition.occurrences) {
-    const playbackAssets = occurrence.revision.runtime_playback_assets;
-    const assets = Array.isArray(playbackAssets)
-      ? playbackAssets
-      : Array.isArray(occurrence.revision.assets) ? occurrence.revision.assets : [];
+    const timeline = childTimeline(occurrence);
+    const selectedAssetIds = new Set(
+      (Array.isArray(timeline.clips) ? timeline.clips : []).flatMap((rawClip) => {
+        const clip = record(rawClip);
+        const assetId = text(clip?.asset_id) ?? text(clip?.asset);
+        return assetId ? [assetId] : [];
+      }),
+    );
+    const assets = Array.isArray(occurrence.revision.assets) ? occurrence.revision.assets : [];
     for (const rawAsset of assets) {
       const asset = record(rawAsset);
       if (!asset) continue;
       const assetId = text(asset.asset_id);
       const objectId = text(asset.object_id);
       if (!assetId || !objectId) continue;
-      const registryKey = occurrenceScopedAssets.has(assetId)
-        ? `${occurrence.occurrenceId}:${assetId}`
-        : assetId;
-      mergeAsset(registryKey, asset, objectId, true);
+      // Inherited alternatives are revision-scoped metadata. They must not
+      // collide with another shot's selected binding in the playback registry.
+      if (!selectedAssetIds.has(assetId)) continue;
+      selectedAssets.push({ occurrenceId: occurrence.occurrenceId, assetId, asset, objectId });
+      const objectIds = selectedObjectIds.get(assetId) ?? new Set<string>();
+      objectIds.add(objectId);
+      selectedObjectIds.set(assetId, objectIds);
     }
   }
-  return registry;
-}
-
-function occurrenceScopedAssetIds(composition: PreparedShotComposition): ReadonlySet<string> {
-  const objectsByAlias = new Map<string, Set<string>>();
-  for (const occurrence of composition.occurrences) {
-    const playbackAssets = occurrence.revision.runtime_playback_assets;
-    const assets = Array.isArray(playbackAssets)
-      ? playbackAssets
-      : Array.isArray(occurrence.revision.assets) ? occurrence.revision.assets : [];
-    for (const rawAsset of assets) {
-      const asset = record(rawAsset);
-      const assetId = text(asset?.asset_id);
-      const objectId = text(asset?.object_id);
-      if (!assetId || !objectId) continue;
-      const objects = objectsByAlias.get(assetId) ?? new Set<string>();
-      objects.add(objectId);
-      objectsByAlias.set(assetId, objects);
-    }
+  for (const { occurrenceId, assetId, asset, objectId } of selectedAssets) {
+    // Asset keys belong to an immutable child revision. Different shots can
+    // legitimately select different objects under the same authored key.
+    const projectedAssetId = selectedObjectIds.get(assetId)!.size > 1
+      ? `canonical:${encodeURIComponent(occurrenceId)}:${encodeURIComponent(assetId)}`
+      : assetId;
+    assetAliases.set(`${occurrenceId}\u0000${assetId}`, projectedAssetId);
+    mergeAsset(projectedAssetId, asset, objectId, true);
   }
-  return new Set([...objectsByAlias].flatMap(([assetId, objects]) => (
-    objects.size > 1 ? [assetId] : []
-  )));
+  return { registry, assetAliases };
 }
 
 function tracksFor(
@@ -294,7 +296,6 @@ function projectClip(
   clipIndex: number,
   clipIdentities: Map<string, CanonicalClipIdentity>,
   clampToOccurrenceDuration: boolean,
-  occurrenceScopedAssets: ReadonlySet<string>,
 ): TimelineClip | null {
   assertSupportedChildClip(rawClip, occurrence);
   const identity = identityForOccurrence(occurrence);
@@ -331,10 +332,7 @@ function projectClip(
   const muted = rawClip.muted === true || rawClip.mute === true || occurrence.muted === true;
   const track = text(rawClip.track) ?? occurrence.trackId ?? 'video';
   const clipType = text(rawClip.clip_type) ?? text(rawClip.clipType) ?? 'media';
-  const selectedAsset = text(rawClip.asset_id) ?? text(rawClip.asset);
-  const asset = selectedAsset && occurrenceScopedAssets.has(selectedAsset)
-    ? `${occurrence.occurrenceId}:${selectedAsset}`
-    : selectedAsset;
+  const asset = text(rawClip.asset_id) ?? text(rawClip.asset);
   const params = record(rawClip.params);
   const numberField = (key: string): number | undefined => optionalFiniteNumber(rawClip[key]);
   const preservedGeometry = Object.fromEntries(
@@ -414,7 +412,6 @@ export function projectCanonicalComposition(
   const clips: TimelineClip[] = [];
   const clipIdentities = new Map<string, CanonicalClipIdentity>();
   const occurrenceIdentities = new Map<string, CanonicalClipIdentity>();
-  const scopedAssetIds = occurrenceScopedAssetIds(composition);
 
   for (const occurrence of composition.occurrences) {
     const identity = identityForOccurrence(occurrence);
@@ -444,7 +441,6 @@ export function projectCanonicalComposition(
           index,
           clipIdentities,
           options.clampToOccurrenceDuration !== false,
-          scopedAssetIds,
         );
         if (projected) clips.push(projected);
       }
@@ -461,17 +457,20 @@ export function projectCanonicalComposition(
   // Legacy parent shot clips are replaced by the immutable child projection;
   // every other parent clip remains part of the rendered/editor timeline.
   const parentClips = (baseConfig?.clips ?? []).filter((clip) => clip.clipType !== 'shot');
-  const registry = assetRegistryFor(composition, baseConfig, scopedAssetIds);
+  const { registry, assetAliases } = assetRegistryFor(composition, baseConfig);
   // `baseConfig` is already resolved, but projected child clips are created
   // from the persisted canonical graph after that resolution step. Attach the
   // corresponding resolved registry entry here so the renderer can consume
   // the projection directly. Without this, the asset exists in `registry`
   // while `VisualClip` still sees an assetless clip and renders its loud
   // missing-asset placeholder.
-  const projectedClips = [...parentClips, ...clips].map((clip) => ({
-    ...clip,
-    assetEntry: clip.asset ? registry[clip.asset] : undefined,
-  }));
+  const projectedClips = [...parentClips, ...clips].map((clip) => {
+    const occurrenceId = clipIdentities.get(clip.id)?.occurrenceId;
+    const asset = clip.asset && occurrenceId
+      ? assetAliases.get(`${occurrenceId}\u0000${clip.asset}`) ?? clip.asset
+      : clip.asset;
+    return { ...clip, ...(asset ? { asset } : {}), assetEntry: asset ? registry[asset] : undefined };
+  });
   const output = baseConfig?.output ?? { resolution: '1920x1080', fps: 30, file: `timeline-${composition.parentDocumentId}.mp4` };
   const baseApp = record(baseConfig?.app) ?? {};
   const config: ResolvedTimelineConfig = {

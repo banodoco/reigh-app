@@ -13,6 +13,8 @@ import type {
 } from './types';
 import { ImageLightbox } from './ImageLightbox';
 import { VideoLightbox } from './VideoLightbox';
+import { AudioLightbox } from './AudioLightbox';
+import { isAudioMedia } from '@/shared/lib/media/mediaTypeFilters';
 
 interface MediaLightboxCoreProps {
   media?: GenerationRow;
@@ -99,6 +101,10 @@ export const MediaLightbox: React.FC<MediaLightboxProps> = (props) => {
 
   if (!media) {
     return null;
+  }
+
+  if (isAudioMedia(media)) {
+    return <AudioLightbox media={media} onClose={props.onClose} navigation={navigation} features={features} customOverlay={props.customOverlay} />;
   }
 
   if (isVideoAny(media)) {

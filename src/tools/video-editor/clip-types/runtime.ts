@@ -1,4 +1,5 @@
 import { type BuiltinClipType } from '@/sdk/video/timeline/clipTypes.ts';
+import { ASTRID_EFFECT_CATALOG } from '@/tools/video-editor/runtime/astrid-element-catalog.ts';
 import { type ResolvedTimelineClip, type TimelineClip, type TrackDefinition } from '@/tools/video-editor/types/index.ts';
 import {
   defineClipType,
@@ -7,6 +8,7 @@ import {
   type ClipTypeCommandConstraintValue,
   type ClipTypeCommandMetadata,
   type ClipTypeDescriptor,
+  type ClipTypeSequenceParamDefinition,
   type ClipTypeRenderCapabilities,
 } from './defineClipType.ts';
 import {
@@ -33,8 +35,15 @@ type SequenceTrustedRegistration = TrustedClipTypeRegistration & {
   source: 'sequence';
 };
 
+type AstridEffectRegistration = {
+  id: string;
+  source: 'astrid-effect';
+  descriptor: ClipTypeDescriptor;
+};
+
 export type AvailableRegisteredClipTypeRegistration =
   | BuiltinClipTypeRegistration
+  | AstridEffectRegistration
   | SequenceAvailableRegistration;
 
 export type TrustedRegisteredClipTypeRegistration =
@@ -467,6 +476,58 @@ const getBuiltinClipTypeRegistration = (
   return BUILTIN_CLIP_TYPE_REGISTRATION_MAP.get(clipType as BuiltinClipType);
 };
 
+const astridEffectDescriptor = (clipType: string): ClipTypeDescriptor | undefined => {
+  const element = ASTRID_EFFECT_CATALOG.find((entry) => entry.id === clipType);
+  if (!element) return undefined;
+  const properties = element.schema.properties;
+  const requiredProperties = Array.isArray(element.schema.required)
+    ? new Set(element.schema.required.filter((value): value is string => typeof value === 'string'))
+    : new Set<string>();
+  const definitions: ClipTypeSequenceParamDefinition[] = properties && typeof properties === 'object'
+    ? Object.entries(properties as Record<string, unknown>).map(([key, rawSchema]) => {
+      const schema = rawSchema && typeof rawSchema === 'object' ? rawSchema as Record<string, unknown> : {};
+      const catalogParam = element.parameterSchema.find((parameter) => parameter.name === key);
+      // JSON controls preserve number/boolean/structured types instead of
+      // silently coercing catalog values into strings.
+      const isStructured = schema.type !== 'string';
+      const options = Array.isArray(schema.enum)
+        ? schema.enum.filter((option): option is string => typeof option === 'string')
+        : catalogParam?.options?.map((option) => option.value);
+      const defaultValue = element.defaults[key];
+      return {
+        key,
+        label: catalogParam?.label ?? key.replace(/([A-Z])/g, ' $1').replace(/^./, (letter) => letter.toUpperCase()),
+        kind: isStructured ? 'json' : 'string',
+        required: requiredProperties.has(key),
+        description: typeof schema.description === 'string'
+          ? schema.description
+          : catalogParam?.description ?? '',
+        ...(typeof defaultValue === 'string' || typeof defaultValue === 'number'
+          || typeof defaultValue === 'boolean' || Array.isArray(defaultValue)
+          || (defaultValue && typeof defaultValue === 'object')
+          ? { defaultValue: defaultValue as import('./defineClipType.ts').JsonValue }
+          : {}),
+        ...(options && options.length > 0 ? { options } : {}),
+        ...(isStructured ? { jsonSchema: schema } : {}),
+      } satisfies ClipTypeSequenceParamDefinition;
+    })
+    : [];
+  return defineClipType({
+    id: element.id,
+    label: element.name,
+    description: element.description,
+    hold: { kind: 'required', defaultSeconds: 5, minSeconds: 0.05, maxSeconds: 120, stepSeconds: 0.1 },
+    paramsSchema: { kind: 'sequence', params: definitions },
+    defaults: { params: element.defaults as import('./defineClipType.ts').JsonValue },
+    commands: HOLD_ONLY_COMMANDS,
+    renderCapabilities: {
+      previewRoute: 'custom',
+      exportRoute: 'custom',
+      features: ['visual', 'hold-duration'],
+    },
+  });
+};
+
 export const getBuiltinClipTypeDescriptor = (
   clipType: string,
 ): ClipTypeDescriptor | undefined => {
@@ -487,7 +548,8 @@ export const getRegisteredClipTypeDescriptor = (
     ?? getTrustedClipTypeDescriptor(clipType)
     ?? (extensionRecords
       ? getExtensionClipTypeDescriptor(clipType, extensionRecords)
-      : undefined);
+      : undefined)
+    ?? astridEffectDescriptor(clipType);
 };
 
 // ---------------------------------------------------------------------------
@@ -626,6 +688,10 @@ export const createEditorClipTypeRegistry = (
         return sequenceRegistration
           ? { ...sequenceRegistration, source: 'sequence' as const }
           : undefined;
+      })()
+      ?? (() => {
+        const descriptor = astridEffectDescriptor(clipType);
+        return descriptor ? { id: clipType, source: 'astrid-effect' as const, descriptor } : undefined;
       })();
   };
 
@@ -686,6 +752,14 @@ export const createEditorClipTypeRegistry = (
       };
     }
 
+    const astridDescriptor = astridEffectDescriptor(clipType);
+    if (astridDescriptor) {
+      return {
+        status: 'available',
+        registration: { id: clipType, source: 'astrid-effect', descriptor: astridDescriptor },
+      };
+    }
+
     // Extension records (not built-in, not trusted)
     if (matchingExtensions && matchingExtensions.length > 0) {
       // Extension clip types don't have a ClipTypeDescriptor in the traditional sense,
@@ -699,15 +773,18 @@ export const createEditorClipTypeRegistry = (
 
   return {
     clipTypes: [
-      ...BUILTIN_CLIP_TYPE_REGISTRATIONS.map((registration) => registration.id),
-      ...availableSequenceView.clipTypes,
-    ] as const,
+      ...new Set([
+        ...BUILTIN_CLIP_TYPE_REGISTRATIONS.map((registration) => registration.id),
+        ...availableSequenceView.clipTypes,
+        ...ASTRID_EFFECT_CATALOG.map((element) => element.id),
+      ])],
     getAvailableRegistration,
     getDescriptor: (clipType: string | undefined): ClipTypeDescriptor | undefined => {
       if (!clipType) {
         return getBuiltinClipTypeDescriptor('media');
       }
-      return getAvailableRegistration(clipType)?.descriptor ?? getRegisteredClipTypeDescriptor(clipType);
+      return getAvailableRegistration(clipType)?.descriptor ?? astridEffectDescriptor(clipType)
+        ?? getRegisteredClipTypeDescriptor(clipType);
     },
     resolveRegistration,
   };

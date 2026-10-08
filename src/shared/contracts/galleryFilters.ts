@@ -1,5 +1,5 @@
 export interface GalleryFilterState {
-  mediaType: 'all' | 'image' | 'video';
+  mediaType: 'all' | 'image' | 'video' | 'audio';
   shotFilter: string;
   excludePositioned: boolean;
   searchTerm: string;

@@ -57,6 +57,7 @@ export function useTimelineSave(
     lastSavedSignatureRef,
     editability: timelineEditability,
     initialData,
+    resolveAssetUrl,
   });
   const persistence = useTimelinePersistence({
     store,
