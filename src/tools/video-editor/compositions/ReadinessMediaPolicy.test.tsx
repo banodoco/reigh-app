@@ -1,6 +1,6 @@
 import React, {useEffect} from 'react';
 import {act, cleanup, fireEvent, render, screen} from '@testing-library/react';
-import {afterEach, describe, expect, it, vi} from 'vitest';
+import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import {ReadinessImage} from '@astrid/packs/rendering/elements/_shared/readiness-image';
 import {ReadinessVideo} from './ReadinessVideo.tsx';
 
@@ -16,7 +16,8 @@ vi.mock('@remotion/media', () => ({Video: (props: any) => {
   if (state.throwVideo) throw new Error('Video decoder failed');
   return <div data-testid="native-video"><button onClick={() => props.fallbackOffthreadVideoProps?.onError?.(new Error('404'))}>Fail native fallback</button></div>;
 }}));
-afterEach(() => {cleanup(); state.environment = {isRendering: false, isClientSideRendering: false}; state.throwVideo = false; vi.clearAllMocks();});
+beforeEach(() => {vi.useFakeTimers();});
+afterEach(() => {cleanup(); state.environment = {isRendering: false, isClientSideRendering: false}; state.throwVideo = false; vi.clearAllMocks(); vi.useRealTimers();});
 
 describe('owned media preview and export policy', () => {
   it('reports readiness only after a decoded frame, resets it on source change, and forwards the callback', () => {
@@ -32,6 +33,7 @@ describe('owned media preview and export policy', () => {
     fireEvent.click(screen.getByText('Fail native fallback'));
     expect(view.container.querySelector('[data-preview-decoded-frame="true"]')).toBeNull();
   });
+
   it.each(['isRendering', 'isClientSideRendering'] as const)('retains strict native image/video errors during %s', (environmentKey) => {
     state.environment[environmentKey] = true;
     render(<><ReadinessImage src="/still.png" mediaId="still" /><ReadinessVideo clipId="video" src="/movie.mp4" /></>);
@@ -45,11 +47,13 @@ describe('owned media preview and export policy', () => {
 
   it('distinguishes a failed image from loading and resets failure for a changed source', () => {
     const view = render(<ReadinessImage src="/still.png" mediaId="still" />);
+    act(() => {vi.advanceTimersByTime(150);});
     expect(screen.getByTestId('preview-media-loading')).toHaveAttribute('data-clip-id', 'still');
     fireEvent.error(screen.getByAltText('owned still'));
     expect(screen.queryByTestId('preview-media-loading')).toBeNull();
     expect(screen.getByTestId('preview-media-error')).toHaveTextContent('Image failed to load');
     view.rerender(<ReadinessImage src="/replacement.png" mediaId="still" />);
+    act(() => {vi.advanceTimersByTime(150);});
     expect(screen.queryByTestId('preview-media-error')).toBeNull();
     expect(screen.getByTestId('preview-media-loading')).toHaveAttribute('data-media-src', '/replacement.png');
     expect(screen.getByAltText('owned still')).toHaveAttribute('src', '/replacement.png');

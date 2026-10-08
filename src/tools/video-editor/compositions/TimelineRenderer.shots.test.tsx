@@ -252,6 +252,8 @@ describe('ShotClipSequence referenced-timeline cache', () => {
     expect(() => renderShot(provider, 'missing-host-child', { contextHost: null })).toThrow(
       'TimelineRenderer requires an explicit AstridElementHost',
     );
+    mockSequenceState.frame = 0;
+    mockSequenceState.windowing = false;
   });
 
   it('deduplicates repeated sequential mounts: one load, second mount synchronous', async () => {
