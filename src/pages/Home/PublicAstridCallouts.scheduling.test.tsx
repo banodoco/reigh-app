@@ -99,8 +99,8 @@ describe('bounded stage passes', () => {
     expect(cards.map(card => card.dataset.callout)).toEqual(order);
     const milliseconds = (element: HTMLElement | SVGElement, name: string) => parseFloat(element.style.getPropertyValue(`--astrid-${name}`));
     // Keep the narrative legible without returning to the previous five-second entrance.
-    expect(milliseconds(cards[0], 'callout-start')).toBe(600);
-    expect(milliseconds(cards[2], 'endpoint-start') + milliseconds(cards[2], 'endpoint-duration')).toBe(2620);
+    expect(milliseconds(cards[0], 'callout-start')).toBe(450);
+    expect(milliseconds(cards[2], 'endpoint-start') + milliseconds(cards[2], 'endpoint-duration')).toBe(2470);
     for (const [index, card] of cards.entries()) {
       const group = view.container.querySelector<SVGElement>(`g:has(path[data-callout="${card.dataset.callout}"])`)!;
       expect(group.getAttribute('style')).toBe(card.getAttribute('style'));

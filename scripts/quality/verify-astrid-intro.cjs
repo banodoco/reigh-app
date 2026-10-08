@@ -32,7 +32,7 @@ fs.mkdirSync(out, {recursive:true});
               const c=getComputedStyle(e),id=e.dataset.callout;
               const path=stage.querySelector(`path[data-callout="${id}"]`);
               const dot=stage.querySelector(`.astrid-callout-dot-end[data-callout="${id}"]`);
-              return {id,opacity:+c.opacity,translate:c.translate,scale:c.scale,line:parseFloat(getComputedStyle(path).strokeDashoffset),dot:+getComputedStyle(dot).opacity};
+              return {id,opacity:+c.opacity,translate:c.translate,scale:c.scale,delay:parseFloat(c.animationDelay)*1000,line:parseFloat(getComputedStyle(path).strokeDashoffset),dot:+getComputedStyle(dot).opacity};
             }),
             items:['.astrid-editor-stage','.astrid-player-surface','.astrid-chat-surface','.astrid-callout'].map(s=>{
               const e=stage.querySelector(s) || (stage.matches(s)?stage:null); if(!e)return null;
@@ -77,7 +77,10 @@ fs.mkdirSync(out, {recursive:true});
         assert(settling.filter(c=>c.opacity>0.1 && c.opacity<0.98 && parseFloat(c.scale)<1 && c.translate!=='none').length>=3, 'Card popped in instead of visibly fading, translating and scaling');
         assert(new Set(settling.map(c=>c.translate)).size>=3,'Missing progressive card movement');
       }
-      assert(calls.at(-1).t+100-visible[0].t<2720,'Callout sequence exceeded its 2.62-second arrival budget');
+      assert.equal(visible.find(f=>f.cards.length)?.cards[0].delay,450,'First card CSS delay changed');
+      // Animation events can arrive a few frames late during cold-load/screenshot work.
+      assert(Math.abs(calls[0].t-visible[0].t-450)<100,'First card missed its 450ms arrival');
+      assert(calls.at(-1).t+100-visible[0].t<2570,'Callout sequence exceeded its 2.47-second arrival budget');
       assert(media.some(m=>m.url.endsWith('/astrid/light-study/first-light.mp4') && [200,206].includes(m.status)));
       // App intentionally uses the launcher instead of the hidden chat window.
       for(const idx of audience==='app' ? [1] : [1,2]) {

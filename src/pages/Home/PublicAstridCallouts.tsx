@@ -169,7 +169,7 @@ function calloutTiming(index: number): CSSProperties {
   const card = 360;
   const connector = 200;
   const endpoint = 100;
-  const start = 600 + index * (card + connector + endpoint + 20);
+  const start = 450 + index * (card + connector + endpoint + 20);
   return {
     '--astrid-callout-index': index,
     '--astrid-callout-start': `${start}ms`,
