@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties, type Dispatch, type SetStateAction } from 'react';
-import { PUBLIC_ASTRID_SKY_PIXEL, renderPublicAstridSky, skyState, sunTimes } from '@/pages/Home/publicAstridSkyRender';
+import { PUBLIC_ASTRID_SKY_PIXEL, renderPublicAstridSky, skyLevelBounds, skyState, sunTimes } from '@/pages/Home/publicAstridSkyRender';
 import { visitorLocation } from '@/pages/Home/publicAstridLocation';
 import { todayAtHour, useAppTheme } from '@/shared/hooks/core/useAppTheme';
 import { usePersistentState } from '@/shared/hooks/usePersistentState';
@@ -188,13 +188,13 @@ export function TimeOfDaySky({
 }
 
 /** A 24-hour clock, midnight to midnight: 8am a third of the way along, noon in the middle. */
-export function TimeOfDaySlider({ hours, onChange, label = 'Time of day' }: { hours: number; onChange: (hours: number) => void; label?: string }) {
+export function TimeOfDaySlider({ hours, onChange, label = 'Time of day', min = 0, max = 24 }: { hours: number; onChange: (hours: number) => void; label?: string; min?: number; max?: number }) {
   return (
     <div className="space-y-1">
       <input
         type="range"
-        min={0}
-        max={24}
+        min={min}
+        max={max}
         step={0.25}
         value={hours}
         onChange={(event) => onChange(Number(event.target.value))}
@@ -206,6 +206,18 @@ export function TimeOfDaySlider({ hours, onChange, label = 'Time of day' }: { ho
   );
 }
 
+function todaySkyLevelBounds(now = new Date()): { firstLight: number; fullDark: number } {
+  const date = todayAtHour(0, now);
+  const times = sunTimes(date, visitorLocation(date));
+  const bounds = skyLevelBounds(times);
+  // Keep the range usable at the edges of the clock, including high-latitude days.
+  if (times.sunrise === times.sunset) return { firstLight: 0, fullDark: 24 };
+  return {
+    firstLight: Math.max(0, Math.min(24, bounds.firstLight)),
+    fullDark: Math.max(0, Math.min(24, bounds.fullDark)),
+  };
+}
+
 /**
  * The brightness picker as used in onboarding and settings: follow the time of day where the person is
  * (the default; the clock shows the time now and moves with it), or choose a time and keep the app as
@@ -214,9 +226,16 @@ export function TimeOfDaySlider({ hours, onChange, label = 'Time of day' }: { ho
 export function TimeOfDayControl({ compact = false }: { compact?: boolean }) {
   const { hours, setHours, followsSky, followSky } = useTimeOfDayTheme();
   const visibility = useSkyPreviewVisibility();
+  const levelBounds = todaySkyLevelBounds();
+  const fixedHours = Math.max(levelBounds.firstLight, Math.min(levelBounds.fullDark, hours));
+  const displayedHours = followsSky ? hours : fixedHours;
+  const chooseFixedLevel = () => setHours(fixedHours);
+  useEffect(() => {
+    if (!followsSky && hours !== fixedHours) setHours(fixedHours);
+  }, [fixedHours, followsSky, hours, setHours]);
   const options = [
     { follows: true, title: 'Follow the time of day', note: 'Light by day, dark by night, like the sky where you are.', choose: followSky },
-    { follows: false, title: 'Choose a level', note: 'Pick a time on the clock, and keep it as bright as the sky is then.', choose: () => setHours(hours) },
+    { follows: false, title: 'Choose a level', note: 'Choose from first light through full dark.', choose: chooseFixedLevel },
   ];
   return (
     <div className="grid gap-4 sm:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] sm:items-center">
@@ -252,9 +271,15 @@ export function TimeOfDayControl({ compact = false }: { compact?: boolean }) {
         </div>
       </div>
       <div className="min-w-0 space-y-2">
-        <TimeOfDaySky hours={hours} visibility={visibility} className={compact ? 'h-24 sm:h-28' : 'h-36'} />
-        <span className="block text-xs tabular-nums text-muted-foreground">{formatClockTime(hours)}</span>
-        <TimeOfDaySlider hours={hours} onChange={setHours} label={followsSky ? 'Time of day (now, where you are)' : 'Time of day'} />
+        <TimeOfDaySky hours={displayedHours} visibility={visibility} className={compact ? 'h-24 sm:h-28' : 'h-36'} />
+        <span className="block text-xs tabular-nums text-muted-foreground">{formatClockTime(displayedHours)}</span>
+        <TimeOfDaySlider
+          hours={displayedHours}
+          onChange={setHours}
+          min={followsSky ? 0 : levelBounds.firstLight}
+          max={followsSky ? 24 : levelBounds.fullDark}
+          label={followsSky ? 'Time of day (now, where you are)' : 'Brightness level from first light to full dark'}
+        />
       </div>
     </div>
   );

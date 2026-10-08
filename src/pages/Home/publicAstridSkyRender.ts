@@ -348,6 +348,14 @@ const DARK_AFTER_SUNSET_HOURS = 1.9;
 /** Stars start to show this long after sunset, once the sky has dimmed enough. */
 const STARS_FIRST_SHOW_HOURS = 0.33;
 
+/** The useful fixed-level range: from first light until the sky is fully dark. */
+export function skyLevelBounds({ sunrise, sunset }: PublicAstridSunTimes): { firstLight: number; fullDark: number } {
+  return {
+    firstLight: sunrise - DIMMING_BEFORE_SUNSET_HOURS,
+    fullDark: sunset + DARK_AFTER_SUNSET_HOURS,
+  };
+}
+
 export function skyState(hours: number, { sunrise, sunset, peak = 1 }: PublicAstridSunTimes): PublicAstridSkyState {
   const day = hours > sunrise && hours < sunset;
   const stars = day ? 0 : clamp01((wrapHours(hours - sunset) - STARS_FIRST_SHOW_HOURS) / STARS_FADE_IN_HOURS) * clamp01(wrapHours(sunrise - hours) / STARS_FADE_OUT_HOURS);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { blendHslToken, DUSK_SWITCH, moonPhase, moonPhaseName, pageDusk, pagePaperFor, renderPublicAstridSky, skyState, themeForDarkness } from './publicAstridSkyRender';
+import { blendHslToken, DUSK_SWITCH, moonPhase, moonPhaseName, pageDusk, pagePaperFor, renderPublicAstridSky, skyLevelBounds, skyState, themeForDarkness } from './publicAstridSkyRender';
 
 const OCTOBER = { sunrise: 7.25, sunset: 19 };
 
@@ -22,6 +22,10 @@ describe('public Astrid sky', () => {
     expect(skyState(23.5, OCTOBER)).toMatchObject({ body: 'moon', rising: true });
     expect(skyState(3, OCTOBER)).toMatchObject({ body: 'moon', rising: false });
     expect(skyState(6.8, OCTOBER).body).toBe('none');
+  });
+
+  it('derives the fixed brightness range from first light to full dark', () => {
+    expect(skyLevelBounds(OCTOBER)).toEqual({ firstLight: 6.5, fullDark: 20.9 });
   });
 
   it('fades stars in through dusk and out before sunrise, and turns clouds to night silhouettes', () => {
