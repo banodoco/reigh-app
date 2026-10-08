@@ -52,7 +52,7 @@ function runtimeResponses(options: {
     project_id: PROJECT_ID,
     timeline_id: TIMELINE_ID,
     content_digest: graph.primary_timeline.head.content_digest,
-    payload: { config: {}, registry: {}, clips: [], occurrences },
+    payload: { config: graph.parent_composition?.config ?? {}, registry: {}, clips: [], occurrences },
     created_at: '2026-09-19T00:00:00Z',
   };
   const shots = new Map<string, Record<string, any>>();
@@ -276,7 +276,9 @@ describe('Runtime shot-composition port', () => {
     expect(publishRequests[1]?.body).toEqual(firstPublish.body);
 
     const stalePopup = createShotTimelineDataProvider(config, composition, 'occ-1', adapter);
-    const newerDraft = { ...config, clips: config.clips.map((clip) => ({ ...clip, hold: 2.25 })) };
+    // A temporal edit would also invalidate the exact parent pause interval;
+    // keep this CAS/recovery draft admitted and change its authored geometry.
+    const newerDraft = { ...config, clips: config.clips.map((clip) => ({ ...clip, x: 12 })) };
     await expect(stalePopup.saveTimeline(recoveryId, newerDraft, 1)).rejects.toMatchObject({ code: 'stale_write' });
     const recovery = await loadTimelineDraft(recoveryId);
     expect(recovery?.draft).toMatchObject({

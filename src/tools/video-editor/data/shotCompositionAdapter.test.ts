@@ -108,6 +108,20 @@ describe('shot-composition product adapter', () => {
     expect(publish).toHaveBeenCalledWith(expect.objectContaining({ expectedHeadRevisionId: null }));
   });
 
+  it('admits the authored parent pause intervals and rejects an unrelated gap before publication', async () => {
+    const publish = vi.fn().mockResolvedValue(fixture);
+    const adapter = createShotCompositionAdapter({load: vi.fn(), publish});
+    const request = {projectId: 'project-001', parentDocumentId: 'document-primary', expectedHeadRevisionId: null};
+    const graph = structuredClone(fixture);
+    await adapter.publish({...request, graph});
+    expect(publish).toHaveBeenCalledWith(expect.objectContaining({graph}));
+    const wrong = structuredClone(graph);
+    wrong.parent_composition.config.app.visualSeamContract.gaps[0]!.endFrame += 1;
+    publish.mockClear();
+    await expect(adapter.publish({...request, graph: wrong})).rejects.toMatchObject({code: 'visual_seam_admission_blocked'});
+    expect(publish).not.toHaveBeenCalled();
+  });
+
   it('reports a typed read-only failure when the provider has no publish port', async () => {
     const adapter = createShotCompositionAdapter({ load: vi.fn() });
     await expect(adapter.publish({

@@ -8,6 +8,8 @@ import {
   timelineClipDurationMs,
   timelineClipStartMs,
 } from './shotCompositionTiming.ts';
+import { assertVisualSeamAdmission } from './visualSeamContract.ts';
+import { projectCanonicalComposition } from './shotCompositionProjection.ts';
 
 type JsonObject = Record<string, unknown>;
 
@@ -310,6 +312,12 @@ export function createShotCompositionAdapter(port: ShotCompositionPort) {
       // Runtime must compare-and-swap against.
       const submitted = prepareContract(parseShotComposition(request.graph));
       assertRequestIdentity(submitted, request);
+      // Publication is the last local authoring choke point before Runtime
+      // owns the graph. Reuse the exact canonical projection used by preview
+      // and export, and fail closed only for frame-near structural seams or
+      // undeclared custom/phase cues.
+      const seamProjection = projectCanonicalComposition(submitted);
+      assertVisualSeamAdmission(seamProjection.config, { enforceIntent: true });
       if (request.expectedHeadRevisionId !== null) {
         requiredString(request.expectedHeadRevisionId, 'expectedHeadRevisionId');
       }
