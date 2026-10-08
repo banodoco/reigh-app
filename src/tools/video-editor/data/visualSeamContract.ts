@@ -4,6 +4,10 @@ import type {
   TrackDefinition,
 } from '@/tools/video-editor/types/index.ts';
 import { timelineClipDurationMs } from './shotCompositionTiming.ts';
+import { portableVisualSeamIntent } from './portableVisualSeamIntent.ts';
+import type {SeamIntent} from '../../../../vendor/astrid-browser/astrid/packs/local/elements/seam-intent';
+import {sameContext} from '../../../../vendor/astrid-browser/astrid/packs/local/elements/seam-intent';
+import {transitionFrames} from '../../../../vendor/astrid-browser/astrid/packs/local/elements/boundary';
 
 export const VISUAL_SEAM_CONTRACT_VERSION = 1 as const;
 
@@ -13,6 +17,7 @@ type StoredVisualSeamIntent = VisualSeamIntent | Readonly<{
   frame: number;
   participants: readonly string[];
   context: string;
+  canonical?: SeamIntent;
 }>;
 
 export type VisualBoundaryBehavior =
@@ -48,7 +53,7 @@ export type VisualSeamOpaqueElement = Readonly<{
   path: readonly string[];
   startFrame: number;
   endFrame: number;
-  reason: 'custom-clip-type' | 'element-ref';
+  reason: 'custom-clip-type' | 'element-ref' | 'unsupported-transition';
   elementRef?: Readonly<{
     id: string;
     kind: string;
@@ -227,11 +232,20 @@ function explicitIntentAt(config: ResolvedTimelineConfig, frame: number, partici
   if (candidate && typeof candidate === 'object' && candidate.frame === frame
     && candidate.context === intentContext(frame, participants)
     && candidate.participants.every((key) => participants.some((item) => participantKey(item) === key))) {
+    if ('canonical' in candidate) {
+      const current = portableVisualSeamIntent(config, frame, candidate.kind);
+      const stored = candidate.canonical;
+      if (!stored || stored.contextVersion !== current.contextVersion || stored.frame !== frame || stored.kind !== candidate.kind
+        || !sameContext(stored.context, current.context) || !Array.isArray(stored.participants)
+        || stored.participants.some(id => !current.participants.includes(id))
+        || current.participants.some(id => !stored.participants.includes(id))) return undefined;
+    }
     return candidate.kind;
   }
+  if (candidate && typeof candidate === 'object' && 'canonical' in candidate) return undefined;
   // A typed transition on a clip is itself an explicit authoring choice. Keep
   // it as a fallback so a persisted scoped declaration can override it.
-  if (clips.some((clip) => clip.transition !== undefined)) return 'transition';
+  if (clips.some((clip) => transitionFrames(clip.transition, config.output.fps) !== null)) return 'transition';
   return undefined;
 }
 
@@ -241,14 +255,15 @@ function intentCovers(intent: VisualSeamIntent | undefined, item: VisualSeamPart
   return true;
 }
 
-function opaqueReason(clip: ResolvedTimelineClip): VisualSeamOpaqueElement['reason'] | undefined {
+function opaqueReason(clip: ResolvedTimelineClip, fps: number): VisualSeamOpaqueElement['reason'] | undefined {
   const type = clipType(clip);
   const elementRef = record(clip.elementRef);
   // An element reference identifies the owner and revision, but does not by
   // itself disclose frame-level behavior. Unknown clip types therefore stay
   // opaque even when their element identity is available.
   if (!BUILTIN_CLIP_TYPES.has(type)) return 'custom-clip-type';
-  if (elementRef && ['effect', 'animation', 'transition'].includes(String(elementRef.kind))) return 'element-ref';
+  if (elementRef) return 'element-ref';
+  if (clip.transition !== undefined && transitionFrames(clip.transition, fps) === null) return 'unsupported-transition';
   return undefined;
 }
 
@@ -334,7 +349,11 @@ function buildSpans(config: ResolvedTimelineConfig): ClipSpan[] {
     });
 }
 
-function buildCues(spans: readonly ClipSpan[], fps: number): Cue[] {
+function buildCues(
+  spans: readonly ClipSpan[],
+  opaqueReasons: ReadonlyMap<ResolvedTimelineClip, VisualSeamOpaqueElement['reason']>,
+  fps: number,
+): Cue[] {
   const cues: Cue[] = [];
   for (const span of spans) {
     if (span.track?.kind !== 'visual') continue;
@@ -350,7 +369,7 @@ function buildCues(spans: readonly ClipSpan[], fps: number): Cue[] {
     for (const time of motionKeyframeTimes(clip)) {
       cues.push({ frame: span.startFrame + Math.round(time * fps), participant: participant(clip, 'motion-start') });
     }
-    if (opaqueReason(clip)) {
+    if (opaqueReasons.has(clip)) {
       cues.push({ frame: span.startFrame, participant: participant(clip, 'opaque') });
     }
   }
@@ -374,12 +393,16 @@ export function analyzeVisualSeams(
   const requestedGuardFrames = finite(options.guardFrames);
   const guardFrames = Math.max(0, Math.floor(requestedGuardFrames ?? 2));
   const spans = buildSpans(config);
-  const cues = buildCues(spans, fps).sort((left, right) => left.frame - right.frame);
-  const opaqueSpans = spans
-    .map((span) => ({ span, reason: opaqueReason(span.clip) }))
-    .filter((entry): entry is { span: ClipSpan; reason: VisualSeamOpaqueElement['reason'] } => (
-      entry.span.track?.kind === 'visual' && entry.reason !== undefined
-    ))
+  const opaqueReasons = new Map<ResolvedTimelineClip, VisualSeamOpaqueElement['reason']>();
+  const opaqueSpans: { span: ClipSpan; reason: VisualSeamOpaqueElement['reason'] }[] = [];
+  for (const span of spans) {
+    const reason = opaqueReason(span.clip, fps);
+    if (reason === undefined) continue;
+    opaqueReasons.set(span.clip, reason);
+    if (span.track?.kind === 'visual') opaqueSpans.push({ span, reason });
+  }
+  const cues = buildCues(spans, opaqueReasons, fps).sort((left, right) => left.frame - right.frame);
+  opaqueSpans
     .sort((left, right) => left.span.startFrame - right.span.startFrame || left.span.clip.id.localeCompare(right.span.clip.id));
   const opaqueElements = opaqueSpans.map(({ span, reason }) => opaqueElement(span, reason));
   const continuityTracks = continuityTracksFor(spans, options);
@@ -403,7 +426,9 @@ export function analyzeVisualSeams(
       // Every undeclared gap or overlap is structural regardless of the cue
       // guard. Explicit pause metadata is the only gap exemption.
       const gapDeclared = delta > 0 && (hasBoundaryMarker(previous.clip, 'intentionalPause') || hasBoundaryMarker(next.clip, 'intentionalPause'));
-      const transitionDeclared = delta < 0 && Boolean(previous.clip.transition || next.clip.transition);
+      const transitionDuration = transitionFrames(next.clip.transition, fps);
+      const transitionDeclared = delta < 0 && transitionDuration !== null && -delta <= transitionDuration
+        && transitionDuration <= Math.min(previous.endFrame - previous.startFrame, next.endFrame - next.startFrame);
       const issues = delta !== 0 && !(delta > 0 && gapDeclared) && !(delta < 0 && transitionDeclared)
         ? [`${trackId}: ${previous.clip.id} ends at frame ${previous.endFrame}, ${next.clip.id} starts at frame ${next.startFrame}`]
         : [];
@@ -514,6 +539,7 @@ export function withVisualSeamIntent(
             frame,
             participants: keys,
             context: intentContext(frame, participants),
+            canonical: portableVisualSeamIntent(config, frame, intent),
           } satisfies StoredVisualSeamIntent,
         },
       },
