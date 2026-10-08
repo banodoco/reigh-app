@@ -274,6 +274,8 @@ const sortClipsByAt = (clips: ResolvedTimelineClip[]): ResolvedTimelineClip[] =>
   return [...clips].sort((left, right) => left.at - right.at);
 };
 
+const previewPremountFor = (fps: number): number => Math.ceil(fps * 2);
+
 type ThemeEffectSequenceProps = {
   clip: ResolvedTimelineClip;
   fps: number;
@@ -335,6 +337,7 @@ const ThemeEffectSequence: FC<ThemeEffectSequenceProps> = ({ clip, fps, theme, d
       key={clip.id}
       from={Math.round(clip.at * fps)}
       durationInFrames={durationInFrames}
+      premountFor={dynamicEntry ? 0 : previewPremountFor(fps)}
     >
       <ThemeProvider value={theme}>
         <ThemePackageComponent component={Component} clip={clip} fps={fps} />
@@ -468,8 +471,8 @@ const AstridEffectPreviewSequence: FC<{
       // Canonical child clips are flattened into the parent preview, so they
       // cannot rely on ShotClipSequence to prepare their media. In particular
       // an Astrid effect replacing a still must mount its own first frame
-      // before the canonical occurrence boundary.
-      premountFor={clip.app?.canonicalTiming ? Math.ceil(fps * 2) : 0}
+      // before its authored occurrence boundary.
+      premountFor={previewPremountFor(fps)}
     >
       <ThemeProvider value={theme}>
         <Component
@@ -502,7 +505,12 @@ const AstridAnimationPreviewSequence: FC<{
   const effectiveDuration = durationInFrames + transitionFrames + 1;
   if (!Component) return null;
   return (
-    <Sequence key={clip.id} from={from} durationInFrames={effectiveDuration}>
+    <Sequence
+      key={clip.id}
+      from={from}
+      durationInFrames={effectiveDuration}
+      premountFor={previewPremountFor(fps)}
+    >
       <ThemeProvider value={theme}>
         <Component
           clip={clip}
