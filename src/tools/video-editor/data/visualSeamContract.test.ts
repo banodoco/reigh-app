@@ -151,9 +151,9 @@ describe('visual seam contract', () => {
     const base = config([
       media('a', 0, 2, 'a'),
       media('b', 2, 2, 'b', { transition: { type: 'crossfade', duration: 0.5 } }),
-      { id: 'motion', at: 2, hold: 1, track: 'fx', clipType: 'custom-motion', elementRef: { id: 'motion', kind: 'effect', revision: 'r1' } },
+      { id: 'motion', at: 2, hold: 1, track: 'fx', clipType: 'media', entrance: {type: 'fade', duration: 0.5}, elementRef: { id: 'motion', kind: 'effect', revision: 'r1' } },
     ]);
-    expect(analyzeVisualSeams(base).boundaries[0]).toMatchObject({ intent: 'transition', requiresIntent: false, unacknowledgedRisk: true });
+    expect(analyzeVisualSeams(base).boundaries[0]).toMatchObject({ intent: 'transition', requiresIntent: true, unacknowledgedRisk: true });
     const synchronized = withVisualSeamIntent(base, 60, 'synchronized');
     expect(analyzeVisualSeams(synchronized).boundaries[0]).toMatchObject({ intent: 'synchronized', requiresIntent: false, unacknowledgedRisk: true });
     const explicitHardCut = withVisualSeamIntent(base, 60, 'hard-cut');
@@ -178,7 +178,7 @@ describe('visual seam contract', () => {
     const unsafe = config([
       media('a', 0, 2, 'a'),
       media('b', 2, 2, 'b'),
-      { id: 'motion', at: 2, hold: 1, track: 'fx', clipType: 'custom-motion', elementRef: { id: 'motion', kind: 'effect', revision: 'r1' } },
+      { id: 'motion', at: 2, hold: 1, track: 'fx', clipType: 'media', entrance: {type: 'fade', duration: 0.5}, elementRef: { id: 'motion', kind: 'effect', revision: 'r1' } },
     ]);
     expect(analyzeVisualSeams(unsafe).boundaries[0]?.intent).toBeUndefined();
     expect(analyzeVisualSeams(unsafe).boundaries[0]?.unacknowledgedRisk).toBe(true);
@@ -192,9 +192,9 @@ describe('visual seam contract', () => {
     const original = config([
       media('a', 0, 2, 'a'),
       media('b', 2, 2, 'b'),
-      { id: 'motion-a', at: 2, hold: 0.5, track: 'fx', clipType: 'custom-motion', elementRef: { id: 'motion-a', kind: 'effect', revision: 'r1' } },
+      { id: 'motion-a', at: 2, hold: 0.5, track: 'fx', clipType: 'media', entrance: {type: 'fade', duration: 0.5}, elementRef: { id: 'motion-a', kind: 'effect', revision: 'r1' } },
       media('c', 4, 2, 'c'),
-      { id: 'motion-b', at: 4, hold: 0.5, track: 'fx', clipType: 'custom-motion', elementRef: { id: 'motion-b', kind: 'effect', revision: 'r1' } },
+      { id: 'motion-b', at: 4, hold: 0.5, track: 'fx', clipType: 'media', entrance: {type: 'fade', duration: 0.5}, elementRef: { id: 'motion-b', kind: 'effect', revision: 'r1' } },
     ]);
     const acknowledged = withVisualSeamIntent(original, 60, 'synchronized');
     const report = analyzeVisualSeams(acknowledged);

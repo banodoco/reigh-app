@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { ResolvedTimelineConfig } from '@/tools/video-editor/types/index.ts';
-import { analyzeVisualSeams } from './visualSeamContract.ts';
+import { analyzeVisualSeams, withVisualSeamPause } from './visualSeamContract.ts';
 
 function makeConfig(clips: ResolvedTimelineConfig['clips'], fps = 24): ResolvedTimelineConfig {
   return {
@@ -22,12 +22,12 @@ describe('visual seam generic acceptance matrix', () => {
       { id: 'second', at: 1.25, hold: 0.5, asset: 'b', track: 'picture', clipType: 'media' },
       { id: 'third', at: 1.75, hold: 1, asset: 'c', track: 'picture', clipType: 'media' },
       {
-        id: 'parent-motion', at: 1.25, hold: 1, track: 'fx', clipType: 'effect-layer',
+        id: 'parent-motion', at: 1.25, hold: 1, track: 'fx', clipType: 'media',
         app: { canonical: { parentDocumentId: 'parent', occurrenceId: 'parent-fx' } },
-        keyframes: { x: [{ time: 0, value: 0, interpolation: 'linear' }, { time: 0.5, value: 20, interpolation: 'linear' }] },
+        keyframes: { x: [{ time: 0, value: 0, interpolation: 'hold' }, { time: 0.5, value: 20, interpolation: 'linear' }] },
       },
       {
-        id: 'constant-transform', at: 1.25, hold: 1, track: 'fx', clipType: 'effect-layer',
+        id: 'constant-transform', at: 1.25, hold: 1, track: 'fx', clipType: 'media',
         keyframes: { x: [{ time: 0, value: 8, interpolation: 'linear' }, { time: 0.5, value: 8, interpolation: 'linear' }] },
       },
     ]);
@@ -42,12 +42,13 @@ describe('visual seam generic acceptance matrix', () => {
   });
 
   it('allows explicit pauses and valid transition overlaps while flagging undeclared gaps and overlaps', () => {
-    const report = analyzeVisualSeams(makeConfig([
+    const source = makeConfig([
       { id: 'pause-a', at: 0, hold: 1, asset: 'a', track: 'picture', clipType: 'media' },
       { id: 'pause-b', at: 2, hold: 1, asset: 'b', track: 'picture', clipType: 'media', app: { visualBoundary: { intentionalPause: true } } },
       { id: 'overlap-a', at: 4, hold: 1, asset: 'c', track: 'picture', clipType: 'media' },
       { id: 'overlap-b', at: 4.5, hold: 1, asset: 'd', track: 'picture', clipType: 'media', transition: { type: 'crossfade', duration: 0.5 } },
-    ]));
+    ]);
+    const report = analyzeVisualSeams(withVisualSeamPause(withVisualSeamPause(source, 'picture', 24, 48), 'picture', 72, 96));
     expect(report.structuralIssues).toEqual([]);
     const undeclared = analyzeVisualSeams(makeConfig([
       { id: 'gap-a', at: 0, hold: 1, asset: 'a', track: 'picture', clipType: 'media' },

@@ -369,10 +369,10 @@ function projectClip(
     ...(params ? { params } : {}),
     ...(record(rawClip.effects) || Array.isArray(rawClip.effects) ? { effects: rawClip.effects as TimelineClip['effects'] } : {}),
     ...(record(rawClip.elementRef) ? { elementRef: rawClip.elementRef as TimelineClip['elementRef'] } : {}),
-    ...(record(rawClip.transition) ? { transition: rawClip.transition as TimelineClip['transition'] } : {}),
-    ...(record(rawClip.entrance) ? { entrance: rawClip.entrance as TimelineClip['entrance'] } : {}),
-    ...(record(rawClip.exit) ? { exit: rawClip.exit as TimelineClip['exit'] } : {}),
-    ...(record(rawClip.continuous) ? { continuous: rawClip.continuous as TimelineClip['continuous'] } : {}),
+    ...(rawClip.transition !== undefined ? { transition: rawClip.transition as TimelineClip['transition'] } : {}),
+    ...(rawClip.entrance !== undefined ? { entrance: rawClip.entrance as TimelineClip['entrance'] } : {}),
+    ...(rawClip.exit !== undefined ? { exit: rawClip.exit as TimelineClip['exit'] } : {}),
+    ...(rawClip.continuous !== undefined ? { continuous: rawClip.continuous as TimelineClip['continuous'] } : {}),
     ...(record(rawClip.keyframes) ? { keyframes: rawClip.keyframes as TimelineClip['keyframes'] } : {}),
     app: {
       ...app,
@@ -416,6 +416,22 @@ export function projectCanonicalComposition(
   baseConfig?: ResolvedTimelineConfig | null,
   options: CanonicalCompositionProjectionOptions = {},
 ): CanonicalCompositionProjection {
+  // Publication has the pinned parent bytes but no separately resolved config.
+  // Carry its authored pause/intent/effect scope through the same projection.
+  if (!baseConfig) {
+    const parent = record(composition.contract.parent_composition);
+    const authored = record(parent?.config);
+    if (authored) {
+      const registry = record(parent?.registry);
+      baseConfig = {
+        ...authored,
+        output: (record(authored.output) ?? {resolution: '1920x1080', fps: 30, file: `timeline-${composition.parentDocumentId}.mp4`}) as ResolvedTimelineConfig['output'],
+        tracks: (Array.isArray(authored.tracks) ? authored.tracks : []) as TrackDefinition[],
+        clips: (Array.isArray(parent?.clips) ? parent.clips : Array.isArray(authored.clips) ? authored.clips : []) as ResolvedTimelineConfig['clips'],
+        registry: (record(registry?.assets) ?? registry ?? {}) as ResolvedTimelineConfig['registry'],
+      };
+    }
+  }
   assertDependencies(composition);
   const clips: TimelineClip[] = [];
   const clipIdentities = new Map<string, CanonicalClipIdentity>();
@@ -450,7 +466,14 @@ export function projectCanonicalComposition(
           clipIdentities,
           options.clampToOccurrenceDuration !== false,
         );
-        if (projected) clips.push(projected);
+        if (projected) {
+          if (Array.isArray(timeline.effects) && timeline.effects.length > 0) {
+            const local = Array.isArray(projected.effects) ? projected.effects : [];
+            projected.effects = [...local, ...timeline.effects] as TimelineClip['effects'];
+            projected.app = {...projected.app, canonicalEffects: {localCount: local.length, timeline: timeline.effects}};
+          }
+          clips.push(projected);
+        }
       }
     });
     if (!rawClips.some((rawClip) => record(rawClip))) {
@@ -486,6 +509,7 @@ export function projectCanonicalComposition(
     tracks: tracksFor(composition, baseConfig),
     clips: projectedClips,
     registry,
+    ...(baseConfig?.effects ? {effects: baseConfig.effects} : {}),
     ...(baseConfig?.theme ? { theme: baseConfig.theme } : {}),
     ...(baseConfig?.theme_overrides ? { theme_overrides: baseConfig.theme_overrides } : {}),
     ...(baseConfig?.generation_defaults ? { generation_defaults: baseConfig.generation_defaults } : {}),

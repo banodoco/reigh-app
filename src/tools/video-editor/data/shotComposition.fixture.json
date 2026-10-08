@@ -1,5 +1,19 @@
 {
   "schema_version": 1,
+  "parent_composition": {
+    "config": {
+      "app": {
+        "visualSeamContract": {
+          "gaps": [
+            {"kind": "pause", "track": "video", "startFrame": 60, "endFrame": 120},
+            {"kind": "pause", "track": "video", "startFrame": 180, "endFrame": 240},
+            {"kind": "pause", "track": "video", "startFrame": 318, "endFrame": 330},
+            {"kind": "pause", "track": "video", "startFrame": 366, "endFrame": 396}
+          ]
+        }
+      }
+    }
+  },
   "project": {
     "project_id": "project-001",
     "document_id": "document-primary",
