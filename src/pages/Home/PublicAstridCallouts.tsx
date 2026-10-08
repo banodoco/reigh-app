@@ -120,7 +120,7 @@ const APP_CALLOUTS: readonly CalloutDefinition[] = [
   {
     id: 'effects',
     title: 'Live vibe code effects and visuals',
-    body: 'Describe a look and edit the effect’s code live, right on the clip.',
+    body: 'Describe a look and edit the effect’s code live.',
     // The public preview contains hidden Outline/Inspector tablists before the
     // visible inspector tabs. Geometry resolution below skips zero-sized tabs.
     target: '.astrid-inspector-surface [role="tablist"].grid-cols-4 > [role="tab"]',
