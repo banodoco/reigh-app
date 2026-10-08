@@ -65,12 +65,16 @@ fs.mkdirSync(out, {recursive:true});
       ]),'Card -> connector -> endpoint narrative order');
       for(let i=0;i<3;i++) {
         const [card,line,dot]=calls.slice(i*3,i*3+3);
-        assert(line.t-card.t>=730,'Connector began before card settled');
-        assert(dot.t-line.t>=390,'Endpoint began before line finished');
-        if(i<2) assert(calls[i*3+3].t-dot.t>=220,'Next card began before endpoint landed');
+        assert(line.t-card.t>=370,'Connector began before card settled');
+        assert(dot.t-line.t>=210,'Endpoint began before line finished');
+        if(i<2) {
+          assert(calls[i*3+3].t-dot.t>=120,'Next card began before endpoint landed');
+          assert(Math.abs(calls[i*3+3].t-card.t-800)<60,'Callout cadence drifted from 800ms');
+        }
         assert(visible.some(f=>f.cards.length===3 && f.cards[i].opacity>0.2 && f.cards[i].line>0.99 && f.cards.slice(i+1).every(c=>c.opacity===0)), 'Missing isolated card entrance frame');
         assert(visible.some(f=>f.cards.length===3 && f.cards[i].opacity===1 && f.cards[i].line>0.05 && f.cards[i].line<0.95 && f.cards.slice(i+1).every(c=>c.opacity===0)), 'Missing isolated connector draw frame');
       }
+      assert(calls.at(-1).t+120-visible[0].t<3100,'Callout sequence exceeded its three-second arrival budget');
       assert(media.some(m=>m.url.endsWith('/astrid/light-study/first-light.mp4') && [200,206].includes(m.status)));
       // App intentionally uses the launcher instead of the hidden chat window.
       for(const idx of audience==='app' ? [1] : [1,2]) {
