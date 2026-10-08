@@ -24,7 +24,7 @@
         "content_digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
         "timeline": {
           "tracks": [{"id": "video", "kind": "visual"}, {"id": "audio", "kind": "audio"}],
-          "clips": [{"id": "beta-video", "clip_type": "media", "track": "video", "at_ms": 0, "duration_ms": 1200, "asset_id": "beta-image"}]
+          "clips": [{"id": "beta-video", "clip_type": "media", "track": "video", "at_ms": 0, "duration_ms": 1200, "asset_id": "beta-image", "app": {"visualBoundary": {"intentionalPause": true}}}]
         }
       },
       "dependencies": [],
@@ -62,7 +62,7 @@
         "content_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
         "timeline": {
           "tracks": [{"id": "video", "kind": "visual"}, {"id": "audio", "kind": "audio"}],
-          "clips": [{"id": "alpha-video", "clip_type": "media", "track": "video", "at_ms": 0, "duration_ms": 2000, "asset_id": "alpha-image"}, {"id": "alpha-audio", "clip_type": "media", "track": "audio", "at_ms": 0, "duration_ms": 2000, "asset_id": "alpha-audio"}]
+          "clips": [{"id": "alpha-video", "clip_type": "media", "track": "video", "at_ms": 0, "duration_ms": 2000, "asset_id": "alpha-image", "app": {"visualBoundary": {"intentionalPause": true}}}, {"id": "alpha-audio", "clip_type": "media", "track": "audio", "at_ms": 0, "duration_ms": 2000, "asset_id": "alpha-audio"}]
         }
       },
       "dependencies": [{"shot_id": "shot-beta", "revision_id": "rev-a", "required": true}],
@@ -97,7 +97,7 @@
         "content_digest": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
         "timeline": {
           "tracks": [{"id": "video", "kind": "visual"}, {"id": "audio", "kind": "audio"}],
-          "clips": [{"id": "alpha-video-b", "clip_type": "media", "track": "video", "at_ms": 0, "duration_ms": 2600, "asset_id": "alpha-image"}]
+          "clips": [{"id": "alpha-video-b", "clip_type": "media", "track": "video", "at_ms": 0, "duration_ms": 2600, "asset_id": "alpha-image", "app": {"visualBoundary": {"intentionalPause": true}}}]
         }
       },
       "dependencies": [{"shot_id": "shot-beta", "revision_id": "rev-a", "required": true}],
@@ -117,7 +117,7 @@
         "content_digest": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
         "timeline": {
           "tracks": [{"id": "video", "kind": "visual"}, {"id": "audio", "kind": "audio"}],
-          "clips": [{"id": "alpha-copy-video", "clip_type": "media", "track": "video", "at_ms": 0, "duration_ms": 2000, "asset_id": "alpha-copy-image"}]
+          "clips": [{"id": "alpha-copy-video", "clip_type": "media", "track": "video", "at_ms": 0, "duration_ms": 2000, "asset_id": "alpha-copy-image", "app": {"visualBoundary": {"intentionalPause": true}}}]
         }
       },
       "dependencies": [],

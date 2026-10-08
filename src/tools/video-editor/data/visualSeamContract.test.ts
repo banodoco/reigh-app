@@ -41,6 +41,27 @@ describe('visual seam contract', () => {
     ]));
   });
 
+  it('uses duration_ms and duration before hold/trim bounds, applying playback speed', () => {
+    const durationMsClip = {
+      ...media('duration-ms', 0, 1, 'a', { from: 0, to: 10, speed: 2 }),
+      duration_ms: 4000,
+    };
+    const durationClip = {
+      ...media('duration-seconds', 0, 1, 'a', { from: 0, to: 10, speed: 3 }),
+      duration: 6,
+    };
+
+    for (const first of [durationMsClip, durationClip]) {
+      const report = analyzeVisualSeams(config([
+        first,
+        media('next', 2, 1, 'b'),
+      ]));
+
+      expect(report.structuralIssues).toEqual([]);
+      expect(report.boundaries[0]?.frame).toBe(60);
+    }
+  });
+
   it('reports a coincident opaque effect and preserves parent/child ownership and effect identity', () => {
     const report = analyzeVisualSeams(config([
       media('shot-10', 0, 41.9666666667, 'a', {
@@ -132,12 +153,12 @@ describe('visual seam contract', () => {
       media('b', 2, 2, 'b', { transition: { type: 'crossfade', duration: 0.5 } }),
       { id: 'motion', at: 2, hold: 1, track: 'fx', clipType: 'custom-motion', elementRef: { id: 'motion', kind: 'effect', revision: 'r1' } },
     ]);
-    expect(analyzeVisualSeams(base).boundaries[0]).toMatchObject({ intent: 'transition', unacknowledgedRisk: false });
+    expect(analyzeVisualSeams(base).boundaries[0]).toMatchObject({ intent: 'transition', requiresIntent: false, unacknowledgedRisk: true });
     const synchronized = withVisualSeamIntent(base, 60, 'synchronized');
-    expect(analyzeVisualSeams(synchronized).boundaries[0]).toMatchObject({ intent: 'synchronized', unacknowledgedRisk: false });
+    expect(analyzeVisualSeams(synchronized).boundaries[0]).toMatchObject({ intent: 'synchronized', requiresIntent: false, unacknowledgedRisk: true });
     const explicitHardCut = withVisualSeamIntent(base, 60, 'hard-cut');
-    expect(analyzeVisualSeams(explicitHardCut).boundaries[0]).toMatchObject({ intent: 'hard-cut', unacknowledgedRisk: false });
-    expect(() => assertVisualSeamAdmission(explicitHardCut, { enforceIntent: true })).not.toThrow();
+    expect(analyzeVisualSeams(explicitHardCut).boundaries[0]).toMatchObject({ intent: 'hard-cut', requiresIntent: true, unacknowledgedRisk: true });
+    expect(() => assertVisualSeamAdmission(explicitHardCut, { enforceIntent: true })).toThrow(VisualSeamAdmissionError);
   });
 
   it('rejects structural gaps/overlaps and leaves media out of the analysis', () => {
@@ -164,7 +185,26 @@ describe('visual seam contract', () => {
     expect(() => assertVisualSeamAdmission(unsafe, { enforceIntent: true })).toThrow(VisualSeamAdmissionError);
     const acknowledged = withVisualSeamIntent(unsafe, 60, 'synchronized');
     expect(() => assertVisualSeamAdmission(acknowledged, { enforceIntent: true })).not.toThrow();
-    expect(analyzeVisualSeams(acknowledged).boundaries[0]).toMatchObject({ intent: 'synchronized', unacknowledgedRisk: false });
+    expect(analyzeVisualSeams(acknowledged).boundaries[0]).toMatchObject({ intent: 'synchronized', requiresIntent: false, unacknowledgedRisk: true });
+  });
+
+  it('binds stored intent to the current boundary participants and leaves a second boundary untouched', () => {
+    const original = config([
+      media('a', 0, 2, 'a'),
+      media('b', 2, 2, 'b'),
+      { id: 'motion-a', at: 2, hold: 0.5, track: 'fx', clipType: 'custom-motion', elementRef: { id: 'motion-a', kind: 'effect', revision: 'r1' } },
+      media('c', 4, 2, 'c'),
+      { id: 'motion-b', at: 4, hold: 0.5, track: 'fx', clipType: 'custom-motion', elementRef: { id: 'motion-b', kind: 'effect', revision: 'r1' } },
+    ]);
+    const acknowledged = withVisualSeamIntent(original, 60, 'synchronized');
+    const report = analyzeVisualSeams(acknowledged);
+    expect(report.boundaries.find((boundary) => boundary.frame === 60)?.requiresIntent).toBe(false);
+    expect(report.boundaries.find((boundary) => boundary.frame === 120)?.requiresIntent).toBe(true);
+    const edited = {
+      ...acknowledged,
+      clips: acknowledged.clips.map((clip) => clip.id === 'motion-a' ? { ...clip, id: 'motion-a-edited' } : clip),
+    };
+    expect(analyzeVisualSeams(edited).boundaries.find((boundary) => boundary.frame === 60)?.requiresIntent).toBe(true);
   });
 
   it('stays metadata-only for a large synthetic seam matrix', () => {

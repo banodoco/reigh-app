@@ -69,6 +69,30 @@ describe('canonical shot-composition downstream projection', () => {
     });
   });
 
+  it('preserves authored child cue metadata through canonical projection', () => {
+    const graph = withOccurrenceRevision(prepared, 0, (timeline) => ({
+      ...timeline,
+      clips: (timeline.clips as Array<Record<string, unknown>>).map((clip, index) => index === 0 ? {
+        ...clip,
+        elementRef: { id: 'element-child-1', kind: 'effect', revision: 'fx-r2' },
+        effects: { blur: 0.4 },
+        transition: { type: 'crossfade', duration: 0.25 },
+        entrance: { type: 'fade', duration: 0.5 },
+        exit: { type: 'fade', duration: 0.25 },
+        keyframes: { x: [{ time: 0, value: 0, interpolation: 'linear' }, { time: 1, value: 10, interpolation: 'linear' }] },
+      } : clip),
+    }));
+    const projection = projectCanonicalComposition(graph);
+    expect(projection.config.clips.find((clip) => clip.id === 'occ-1:alpha-video')).toMatchObject({
+      elementRef: { id: 'element-child-1', kind: 'effect', revision: 'fx-r2' },
+      effects: { blur: 0.4 },
+      transition: { type: 'crossfade', duration: 0.25 },
+      entrance: { type: 'fade', duration: 0.5 },
+      exit: { type: 'fade', duration: 0.25 },
+      keyframes: { x: [{ time: 0, value: 0, interpolation: 'linear' }, { time: 1, value: 10, interpolation: 'linear' }] },
+    });
+  });
+
   it('projects occurrence timing and source/audio controls without legacy group or shot clips', () => {
     const graph = JSON.parse(JSON.stringify(fixture)) as typeof fixture;
     graph.occurrences[0] = {

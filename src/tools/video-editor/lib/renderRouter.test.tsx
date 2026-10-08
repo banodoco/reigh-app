@@ -1533,7 +1533,7 @@ describe('Sprint 8 render pipeline middleware', () => {
           { id: 'a', track: 'video', at: 0, hold: 2, clipType: 'media', asset: 'a' },
           { id: 'b', track: 'video', at: 2, hold: 2, clipType: 'media', asset: 'b' },
           {
-            id: 'fx-wipe', track: 'fx', at: 1.5, hold: 1,
+            id: 'fx-wipe', track: 'fx', at: 2, hold: 1,
             clipType: 'custom-effect',
             elementRef: { id: 'wipe', kind: 'effect' as const, revision: 'rev-1' },
           },

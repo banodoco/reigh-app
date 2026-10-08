@@ -3,10 +3,17 @@ import type {
   ResolvedTimelineConfig,
   TrackDefinition,
 } from '@/tools/video-editor/types/index.ts';
+import { timelineClipDurationMs } from './shotCompositionTiming.ts';
 
 export const VISUAL_SEAM_CONTRACT_VERSION = 1 as const;
 
 export type VisualSeamIntent = 'hard-cut' | 'transition' | 'synchronized';
+type StoredVisualSeamIntent = VisualSeamIntent | Readonly<{
+  kind: VisualSeamIntent;
+  frame: number;
+  participants: readonly string[];
+  context: string;
+}>;
 
 export type VisualBoundaryBehavior =
   | 'continues'
@@ -31,6 +38,7 @@ export type VisualSeamBoundary = Readonly<{
   participants: readonly VisualSeamParticipant[];
   structuralIssues: readonly string[];
   unacknowledgedRisk: boolean;
+  requiresIntent: boolean;
 }>;
 
 export type VisualSeamOpaqueElement = Readonly<{
@@ -139,13 +147,7 @@ function active(clip: ResolvedTimelineClip): boolean {
 }
 
 function clipDurationSeconds(clip: ResolvedTimelineClip): number {
-  const speed = finite(clip.speed);
-  const playbackRate = speed !== undefined && speed > 0 ? speed : 1;
-  if (finite(clip.from) !== undefined && finite(clip.to) !== undefined && (clip.to as number) > (clip.from as number)) {
-    return Math.max(0, ((clip.to as number) - (clip.from as number)) / playbackRate);
-  }
-  const hold = finite(clip.hold);
-  return hold === undefined ? 0 : Math.max(0, hold / playbackRate);
+  return timelineClipDurationMs(clip) / 1000;
 }
 
 function clipType(clip: ResolvedTimelineClip): string {
@@ -187,17 +189,19 @@ function participant(
   });
 }
 
-function keyframeStartsMotion(clip: ResolvedTimelineClip, fps: number): boolean {
+function motionKeyframeTimes(clip: ResolvedTimelineClip): number[] {
   const keyframes = clip.keyframes;
-  if (!keyframes || typeof keyframes !== 'object' || Array.isArray(keyframes)) return false;
+  if (!keyframes || typeof keyframes !== 'object' || Array.isArray(keyframes)) return [];
   const motionKeys = new Set(['x', 'y', 'width', 'height', 'scale', 'rotation', 'translateX', 'translateY', 'position', 'transform']);
-  return Object.entries(keyframes).some(([key, raw]) => {
-    if (!motionKeys.has(key) || !Array.isArray(raw)) return false;
-    return raw.some((keyframe) => {
-      const entry = record(keyframe);
-      const time = finite(entry?.time);
-      return time !== undefined && time >= 0 && time <= 1 / Math.max(1, fps);
-    });
+  return Object.entries(keyframes).flatMap(([key, raw]) => {
+    if (!motionKeys.has(key) || !Array.isArray(raw)) return [];
+    const ordered = raw.map(record).filter((item): item is JsonRecord => item !== undefined)
+      .map((item) => ({ time: finite(item.time), value: item.value }))
+      .filter((item): item is { time: number; value: unknown } => item.time !== undefined)
+      .sort((left, right) => left.time - right.time);
+    return ordered.slice(1).flatMap((item, index) => (
+      JSON.stringify(item.value) === JSON.stringify(ordered[index]?.value) ? [] : [item.time]
+    ));
   });
 }
 
@@ -207,21 +211,34 @@ function hasBoundaryMarker(clip: ResolvedTimelineClip, key: string): boolean {
   return marker?.[key] === true;
 }
 
-function explicitIntentAt(config: ResolvedTimelineConfig, frame: number, clips: readonly ResolvedTimelineClip[]): VisualSeamIntent | undefined {
+function participantKey(value: VisualSeamParticipant): string {
+  return `${value.path.join('/')}:${value.clipId}:${value.behavior}`;
+}
+
+function intentContext(frame: number, participants: readonly VisualSeamParticipant[]): string {
+  return `${frame}|${participants.filter((item) => item.behavior !== 'opaque').map(participantKey).sort().join('|')}`;
+}
+
+function explicitIntentAt(config: ResolvedTimelineConfig, frame: number, participants: readonly VisualSeamParticipant[], clips: readonly ResolvedTimelineClip[]): VisualSeamIntent | undefined {
   const app = record(config.app);
   const contract = record(app?.visualSeamContract);
   const intents = record(contract?.intents) ?? record(app?.visualSeamIntents);
-  const candidate = intents?.[String(frame)];
-  if (candidate === 'hard-cut' || candidate === 'transition' || candidate === 'synchronized') return candidate;
-  for (const clip of clips) {
-    const clipApp = record(clip.app);
-    const value = clipApp?.visualBoundaryIntent;
-    if (value === 'hard-cut' || value === 'transition' || value === 'synchronized') return value;
+  const candidate = intents?.[String(frame)] as StoredVisualSeamIntent | undefined;
+  if (candidate && typeof candidate === 'object' && candidate.frame === frame
+    && candidate.context === intentContext(frame, participants)
+    && candidate.participants.every((key) => participants.some((item) => participantKey(item) === key))) {
+    return candidate.kind;
   }
   // A typed transition on a clip is itself an explicit authoring choice. Keep
-  // it as a fallback so a frame-level or clip-level declaration can override it.
+  // it as a fallback so a persisted scoped declaration can override it.
   if (clips.some((clip) => clip.transition !== undefined)) return 'transition';
   return undefined;
+}
+
+function intentCovers(intent: VisualSeamIntent | undefined, item: VisualSeamParticipant): boolean {
+  if (!intent || item.behavior === 'opaque') return false;
+  if (intent === 'hard-cut') return ['enters', 'exits', 'source-change'].includes(item.behavior);
+  return true;
 }
 
 function opaqueReason(clip: ResolvedTimelineClip): VisualSeamOpaqueElement['reason'] | undefined {
@@ -330,8 +347,8 @@ function buildCues(spans: readonly ClipSpan[], fps: number): Cue[] {
     if (clip.exit || hasBoundaryMarker(clip, 'endsMotion')) {
       cues.push({ frame: span.endFrame, participant: participant(clip, clip.exit ? 'phase-change' : 'motion-start') });
     }
-    if (keyframeStartsMotion(clip, fps)) {
-      cues.push({ frame: span.startFrame, participant: participant(clip, 'motion-start') });
+    for (const time of motionKeyframeTimes(clip)) {
+      cues.push({ frame: span.startFrame + Math.round(time * fps), participant: participant(clip, 'motion-start') });
     }
     if (opaqueReason(clip)) {
       cues.push({ frame: span.startFrame, participant: participant(clip, 'opaque') });
@@ -383,12 +400,13 @@ export function analyzeVisualSeams(
       const next = trackSpans[index]!;
       const frame = next.startFrame;
       const delta = next.startFrame - previous.endFrame;
-      // A large gap is an intentional edit-space pause, not a seam defect.
-      // Structural admission is for frame-near gaps/overlaps where independent
-      // rounding can produce the one-frame jolt this contract protects against.
-      const issues = delta === 0 || Math.abs(delta) > guardFrames
-        ? []
-        : [`${trackId}: ${previous.clip.id} ends at frame ${previous.endFrame}, ${next.clip.id} starts at frame ${next.startFrame}`];
+      // Every undeclared gap or overlap is structural regardless of the cue
+      // guard. Explicit pause metadata is the only gap exemption.
+      const gapDeclared = delta > 0 && (hasBoundaryMarker(previous.clip, 'intentionalPause') || hasBoundaryMarker(next.clip, 'intentionalPause'));
+      const transitionDeclared = delta < 0 && Boolean(previous.clip.transition || next.clip.transition);
+      const issues = delta !== 0 && !(delta > 0 && gapDeclared) && !(delta < 0 && transitionDeclared)
+        ? [`${trackId}: ${previous.clip.id} ends at frame ${previous.endFrame}, ${next.clip.id} starts at frame ${next.startFrame}`]
+        : [];
       structuralIssues.push(...issues);
       const nearby = cuesNearFrame(cues, frame, guardFrames);
       const sourceChanged = previous.clip.asset !== next.clip.asset;
@@ -396,7 +414,7 @@ export function analyzeVisualSeams(
         ...nearby,
         ...(sourceChanged ? [participant(next.clip, 'source-change')] : []),
       ]);
-      const intent = explicitIntentAt(config, frame, [previous.clip, next.clip]);
+      const intent = explicitIntentAt(config, frame, participants, [previous.clip, next.clip]);
       candidates.push(Object.freeze({
         frame,
         ...(intent ? { intent } : {}),
@@ -421,21 +439,25 @@ export function analyzeVisualSeams(
       ...candidate.participants,
       ...activeOpaque.map(({ span }) => participant(span.clip, 'opaque')),
     ]);
-    const hasUnexpectedParticipant = participants.some((item) => (
-      item.behavior === 'motion-start' || item.behavior === 'phase-change' || item.behavior === 'opaque'
+    const knownRisk = participants.some((item) => item.behavior === 'motion-start' || item.behavior === 'phase-change');
+    const uncoveredKnownRisk = participants.some((item) => (
+      (item.behavior === 'motion-start' || item.behavior === 'phase-change')
+      && !intentCovers(candidate.intent, item)
     ));
+    const opaqueRisk = participants.some((item) => item.behavior === 'opaque');
     boundaries.push(Object.freeze({
       frame: candidate.frame,
       timeSeconds: candidate.frame / fps,
       ...(candidate.intent ? { intent: candidate.intent } : {}),
       participants,
       structuralIssues: candidate.structuralIssues,
-      unacknowledgedRisk: hasUnexpectedParticipant && candidate.intent === undefined,
+      unacknowledgedRisk: opaqueRisk || uncoveredKnownRisk,
+      requiresIntent: knownRisk && uncoveredKnownRisk,
     }));
   }
 
   const warningCount = boundaries.filter((boundary) => boundary.unacknowledgedRisk).length;
-  const blocked = structuralIssues.length > 0 || (options.enforceIntent === true && warningCount > 0);
+  const blocked = structuralIssues.length > 0 || (options.enforceIntent === true && boundaries.some((boundary) => boundary.requiresIntent));
   return Object.freeze({
     version: VISUAL_SEAM_CONTRACT_VERSION,
     fps,
@@ -470,6 +492,13 @@ export function withVisualSeamIntent(
   const app = record(config.app) ?? {};
   const contract = record(app.visualSeamContract) ?? {};
   const intents = record(contract.intents) ?? {};
+  const report = analyzeVisualSeams(config);
+  const boundary = report.boundaries.find((item) => item.frame === frame);
+  const participants = boundary?.participants ?? [];
+  const scopedParticipants = intent === 'hard-cut'
+    ? participants.filter((item) => item.behavior === 'enters' || item.behavior === 'exits' || item.behavior === 'source-change')
+    : participants.filter((item) => item.behavior !== 'opaque');
+  const keys = scopedParticipants.map(participantKey).sort();
   return {
     ...config,
     app: {
@@ -478,7 +507,15 @@ export function withVisualSeamIntent(
         ...contract,
         version: VISUAL_SEAM_CONTRACT_VERSION,
         mode: 'enforced',
-        intents: { ...intents, [String(frame)]: intent },
+        intents: {
+          ...intents,
+          [String(frame)]: {
+            kind: intent,
+            frame,
+            participants: keys,
+            context: intentContext(frame, participants),
+          } satisfies StoredVisualSeamIntent,
+        },
       },
     },
   };

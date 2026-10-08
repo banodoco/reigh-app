@@ -367,6 +367,13 @@ function projectClip(
     volume: muted ? 0 : gain,
     ...preservedGeometry,
     ...(params ? { params } : {}),
+    ...(record(rawClip.effects) || Array.isArray(rawClip.effects) ? { effects: rawClip.effects as TimelineClip['effects'] } : {}),
+    ...(record(rawClip.elementRef) ? { elementRef: rawClip.elementRef as TimelineClip['elementRef'] } : {}),
+    ...(record(rawClip.transition) ? { transition: rawClip.transition as TimelineClip['transition'] } : {}),
+    ...(record(rawClip.entrance) ? { entrance: rawClip.entrance as TimelineClip['entrance'] } : {}),
+    ...(record(rawClip.exit) ? { exit: rawClip.exit as TimelineClip['exit'] } : {}),
+    ...(record(rawClip.continuous) ? { continuous: rawClip.continuous as TimelineClip['continuous'] } : {}),
+    ...(record(rawClip.keyframes) ? { keyframes: rawClip.keyframes as TimelineClip['keyframes'] } : {}),
     app: {
       ...app,
       canonical: identity,
