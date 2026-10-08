@@ -1,7 +1,9 @@
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
-import { renderPublicAstridSky, skyState, sunTimes } from '@/pages/Home/publicAstridSkyRender';
+import { useEffect, useRef, useState, type CSSProperties, type Dispatch, type SetStateAction } from 'react';
+import { duskTokens, PUBLIC_ASTRID_SKY_PIXEL, renderPublicAstridSky, skyState, sunTimes } from '@/pages/Home/publicAstridSkyRender';
 import { visitorLocation } from '@/pages/Home/publicAstridLocation';
 import { todayAtHour, useAppTheme } from '@/shared/hooks/core/useAppTheme';
+import { usePersistentState } from '@/shared/hooks/usePersistentState';
+import { Cloud, Moon, Sun } from 'lucide-react';
 
 /**
  * The app's appearance as a time on a 24-hour clock, midnight to midnight, as on the public site. By
@@ -86,7 +88,40 @@ const HILL_TONES = {
  * hills, a smaller moon rises after dark, twilight comes and goes, stars come out, and the clouds move
  * with the time. Nothing ever turns into anything else.
  */
-export function TimeOfDaySky({ hours, className = '' }: { hours: number; className?: string }) {
+export type SkyPreviewVisibility = {
+  sun: boolean;
+  moon: boolean;
+  environment: boolean;
+};
+
+export const SKY_PREVIEW_KEYS = {
+  sun: 'theme-preview-show-sun',
+  moon: 'theme-preview-show-moon',
+  environment: 'theme-preview-show-environment',
+} as const;
+
+export function useSkyPreviewVisibility(): SkyPreviewVisibility & {
+  setSun: Dispatch<SetStateAction<boolean>>;
+  setMoon: Dispatch<SetStateAction<boolean>>;
+  setEnvironment: Dispatch<SetStateAction<boolean>>;
+} {
+  const [sun, setSun] = usePersistentState(SKY_PREVIEW_KEYS.sun, true);
+  const [moon, setMoon] = usePersistentState(SKY_PREVIEW_KEYS.moon, true);
+  const [environment, setEnvironment] = usePersistentState(SKY_PREVIEW_KEYS.environment, true);
+  return { sun, moon, environment, setSun, setMoon, setEnvironment };
+}
+
+export function TimeOfDaySky({
+  hours,
+  className = '',
+  visibility = { sun: true, moon: true, environment: true },
+  variant = 'preview',
+}: {
+  hours: number;
+  className?: string;
+  visibility?: SkyPreviewVisibility;
+  variant?: 'preview' | 'background';
+}) {
   const sky = skyAtHour(hours);
   const { top, bottom } = skyAt(sky.night);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -96,16 +131,17 @@ export function TimeOfDaySky({ hours, className = '' }: { hours: number; classNa
   useEffect(() => {
     const wrap = wrapRef.current;
     if (!wrap) return undefined;
+    const pixel = variant === 'background' ? PUBLIC_ASTRID_SKY_PIXEL : PREVIEW_PIXEL;
     const measure = () => setSize({
-      columns: Math.max(1, Math.round(wrap.clientWidth / PREVIEW_PIXEL)),
-      rows: Math.max(1, Math.round(wrap.clientHeight / PREVIEW_PIXEL)),
+      columns: Math.max(1, Math.round(wrap.clientWidth / pixel)),
+      rows: Math.max(1, Math.round(wrap.clientHeight / pixel)),
     });
     measure();
     if (typeof ResizeObserver !== 'function') return undefined;
     const observer = new ResizeObserver(measure);
     observer.observe(wrap);
     return () => observer.disconnect();
-  }, []);
+  }, [variant]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -121,35 +157,92 @@ export function TimeOfDaySky({ hours, className = '' }: { hours: number; classNa
       rows,
       state,
       phase: 0.5,
-      intensity: 0.5,
+      intensity: variant === 'background' ? 0.3 + 0.15 * state.night : 0.5,
       path: 'arc',
-      size: PREVIEW_SUN_SIZE,
-      lift: PREVIEW_ARC_LIFT,
+      size: variant === 'background' ? 1.18 : PREVIEW_SUN_SIZE,
+      lift: variant === 'background' ? 0 : PREVIEW_ARC_LIFT,
       moonScale: PREVIEW_MOON_SCALE,
+      showSun: visibility.sun,
+      showMoon: visibility.moon,
+      showEnvironment: visibility.environment,
     }));
     // The hills last, in front of everything, so the sun and moon rise and set behind them.
-    const hills = hillHeights(columns, rows);
-    const paint = (heights: number[], tone: Rgb) => {
-      for (let x = 0; x < columns; x += 1) {
-        for (let y = rows - heights[x]; y < rows; y += 1) {
-          const i = (y * columns + x) * 4;
-          image.data[i] = tone[0]; image.data[i + 1] = tone[1]; image.data[i + 2] = tone[2]; image.data[i + 3] = 255;
+    if (visibility.environment) {
+      const hills = hillHeights(columns, rows);
+      const paint = (heights: number[], tone: Rgb) => {
+        for (let x = 0; x < columns; x += 1) {
+          for (let y = rows - heights[x]; y < rows; y += 1) {
+            const i = (y * columns + x) * 4;
+            image.data[i] = tone[0]; image.data[i + 1] = tone[1]; image.data[i + 2] = tone[2]; image.data[i + 3] = 255;
+          }
         }
-      }
-    };
-    paint(hills.far, mix(HILL_TONES.far.day, HILL_TONES.far.night, state.night));
-    paint(hills.near, mix(HILL_TONES.near.day, HILL_TONES.near.night, state.night));
+      };
+      paint(hills.far, mix(HILL_TONES.far.day, HILL_TONES.far.night, state.night));
+      paint(hills.near, mix(HILL_TONES.near.day, HILL_TONES.near.night, state.night));
+    }
     context.putImageData(image, 0, 0);
-  }, [size, hours]);
+  }, [size, hours, variant, visibility]);
 
   return (
     <div
       ref={wrapRef}
-      className={`relative overflow-hidden rounded-xl ${className}`}
-      style={{ background: `linear-gradient(${top}, ${bottom})` } as CSSProperties}
+      className={`${variant === 'background' ? 'fixed inset-0 z-0' : 'relative rounded-xl'} overflow-hidden ${className}`}
+      style={{ background: visibility.environment ? `linear-gradient(${top}, ${bottom})` : 'hsl(var(--card))' } as CSSProperties}
       aria-hidden="true"
     >
       <canvas ref={canvasRef} className="absolute inset-0 h-full w-full" style={{ imageRendering: 'pixelated' }} />
+    </div>
+  );
+}
+
+const SKY_PREVIEW_LAYERS = [
+  { key: 'sun', label: 'Sun', Icon: Sun },
+  { key: 'moon', label: 'Moon', Icon: Moon },
+  { key: 'environment', label: 'Environment', Icon: Cloud },
+] as const;
+
+function SkyPreviewControls({ visibility, onChange }: { visibility: SkyPreviewVisibility; onChange: (key: keyof SkyPreviewVisibility) => void }) {
+  return (
+    <div className="flex flex-wrap items-center gap-1" role="group" aria-label="Sky preview layers">
+      {SKY_PREVIEW_LAYERS.map(({ key, label, Icon }) => {
+        const selected = visibility[key];
+        return (
+          <button
+            key={key}
+            type="button"
+            aria-pressed={selected}
+            onClick={() => onChange(key)}
+            className={`inline-flex items-center gap-1 rounded-full border px-2 py-1 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${selected ? 'border-primary bg-primary/10 text-foreground' : 'border-border bg-muted/40 text-muted-foreground hover:bg-muted'}`}
+          >
+            <Icon className="h-3 w-3" aria-hidden="true" />
+            {label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+const PALETTE_SWATCHES = [
+  { label: 'Page', token: '--background' },
+  { label: 'Panel', token: '--card' },
+  { label: 'Text', token: '--foreground' },
+  { label: 'Accent', token: '--primary' },
+] as const;
+
+function ThemePalette({ darkness }: { darkness: number }) {
+  const tokens = duskTokens(darkness);
+  return (
+    <div className="flex items-center justify-between gap-2 rounded-lg border border-border/70 bg-background/50 px-2 py-1.5" aria-label="Current theme colors">
+      <span className="shrink-0 text-[11px] font-medium text-muted-foreground">Colors</span>
+      <div className="flex min-w-0 items-center gap-2">
+        {PALETTE_SWATCHES.map(({ label, token }) => (
+          <div key={token} className="flex items-center gap-1" title={`${label}: ${tokens[token]}`}>
+            <span className="h-3.5 w-3.5 rounded-full border border-border/70" style={{ backgroundColor: `hsl(${tokens[token]})` }} />
+            <span className="text-[10px] text-muted-foreground">{label}</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -179,7 +272,8 @@ export function TimeOfDaySlider({ hours, onChange, label = 'Time of day' }: { ho
  * bright as the sky is then.
  */
 export function TimeOfDayControl({ compact = false }: { compact?: boolean }) {
-  const { hours, setHours, followsSky, followSky } = useTimeOfDayTheme();
+  const { hours, setHours, followsSky, followSky, darkness } = useTimeOfDayTheme();
+  const visibility = useSkyPreviewVisibility();
   const options = [
     { follows: true, title: 'Follow the time of day', note: 'Light by day, dark by night, like the sky where you are.', choose: followSky },
     { follows: false, title: 'Choose a level', note: 'Pick a time on the clock, and keep it as bright as the sky is then.', choose: () => setHours(hours) },
@@ -207,9 +301,25 @@ export function TimeOfDayControl({ compact = false }: { compact?: boolean }) {
         </div>
       </div>
       <div className="min-w-0 space-y-2">
-        <TimeOfDaySky hours={hours} className={compact ? 'h-16' : 'h-36'} />
+        <TimeOfDaySky hours={hours} visibility={visibility} className={compact ? 'h-24 sm:h-28' : 'h-36'} />
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <SkyPreviewControls visibility={visibility} onChange={(key) => {
+            if (key === 'sun') visibility.setSun((value) => !value);
+            if (key === 'moon') visibility.setMoon((value) => !value);
+            if (key === 'environment') visibility.setEnvironment((value) => !value);
+          }} />
+          <span className="text-xs tabular-nums text-muted-foreground">{formatClockTime(hours)}</span>
+        </div>
         <TimeOfDaySlider hours={hours} onChange={setHours} label={followsSky ? 'Time of day (now, where you are)' : 'Time of day'} />
+        <ThemePalette darkness={darkness} />
       </div>
     </div>
   );
+}
+
+/** The same live sky used by Brightness, painted behind the app shell. */
+export function AppSkyBackground() {
+  const { hours } = useTimeOfDayTheme();
+  const visibility = useSkyPreviewVisibility();
+  return <TimeOfDaySky hours={hours} visibility={visibility} variant="background" className="pointer-events-none opacity-50" />;
 }

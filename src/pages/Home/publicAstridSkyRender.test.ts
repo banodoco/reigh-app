@@ -61,6 +61,22 @@ describe('public Astrid sky', () => {
     }
   });
 
+  it('can hide the selected body without hiding the rest of the sky', () => {
+    const state = { ...skyState(13, OCTOBER), clouds: 0, stars: 0 };
+    const body = renderPublicAstridSky({ columns: 100, rows: 64, state, phase: 0.6, intensity: 0.7, showEnvironment: false });
+    const hidden = renderPublicAstridSky({ columns: 100, rows: 64, state, phase: 0.6, intensity: 0.7, showSun: false, showEnvironment: false });
+    expect(litPixels(body)).toBeGreaterThan(0);
+    expect(litPixels(hidden)).toBe(0);
+  });
+
+  it('can hide the environment while keeping a body visible', () => {
+    const state = skyState(13, OCTOBER);
+    const withEnvironment = renderPublicAstridSky({ columns: 100, rows: 64, state, phase: 0.6, intensity: 0.7 });
+    const withoutEnvironment = renderPublicAstridSky({ columns: 100, rows: 64, state, phase: 0.6, intensity: 0.7, showEnvironment: false });
+    expect(litPixels(withoutEnvironment)).toBeGreaterThan(0);
+    expect(litPixels(withEnvironment)).toBeGreaterThan(litPixels(withoutEnvironment));
+  });
+
   it('sinks the sun fully below the horizon before it is gone', () => {
     const lit = (hours: number) => litPixels(renderPublicAstridSky({
       columns: 100, rows: 64, state: { ...skyState(hours, OCTOBER), clouds: 0 }, phase: 0.6, intensity: 0.5,

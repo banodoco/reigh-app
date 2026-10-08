@@ -508,6 +508,10 @@ export interface PublicAstridSkyRenderInput {
   lift?: number;
   /** Which depth layer to paint: the sun or moon; the stars; the far clouds; the near clouds; or everything. */
   layer?: 'all' | 'sky' | 'stars' | 'far' | 'near';
+  /** Optional visibility controls for the live Brightness preview. Defaults keep the complete sky. */
+  showSun?: boolean;
+  showMoon?: boolean;
+  showEnvironment?: boolean;
   /** Per pixel, how far to quiet the sky behind the page's text: 0 (not at all) to QUIET_LEVELS. */
   quiet?: Uint8Array;
   /** The moon's size relative to the sun's (1 = the same, as in the real sky). */
@@ -787,6 +791,7 @@ export function renderPublicAstridSky(input: PublicAstridSkyRenderInput, output?
   // 'rise': bigger than the viewport, so it fills the page and reads as sky rather than an ornament.
   // 'arc': a smaller disc that travels the sky east to west, like the real thing seen facing south.
   const radius = (input.size ?? (arc ? ARC_RADIUS : SKY_RADIUS)) * rows * (state.body === 'moon' ? input.moonScale ?? 1 : 1);
+  const bodyVisible = state.body === 'sun' ? input.showSun !== false : state.body === 'moon' ? input.showMoon !== false : false;
   // On the horizon the disc sits wholly below the viewport, so it rises up from the bottom edge and
   // sinks back out of view instead of vanishing. Positions are whole art pixels so edges never shimmer.
   const below = rows + radius;
@@ -812,7 +817,7 @@ export function renderPublicAstridSky(input: PublicAstridSkyRenderInput, output?
   const ambientAlpha = Math.round(255 * (AMBIENT_OPACITY.light + (AMBIENT_OPACITY.dark - AMBIENT_OPACITY.light) * state.night) * reveal);
 
   // Stars and clouds fill whatever the sun or moon leaves empty, so a low moon still has a full sky.
-  const empty = 1 - discCoverage(columns, rows, centreX, centreY, radius);
+  const empty = 1 - (bodyVisible ? discCoverage(columns, rows, centreX, centreY, radius) : 0);
   const starStrength = state.stars * (0.3 + 0.7 * empty) * (0.85 + 0.15 * state.night);
   const cloudStrength = state.clouds * (0.35 + 0.65 * empty);
 
@@ -894,11 +899,11 @@ export function renderPublicAstridSky(input: PublicAstridSkyRenderInput, output?
     out[index + 2] = color[2];
     out[index + 3] = Math.round(opacity);
   };
-  const inDisc = (x: number, y: number) => state.body !== 'none' && Math.hypot(x + 0.5 - centreX, y + 0.5 - centreY) < radius;
+  const inDisc = (x: number, y: number) => bodyVisible && Math.hypot(x + 0.5 - centreX, y + 0.5 - centreY) < radius;
 
   // 1. The sun or moon, only over the rows and columns it can touch.
   const paintsSky = layer === 'all' || layer === 'sky';
-  if (paintsSky && state.body !== 'none') {
+  if (paintsSky && bodyVisible) {
     const x0 = Math.max(0, Math.floor(centreX - radius));
     const x1 = Math.min(columns, Math.ceil(centreX + radius));
     const y0 = Math.max(0, Math.floor(centreY - radius));
@@ -960,7 +965,7 @@ export function renderPublicAstridSky(input: PublicAstridSkyRenderInput, output?
   // 2. Stars, behind the moon. Over the hero copy they shrink to dimmer single pixels, so they reach across
   //    the whole sky without competing with the headline. Dimmer stars drop out first as the field
   //    fades, so it thins out rather than just turning grey.
-  if ((layer === 'all' || layer === 'stars') && starStrength > 0) {
+  if (input.showEnvironment !== false && (layer === 'all' || layer === 'stars') && starStrength > 0) {
     const threshold = 1 - starStrength * 1.1;
     const fade = Math.min(1, starStrength * 1.5);
     const glow = 0.95 - 0.25 * state.night;
@@ -986,7 +991,7 @@ export function renderPublicAstridSky(input: PublicAstridSkyRenderInput, output?
   // 3. Clouds last, far layer then near, in front of the sun and moon. Shading follows each cloud's own
   //    outline, so the base never reads as a slab: a lit rim along the top and a shaded rim along the
   //    underside. After dusk the same clouds simply turn darker.
-  if (cloudStrength > 0) {
+  if (input.showEnvironment !== false && cloudStrength > 0) {
     const paintCloud = (x: number, y: number, tone: Rgb, share: number, quiet: number) => write(x, y, tone, cloudOpacity * share * (1 - QUIET_CLOUD_THIN * quiet));
     if (layer === 'all' || layer === 'far') {
       paintClouds(FAR_CLOUDS, (x, y, tone, share, quiet) => { if (!nearMask?.[y * columns + x]) paintCloud(x, y, tone, share, quiet); });
