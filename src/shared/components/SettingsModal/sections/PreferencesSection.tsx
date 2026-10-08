@@ -18,9 +18,6 @@ const PreferencesSection: React.FC<PreferencesSectionProps> = ({
         <div className={`${isMobile ? 'p-3' : 'p-4'} bg-muted/30 rounded-lg space-y-2`}>
           <span className="font-medium">Brightness:</span>
           <TimeOfDayControl compact />
-          <p className="text-xs text-muted-foreground">
-            Follow the time of day or choose a fixed brightness for your workspace
-          </p>
         </div>
 
         {/* User Text Case Toggle */}

@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState, type CSSProperties, type Dispatch, type SetStateAction } from 'react';
-import { duskTokens, PUBLIC_ASTRID_SKY_PIXEL, renderPublicAstridSky, skyState, sunTimes } from '@/pages/Home/publicAstridSkyRender';
+import { PUBLIC_ASTRID_SKY_PIXEL, renderPublicAstridSky, skyState, sunTimes } from '@/pages/Home/publicAstridSkyRender';
 import { visitorLocation } from '@/pages/Home/publicAstridLocation';
 import { todayAtHour, useAppTheme } from '@/shared/hooks/core/useAppTheme';
 import { usePersistentState } from '@/shared/hooks/usePersistentState';
-import { Cloud, Moon, Sun } from 'lucide-react';
+import { Switch } from '@/shared/components/ui/switch';
 
 /**
  * The app's appearance as a time on a 24-hour clock, midnight to midnight, as on the public site. By
@@ -89,32 +89,24 @@ const HILL_TONES = {
  * with the time. Nothing ever turns into anything else.
  */
 export type SkyPreviewVisibility = {
-  sun: boolean;
-  moon: boolean;
   environment: boolean;
 };
 
 export const SKY_PREVIEW_KEYS = {
-  sun: 'theme-preview-show-sun',
-  moon: 'theme-preview-show-moon',
-  environment: 'theme-preview-show-environment',
+  environment: 'theme-include-environment',
 } as const;
 
 export function useSkyPreviewVisibility(): SkyPreviewVisibility & {
-  setSun: Dispatch<SetStateAction<boolean>>;
-  setMoon: Dispatch<SetStateAction<boolean>>;
   setEnvironment: Dispatch<SetStateAction<boolean>>;
 } {
-  const [sun, setSun] = usePersistentState(SKY_PREVIEW_KEYS.sun, true);
-  const [moon, setMoon] = usePersistentState(SKY_PREVIEW_KEYS.moon, true);
   const [environment, setEnvironment] = usePersistentState(SKY_PREVIEW_KEYS.environment, true);
-  return { sun, moon, environment, setSun, setMoon, setEnvironment };
+  return { environment, setEnvironment };
 }
 
 export function TimeOfDaySky({
   hours,
   className = '',
-  visibility = { sun: true, moon: true, environment: true },
+  visibility = { environment: true },
   variant = 'preview',
 }: {
   hours: number;
@@ -162,8 +154,8 @@ export function TimeOfDaySky({
       size: variant === 'background' ? 1.18 : PREVIEW_SUN_SIZE,
       lift: variant === 'background' ? 0 : PREVIEW_ARC_LIFT,
       moonScale: PREVIEW_MOON_SCALE,
-      showSun: visibility.sun,
-      showMoon: visibility.moon,
+      showSun: true,
+      showMoon: true,
       showEnvironment: visibility.environment,
     }));
     // The hills last, in front of everything, so the sun and moon rise and set behind them.
@@ -195,58 +187,6 @@ export function TimeOfDaySky({
   );
 }
 
-const SKY_PREVIEW_LAYERS = [
-  { key: 'sun', label: 'Sun', Icon: Sun },
-  { key: 'moon', label: 'Moon', Icon: Moon },
-  { key: 'environment', label: 'Environment', Icon: Cloud },
-] as const;
-
-function SkyPreviewControls({ visibility, onChange }: { visibility: SkyPreviewVisibility; onChange: (key: keyof SkyPreviewVisibility) => void }) {
-  return (
-    <div className="flex flex-wrap items-center gap-1" role="group" aria-label="Sky preview layers">
-      {SKY_PREVIEW_LAYERS.map(({ key, label, Icon }) => {
-        const selected = visibility[key];
-        return (
-          <button
-            key={key}
-            type="button"
-            aria-pressed={selected}
-            onClick={() => onChange(key)}
-            className={`inline-flex items-center gap-1 rounded-full border px-2 py-1 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${selected ? 'border-primary bg-primary/10 text-foreground' : 'border-border bg-muted/40 text-muted-foreground hover:bg-muted'}`}
-          >
-            <Icon className="h-3 w-3" aria-hidden="true" />
-            {label}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-const PALETTE_SWATCHES = [
-  { label: 'Page', token: '--background' },
-  { label: 'Panel', token: '--card' },
-  { label: 'Text', token: '--foreground' },
-  { label: 'Accent', token: '--primary' },
-] as const;
-
-function ThemePalette({ darkness }: { darkness: number }) {
-  const tokens = duskTokens(darkness);
-  return (
-    <div className="flex items-center justify-between gap-2 rounded-lg border border-border/70 bg-background/50 px-2 py-1.5" aria-label="Current theme colors">
-      <span className="shrink-0 text-[11px] font-medium text-muted-foreground">Colors</span>
-      <div className="flex min-w-0 items-center gap-2">
-        {PALETTE_SWATCHES.map(({ label, token }) => (
-          <div key={token} className="flex items-center gap-1" title={`${label}: ${tokens[token]}`}>
-            <span className="h-3.5 w-3.5 rounded-full border border-border/70" style={{ backgroundColor: `hsl(${tokens[token]})` }} />
-            <span className="text-[10px] text-muted-foreground">{label}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 /** A 24-hour clock, midnight to midnight: 8am a third of the way along, noon in the middle. */
 export function TimeOfDaySlider({ hours, onChange, label = 'Time of day' }: { hours: number; onChange: (hours: number) => void; label?: string }) {
   return (
@@ -272,7 +212,7 @@ export function TimeOfDaySlider({ hours, onChange, label = 'Time of day' }: { ho
  * bright as the sky is then.
  */
 export function TimeOfDayControl({ compact = false }: { compact?: boolean }) {
-  const { hours, setHours, followsSky, followSky, darkness } = useTimeOfDayTheme();
+  const { hours, setHours, followsSky, followSky } = useTimeOfDayTheme();
   const visibility = useSkyPreviewVisibility();
   const options = [
     { follows: true, title: 'Follow the time of day', note: 'Light by day, dark by night, like the sky where you are.', choose: followSky },
@@ -299,19 +239,22 @@ export function TimeOfDayControl({ compact = false }: { compact?: boolean }) {
             );
           })}
         </div>
+        <div className="mt-3 flex items-center justify-between gap-3 rounded-lg border border-border bg-background/40 p-3">
+          <div className="min-w-0">
+            <span className="block text-sm font-medium text-foreground">Include environment</span>
+          </div>
+          <Switch
+            size="sm"
+            checked={visibility.environment}
+            onCheckedChange={visibility.setEnvironment}
+            aria-label="Include environment"
+          />
+        </div>
       </div>
       <div className="min-w-0 space-y-2">
         <TimeOfDaySky hours={hours} visibility={visibility} className={compact ? 'h-24 sm:h-28' : 'h-36'} />
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <SkyPreviewControls visibility={visibility} onChange={(key) => {
-            if (key === 'sun') visibility.setSun((value) => !value);
-            if (key === 'moon') visibility.setMoon((value) => !value);
-            if (key === 'environment') visibility.setEnvironment((value) => !value);
-          }} />
-          <span className="text-xs tabular-nums text-muted-foreground">{formatClockTime(hours)}</span>
-        </div>
+        <span className="block text-xs tabular-nums text-muted-foreground">{formatClockTime(hours)}</span>
         <TimeOfDaySlider hours={hours} onChange={setHours} label={followsSky ? 'Time of day (now, where you are)' : 'Time of day'} />
-        <ThemePalette darkness={darkness} />
       </div>
     </div>
   );
