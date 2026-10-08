@@ -1,6 +1,10 @@
 import { Component, createRef, type MutableRefObject, type ReactNode } from 'react';
 
 export const CALLOUT_MOVE_MS = 720;
+// Let the card-side endpoint lead visibly, then retarget the far endpoint while
+// the card is still moving so the connector performs one continuous double move.
+export const CALLOUT_RETARGET_START_MS = 260;
+export const CALLOUT_RETARGET_MS = 420;
 export interface CalloutMove {
   started: number;
   boxes: DOMRect[];
@@ -85,12 +89,23 @@ export class PublicAstridCalloutLayout extends Component<Props> {
       Object.assign(outgoing.style, { position: 'absolute', top: padding.paddingTop, left: padding.paddingLeft, pointerEvents: 'none' });
       outgoing.append(...snapshot.content[index]);
       card.append(outgoing);
-      const frame = (box: DOMRect) => ({
-        left: `${box.left - origin.left}px`, top: `${box.top - origin.top}px`,
-        width: `${box.width}px`, height: `${box.height}px`, right: 'auto', bottom: 'auto',
+      // Animate from the captured geometry with a FLIP transform. The cards deliberately
+      // alternate between CSS `left` and `right` anchors across audiences; animating those
+      // positional properties directly lets the browser re-resolve the opposite anchor and
+      // produces a one-frame jump on the third card. The final CSS layout stays authoritative,
+      // while transform carries the card from its old box to the new one.
+      const dx = from.left - to.left;
+      const dy = from.top - to.top;
+      const frame = (box: DOMRect, transform: string) => ({
+        transform,
+        translate: '0 0',
+        width: `${box.width}px`, height: `${box.height}px`,
       });
       card.dataset.layoutMoving = 'true';
-      const animation = card.animate([frame(from), frame(to)], {
+      const animation = card.animate([
+        frame(from, `translate(${dx}px, ${dy}px)`),
+        frame(to, 'translate(0, 0)'),
+      ], {
         duration: CALLOUT_MOVE_MS, easing: 'cubic-bezier(.4, 0, .2, 1)',
       });
       animation.onfinish = () => {

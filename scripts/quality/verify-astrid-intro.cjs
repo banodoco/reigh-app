@@ -65,7 +65,7 @@ fs.mkdirSync(out, {recursive:true});
       ]),'Card -> connector -> endpoint narrative order');
       for(let i=0;i<3;i++) {
         const [card,line,dot]=calls.slice(i*3,i*3+3);
-        assert(line.t-card.t>=330,'Connector began before card settled');
+        assert(line.t-card.t>=220,'Connector began too late after card appeared');
         assert(dot.t-line.t>=170,'Endpoint began before line finished');
         if(i<2) {
           assert(calls[i*3+3].t-dot.t>=90,'Next card began before endpoint landed');
@@ -80,7 +80,7 @@ fs.mkdirSync(out, {recursive:true});
       assert.equal(visible.find(f=>f.cards.length)?.cards[0].delay,450,'First card CSS delay changed');
       // Animation events can arrive a few frames late during cold-load/screenshot work.
       assert(Math.abs(calls[0].t-visible[0].t-450)<100,'First card missed its 450ms arrival');
-      assert(calls.at(-1).t+100-visible[0].t<2570,'Callout sequence exceeded its 2.47-second arrival budget');
+      assert(calls.at(-1).t+100-visible[0].t<2460,'Callout sequence exceeded its 2.36-second arrival budget');
       assert(media.some(m=>m.url.endsWith('/astrid/light-study/first-light.mp4') && [200,206].includes(m.status)));
       // App intentionally uses the launcher instead of the hidden chat window.
       for(const idx of audience==='app' ? [1] : [1,2]) {

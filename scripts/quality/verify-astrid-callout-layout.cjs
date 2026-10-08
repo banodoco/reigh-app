@@ -2,6 +2,8 @@
 const {chromium} = require('playwright');
 const fs = require('node:fs');
 const assert = require('node:assert/strict');
+const CALLOUT_MOVE_MS = 720;
+const CALLOUT_RETARGET_START_MS = 260;
 const base = process.argv[2] || 'http://127.0.0.1:2245';
 const out = process.argv[3] || '/tmp/astrid-callout-layout';
 fs.mkdirSync(out, {recursive:true});
@@ -58,9 +60,15 @@ fs.mkdirSync(out, {recursive:true});
         const newIds=audience==='agent'?['community','tools','workflows']:['timeline','effects','models'];
         for(let i=0;i<3;i++) {
           assert(new Set(moving.map(f=>f.cards[i].box.join(','))).size>8,'Card snapped instead of moving/resizing');
-          const early=moving.filter(f=>f.t-moving[0].t<250);
+          // Leave a small sampling margin before the overlap phase starts; screenshots and
+          // RAF timestamps do not share the same zero point on every browser run.
+          const early=moving.filter(f=>f.t-moving[0].t<200);
           assert(new Set(early.map(f=>f.cards[i].path)).size>4,'Connector held old geometry until the end');
-          assert(new Set(early.map(f=>f.cards[i].end.join(','))).size>4,'Endpoint did not move continuously in first 250ms');
+          assert(new Set(early.map(f=>f.cards[i].start.join(','))).size>4,'Card-side endpoint did not follow the moving card');
+          assert(new Set(early.map(f=>f.cards[i].end.join(','))).size<=2,'Far endpoint retargeted before the card settled');
+          const switched=result.frames.filter(f=>f.audience===audience);
+          const retargeting=switched.filter(f=>f.t-switched[0].t>=CALLOUT_RETARGET_START_MS && f.t-switched[0].t<CALLOUT_MOVE_MS);
+          assert(new Set(retargeting.map(f=>f.cards[i].end.join(','))).size>4,'Far endpoint did not retarget while the card was moving');
           assert(moving.filter(f=>f.cards[i].textOpacity>0.1 && f.cards[i].textOpacity<0.9 && f.cards[i].outgoingOpacity>0.1 && f.cards[i].outgoingOpacity<0.9).length>5,'Text popped instead of crossfading');
           assert(moving.every(f=>f.cards[i].opacity==='1'),'Shared layout was replaced with a fade');
           assert(moving.every(f=>{
@@ -68,12 +76,14 @@ fs.mkdirSync(out, {recursive:true});
             return sx>=x-20 && sx<=x+w+20 && sy>=y-20 && sy<=y+h+20;
           }),'Connector detached from moving card');
           assert.equal(result.frames.at(-1).cards[i].target,newIds[i]);
-          const switched=result.frames.filter(f=>f.audience===audience);
           for(let j=1;j<switched.length;j++) {
             const a=switched[j-1],b=switched[j];
             if(b.t-a.t>80)continue;
             // Desktop cards cross ~830px; account for dropped frames during screenshots.
-            assert(Math.max(...b.cards[i].box.map((v,k)=>Math.abs(v-a.cards[i].box[k])))<6*(b.t-a.t)+20,'Abrupt card geometry jump');
+            // Screenshot/RAF sampling can produce sub-16ms deltas even when the browser
+            // has advanced by one compositor frame. Compare against a 60Hz floor so a
+            // dropped capture sample cannot turn smooth motion into a false jump.
+            assert(Math.max(...b.cards[i].box.map((v,k)=>Math.abs(v-a.cards[i].box[k])))<6*Math.max(16,b.t-a.t)+20,'Abrupt card geometry jump');
           }
         }
         console.log(JSON.stringify({width,audience,frames:result.frames.length,movingFrames:moving.length,identity:true,targets:true}));

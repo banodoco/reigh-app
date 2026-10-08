@@ -1,7 +1,7 @@
 import { useEffect, useRef, type CSSProperties, type RefObject } from 'react';
 import type { PublicAstridAudience } from './publicAstridMotion';
 import { readPublicAstridPlayerHeight } from './usePublicAstridPlayerHeight';
-import { PublicAstridCalloutLayout, CALLOUT_MOVE_MS, type CalloutMove } from './PublicAstridCalloutLayout';
+import { PublicAstridCalloutLayout, CALLOUT_RETARGET_START_MS, CALLOUT_RETARGET_MS, type CalloutMove } from './PublicAstridCalloutLayout';
 
 type CalloutSide = 'left' | 'right' | 'top' | 'bottom';
 
@@ -170,14 +170,15 @@ function calloutTiming(index: number): CSSProperties {
   const card = 360;
   const connector = 200;
   const endpoint = 100;
+  const connectorLead = 250;
   const start = 450 + index * (card + connector + endpoint + 20);
   return {
     '--astrid-callout-index': index,
     '--astrid-callout-start': `${start}ms`,
     '--astrid-card-duration': `${card}ms`,
-    '--astrid-connector-start': `${start + card}ms`,
+    '--astrid-connector-start': `${start + connectorLead}ms`,
     '--astrid-connector-duration': `${connector}ms`,
-    '--astrid-endpoint-start': `${start + card + connector}ms`,
+    '--astrid-endpoint-start': `${start + connectorLead + connector}ms`,
     '--astrid-endpoint-duration': `${endpoint}ms`,
   } as CSSProperties;
 }
@@ -341,8 +342,8 @@ export function PublicAstridCallouts({ stageRef, audience, reducedMotion, active
 
       const move = moveRef.current;
       const elapsed = move ? performance.now() - move.started : Infinity;
-      const retarget = Math.max(0, Math.min(1, elapsed / CALLOUT_MOVE_MS));
-      const blend = retarget * retarget * (3 - 2 * retarget);
+      const targetProgress = Math.max(0, Math.min(1, (elapsed - CALLOUT_RETARGET_START_MS) / CALLOUT_RETARGET_MS));
+      const targetBlend = targetProgress * targetProgress * (3 - 2 * targetProgress);
       for (const [index, callout] of callouts.entries()) {
         const path = svgElement.querySelector<SVGPathElement>(`path[data-callout="${callout.id}"]`);
         const dots = svgElement.querySelectorAll<SVGCircleElement>(`circle[data-callout="${callout.id}"]`);
@@ -363,11 +364,21 @@ export function PublicAstridCallouts({ stageRef, audience, reducedMotion, active
           ? cardAnchor(cardBox, geometry.side, end)
           : { x: cardBox.left + cardBox.width * geometry.swing, y: geometry.side === 'top' ? cardBox.top : cardBox.bottom };
         const start = anchor(destination);
-        setAttribute(path, 'data-connector-target', move && blend < 1 ? 'transition' : callout.id);
+        setAttribute(path, 'data-connector-target', move && targetProgress < 1 ? 'transition' : callout.id);
         let sx = start.x - originX;
         let sy = start.y - originY;
         let ex = end.x - originX;
         let ey = end.y - originY;
+        const previous = move?.curves[index];
+        if (move && previous?.length === 8) {
+          // The card-side anchor must follow the current card edge immediately. Carrying
+          // the old anchor/control handles into the new layout is what causes the side-change
+          // wiggle. Only the far endpoint is delayed, and its handles are rebuilt below.
+          const oldEx = previous[6] - originX;
+          const oldEy = previous[7] - originY;
+          ex = oldEx + (ex - oldEx) * targetBlend;
+          ey = oldEy + (ey - oldEy) * targetBlend;
+        }
         const horizontal = side === 'left' || side === 'right';
         const reach = horizontal ? Math.abs(ex - sx) * 0.5 : Math.abs(ey - sy) * 0.5;
         const direction = side === 'left' || side === 'top' ? -1 : 1;
@@ -377,24 +388,6 @@ export function PublicAstridCallouts({ stageRef, audience, reducedMotion, active
           // Down (or up) the margin, then a turn in to the target's side.
           c1 = [sx, sy + direction * Math.abs(ey - sy) * 0.9];
           c2 = [ex + Math.sign(sx - ex) * Math.abs(ex - sx) * 0.9, ey];
-        }
-        const previous = move?.curves[index];
-        if (move && previous?.length === 8) {
-          const box = move.boxes[index];
-          const source = previous.map((value, coordinate) => {
-            // Carry the source anchor/control handle along with the moving/resizing card.
-            // The other handle and endpoint interpolate from their actual pre-switch positions
-            // to the newly measured target on every frame (also on rapid reversal).
-            if (coordinate < 4) return coordinate % 2
-              ? cardBox.top + (value - box.top) * cardBox.height / Math.max(1, box.height) - originY
-              : cardBox.left + (value - box.left) * cardBox.width / Math.max(1, box.width) - originX;
-            return value - (coordinate % 2 ? originY : originX);
-          });
-          const next = [sx, sy, ...c1, ...c2, ex, ey];
-          const curve = source.map((value, coordinate) => value + (next[coordinate] - value) * blend);
-          [sx, sy] = curve;
-          c1 = curve.slice(2, 4); c2 = curve.slice(4, 6);
-          [ex, ey] = curve.slice(6);
         }
         setAttribute(path, 'd', `M${sx.toFixed(1)} ${sy.toFixed(1)} C${c1.join(' ')} ${c2.join(' ')} ${ex.toFixed(1)} ${ey.toFixed(1)}`);
         setAttribute(dots[0], 'cx', sx.toFixed(1));
@@ -416,8 +409,8 @@ export function PublicAstridCallouts({ stageRef, audience, reducedMotion, active
           && effect.getKeyframes().some((keyframe) => ['transform', 'translate', 'scale', 'rotate', ...TRACKED_PROPERTIES].some((property) => keyframe[property] !== undefined));
       });
       writes.forEach((write) => write());
-      if (move && retarget === 1) moveRef.current = null;
-      if (trackedChanged || !settled || moving || (move && retarget < 1)) schedule();
+      if (move && targetProgress === 1) moveRef.current = null;
+      if (trackedChanged || !settled || moving || (move && targetProgress < 1)) schedule();
     }
     const resizeObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(schedule);
     const observeGeometry = () => {

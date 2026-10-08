@@ -113,10 +113,15 @@ describe('bounded stage passes', () => {
       expect(view.container.querySelector('.astrid-callout-dot-end')?.getAttribute('cx')).toBe('127.0');
       now += 360;
       paint();
+      const early = Number(view.container.querySelector('.astrid-callout-dot-end')?.getAttribute('cx'));
+      expect(early).toBeGreaterThan(100);
+      expect(early).toBeLessThan(127);
+      now += 300;
+      paint();
       const middle = Number(view.container.querySelector('.astrid-callout-dot-end')?.getAttribute('cx'));
       expect(middle).toBeGreaterThan(100);
       expect(middle).toBeLessThan(127);
-      now += 370;
+      now += 120;
       settle();
       expect(paths[0].getAttribute('data-connector-target')).toBe('community');
       expect(view.container.querySelector('.astrid-callout-dot-end')?.getAttribute('cx')).toBe('100.0');
@@ -141,7 +146,7 @@ describe('bounded stage passes', () => {
     const milliseconds = (element: HTMLElement | SVGElement, name: string) => parseFloat(element.style.getPropertyValue(`--astrid-${name}`));
     // Keep the narrative legible without returning to the previous five-second entrance.
     expect(milliseconds(cards[0], 'callout-start')).toBe(450);
-    expect(milliseconds(cards[2], 'endpoint-start') + milliseconds(cards[2], 'endpoint-duration')).toBe(2470);
+    expect(milliseconds(cards[2], 'endpoint-start') + milliseconds(cards[2], 'endpoint-duration')).toBe(2360);
     for (const [index, card] of cards.entries()) {
       const group = view.container.querySelector<SVGElement>(`g:has(path[data-callout="${card.dataset.callout}"])`)!;
       expect(group.getAttribute('style')).toBe(card.getAttribute('style'));
@@ -150,7 +155,7 @@ describe('bounded stage passes', () => {
       const endStart = milliseconds(card, 'endpoint-start');
       expect(milliseconds(card, 'card-duration')).toBeGreaterThanOrEqual(350);
       expect(milliseconds(card, 'connector-duration')).toBeGreaterThanOrEqual(200);
-      expect(lineStart).toBeGreaterThanOrEqual(start + milliseconds(card, 'card-duration'));
+      expect(lineStart).toBeGreaterThanOrEqual(start + 250);
       expect(endStart).toBeGreaterThanOrEqual(lineStart + milliseconds(card, 'connector-duration'));
       if (cards[index + 1]) {
         expect(milliseconds(cards[index + 1], 'callout-start')).toBeGreaterThan(endStart + milliseconds(card, 'endpoint-duration'));
