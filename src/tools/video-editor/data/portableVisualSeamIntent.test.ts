@@ -12,18 +12,19 @@ import {createShotCompositionAdapter} from './shotCompositionAdapter.ts';
 import {projectCanonicalComposition} from './shotCompositionProjection.ts';
 
 const runtime = process.env.VISUAL_SEAM_RUNTIME_CHECKOUT ?? resolve(process.cwd(), '../../../../banodoco-workspace-runtime/.otto/worktrees/visual-seam-contract-20261008');
-function report(config: ResolvedTimelineConfig, closure?: Record<string, unknown>) {
+function report(config: ResolvedTimelineConfig, closure?: Record<string, unknown>, admit = false) {
   const python = spawnSync('python3', ['-c', `import json,sys
-from runtime_protocol.visual_seam import evaluate_closure
+from runtime_protocol.visual_seam import evaluate_closure, admit_closure
 c=json.load(sys.stdin)
 if 'closure' in c:
     x=c['closure'];p=x['parent'];p['config']['app']=c['config'].get('app',{})
-    r,m=evaluate_closure(p,{(s['shot_id'],s['revision_id']):s for s in x['shots']},{i['revision_id']:i for i in x['internal']},timeline_id='main',materialize=True)
+    evaluate=admit_closure if c.get('admit') else evaluate_closure
+    r,m=evaluate(p,{(s['shot_id'],s['revision_id']):s for s in x['shots']},{i['revision_id']:i for i in x['internal']},timeline_id='main',materialize=True)
 else:
     r,_=evaluate_closure({'config':c,'clips':c['clips'],'registry':{'assets':c['registry']},'occurrences':[]},{},{},timeline_id='main')
 if 'closure' in c: r['renderConfig']=m['render_config']
 print(json.dumps(r))`], {cwd: runtime, input: JSON.stringify(config), encoding: 'utf8',
-    ...(closure ? {input: JSON.stringify({config, closure})} : {}),
+    ...(closure ? {input: JSON.stringify({config, closure, admit})} : {}),
     env: {...process.env, PYTHONPATH: runtime, PYTHONDONTWRITEBYTECODE: '1'}});
   expect(python.status, python.stderr).toBe(0);
   return JSON.parse(python.stdout) as {blocked: boolean; cues: BoundaryCue[];
@@ -125,6 +126,74 @@ describe('portable Reigh intent admitted by authoritative Runtime', () => {
     expect(report(base, closure).blocked).toBe(true);
     expect(report(acknowledged, closure).blocked).toBe(false);
   });
+});
+
+describe('Astra round-three occurrence lane owners', () => {
+  it.each(['cue-free', 'cue-contributor', 'secondary-cut'] as const)(
+    'binds the same two-occurrence context and admits the same intent: %s', mode => {
+      const base = config();
+      base.tracks.push({id: 'secondary', kind: 'visual', label: 'Secondary picture'});
+      const outgoing = {...base.clips[0]!};
+      const incoming = {...base.clips[1]!, at: 0};
+      const spanning = {id: 'spanning', track: 'secondary', clipType: 'media' as const, at: 0, hold: 1,
+        ...(mode === 'cue-contributor' ? {exit: {type: 'fade', durationFrames: 2}} : {})};
+      const outgoingClips: ResolvedTimelineConfig['clips'] = [outgoing, spanning];
+      const incomingClips: ResolvedTimelineConfig['clips'] = [incoming, ...(mode === 'secondary-cut'
+        ? [{id: 'secondary-in', track: 'secondary', clipType: 'media' as const, at: 0, hold: 1}] : [])];
+      base.clips = [outgoingClips, incomingClips].flatMap((clips, index) => clips.map(c => ({...c,
+        id: `o-${index}:${c.id}`, at: index + c.at,
+        app: {canonical: {parentDocumentId: 'main', occurrenceId: `o-${index}`, sourceClipId: c.id}},
+      })));
+      const closure = {
+        parent: {config: {output: {fps: 30}, tracks: base.tracks}, clips: [], registry: {},
+          occurrences: [0, 1].map(i => ({occurrence_id: `o-${i}`, shot_id: `s-${i}`, shot_revision_id: `sr-${i}`,
+            placement: {start_ms: i * 1000}, track: 'v', duration_ms: 1000, speed: 1}))},
+        shots: [0, 1].map(i => ({shot_id: `s-${i}`, revision_id: `sr-${i}`, internal_timeline_revision_id: `ir-${i}`})),
+        internal: [outgoingClips, incomingClips].map((clips, i) => ({revision_id: `ir-${i}`, payload: {tracks: base.tracks, clips}})),
+      };
+      const intent = portableVisualSeamIntent(base, 30, 'synchronized');
+      const boundary = report(base, closure).boundaries.find(b => b.frame === 30)!;
+      expect(intent.context).toEqual(boundary.canonicalContext);
+      expect(intent.participants).toEqual(boundary.canonicalCueIds);
+      expect(intent.context.owners.map(o => o.path)).toEqual([
+        ['occurrence', 'o-0', 'clip', 'a'],
+        ...(mode !== 'cue-free' ? [['occurrence', 'o-0', 'clip', 'spanning']] : []),
+        ['occurrence', 'o-1', 'clip', 'b'],
+        ...(mode === 'secondary-cut' ? [['occurrence', 'o-1', 'clip', 'secondary-in']] : []),
+      ]);
+      expect(boundary.requiresIntent).toBe(true);
+      expect(report(base, closure).structuralIssues).toEqual([]);
+      const originalClosure = structuredClone(closure);
+      const authored = withVisualSeamIntent(structuredClone(base), 30, 'synchronized');
+      expect(analyzeVisualSeams(authored, {enforceIntent: true}).blocked).toBe(false);
+      expect(report(authored, closure, true).blocked).toBe(false);
+
+      // Every child is still disclosed. Cue-free unrelated metadata is not a seam witness.
+      if (mode === 'cue-free') {
+        authored.clips.find(c => c.id === 'o-0:spanning')!.opacity = 0.5;
+        closure.internal[0]!.payload.clips[1]!.opacity = 0.5;
+        expect(analyzeVisualSeams(authored, {enforceIntent: true}).blocked).toBe(false);
+        expect(report(authored, closure, true).blocked).toBe(false);
+        // A new outgoing cue makes that same child independently relevant.
+        authored.clips.find(c => c.id === 'o-0:spanning')!.exit = {type: 'fade', durationFrames: 2};
+        closure.internal[0]!.payload.clips[1]!.exit = {type: 'fade', durationFrames: 2};
+      } else {
+        // This binds a cue contributor or the outgoing owner of the secondary cut.
+        authored.clips.find(c => c.id === 'o-0:spanning')!.opacity = 0.5;
+        closure.internal[0]!.payload.clips[1]!.opacity = 0.5;
+      }
+      expect(portableVisualSeamIntent(authored, 30, 'synchronized').context)
+        .toEqual(report(authored, closure).boundaries.find(b => b.frame === 30)?.canonicalContext);
+      expect(analyzeVisualSeams(authored, {enforceIntent: true}).blocked).toBe(true);
+      expect(report(authored, closure).blocked).toBe(true);
+
+      const relevantEdit = withVisualSeamIntent(structuredClone(base), 30, 'synchronized');
+      relevantEdit.clips.find(c => c.id === 'o-1:b')!.entrance = {type: 'fade', duration: 0.7};
+      originalClosure.internal[1]!.payload.clips[0]!.entrance = {type: 'fade', duration: 0.7};
+      expect(analyzeVisualSeams(relevantEdit, {enforceIntent: true}).blocked).toBe(true);
+      expect(report(relevantEdit, originalClosure).blocked).toBe(true);
+    },
+  );
 });
 
 describe('Astra round-two cross-consumer regressions', () => {
@@ -243,6 +312,67 @@ describe('Astra round-two cross-consumer regressions', () => {
     expect(analyzeVisualSeams(unrelatedEdit, {enforceIntent: true}).blocked).toBe(true);
     expect(report(unrelatedEdit).blocked).toBe(true);
   });
+
+  it.each(['cue-free', 'cue-contributor', 'lane-boundary'] as const)(
+    'binds two occurrence children by lane boundary plus independent cues: %s', mode => {
+      const graph = structuredClone(fixture);
+      graph.occurrences = [
+        {...graph.occurrences[0]!, at_ms: 0, duration_ms: 1000},
+        {...graph.occurrences[2]!, at_ms: 1000, duration_ms: 1000},
+      ];
+      graph.parent_composition.config.app.visualSeamContract.gaps = [];
+      const base = config();
+      base.clips = [];
+      base.tracks.push({id: 'secondary', kind: 'visual', label: 'Secondary picture'});
+      const outgoing = {tracks: base.tracks, clips: [
+        {id: 'a', clipType: 'media', track: 'v', at: 0, hold: 1},
+        {id: 'spanning', clipType: 'media', track: 'secondary', at: 0, hold: 1,
+          ...(mode === 'cue-contributor' ? {exit: {type: 'fade', durationFrames: 2}} : {})},
+      ]};
+      const incoming = {tracks: base.tracks, clips: [
+        {id: 'b', clipType: 'media', track: 'v', at: 0, hold: 1, entrance: {type: 'fade', duration: 0.5}},
+        ...(mode === 'lane-boundary' ? [{id: 'secondary-in', clipType: 'media', track: 'secondary', at: 0, hold: 1}] : []),
+      ]};
+      const children = [outgoing, incoming];
+      const revisions = graph.occurrences.map((o, i) => {
+        Object.assign(o, {track: 'v'});
+        const shot = graph.shot_revisions.find(s => s.shot_id === o.shot_id && s.revision_id === o.revision_id)!;
+        shot.internal_timeline_revision.timeline = children[i] as unknown as typeof shot.internal_timeline_revision.timeline;
+        return shot;
+      });
+      const projected = projectCanonicalComposition(createShotCompositionAdapter({load: async () => graph}).prepare(graph), base).config;
+      const closure = {
+        parent: {config: base, clips: [], registry: {assets: {}}, occurrences: graph.occurrences.map(o => ({
+          occurrence_id: o.occurrence_id, shot_id: o.shot_id, shot_revision_id: o.revision_id,
+          placement: {start_ms: o.at_ms}, track: 'v', duration_ms: o.duration_ms, speed: 1,
+        }))},
+        shots: revisions.map(s => ({shot_id: s.shot_id, revision_id: s.revision_id,
+          internal_timeline_revision_id: s.internal_timeline_revision.revision_id})),
+        internal: revisions.map(s => ({revision_id: s.internal_timeline_revision.revision_id,
+          payload: s.internal_timeline_revision.timeline})),
+      };
+      const intent = portableVisualSeamIntent(projected, 30, 'synchronized');
+      const authoritative = report(projected, closure);
+      expect(authoritative.blocked).toBe(true);
+      expect(intent.context).toEqual(authoritative.boundaries.find(b => b.frame === 30)?.canonicalContext);
+      expect(intent.participants).toEqual(authoritative.boundaries.find(b => b.frame === 30)?.canonicalCueIds);
+      expect(intent.context.owners.map(o => o.path)).toEqual([
+        ['occurrence', 'occ-1', 'clip', 'a'],
+        ...(mode !== 'cue-free' ? [['occurrence', 'occ-1', 'clip', 'spanning']] : []),
+        ['occurrence', 'occ-3', 'clip', 'b'],
+        ...(mode === 'lane-boundary' ? [['occurrence', 'occ-3', 'clip', 'secondary-in']] : []),
+      ]);
+      const authored = withVisualSeamIntent(projected, 30, 'synchronized');
+      expect(analyzeVisualSeams(authored, {enforceIntent: true}).blocked).toBe(false);
+      expect(report(authored, closure, true).blocked).toBe(false);
+      // Preserve this exact intent while changing its relevant incoming child.
+      authored.clips.find(c => c.id === 'occ-3:b')!.entrance = {type: 'fade', duration: 0.7};
+      incoming.clips[0]!.entrance = {type: 'fade', duration: 0.7};
+      expect(portableVisualSeamIntent(authored, 30, 'synchronized').context).toEqual(
+        report(authored, closure).boundaries.find(b => b.frame === 30)?.canonicalContext);
+      expect(analyzeVisualSeams(authored, {enforceIntent: true}).blocked).toBe(true);
+      expect(report(authored, closure).blocked).toBe(true);
+    });
 
   it('keeps primary live-scene cuts separate from auxiliary opaque activations', () => {
     const base = config();
