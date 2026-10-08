@@ -1,3 +1,5 @@
+import { isTimelineDiagnosticsEnabled } from './timeline-diagnostics.ts';
+
 export const SHOT_TIMELINE_TIMING_EVENT = 'shot-timeline:timing';
 
 export type ShotTimelineTimingDetail = Readonly<{
@@ -16,7 +18,9 @@ export function recordShotTimelinePhase(
   if (!import.meta.env.DEV) return;
   const at = performance.now();
   const event: ShotTimelineTimingDetail = { traceId, phase, at, ...detail };
-  console.debug('[ShotTimelineLatency]', event);
+  if (isTimelineDiagnosticsEnabled()) {
+    console.debug('[ShotTimelineLatency]', event);
+  }
   if (typeof globalThis.dispatchEvent === 'function' && typeof CustomEvent !== 'undefined') {
     globalThis.dispatchEvent(new CustomEvent(SHOT_TIMELINE_TIMING_EVENT, { detail: event }));
   }

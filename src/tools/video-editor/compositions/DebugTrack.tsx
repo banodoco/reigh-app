@@ -1,6 +1,7 @@
 import { useEffect, useRef, type FC } from 'react';
 import { AbsoluteFill, useCurrentFrame, useVideoConfig } from 'remotion';
 import { Video } from '@remotion/media';
+import { isTimelineDiagnosticsEnabled } from '@/tools/video-editor/lib/timeline-diagnostics.ts';
 
 export const DebugTrack: FC<{ src: string }> = ({ src }) => {
   const frame = useCurrentFrame();
@@ -9,21 +10,25 @@ export const DebugTrack: FC<{ src: string }> = ({ src }) => {
   const lastLogFrame = useRef(-1);
 
   useEffect(() => {
-    console.log('[DebugTrack] MOUNTED', {
-      src,
-      fps,
-      width,
-      height,
-      durationInFrames,
-    });
+    if (isTimelineDiagnosticsEnabled()) {
+      console.log('[DebugTrack] MOUNTED', {
+        src,
+        fps,
+        width,
+        height,
+        durationInFrames,
+      });
+    }
     return () => {
-      console.log('[DebugTrack] UNMOUNTED');
+      if (isTimelineDiagnosticsEnabled()) console.log('[DebugTrack] UNMOUNTED');
     };
   }, [durationInFrames, fps, height, src, width]);
 
   if (frame !== lastLogFrame.current && frame % 30 === 0) {
     lastLogFrame.current = frame;
-    console.log('[DebugTrack] frame', frame, 'time', `${(frame / fps).toFixed(2)}s`, 'elapsed', `${((Date.now() - mountTime.current) / 1000).toFixed(1)}s`);
+    if (isTimelineDiagnosticsEnabled()) {
+      console.log('[DebugTrack] frame', frame, 'time', `${(frame / fps).toFixed(2)}s`, 'elapsed', `${((Date.now() - mountTime.current) / 1000).toFixed(1)}s`);
+    }
   }
 
   return (

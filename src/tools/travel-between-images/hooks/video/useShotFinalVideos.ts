@@ -12,6 +12,7 @@ import { finalVideoQueryKeys } from '@/shared/lib/queryKeys/finalVideos';
 import { getDurationSecondsFromFinalVideoParams } from '@/tools/video-editor/lib/finalVideoAssets';
 import { isUuid } from '@/shared/lib/uuid.ts';
 import { isDeferredCloudDataAuthority } from '@/app/runtime/dataAuthority';
+import { isTimelineDiagnosticsEnabled } from '@/tools/video-editor/lib/timeline-diagnostics.ts';
 
 export interface ShotFinalVideo {
   id: string;
@@ -28,7 +29,9 @@ export function useShotFinalVideos(projectId: string | null) {
   const { data: rawData, isLoading } = useQuery({
     queryKey: finalVideoQueryKeys.byProject(projectId!),
     queryFn: async () => {
-      console.log('[useShotFinalVideos] fetching for projectId:', projectId, 'isUuid:', isUuid(projectId));
+      if (isTimelineDiagnosticsEnabled()) {
+        console.log('[useShotFinalVideos] fetching for projectId:', projectId, 'isUuid:', isUuid(projectId));
+      }
       const { data, error } = await supabase().from('shot_final_videos')
         .select('*')
         .eq('project_id', projectId!)

@@ -33,6 +33,7 @@ import { canonicalJsonStringify, type TimelineBundleEnvelope } from '@/tools/vid
 import type { AssetRegistry, TimelineConfig } from '@/tools/video-editor/types/index.ts';
 import type { CommitDataOptions, ScheduleSaveFn } from '@/tools/video-editor/hooks/useTimelineCommit.ts';
 import { generateUUID } from '@/shared/lib/taskCreation/ids.ts';
+import { isTimelineDiagnosticsEnabled } from '@/tools/video-editor/lib/timeline-diagnostics.ts';
 
 export type SaveStatus = 'saved' | 'saving' | 'dirty' | 'retrying' | 'error';
 
@@ -130,6 +131,11 @@ interface ScheduledSave {
   baseHeadAdvance?: Promise<void>;
 }
 
+interface DeferredRecoverySave {
+  data: TimelineData;
+  preserveStatus?: boolean;
+}
+
 interface SaveAttempt extends ScheduledSave {
   provider: DataProvider;
   timelineId: string;
@@ -221,7 +227,7 @@ export function useTimelinePersistence({
   // Stash for scheduleSave() calls that arrive while a drag/resize is active.
   // Flushed on gesture end by the onInteractionEnd listener below.
   const deferredSaveRef = useRef<{ save: ScheduledSave; preserveStatus?: boolean } | null>(null);
-  const deferredDuringRecoveryRef = useRef<{ save: ScheduledSave; preserveStatus?: boolean } | null>(null);
+  const deferredDuringRecoveryRef = useRef<DeferredRecoverySave | null>(null);
   const latestScheduledSaveRef = useRef<ScheduledSave | null>(null);
   const isSavingRef = useRef(false);
   const reloadInProgressRef = useRef(false);
@@ -288,7 +294,7 @@ export function useTimelinePersistence({
   }, [interactionStateRef, store]);
 
   const logConfigVersionUpdate = useCallback((source: ConfigVersionUpdateSource, nextVersion: number) => {
-    if (!import.meta.env.DEV) {
+    if (!isTimelineDiagnosticsEnabled()) {
       return;
     }
 
@@ -305,7 +311,9 @@ export function useTimelinePersistence({
     retries: number;
     reason: 'load_failed' | 'max_retries' | 'missing_local_data';
   }) => {
-    console.log('[TimelineSave] conflict retries exhausted', details);
+    if (isTimelineDiagnosticsEnabled()) {
+      console.log('[TimelineSave] conflict retries exhausted', details);
+    }
     setIsConflictExhausted(true);
     // Keep the synchronous poll/write gate ahead of React's next render.
     isConflictExhaustedRef.current = true;
@@ -483,7 +491,9 @@ export function useTimelinePersistence({
     const attempt = errorRetryRef.current;
     errorRetryRef.current = attempt + 1;
     const delay = Math.min(SAVE_ERROR_RETRY_BASE_MS * 2 ** attempt, SAVE_ERROR_RETRY_MAX_MS);
-    console.log('[TimelineSave] save failed, retrying', { attempt: attempt + 1, delayMs: delay });
+    if (isTimelineDiagnosticsEnabled()) {
+      console.log('[TimelineSave] save failed, retrying', { attempt: attempt + 1, delayMs: delay });
+    }
 
     errorRetrySessionRef.current = attemptToRetry.session;
     errorRetryTimer.current = setTimeout(() => {
@@ -698,8 +708,30 @@ export function useTimelinePersistence({
       const persistenceError = error instanceof StaleWriteError
         ? new TimelineVersionConflictError(error.message)
         : error;
+      if (isTimelineDiagnosticsEnabled()) {
+        const diagnostic = persistenceError && typeof persistenceError === 'object'
+          ? persistenceError as {
+              name?: unknown;
+              message?: unknown;
+              code?: unknown;
+              status?: unknown;
+              failureKind?: unknown;
+              causeCode?: unknown;
+            }
+          : {};
+        console.error('[TimelineSave] save failed ' + JSON.stringify({
+          name: diagnostic.name,
+          message: diagnostic.message,
+          code: diagnostic.code,
+          status: diagnostic.status,
+          failureKind: diagnostic.failureKind,
+          causeCode: diagnostic.causeCode,
+        }));
+      }
       if (isTimelineNotFoundError(persistenceError)) {
-        console.log('[TimelineSave] timeline not found, cannot save');
+        if (isTimelineDiagnosticsEnabled()) {
+          console.log('[TimelineSave] timeline not found, cannot save');
+        }
         handleConflictExhausted({
           expectedVersion: configVersionRef.current,
           retries: 0,
@@ -724,18 +756,22 @@ export function useTimelinePersistence({
         if (options?.attemptKind === 'transport-retry') {
           const reconciliation = await inspectLostAck(attempt);
           if (!isMountedRef.current || activeTargetRef.current !== attempt.session) return;
-          console.log('[TimelineSave] retry conflict reconciliation', {
-            expectedVersion: attempt.expectedVersion,
-            reconciliation,
-          });
+          if (isTimelineDiagnosticsEnabled()) {
+            console.log('[TimelineSave] retry conflict reconciliation', {
+              expectedVersion: attempt.expectedVersion,
+              reconciliation,
+            });
+          }
         }
         // Diverged: the document changed elsewhere. No version reload, no
         // re-POST of local state (that silently overwrote the other writer —
         // the incident's CAS-defeating bug). Enter diverged and let the banner
         // offer Reload / Save as copy.
-        console.log('[TimelineSave] version conflict — entering diverged state', {
-          expectedVersion: attempt.expectedVersion,
-        });
+        if (isTimelineDiagnosticsEnabled()) {
+          console.log('[TimelineSave] version conflict — entering diverged state', {
+            expectedVersion: attempt.expectedVersion,
+          });
+        }
         handleConflictExhausted({
           expectedVersion: configVersionRef.current,
           retries: 0,
@@ -888,6 +924,20 @@ export function useTimelinePersistence({
   }, [configVersionRef, headRevisionRef, provider, session, timelineId]);
 
   const scheduleSave = useCallback<ScheduleSaveFn>((nextData, options) => {
+    // Recovery is an explicit CAS decision. Do not replace the recovered
+    // record with a new-session edit before the user chooses Retry or Discard;
+    // keep the edit in memory and resume it after that decision. The previous
+    // ordering silently replaced the old recovery record and then returned,
+    // leaving the UI looking saved even though no POST had happened.
+    if (recoveryPendingRef?.current || recoveryActiveRef?.current) {
+      deferredDuringRecoveryRef.current = {
+        data: nextData,
+        preserveStatus: options?.preserveStatus,
+      };
+      if (!options?.preserveStatus) setSaveStatus('dirty');
+      return;
+    }
+
     // Every mutation gets the latest coalesced recovery slot before any
     // debounce, interaction gate, or network attempt. Draft writes are
     // serialized so an older IndexedDB transaction cannot land after a newer
@@ -901,11 +951,6 @@ export function useTimelinePersistence({
       reloadCancelledRef.current = true;
       deferredDuringReloadRef.current = { save: scheduledSave, preserveStatus: options?.preserveStatus };
       if (!options?.preserveStatus) setSaveStatus('dirty');
-      return;
-    }
-
-    if (recoveryPendingRef?.current || recoveryActiveRef?.current) {
-      deferredDuringRecoveryRef.current = { save: scheduledSave, preserveStatus: options?.preserveStatus };
       return;
     }
 
@@ -997,7 +1042,7 @@ export function useTimelinePersistence({
     const deferred = deferredDuringRecoveryRef.current;
     if (!deferred) return;
     deferredDuringRecoveryRef.current = null;
-    scheduleSave(deferred.save.data, { preserveStatus: deferred.preserveStatus });
+    scheduleSave(deferred.data, { preserveStatus: deferred.preserveStatus });
   }, [recoveryActiveRef, recoveryPendingRef, scheduleSave]);
 
   const clearDeferredRecoverySave = useCallback(() => {

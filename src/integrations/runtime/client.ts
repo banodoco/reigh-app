@@ -125,6 +125,17 @@ export function isRuntimeConflict(error: unknown): error is ApiError {
   return error.code === 'conflict' && /head|version|timeline|stale/i.test(diagnostic);
 }
 
+/**
+ * A canonical payload disagreement is a schema/persistence defect, not a
+ * stale-head conflict. It must stop the save retry loop and keep the draft
+ * available for correction.
+ */
+export function isRuntimeCanonicalPayloadConflict(error: unknown): error is ApiError {
+  return error instanceof ApiError
+    && error.status === 409
+    && /canonical parent clips and config\.clips disagree/i.test(error.message);
+}
+
 export class ReighRuntimeClient {
   readonly baseUrl: string;
   private readonly client: WorkspaceClient;

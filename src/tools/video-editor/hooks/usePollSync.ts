@@ -5,6 +5,7 @@ import { buildTimelineData, preserveUploadingClips, type TimelineData } from '@/
 import type { DataProvider, TimelineHeadRevision } from '@/tools/video-editor/data/DataProvider.ts';
 import type { CommitDataOptions } from '@/tools/video-editor/hooks/useTimelineCommit.ts';
 import type { TimelineStoreApi } from '@/tools/video-editor/hooks/timelineStore.ts';
+import { isTimelineDiagnosticsEnabled } from '@/tools/video-editor/lib/timeline-diagnostics.ts';
 
 const TIMELINE_SYNC_LOG_TAG = '[TimelineSync]';
 
@@ -185,7 +186,7 @@ export function usePollSync({
   }, [queries.timelineQuery.data]);
 
   const logTimelineSync = useCallback((message: string, details?: Record<string, unknown>) => {
-    if (!import.meta.env.DEV) {
+    if (!isTimelineDiagnosticsEnabled()) {
       return;
     }
 
@@ -193,7 +194,7 @@ export function usePollSync({
   }, []);
 
   const logConfigVersionUpdate = useCallback((source: ConfigVersionUpdateSource, nextVersion: number) => {
-    if (!import.meta.env.DEV) {
+    if (!isTimelineDiagnosticsEnabled()) {
       return;
     }
 

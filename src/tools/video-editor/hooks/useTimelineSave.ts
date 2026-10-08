@@ -291,9 +291,9 @@ export function useTimelineSave(
     configVersionRef.current = record.baseVersion;
     headRevisionRef.current = recoveredHead;
     if (draft.bundle !== undefined) persistence.loadedBundleRef.current = draft.bundle;
-    // The recovered record already contains the latest edit made during the
-    // discovery gate; do not replay that same payload as a second save.
-    clearDeferredRecoverySave();
+    // The recovered record is the previous session's payload. A new-session
+    // edit made while recovery was pending is held separately by persistence
+    // and will resume after this recovery save is acknowledged.
     recoveryPendingRef.current = false;
     recoveryActiveRef.current = false;
     // Keep the slot and visible recovery controls until a durable ACK. A 409

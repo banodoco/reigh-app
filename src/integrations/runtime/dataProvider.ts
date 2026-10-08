@@ -3,6 +3,7 @@ import {
   ReighRuntimeClient,
   RuntimeAuthenticationError,
   RuntimeUnavailableError,
+  isRuntimeCanonicalPayloadConflict,
   isRuntimeConflict,
   isRuntimeUnavailableFailure,
   type RuntimeConnectorError,
@@ -55,6 +56,7 @@ import {
 } from './generationProjection.ts';
 import { listAllRuntimeVariants } from './generationAccess.ts';
 import { recordShotTimelinePhase } from '@/tools/video-editor/lib/shot-timeline-timing.ts';
+import { isTimelineDiagnosticsEnabled } from '@/tools/video-editor/lib/timeline-diagnostics.ts';
 
 type RuntimeRecord = Record<string, unknown>;
 
@@ -387,7 +389,7 @@ export class RuntimeDataProvider implements DataProvider {
   }
 
   private logShotTimelineLatency(phase: string, startedAt: number, traceId?: string): void {
-    if (!import.meta.env.DEV) return;
+    if (!isTimelineDiagnosticsEnabled()) return;
     const durationMs = Math.round(performance.now() - startedAt);
     if (traceId) {
       recordShotTimelinePhase(traceId, phase, { durationMs });
@@ -580,8 +582,14 @@ export class RuntimeDataProvider implements DataProvider {
     const { output: _derivedOutput, ...configWithoutOutput } = config;
     const baseConfig = asRecord(baseComposition.config);
     const storedBundle = baseConfig?.bundle;
+    const nextClips = reconcileParentClips(baseComposition, config.clips);
     const configForWire: RuntimeRecord = {
       ...configWithoutOutput,
+      // Runtime accepts the legacy duplicate for compatibility, but both
+      // copies must describe the same authored parent clips. Keeping the
+      // editor's authored order/content here also preserves clip edits while
+      // reconciling the canonical top-level field below.
+      clips: nextClips,
       tracks: config.tracks ?? [],
       ...(bundle !== undefined
         ? { bundle }
@@ -591,6 +599,7 @@ export class RuntimeDataProvider implements DataProvider {
     };
     const parentComposition: RuntimeRecord = replay?.parentComposition ?? {
       ...baseComposition,
+      clips: nextClips,
       config: configForWire,
       registry: nextRegistry,
     };
@@ -606,6 +615,25 @@ export class RuntimeDataProvider implements DataProvider {
       parentComposition: structuredClone(parentComposition), idempotencyKey,
     });
 
+    const publishStartedAt = performance.now();
+    if (isTimelineDiagnosticsEnabled()) {
+      console.log('[TimelineSave] runtime publish start', {
+        projectId: this.projectId,
+        timelineId,
+        expectedHead,
+        idempotencyKey,
+        payloadBytes: JSON.stringify({
+          expected_head: expectedHead,
+          parent_composition: parentComposition,
+        }).length,
+        topLevelClipIds: Array.isArray(parentComposition.clips)
+          ? parentComposition.clips.map((clip) => asRecord(clip)?.id)
+          : null,
+        configClipIds: Array.isArray(asRecord(parentComposition.config)?.clips)
+          ? (asRecord(parentComposition.config)?.clips as unknown[]).map((clip) => asRecord(clip)?.id)
+          : null,
+      });
+    }
     try {
       const saved = await this.client.publishParentComposition(
         this.projectId,
@@ -622,6 +650,14 @@ export class RuntimeDataProvider implements DataProvider {
         },
         idempotencyKey,
       );
+      if (isTimelineDiagnosticsEnabled()) {
+        console.log('[TimelineSave] runtime publish success', {
+          projectId: this.projectId,
+          timelineId,
+          durationMs: Math.round(performance.now() - publishStartedAt),
+          revisionId: saved.revision_id ?? saved.parent_revision_id ?? saved.new_head,
+        });
+      }
       const committedHead = saved.revision_id ?? saved.parent_revision_id ?? saved.new_head;
       if (typeof committedHead !== 'string' || committedHead.length === 0) {
         throw new Error('Workspace Runtime publication receipt omitted its committed parent head');
@@ -648,6 +684,21 @@ export class RuntimeDataProvider implements DataProvider {
       this.unacknowledgedSaves.delete(timelineId);
       return { configVersion: nextVersion, head: this.timelineHead(timelineId, committedHead) };
     } catch (error) {
+      if (isTimelineDiagnosticsEnabled()) {
+        const diagnostic = error && typeof error === 'object'
+          ? error as { name?: unknown; message?: unknown; code?: unknown; status?: unknown; details?: unknown }
+          : {};
+        console.error('[TimelineSave] runtime publish failed ' + JSON.stringify({
+          projectId: this.projectId,
+          timelineId,
+          durationMs: Math.round(performance.now() - publishStartedAt),
+          name: diagnostic.name,
+          message: diagnostic.message,
+          code: diagnostic.code,
+          status: diagnostic.status,
+          details: diagnostic.details,
+        }));
+      }
       if (error instanceof TimelineVersionConflictError
         || (error instanceof ApiError && error.status >= 400 && error.status < 500
           && error.status !== 408 && error.status !== 429)) {
@@ -913,6 +964,11 @@ export class RuntimeDataProvider implements DataProvider {
       providerError = error instanceof RuntimeUnavailableError
         ? error
         : new RuntimeUnavailableError(error, this.apiBaseUrl);
+    } else if (isRuntimeCanonicalPayloadConflict(error)) {
+      providerError = new TimelineSchemaIncompatibleError(
+        `Workspace Runtime rejected a non-canonical parent payload: ${error.message}`,
+        [{ pointer: '/clips', code: 'canonical_duplicate_mismatch', message: error.message }],
+      );
     } else if (isRuntimeConflict(error)) {
       const actual = asRecord(error.details)?.actual;
       providerError = new TimelineVersionConflictError(
@@ -922,6 +978,18 @@ export class RuntimeDataProvider implements DataProvider {
       );
     } else if (error instanceof ApiError && error.status === 404) {
       providerError = new TimelineNotFoundError(timelineId);
+    } else if (error instanceof ApiError && error.status >= 400 && error.status < 500
+      && error.status !== 408 && error.status !== 429) {
+      // Deterministic client rejections are terminal for this payload. They
+      // are not transport failures and must not enter the generic retry loop.
+      const details = asRecord(error.details);
+      providerError = new TimelineSchemaIncompatibleError(
+        `Workspace Runtime rejected the timeline save: ${error.message}`,
+        [{
+          code: typeof details?.code === 'string' ? details.code : error.code,
+          message: error.message,
+        }],
+      );
     } else {
       providerError = error instanceof Error ? error : new Error(String(error));
     }
@@ -1166,6 +1234,75 @@ function uniqueOccurrences(occurrences: RuntimeRecord[]): RuntimeRecord[] {
 
 function canonicalArray(value: unknown, fallback: unknown[] = []): unknown[] {
   return Array.isArray(value) ? value : fallback;
+}
+
+function reconcileParentClips(
+  baseComposition: RuntimeRecord,
+  authoredClips: unknown,
+): RuntimeRecord[] {
+  const baseConfig = asRecord(baseComposition.config);
+  const topLevelClips = asRuntimeRecordArray(baseComposition.clips, 'canonical parent clips');
+  const configClips = asRuntimeRecordArray(baseConfig?.clips, 'canonical config.clips');
+
+  // Runtime's compatibility rule permits one side to be absent/empty, but
+  // two populated canonical lists must already agree. Do not silently choose
+  // one half of a corrupt base revision.
+  if (topLevelClips.length > 0 && configClips.length > 0
+    && stableJson(topLevelClips) !== stableJson(configClips)) {
+    throw new TimelineSchemaIncompatibleError(
+      'Workspace Runtime canonical parent clips and config.clips disagree',
+      [{ pointer: '/clips', code: 'canonical_duplicate_mismatch', message: 'Canonical parent clips and config.clips disagree.' }],
+    );
+  }
+
+  const canonicalClips = topLevelClips.length > 0 ? topLevelClips : configClips;
+  if (!Array.isArray(authoredClips)) {
+    throw new TimelineSchemaIncompatibleError(
+      'Workspace Runtime editor config.clips must be an array',
+      [{ pointer: '/config/clips', code: 'invalid_type', message: 'Expected an array of authored clips.' }],
+    );
+  }
+
+  const canonicalById = new Map(
+    canonicalClips
+      .map((clip) => [typeof clip.id === 'string' ? clip.id : null, clip] as const)
+      .filter((entry): entry is readonly [string, RuntimeRecord] => entry[0] !== null),
+  );
+  return authoredClips.map((rawClip, index) => {
+    const clip = asRecord(rawClip);
+    if (!clip) {
+      throw new TimelineSchemaIncompatibleError(
+        `Workspace Runtime editor config.clips[${index}] must be an object`,
+        [{ pointer: `/config/clips/${index}`, code: 'invalid_type', message: 'Expected a clip object.' }],
+      );
+    }
+    const id = typeof clip.id === 'string' ? clip.id : null;
+    const canonical = id ? canonicalById.get(id) : undefined;
+    // The editor may submit a partial authored clip while preserving the
+    // stable identity. Merge it over the canonical object so unknown fields
+    // (effects, live-scene metadata, provenance) survive untouched.
+    return canonical ? { ...canonical, ...clip } : clip;
+  });
+}
+
+function asRuntimeRecordArray(value: unknown, label: string): RuntimeRecord[] {
+  if (value === undefined || value === null) return [];
+  if (!Array.isArray(value)) {
+    throw new TimelineSchemaIncompatibleError(
+      `Workspace Runtime ${label} must be an array`,
+      [{ pointer: label === 'canonical parent clips' ? '/clips' : '/config/clips', code: 'invalid_type', message: 'Expected an array of clips.' }],
+    );
+  }
+  return value.map((item, index) => {
+    const record = asRecord(item);
+    if (!record) {
+      throw new TimelineSchemaIncompatibleError(
+        `Workspace Runtime ${label}[${index}] must be an object`,
+        [{ pointer: label === 'canonical parent clips' ? `/clips/${index}` : `/config/clips/${index}`, code: 'invalid_type', message: 'Expected a clip object.' }],
+      );
+    }
+    return record;
+  });
 }
 
 function stableJson(value: unknown): string {

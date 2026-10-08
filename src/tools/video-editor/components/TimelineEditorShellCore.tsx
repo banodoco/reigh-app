@@ -625,6 +625,7 @@ function TimelineEditorShellCoreComponent({
       <span>
         We recovered unsaved changes from a previous session (draft from{' '}
         {new Date(chrome.recoveryDraft.updatedAt).toLocaleString()}).
+        {' '}New edits remain unsaved until you Retry or Discard this draft.
         {chrome.recoveryDraft.retryAllowed === false && ' The original editing head is unknown. This draft is preserved; discard it or resolve it explicitly before saving.'}
       </span>
       <div className="flex items-center gap-2">
