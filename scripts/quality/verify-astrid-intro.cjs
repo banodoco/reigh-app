@@ -32,7 +32,7 @@ fs.mkdirSync(out, {recursive:true});
               const c=getComputedStyle(e),id=e.dataset.callout;
               const path=stage.querySelector(`path[data-callout="${id}"]`);
               const dot=stage.querySelector(`.astrid-callout-dot-end[data-callout="${id}"]`);
-              return {id,opacity:+c.opacity,translate:c.translate,line:parseFloat(getComputedStyle(path).strokeDashoffset),dot:+getComputedStyle(dot).opacity};
+              return {id,opacity:+c.opacity,translate:c.translate,scale:c.scale,line:parseFloat(getComputedStyle(path).strokeDashoffset),dot:+getComputedStyle(dot).opacity};
             }),
             items:['.astrid-editor-stage','.astrid-player-surface','.astrid-chat-surface','.astrid-callout'].map(s=>{
               const e=stage.querySelector(s) || (stage.matches(s)?stage:null); if(!e)return null;
@@ -50,7 +50,7 @@ fs.mkdirSync(out, {recursive:true});
         const file=`${width}-${audience}-${String(i).padStart(2,'0')}.png`;
         await page.screenshot({path:`${out}/${file}`,fullPage:true});
         shots.push({file,...sample});
-        await page.waitForTimeout(120);
+        await page.waitForTimeout(40);
       }
       const initial=await page.evaluate(()=>window.arrival);
       fs.writeFileSync(`${out}/${width}-${audience}-initial.json`, JSON.stringify({media,errors,shots,initial},null,2));
@@ -65,16 +65,19 @@ fs.mkdirSync(out, {recursive:true});
       ]),'Card -> connector -> endpoint narrative order');
       for(let i=0;i<3;i++) {
         const [card,line,dot]=calls.slice(i*3,i*3+3);
-        assert(line.t-card.t>=370,'Connector began before card settled');
-        assert(dot.t-line.t>=210,'Endpoint began before line finished');
+        assert(line.t-card.t>=330,'Connector began before card settled');
+        assert(dot.t-line.t>=170,'Endpoint began before line finished');
         if(i<2) {
-          assert(calls[i*3+3].t-dot.t>=120,'Next card began before endpoint landed');
-          assert(Math.abs(calls[i*3+3].t-card.t-800)<60,'Callout cadence drifted from 800ms');
+          assert(calls[i*3+3].t-dot.t>=90,'Next card began before endpoint landed');
+          assert(Math.abs(calls[i*3+3].t-card.t-680)<60,'Callout cadence drifted from 680ms');
         }
         assert(visible.some(f=>f.cards.length===3 && f.cards[i].opacity>0.2 && f.cards[i].line>0.99 && f.cards.slice(i+1).every(c=>c.opacity===0)), 'Missing isolated card entrance frame');
         assert(visible.some(f=>f.cards.length===3 && f.cards[i].opacity===1 && f.cards[i].line>0.05 && f.cards[i].line<0.95 && f.cards.slice(i+1).every(c=>c.opacity===0)), 'Missing isolated connector draw frame');
+        const settling=visible.filter(f=>f.t-card.t>=100 && f.t-card.t<=250 && f.cards.length===3).map(f=>f.cards[i]);
+        assert(settling.filter(c=>c.opacity>0.1 && c.opacity<0.98 && parseFloat(c.scale)<1 && c.translate!=='none').length>=3, 'Card popped in instead of visibly fading, translating and scaling');
+        assert(new Set(settling.map(c=>c.translate)).size>=3,'Missing progressive card movement');
       }
-      assert(calls.at(-1).t+120-visible[0].t<3100,'Callout sequence exceeded its three-second arrival budget');
+      assert(calls.at(-1).t+100-visible[0].t<2720,'Callout sequence exceeded its 2.62-second arrival budget');
       assert(media.some(m=>m.url.endsWith('/astrid/light-study/first-light.mp4') && [200,206].includes(m.status)));
       // App intentionally uses the launcher instead of the hidden chat window.
       for(const idx of audience==='app' ? [1] : [1,2]) {

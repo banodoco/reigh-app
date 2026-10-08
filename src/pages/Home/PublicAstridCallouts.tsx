@@ -166,10 +166,10 @@ function calloutsFor(audience: PublicAstridAudience) {
 // One complete turn: card settles, line draws, endpoint lands, then a short breath.
 // Both the card and its SVG group consume these same timings on every screen size.
 function calloutTiming(index: number): CSSProperties {
-  const card = 400;
-  const connector = 240;
-  const endpoint = 120;
-  const start = 600 + index * (card + connector + endpoint + 40);
+  const card = 360;
+  const connector = 200;
+  const endpoint = 100;
+  const start = 600 + index * (card + connector + endpoint + 20);
   return {
     '--astrid-callout-index': index,
     '--astrid-callout-start': `${start}ms`,

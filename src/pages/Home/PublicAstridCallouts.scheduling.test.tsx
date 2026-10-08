@@ -100,18 +100,20 @@ describe('bounded stage passes', () => {
     const milliseconds = (element: HTMLElement | SVGElement, name: string) => parseFloat(element.style.getPropertyValue(`--astrid-${name}`));
     // Keep the narrative legible without returning to the previous five-second entrance.
     expect(milliseconds(cards[0], 'callout-start')).toBe(600);
-    expect(milliseconds(cards[2], 'endpoint-start') + milliseconds(cards[2], 'endpoint-duration')).toBeLessThanOrEqual(3000);
+    expect(milliseconds(cards[2], 'endpoint-start') + milliseconds(cards[2], 'endpoint-duration')).toBe(2620);
     for (const [index, card] of cards.entries()) {
       const group = view.container.querySelector<SVGElement>(`g:has(path[data-callout="${card.dataset.callout}"])`)!;
       expect(group.getAttribute('style')).toBe(card.getAttribute('style'));
       const start = milliseconds(card, 'callout-start');
       const lineStart = milliseconds(card, 'connector-start');
       const endStart = milliseconds(card, 'endpoint-start');
+      expect(milliseconds(card, 'card-duration')).toBeGreaterThanOrEqual(350);
+      expect(milliseconds(card, 'connector-duration')).toBeGreaterThanOrEqual(200);
       expect(lineStart).toBeGreaterThanOrEqual(start + milliseconds(card, 'card-duration'));
       expect(endStart).toBeGreaterThanOrEqual(lineStart + milliseconds(card, 'connector-duration'));
       if (cards[index + 1]) {
         expect(milliseconds(cards[index + 1], 'callout-start')).toBeGreaterThan(endStart + milliseconds(card, 'endpoint-duration'));
-        expect(milliseconds(cards[index + 1], 'callout-start') - start).toBe(800);
+        expect(milliseconds(cards[index + 1], 'callout-start') - start).toBe(680);
       }
     }
   });
