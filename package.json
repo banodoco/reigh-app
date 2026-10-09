@@ -8,6 +8,11 @@
   },
   "scripts": {
     "preflight": "docker build .",
+    "postinstall": "node scripts/patches/remotion-4.0.503-audio-resume.mjs --apply",
+    "remotion:audio-resume:patch": "node scripts/patches/remotion-4.0.503-audio-resume.mjs --apply",
+    "remotion:audio-resume:check": "node scripts/patches/remotion-4.0.503-audio-resume.mjs --check",
+    "remotion:audio-resume:revert": "node scripts/patches/remotion-4.0.503-audio-resume.mjs --revert",
+    "test:remotion-audio-resume-patch": "node --test scripts/patches/remotion-4.0.503-audio-resume.test.mjs",
     "dev": "vite --config config/vite/vite.config.ts",
     "dev:editor": "node scripts/dev-editor.mjs",
     "dev:astrid-acp": "tsx scripts/reigh-acp-bridge.ts",

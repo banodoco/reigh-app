@@ -1,4 +1,4 @@
-import { memo, type FC } from 'react';
+import { memo, useState, type FC } from 'react';
 import { Audio as Html5Audio, Sequence, useRemotionEnvironment } from 'remotion';
 import { Audio as MediaAudio } from '@remotion/media';
 import {
@@ -13,15 +13,53 @@ import { MediaErrorBoundary } from '@/tools/video-editor/compositions/MediaError
 import type { ResolvedTimelineClip, TrackDefinition } from '@/tools/video-editor/types/index.ts';
 import { boundCanonicalClipToOccurrence } from '@/tools/video-editor/lib/canonicalRenderBounds.ts';
 
+// Keep terminal media failures local to preview. Leaving a failed Html5Audio
+// mounted lets Remotion's native buffering hook re-arm after its error event.
+const PreviewAudio: FC<{
+  src: string;
+  trimBefore: number;
+  trimAfter?: number;
+  playbackRate: number;
+  volume: number;
+}> = (props) => {
+  const [failed, setFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+
+  if (failed) {
+    return (
+      <div
+        role="alert"
+        data-media-state="error"
+        style={{ position: 'absolute', bottom: 8, left: 8, padding: '4px 8px', background: '#18181b', color: '#fff', fontSize: 14 }}
+      >
+        Audio unavailable.{' '}
+        <button type="button" onClick={() => {
+          setAttempt((previous) => previous + 1);
+          setFailed(false);
+        }}>Retry audio</button>
+      </div>
+    );
+  }
+
+  return (
+    <Html5Audio
+      key={attempt}
+      {...props}
+      pauseWhenBuffering={props.volume > 0}
+      // Ordinary onError is consumed by the installed recursive trim path.
+      // Native capture survives that path and reaches the actual audio tag.
+      onErrorCapture={() => setFailed(true)}
+    />
+  );
+};
+
 const AudioTrackComponent: FC<{
   track: TrackDefinition;
   clips: ResolvedTimelineClip[];
   fps: number;
 }> = ({ track, clips, fps }) => {
   const environment = useRemotionEnvironment();
-  const AudioComponent = environment.isRendering || environment.isClientSideRendering
-    ? MediaAudio
-    : Html5Audio;
+  const isRendering = environment.isRendering || environment.isClientSideRendering;
 
   return (
     <>
@@ -58,17 +96,24 @@ const AudioTrackComponent: FC<{
                 resetKey={`${renderClip.id}:${mediaSrc}:${trimProps.trimBefore}:${trimProps.trimAfter ?? 'none'}:${playbackRate}:${effectiveVolume}:audio`}
                 fallback={null}
               >
-                <AudioComponent
-                  src={mediaSrc}
-                  trimBefore={trimProps.trimBefore}
-                  trimAfter={trimProps.trimAfter}
-                  playbackRate={playbackRate}
-                  volume={effectiveVolume}
-                  // In the interactive player, blocking playback on every transient audio
-                  // buffer underrun causes the preview to "randomly" pause. Let clips
-                  // preload via premounting instead of hard-pausing the whole player.
-                  pauseWhenBuffering={false}
-                />
+                {isRendering ? (
+                  <MediaAudio
+                    src={mediaSrc}
+                    trimBefore={trimProps.trimBefore}
+                    trimAfter={trimProps.trimAfter}
+                    playbackRate={playbackRate}
+                    volume={effectiveVolume}
+                  />
+                ) : (
+                  <PreviewAudio
+                    key={JSON.stringify([renderClip.id, mediaSrc, renderClip.at, trimProps.trimBefore, trimProps.trimAfter, playbackRate, getClipDurationInFrames(renderClip, fps), fps])}
+                    src={mediaSrc}
+                    trimBefore={trimProps.trimBefore}
+                    trimAfter={trimProps.trimAfter}
+                    playbackRate={playbackRate}
+                    volume={effectiveVolume}
+                  />
+                )}
               </MediaErrorBoundary>
             ) : null}
           </Sequence>

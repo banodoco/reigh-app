@@ -16,11 +16,13 @@ import {
 
 const sequenceProps = vi.hoisted((): Array<Record<string, unknown>> => []);
 const visualClipMock = vi.hoisted(() => vi.fn());
+const visualClipDirectMock = vi.hoisted(() => vi.fn());
 const textClipMock = vi.hoisted(() => vi.fn());
 const postprocessPreviewMock = vi.hoisted(() => vi.fn());
 const mockShaderRegistryGet = vi.hoisted(() => vi.fn());
 const mockShaderRegistryHas = vi.hoisted(() => vi.fn());
 const astridElementComponentMock = vi.hoisted(() => vi.fn());
+const dynamicRegistrySnapshot = vi.hoisted(() => ({ entries: [] as Array<Record<string, unknown>> }));
 let currentFrame = 0;
 let simulatePremount = false;
 let currentEnvironment = {
@@ -163,10 +165,18 @@ vi.mock('@/tools/video-editor/compositions/AudioAnalysisProvider', async () => {
 });
 
 vi.mock('@/tools/video-editor/compositions/VisualClip', () => ({
+  VisualClip: (props: Record<string, unknown>) => {
+    visualClipDirectMock(props);
+    return <div data-testid="visual-clip" />;
+  },
   VisualClipSequence: (props: Record<string, unknown>) => {
     visualClipMock(props);
     return <div data-testid="visual-clip-sequence" />;
   },
+}));
+
+vi.mock('@/tools/video-editor/sequences/SequenceComponentRegistryContext', () => ({
+  useSequenceComponentRegistrySnapshot: () => dynamicRegistrySnapshot,
 }));
 
 vi.mock('@/tools/video-editor/compositions/TextClip', () => ({
@@ -345,6 +355,8 @@ beforeEach(() => {
   mockShaderRegistryGet.mockReset();
   mockShaderRegistryHas.mockReset();
   astridElementComponentMock.mockReset();
+  visualClipDirectMock.mockReset();
+  dynamicRegistrySnapshot.entries = [];
 });
 
 describe('TimelineRenderer registered sequences', () => {
@@ -467,14 +479,17 @@ describe('TimelineRenderer registered sequences', () => {
         at: 1,
         hold: 3,
         params: { side: 'left' },
-        app: { canonicalTiming: { occurrenceStartMs: 1000, occurrenceDurationMs: 3000 } },
       }],
     }} />);
 
     expect(screen.queryByTestId('unknown-clip-placeholder')).not.toBeInTheDocument();
     expect(screen.getByTestId('astrid-effect-renderer')).toHaveAttribute('data-clip-id', 'closing-v6-scrolling-guide');
     expect(screen.getByTestId('astrid-effect-renderer')).toHaveAttribute('data-side', 'left');
-    expect(sequenceProps[0]).toMatchObject({ from: 30, durationInFrames: 90, premountFor: 60 });
+    expect(sequenceProps.find((props) => props.from === 30 && props.durationInFrames === 90)).toMatchObject({
+      from: 30,
+      durationInFrames: 90,
+      premountFor: 60,
+    });
   });
 
   it('premounts flattened canonical Astrid effect content hidden before its boundary', () => {
@@ -519,6 +534,124 @@ describe('TimelineRenderer registered sequences', () => {
     ));
     expect(activeSequence).toHaveAttribute('data-active', 'true');
     expect(activeSequence).not.toHaveStyle({ opacity: 0 });
+  });
+
+  it('premounts Astrid animations around their direct VisualClip without changing authored timing', () => {
+    const AnimationMock: FC<PropsWithChildren<{ clip: { id: string } }>> = ({ clip, children }) => (
+      <div data-testid="astrid-animation-renderer" data-clip-id={clip.id}>{children}</div>
+    );
+    astridElementComponentMock.mockImplementation((elementId: string, kind: string) => (
+      elementId === 'animated-media-transform' && kind === 'animation' ? AnimationMock : undefined
+    ));
+
+    render(<TimelineRenderer config={{
+      ...buildConfig(),
+      clips: [{
+        id: 'clip-animation',
+        clipType: 'media',
+        track: 'V1',
+        at: 2,
+        hold: 3,
+        elementRef: { id: 'animated-media-transform', kind: 'animation', revision: 'animation-1' },
+      }],
+    }} />);
+
+    expect(screen.getByTestId('astrid-animation-renderer')).toHaveAttribute('data-clip-id', 'clip-animation');
+    expect(screen.getByTestId('visual-clip')).toBeInTheDocument();
+    expect(visualClipDirectMock).toHaveBeenCalledWith(expect.objectContaining({
+      clip: expect.objectContaining({ id: 'clip-animation' }),
+      fps: 30,
+    }));
+    expect(sequenceProps.find((props) => props.from === 60 && props.durationInFrames === 91)).toMatchObject({
+      from: 60,
+      durationInFrames: 91,
+      premountFor: 60,
+    });
+  });
+
+  it('premounts static theme sequences but preserves the dynamic database path', () => {
+    const DynamicSequenceMock: FC<{ clip: { id: string } }> = ({ clip }) => (
+      <div data-testid="dynamic-sequence" data-clip-id={clip.id} />
+    );
+    dynamicRegistrySnapshot.entries = [{
+      clipType: 'custom-card',
+      component: DynamicSequenceMock,
+    }];
+
+    render(<TimelineRenderer config={{
+      ...buildConfig({ theme: '2rp' }),
+      clips: [
+        {
+          id: 'clip-static-theme',
+          clipType: 'section-hook',
+          track: 'V1',
+          at: 1,
+          hold: 3,
+        },
+        {
+          id: 'clip-dynamic-theme',
+          clipType: 'custom:custom-card',
+          track: 'V1',
+          at: 5,
+          hold: 3,
+        },
+      ],
+    }} />);
+
+    expect(screen.getByTestId('registered-sequence')).toHaveAttribute('data-clip-id', 'clip-static-theme');
+    expect(screen.getByTestId('dynamic-sequence')).toHaveAttribute('data-clip-id', 'clip-dynamic-theme');
+    expect(sequenceProps.find((props) => props.from === 30 && props.durationInFrames === 90)).toMatchObject({
+      from: 30,
+      durationInFrames: 90,
+      premountFor: 60,
+    });
+    expect(sequenceProps.find((props) => props.from === 150 && props.durationInFrames === 90)).toMatchObject({
+      from: 150,
+      durationInFrames: 90,
+      premountFor: 0,
+    });
+  });
+
+  it('preserves keyed Astrid effect subtrees when authored order changes', () => {
+    const KeyedEffectMock: FC<{ clip: { id: string } }> = ({ clip }) => (
+      <div data-testid={`keyed-effect-${clip.id}`} />
+    );
+    astridElementComponentMock.mockImplementation((elementId: string, kind: string) => (
+      kind === 'effect' && (elementId === 'keyed-a' || elementId === 'keyed-b')
+        ? KeyedEffectMock
+        : undefined
+    ));
+    const initialClips = [
+      {
+        id: 'effect-a',
+        clipType: 'media',
+        track: 'V1',
+        at: 1,
+        hold: 1,
+        elementRef: { id: 'keyed-a', kind: 'effect', revision: 'key-a' },
+      },
+      {
+        id: 'effect-b',
+        clipType: 'media',
+        track: 'V1',
+        at: 2,
+        hold: 1,
+        elementRef: { id: 'keyed-b', kind: 'effect', revision: 'key-b' },
+      },
+    ];
+    const view = render(<TimelineRenderer config={{ ...buildConfig(), clips: initialClips }} />);
+    const initialA = screen.getByTestId('keyed-effect-effect-a').closest('[data-testid="sequence"]');
+    const initialB = screen.getByTestId('keyed-effect-effect-b').closest('[data-testid="sequence"]');
+    expect(initialA).not.toBeNull();
+    expect(initialB).not.toBeNull();
+
+    view.rerender(<TimelineRenderer config={{
+      ...buildConfig(),
+      clips: [...initialClips].reverse(),
+    }} />);
+
+    expect(screen.getByTestId('keyed-effect-effect-a').closest('[data-testid="sequence"]')).toBe(initialA);
+    expect(screen.getByTestId('keyed-effect-effect-b').closest('[data-testid="sequence"]')).toBe(initialB);
   });
 
   it('passes the host-resolved asset URL to legacy Astrid effects', () => {
