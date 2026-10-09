@@ -197,7 +197,7 @@ export function ClipPanelBody({
             />
           )}
           {!readOnly && onDelete && (
-            <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={onDelete}>
+            <Button type="button" variant="ghost" size="icon" className="astrid-public-inspector-delete h-8 w-8 text-destructive hover:text-destructive" onClick={onDelete}>
               <Trash2 className="h-4 w-4" />
             </Button>
           )}
