@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import React, { createRef } from 'react';
-import { act, render } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { RemotionPreview, type PreviewHandle } from '@/tools/video-editor/components/PreviewPanel/RemotionPreview';
 import type { ResolvedTimelineConfig } from '@/tools/video-editor/types';
@@ -12,7 +12,7 @@ vi.mock('@/tools/video-editor/compositions/TimelineRenderer', () => ({
 }));
 
 const playerListeners = new Map<string, Set<(...args: any[]) => void>>();
-const playerPropsHistory: Array<{ config: ResolvedTimelineConfig; astridElementHost?: AstridElementHost; numberOfSharedAudioTags?: number }> = [];
+const playerPropsHistory: Array<{ config: ResolvedTimelineConfig; astridElementHost?: AstridElementHost; durationInFrames?: number; numberOfSharedAudioTags?: number }> = [];
 const playerHandles: Array<{
   seekTo: ReturnType<typeof vi.fn>;
   getCurrentFrame: ReturnType<typeof vi.fn>;
@@ -25,13 +25,14 @@ vi.mock('@remotion/player', async () => {
 
   return {
     Player: React.forwardRef(function MockPlayer(
-      props: { inputProps: { config: ResolvedTimelineConfig; astridElementHost?: AstridElementHost }; numberOfSharedAudioTags?: number },
+      props: { inputProps: { config: ResolvedTimelineConfig; astridElementHost?: AstridElementHost }; durationInFrames?: number; numberOfSharedAudioTags?: number },
       ref: React.Ref<unknown>,
     ) {
       playerPropsHistory.push({
         config: props.inputProps.config,
         astridElementHost: props.inputProps.astridElementHost,
         numberOfSharedAudioTags: props.numberOfSharedAudioTags,
+        durationInFrames: props.durationInFrames,
       });
       React.useImperativeHandle(ref, () => {
         const seekTo = vi.fn();
@@ -795,5 +796,29 @@ describe('RemotionPreview', () => {
 
     expect(player.seekTo).toHaveBeenLastCalledWith(89);
     expect(player.play).not.toHaveBeenCalled();
+  });
+});
+
+
+describe('output preview defaults', () => {
+  it('excludes source video/audio and their extent without mutating the authored timeline', () => {
+    const config = makeConfig('output', 10);
+    config.tracks.push({ id: 'references', kind: 'visual', label: 'References', role: 'source' }, { id: 'guide', kind: 'audio', label: 'Guide', role: 'source' });
+    config.clips.push({ id: 'long-source', track: 'references', at: 0, clipType: 'hold', hold: 90 }, { id: 'source-audio', track: 'guide', at: 0, clipType: 'hold', hold: 90 });
+    render(<RemotionPreview config={config} onTimeUpdate={vi.fn()} playerContainerRef={createRef<HTMLDivElement>()} />);
+    const props = playerPropsHistory.at(-1)!;
+    expect(props.config.clips.map((clip) => clip.id)).toEqual(['clip-output']);
+    expect(props.durationInFrames).toBe(300);
+    expect(config.clips).toHaveLength(3);
+    expect(screen.getByText('Output · source tracks excluded')).toBeInTheDocument();
+  });
+
+  it('explains a source-only timeline instead of presenting unexplained black output', () => {
+    const config = makeConfig('reference', 90);
+    config.tracks[0].role = 'source';
+    render(<RemotionPreview config={config} onTimeUpdate={vi.fn()} playerContainerRef={createRef<HTMLDivElement>()} />);
+    expect(playerPropsHistory.at(-1)?.config.clips).toEqual([]);
+    expect(screen.getByRole('status')).toHaveTextContent('No output content');
+    expect(screen.getByRole('button', { name: 'Play' })).toBeDisabled();
   });
 });

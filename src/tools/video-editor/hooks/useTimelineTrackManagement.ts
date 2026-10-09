@@ -1,3 +1,4 @@
+import { trackRole } from '@/tools/video-editor/data/timelineOutputProjection.ts';
 import { useCallback, useMemo } from 'react';
 import { arrayMove } from '@dnd-kit/sortable';
 import { addTrack, getTrackIndex } from '@/tools/video-editor/lib/editor-utils.ts';
@@ -218,10 +219,11 @@ function getLiveGroupEnd(current: Pick<TimelineData, 'rows'>, group: PinnedShotG
   return Math.max(...actionEnds);
 }
 
-function appendTrackForResolvedMove(current: TimelineData, kind: TrackKind): { nextState: TimelineData; trackId: string } {
+function appendTrackForResolvedMove(current: TimelineData, sourceTrack: TrackDefinition): { nextState: TimelineData; trackId: string } {
+  const kind = sourceTrack.kind;
   const prefix = kind === 'audio' ? 'A' : 'V';
   const trackId = `${prefix}${getTrackIndex(current.tracks, prefix) + 1}`;
-  const track = { id: trackId, kind, label: trackId };
+  const track: TrackDefinition = { id: trackId, kind, label: trackId, role: trackRole(sourceTrack) };
   return {
     nextState: {
       ...current,
@@ -275,7 +277,7 @@ export function useTimelineTrackManagement({
       }).allowed) return;
       let finalTrackId = targetTrackId;
       if (needsNewTrack || !finalTrackId) {
-        const appended = appendTrackForResolvedMove(current, sourceTrack.kind);
+        const appended = appendTrackForResolvedMove(current, sourceTrack);
         current = appended.nextState;
         finalTrackId = appended.trackId;
         dataRef.current = current;
@@ -310,7 +312,7 @@ export function useTimelineTrackManagement({
     }).allowed) return;
     let finalTrackId = targetTrackId;
     if (needsNewTrack || !finalTrackId) {
-      const appended = appendTrackForResolvedMove(current, sourceTrack.kind);
+      const appended = appendTrackForResolvedMove(current, sourceTrack);
       current = appended.nextState;
       finalTrackId = appended.trackId;
       dataRef.current = current;
@@ -559,6 +561,10 @@ export function useTimelineTrackManagement({
     if (!newTrack) {
       return;
     }
+
+    // A new lane created by moving existing material keeps its eligibility.
+    // Explicit Add track still uses the ordinary legacy/output default.
+    newTrack.role = trackRole(sourceTrack);
 
     if (enclosingGroup) {
       if (!sourceTrackId) {

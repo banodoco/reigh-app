@@ -562,6 +562,25 @@ describe('validateTimelinePatch — track.add', () => {
     expect(result.valid).toBe(true);
   });
 
+  it('accepts an explicit source role', () => {
+    const result = validateTimelinePatch(
+      makePatch({
+        operations: [makeOp('track.add', 'SRC', { kind: 'visual', role: 'source' })],
+      }),
+    );
+    expect(result.valid).toBe(true);
+  });
+
+  it('rejects an invalid role', () => {
+    const result = validateTimelinePatch(
+      makePatch({
+        operations: [makeOp('track.add', 'SRC', { kind: 'visual', role: 'draft' })],
+      }),
+    );
+    expect(result.valid).toBe(false);
+    expect(result.diagnostics.some((d) => d.detail?.key === 'role')).toBe(true);
+  });
+
   it('rejects track.add without kind', () => {
     const result = validateTimelinePatch(
       makePatch({
@@ -604,6 +623,15 @@ describe('validateTimelinePatch — track.update', () => {
       }),
     );
     expect(result.valid).toBe(true);
+  });
+
+  it('accepts and rejects source role values', () => {
+    expect(validateTimelinePatch(makePatch({
+      operations: [makeOp('track.update', 'V1', { role: 'source' })],
+    })).valid).toBe(true);
+    expect(validateTimelinePatch(makePatch({
+      operations: [makeOp('track.update', 'V1', { role: 'draft' })],
+    })).valid).toBe(false);
   });
 
   it('warns on empty payload', () => {
@@ -2242,6 +2270,21 @@ describe('compileTimelinePatch — shader metadata scope limits', () => {
 });
 
 describe('compileTimelinePatch — merge/replace for track.update', () => {
+  it('updates a track role and preserves it through row materialization', () => {
+    const data = makeMinimalTimelineData({
+      tracks: [{ id: 'V1', kind: 'visual', label: 'Video 1' }],
+      clips: [],
+    });
+    const result = compileTimelinePatch(
+      makePatch({
+        operations: [makeOp('track.update', 'V1', { role: 'source' })],
+      }),
+      data,
+    );
+    expect(result.valid).toBe(true);
+    expect(result.nextData!.config.tracks!.find((track) => track.id === 'V1')?.role).toBe('source');
+  });
+
   it('merge mode preserves unspecified track fields', () => {
     const data = makeMinimalTimelineData({
       tracks: [{ id: 'V1', kind: 'visual', label: 'Video 1', muted: false, volume: 0.8 }],
@@ -3739,6 +3782,21 @@ describe('compileTimelinePatch — track.add', () => {
     expect(result.valid).toBe(true);
     const added = result.nextData!.config.tracks!.find((t: any) => t.id === 'A1');
     expect(added.kind).toBe('audio');
+  });
+
+  it('persists an explicit source role on a new track', () => {
+    const data = makeMinimalTimelineData({
+      tracks: [{ id: 'V1', kind: 'visual', label: 'V1' }],
+      clips: [],
+    });
+    const result = compileTimelinePatch(
+      makePatch({
+        operations: [makeOp('track.add', 'SRC', { kind: 'visual', role: 'source' })],
+      }),
+      data,
+    );
+    expect(result.valid).toBe(true);
+    expect(result.nextData!.config.tracks!.find((track) => track.id === 'SRC')?.role).toBe('source');
   });
 
   it('can insert a new overlay track before the current top visual track', () => {

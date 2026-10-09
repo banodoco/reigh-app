@@ -42,6 +42,7 @@ import {
 import { bootDiagnostics, MemoryPressureDetector } from '@/tools/video-editor/lib/perf-diagnostics.ts';
 import { shellRegionAttrs } from '@/tools/video-editor/lib/timeline-dom.ts';
 import { useRenderDiagnostic } from '@/tools/video-editor/hooks/usePerfDiagnostics.ts';
+import { projectOutputTimelineConfig } from '@/tools/video-editor/data/timelineOutputProjection.ts';
 import { ExtensionActivityRegion, type ExtensionStatusEvent } from '@/tools/video-editor/components/ExtensionActivityRegion';
 import { ProposalPanel } from '@/tools/video-editor/components/ProposalPanel/ProposalPanel.tsx';
 import { TimelineEditorShellToolbar } from './TimelineEditorShellToolbar.tsx';
@@ -369,7 +370,8 @@ function TimelineEditorShellCoreComponent({
 
   const totalSeconds = useMemo(() => {
     if (!editorData.resolvedConfig) return 1;
-    return getTimelineDurationInFrames(editorData.resolvedConfig, editorData.resolvedConfig.output.fps) / editorData.resolvedConfig.output.fps;
+    const outputConfig = projectOutputTimelineConfig(editorData.resolvedConfig).config;
+    return getTimelineDurationInFrames(outputConfig, outputConfig.output.fps) / outputConfig.output.fps;
   }, [editorData.resolvedConfig]);
 
   const openInspector = useCallback(() => {

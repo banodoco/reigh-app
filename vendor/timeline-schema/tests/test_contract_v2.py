@@ -62,6 +62,25 @@ class OpaqueAppBagsTest(unittest.TestCase):
         with self.assertRaises(Exception):
             validate_timeline(config)
 
+    def test_track_role_is_optional_output_or_explicit_source(self) -> None:
+        output = {
+            "clips": [],
+            "tracks": [{"id": "V1", "kind": "visual", "label": "Cut"}],
+        }
+        source = {
+            "clips": [],
+            "tracks": [{"id": "V1", "kind": "visual", "label": "Interview", "role": "source"}],
+        }
+        validate_timeline(output)
+        validate_timeline(source)
+
+        invalid = {
+            "clips": [],
+            "tracks": [{"id": "V1", "kind": "visual", "label": "Bad", "role": "draft"}],
+        }
+        with self.assertRaises(Exception):
+            validate_timeline(invalid)
+
 
 class RealProjectReplayTest(unittest.TestCase):
     """The real desert-plant-growth event log must replay cleanly under v2."""

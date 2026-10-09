@@ -60,6 +60,7 @@ import { useShaderEffectRegistrySnapshot } from '@/tools/video-editor/shaders/re
 import { tryCompileSequenceComponentAsync } from '@/tools/video-editor/sequences/compileSequenceComponent.tsx';
 import { resolveAstridElementComponent } from '@/tools/video-editor/runtime/astrid-element-components.tsx';
 import { boundCanonicalConfigClips } from '@/tools/video-editor/lib/canonicalRenderBounds.ts';
+import { projectOutputTimelineConfig } from '@/tools/video-editor/data/timelineOutputProjection.ts';
 
 // Phase 4d (Sprint 5): EFFECT_REGISTRY dispatch.
 //
@@ -1683,7 +1684,8 @@ export const TimelineRenderer: FC<{ config: ResolvedTimelineConfig }> = memo(({ 
     () => liveDataRegistry?.getSnapshot(),
   );
   const renderConfig = useMemo(() => {
-    const materialized = materializeResolvedSequenceConfig(config);
+    const outputConfig = projectOutputTimelineConfig(config).config;
+    const materialized = materializeResolvedSequenceConfig(outputConfig);
     const boundedClips = boundCanonicalConfigClips(materialized.clips);
     return boundedClips.length === materialized.clips.length
       && boundedClips.every((clip, index) => clip === materialized.clips[index])
@@ -1816,6 +1818,23 @@ export const TimelineRenderer: FC<{ config: ResolvedTimelineConfig }> = memo(({ 
         <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center' }}>
           <AbsoluteFill style={{ position: 'relative', overflow: 'hidden' }}>
             {visualContent}
+            {renderConfig.clips.length === 0 ? (
+              <AbsoluteFill
+                data-testid="timeline-empty-output"
+                style={{
+                  alignItems: 'center',
+                  backgroundColor: '#0b0b0b',
+                  color: '#9ca3af',
+                  display: 'flex',
+                  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+                  fontSize: 13,
+                  justifyContent: 'center',
+                  textAlign: 'center',
+                }}
+              >
+                <span>No output content. Source material is available in the editor.</span>
+              </AbsoluteFill>
+            ) : null}
             {renderUnsupportedPostprocessExport && postprocessShader ? (
               <UnsupportedPostprocessShaderExportBody shaderId={postprocessShader.shaderId} />
             ) : null}

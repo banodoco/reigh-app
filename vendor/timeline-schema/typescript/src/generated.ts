@@ -11,6 +11,7 @@ export interface TimelineConfig {
     id: string;
     kind: "visual" | "audio";
     label: string;
+    role?: "output" | "source";
     scale?: number;
     fit?: "cover" | "contain" | "manual";
     opacity?: number;

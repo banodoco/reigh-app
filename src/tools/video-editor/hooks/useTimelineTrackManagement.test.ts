@@ -504,3 +504,50 @@ describe('useTimelineTrackManagement', () => {
     expect(setSelectedTrackId).toHaveBeenCalledWith('V1');
   });
 });
+
+
+describe('source track editing', async () => {
+  async function setup() {
+    const config = makeResolvedConfig([{ ...makeTrack('V1', 'visual'), role: 'source' }, makeTrack('V2', 'visual')]);
+    const dataRef = { current: await buildTimelineData(serializeForDisk(config), { assets: {} }) };
+    const applyEdit = vi.fn();
+    const { result } = renderHook(() => useTimelineTrackManagement({
+      dataRef, resolvedConfig: config, selectedClipId: 'clip-V1', setSelectedTrackId: vi.fn(), applyEdit,
+    }));
+    return { config, dataRef, applyEdit, result };
+  }
+
+  it('changes role as an ordinary config edit while preserving clips and other settings', async () => {
+    const { config, applyEdit, result } = await setup();
+    act(() => result.current.handleTrackPopoverChange('V1', { role: 'output' }));
+    const mutation = applyEdit.mock.calls[0][0];
+    expect(mutation.type).toBe('config');
+    expect(mutation.resolvedConfig.tracks[0]).toEqual({ ...config.tracks[0], role: 'output' });
+    expect(mutation.resolvedConfig.clips).toBe(config.clips);
+    expect(config.tracks[0].role).toBe('source');
+  });
+
+  it('inherits Source when moving to a newly created lane, with one ordinary edit', async () => {
+    const { config, applyEdit, result } = await setup();
+    act(() => result.current.createTrackAndMoveClip('clip-V1', 'visual', 5));
+    expect(applyEdit).toHaveBeenCalledTimes(1);
+    const mutation = applyEdit.mock.calls[0][0];
+    expect(mutation.resolvedConfig.tracks.at(-1).role).toBe('source');
+    expect(mutation.resolvedConfig.clips.find((clip: { id: string }) => clip.id === 'clip-V1')).toMatchObject({ at: 5, track: 'V3' });
+    expect(config.tracks).toHaveLength(2);
+  });
+
+  it('inherits Source in the resolved drag path and preserves its undo transaction', async () => {
+    const { dataRef, applyEdit, result } = await setup();
+    act(() => result.current.applyResolvedClipMove('clip-V1', 'new', null, 4, true, 'drag-role'));
+    expect(dataRef.current.tracks.at(-1)?.role).toBe('source');
+    expect(applyEdit).toHaveBeenCalledTimes(1);
+    expect(applyEdit.mock.calls[0][1]).toEqual({ transactionId: 'drag-role' });
+  });
+
+  it('keeps explicit Add track on the legacy Output default', async () => {
+    const { applyEdit, result } = await setup();
+    act(() => result.current.handleAddTrack('visual'));
+    expect(applyEdit.mock.calls[0][0].resolvedConfig.tracks.at(-1).role ?? 'output').toBe('output');
+  });
+});

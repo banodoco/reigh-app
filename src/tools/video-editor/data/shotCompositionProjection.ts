@@ -15,6 +15,11 @@ import {
   timelineOccurrenceEffectiveDurationMs,
 } from './shotCompositionTiming.ts';
 import { analyzeVisualSeams } from './visualSeamContract.ts';
+import {
+  outputTimeline,
+  projectOutputTimelineConfig,
+  trackRole,
+} from './timelineOutputProjection.ts';
 
 type JsonObject = Record<string, unknown>;
 
@@ -163,6 +168,7 @@ function childTimeline(occurrence: CanonicalShotOccurrence): JsonObject {
 function assetRegistryFor(
   composition: PreparedShotComposition,
   baseConfig?: ResolvedTimelineConfig | null,
+  occurrences: readonly CanonicalShotOccurrence[] = composition.occurrences,
 ): { registry: Record<string, ResolvedAssetRegistryEntry>; assetAliases: Map<string, string> } {
   const registry: Record<string, ResolvedAssetRegistryEntry> = {
     ...(baseConfig?.registry ?? {}),
@@ -221,8 +227,8 @@ function assetRegistryFor(
     };
   };
 
-  for (const occurrence of composition.occurrences) {
-    const timeline = childTimeline(occurrence);
+  for (const occurrence of occurrences) {
+    const timeline = outputTimeline(childTimeline(occurrence));
     const selectedAssetIds = new Set(
       (Array.isArray(timeline.clips) ? timeline.clips : []).flatMap((rawClip) => {
         const clip = record(rawClip);
@@ -261,6 +267,7 @@ function assetRegistryFor(
 function tracksFor(
   composition: PreparedShotComposition,
   baseConfig?: ResolvedTimelineConfig | null,
+  occurrences: readonly CanonicalShotOccurrence[] = composition.occurrences,
 ): TrackDefinition[] {
   // Keep parent-owned lanes (frame overlays, FX, terminal activity, VO, etc.)
   // alongside the projected shot child lanes. The canonical graph owns shot
@@ -268,18 +275,23 @@ function tracksFor(
   const tracks = new Map<string, TrackDefinition>(
     (baseConfig?.tracks ?? []).map((track) => [track.id, track]),
   );
-  for (const occurrence of composition.occurrences) {
-    const timeline = childTimeline(occurrence);
+  for (const occurrence of occurrences) {
+    const timeline = outputTimeline(childTimeline(occurrence));
     const rawTracks = Array.isArray(timeline.tracks) ? timeline.tracks : [];
     for (const rawTrack of rawTracks) {
       const track = record(rawTrack);
       const id = text(track?.id);
       if (!id || tracks.has(id)) continue;
+      if (trackRole({
+        id,
+        role: track?.role as TrackDefinition['role'],
+      }) === 'source') continue;
       const kind = track?.kind === 'audio' ? 'audio' : 'visual';
       tracks.set(id, {
         id,
         kind,
         label: text(track?.label) ?? id,
+        ...(track?.role === 'source' ? { role: 'source' as const } : {}),
         ...(typeof track?.muted === 'boolean' ? { muted: track.muted } : {}),
         ...(typeof track?.volume === 'number' ? { volume: track.volume } : {}),
       });
@@ -432,15 +444,26 @@ export function projectCanonicalComposition(
       };
     }
   }
+  const outputBaseConfig = baseConfig
+    ? projectOutputTimelineConfig(baseConfig).config
+    : undefined;
+  const parentTrackRoles = new Map(
+    (outputBaseConfig?.tracks ?? []).map((track) => [track.id, trackRole(track)]),
+  );
+  // A canonical occurrence inherits the role of its owning parent lane. A
+  // Source parent is excluded before its child revision or assets are read.
+  const outputOccurrences = composition.occurrences.filter((occurrence) => (
+    !occurrence.trackId || parentTrackRoles.get(occurrence.trackId) !== 'source'
+  ));
   assertDependencies(composition);
   const clips: TimelineClip[] = [];
   const clipIdentities = new Map<string, CanonicalClipIdentity>();
   const occurrenceIdentities = new Map<string, CanonicalClipIdentity>();
 
-  for (const occurrence of composition.occurrences) {
+  for (const occurrence of outputOccurrences) {
     const identity = identityForOccurrence(occurrence);
     occurrenceIdentities.set(occurrence.occurrenceId, identity);
-    const timeline = childTimeline(occurrence);
+    const timeline = outputTimeline(childTimeline(occurrence));
     const contentDurationMs = timelineContentExtentMs(timeline);
     const effectiveDurationMs = timelineOccurrenceEffectiveDurationMs(
       occurrence,
@@ -487,8 +510,8 @@ export function projectCanonicalComposition(
 
   // Legacy parent shot clips are replaced by the immutable child projection;
   // every other parent clip remains part of the rendered/editor timeline.
-  const parentClips = (baseConfig?.clips ?? []).filter((clip) => clip.clipType !== 'shot');
-  const { registry, assetAliases } = assetRegistryFor(composition, baseConfig);
+  const parentClips = (outputBaseConfig?.clips ?? []).filter((clip) => clip.clipType !== 'shot');
+  const { registry, assetAliases } = assetRegistryFor(composition, outputBaseConfig, outputOccurrences);
   // `baseConfig` is already resolved, but projected child clips are created
   // from the persisted canonical graph after that resolution step. Attach the
   // corresponding resolved registry entry here so the renderer can consume
@@ -502,17 +525,17 @@ export function projectCanonicalComposition(
       : clip.asset;
     return { ...clip, ...(asset ? { asset } : {}), assetEntry: asset ? registry[asset] : undefined };
   });
-  const output = baseConfig?.output ?? { resolution: '1920x1080', fps: 30, file: `timeline-${composition.parentDocumentId}.mp4` };
-  const baseApp = record(baseConfig?.app) ?? {};
+  const output = outputBaseConfig?.output ?? { resolution: '1920x1080', fps: 30, file: `timeline-${composition.parentDocumentId}.mp4` };
+  const baseApp = record(outputBaseConfig?.app) ?? {};
   const configBase: ResolvedTimelineConfig = {
     output,
-    tracks: tracksFor(composition, baseConfig),
+    tracks: tracksFor(composition, outputBaseConfig, outputOccurrences),
     clips: projectedClips,
     registry,
-    ...(baseConfig?.effects ? {effects: baseConfig.effects} : {}),
-    ...(baseConfig?.theme ? { theme: baseConfig.theme } : {}),
-    ...(baseConfig?.theme_overrides ? { theme_overrides: baseConfig.theme_overrides } : {}),
-    ...(baseConfig?.generation_defaults ? { generation_defaults: baseConfig.generation_defaults } : {}),
+    ...(outputBaseConfig?.effects ? {effects: outputBaseConfig.effects} : {}),
+    ...(outputBaseConfig?.theme ? { theme: outputBaseConfig.theme } : {}),
+    ...(outputBaseConfig?.theme_overrides ? { theme_overrides: outputBaseConfig.theme_overrides } : {}),
+    ...(outputBaseConfig?.generation_defaults ? { generation_defaults: outputBaseConfig.generation_defaults } : {}),
     app: {
       ...baseApp,
       canonicalComposition: {

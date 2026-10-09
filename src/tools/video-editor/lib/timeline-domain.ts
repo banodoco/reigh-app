@@ -54,6 +54,7 @@ export type TimelineDomainIssueCode =
   | 'unexpected_top_level_key'
   | 'unexpected_clip_key'
   | 'unexpected_track_key'
+  | 'invalid_track_role'
   | 'legacy_transition_missing_type'
   | 'legacy_transition_unresolvable'
   | 'legacy_transition_removed_contributed'
@@ -201,6 +202,7 @@ export const TRACK_DEFINITION_FIELDS = [
   'id',
   'kind',
   'label',
+  'role',
   'scale',
   'fit',
   'opacity',
@@ -2577,6 +2579,15 @@ const validateSerializedConfig = (
           },
         ));
       }
+    }
+    if (track.role !== undefined && track.role !== 'output' && track.role !== 'source') {
+      issues.push(createIssue(
+        level,
+        'error',
+        'invalid_track_role',
+        `Serialized track '${track.id}' has invalid role '${String(track.role)}'. Expected 'output' or 'source'.`,
+        { trackId: track.id, path: `tracks.${track.id}.role` },
+      ));
     }
   }
 

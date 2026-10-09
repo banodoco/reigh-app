@@ -929,6 +929,60 @@ describe('Sprint 8 buildRenderTimelinePayload', () => {
     expect(payload!.output_filename).toContain(baseInput.request.timelineId);
   });
 
+  it('filters Source tracks from managed payloads and rejects source-only export', () => {
+    const resolvedConfig = {
+      output: { resolution: '1920x1080', fps: 30, file: 'source-output.mp4' },
+      tracks: [
+        { id: 'source', kind: 'visual' as const, label: 'Interview', role: 'source' as const },
+        { id: 'output', kind: 'visual' as const, label: 'Cut' },
+      ],
+      clips: [
+        { id: 'source-clip', clipType: 'media', track: 'source', at: 0, hold: 90, asset: 'missing-source' },
+        { id: 'output-clip', clipType: 'media', track: 'output', at: 0, hold: 10, asset: 'output-asset' },
+      ],
+      registry: {
+        'output-asset': { file: 'output.mp4', media_id: `sha256:${'a'.repeat(64)}`, type: 'video/mp4' },
+      },
+    };
+    const { payload, error } = buildRenderTimelinePayload({
+      ...baseInput,
+      request: {
+        ...baseInput.request,
+        assetRegistry: {
+          assets: {
+            'missing-source': { file: 'interview.mp4' },
+            'output-asset': { file: 'cut.mp4' },
+          },
+        },
+        resolvedConfig,
+      },
+    });
+    expect(error).toBeUndefined();
+    const projectedTimeline = payload?.timeline as typeof resolvedConfig | undefined;
+    expect(projectedTimeline?.clips).toEqual([
+      expect.objectContaining({ id: 'output-clip', track: 'output' }),
+    ]);
+    expect(projectedTimeline?.clips).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: 'source-clip' }),
+    ]));
+    expect((payload?.assets as { assets?: Record<string, unknown> }).assets).not.toHaveProperty('missing-source');
+    expect((payload?.assets as { assets?: Record<string, unknown> }).assets).toHaveProperty('output-asset');
+
+    const sourceOnly = buildRenderTimelinePayload({
+      ...baseInput,
+      request: {
+        ...baseInput.request,
+        resolvedConfig: {
+          ...resolvedConfig,
+          tracks: [{ id: 'source', kind: 'visual' as const, label: 'Interview', role: 'source' as const }],
+          clips: [resolvedConfig.clips[0]],
+        },
+      },
+    });
+    expect(sourceOnly.payload).toBeUndefined();
+    expect(sourceOnly.error).toContain('no output content');
+  });
+
   it('keeps explicit caller-owned request inputs for local fixture renders', () => {
     const request = {
       ...baseInput.request,

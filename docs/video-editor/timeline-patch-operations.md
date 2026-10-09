@@ -10,6 +10,9 @@
 
 `TimelinePatch` is the M3 semantic operation vocabulary for timeline mutation. Every mutation flows through a batch of `TimelinePatchOperation` records that are validated atomically, compiled through the existing config/row serialization paths, and applied through the existing `commitData`/history pipeline. This document covers every operation family, its contracts, and the extension mechanism for future contribution kinds.
 
+For the lane-wide Source/Output decision, role defaults, nested-shot examples,
+and role-only edits, see [Source and Output tracks](source-output-tracks.md).
+
 ---
 
 ## 2. Patch structure
@@ -101,19 +104,19 @@ interface TimelinePatchOperation {
 | Property | Value |
 |---|---|
 | **Target** | Track ID (unique) |
-| **Payload fields** | `kind` (`'visual'` or `'audio'`, required), `label` (string, optional), `muted` (boolean, optional) |
+| **Payload fields** | `kind` (`'visual'` or `'audio'`, required), `label` (string, optional), `muted` (boolean, optional), `role` (`'output'` or `'source'`, optional; omitted means Output) |
 | **Merge mode** | N/A — new object |
 | **Diff kind** | `added` |
 | **Diff granularity** | `track` |
 | **Previewable** | Yes |
-| **Validation** | `kind` must be `"visual"` or `"audio"`. Duplicate track ID produces warning (not error). |
+| **Validation** | `kind` must be `"visual"` or `"audio"`; an explicit `role` must be `"output"` or `"source"`. Duplicate track ID produces warning (not error). |
 
 ### 3.6 `track.update` — Modify a track
 
 | Property | Value |
 |---|---|
 | **Target** | Existing track ID |
-| **Payload fields** | Any mutable track field (`kind`, `label`, `scale`, `fit`, `opacity`, `volume`, `muted`, `blendMode`, `app`) plus `mode` |
+| **Payload fields** | Any mutable track field (`kind`, `label`, `scale`, `fit`, `opacity`, `volume`, `muted`, `blendMode`, `role`, `app`) plus `mode` |
 | **Merge mode** | `merge` (default) or `replace` |
 | **Diff kind** | `modified` |
 | **Diff granularity** | `track` |
@@ -123,6 +126,10 @@ interface TimelinePatchOperation {
 #### Merge/replace semantics
 
 Same as `clip.update`: `merge` preserves unmentioned keys, `replace` resets them. Structural `id` is never mutated.
+An explicit `role` must be `"output"` or `"source"`; other values are rejected.
+Use a merge update for a role-only change. A replacement that omits `role`
+restores the default Output behavior. The change affects every item on the track;
+see [Source and Output tracks](source-output-tracks.md) before changing a mixed-use lane.
 
 ### 3.7 `track.remove` — Remove a track
 
