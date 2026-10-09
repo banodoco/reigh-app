@@ -291,6 +291,16 @@ function validateTrackAdd(
       }),
     );
   }
+  if (p && p.role !== undefined && p.role !== 'output' && p.role !== 'source') {
+    diags.push(
+      diag('error', 'timeline-patch/invalid-payload', 'track.add: payload.role must be "output" or "source"', {
+        operationIndex: idx,
+        op: op.op,
+        target: op.target,
+        detail: { key: 'role', expected: '"output" | "source"', actual: String(p.role) },
+      }),
+    );
+  }
   return diags;
 }
 
@@ -353,6 +363,16 @@ function validateTrackUpdate(
           op: op.op,
           target: op.target,
           detail: { key: 'muted', expected: 'boolean', actual: typeof p.muted },
+        }),
+      );
+    }
+    if (p.role !== undefined && p.role !== 'output' && p.role !== 'source') {
+      diags.push(
+        diag('error', 'timeline-patch/invalid-payload', 'track.update: payload.role must be "output" or "source"', {
+          operationIndex: idx,
+          op: op.op,
+          target: op.target,
+          detail: { key: 'role', expected: '"output" | "source"', actual: String(p.role) },
         }),
       );
     }
@@ -946,7 +966,7 @@ const getIncomingPostprocessShader = (
 /** Mutable track fields (excludes structural id). */
 const TRACK_MUTABLE_FIELDS: ReadonlySet<string> = new Set([
   'kind', 'label', 'scale', 'fit', 'opacity', 'volume',
-  'muted', 'blendMode', 'app',
+  'muted', 'blendMode', 'role', 'app',
 ]);
 
 // ---------------------------------------------------------------------------
@@ -1425,7 +1445,14 @@ export function compileTimelinePatch(
           break;
         }
 
-        const newTrack: TrackDefinition = { id: op.target, kind, label };
+        const newTrack: TrackDefinition = {
+          id: op.target,
+          kind,
+          label,
+          ...(op.payload?.role === 'output' || op.payload?.role === 'source'
+            ? { role: op.payload.role }
+            : {}),
+        };
         const beforeIndex = beforeTrackId
           ? tracks.findIndex((track) => track.id === beforeTrackId)
           : -1;
@@ -1441,7 +1468,13 @@ export function compileTimelinePatch(
           kind: 'added',
           target: op.target,
           op: family,
-          after: { id: op.target, kind, label, ...(beforeIndex >= 0 ? { before: beforeTrackId } : {}) },
+          after: {
+            id: op.target,
+            kind,
+            label,
+            ...(newTrack.role !== undefined ? { role: newTrack.role } : {}),
+            ...(beforeIndex >= 0 ? { before: beforeTrackId } : {}),
+          },
         });
         break;
       }
@@ -1463,6 +1496,7 @@ export function compileTimelinePatch(
         const before = tracks[trackIdx];
         const beforeSummary: Record<string, unknown> = { id: before.id, kind: before.kind, label: before.label };
         if (before.muted !== undefined) beforeSummary.muted = before.muted;
+        if (before.role !== undefined) beforeSummary.role = before.role;
         if (before.app) beforeSummary.app = before.app;
 
         const payload = op.payload ?? {};
@@ -1503,6 +1537,9 @@ export function compileTimelinePatch(
           if (payload.muted !== undefined && typeof payload.muted === 'boolean') {
             updatedTrack.muted = payload.muted;
           }
+          if (payload.role === 'output' || payload.role === 'source') {
+            updatedTrack.role = payload.role;
+          }
           // Preserve any app-level updates (deep merge)
           if (payload.app !== undefined && typeof payload.app === 'object' && payload.app !== null) {
             updatedTrack.app = { ...updatedTrack.app, ...(payload.app as Record<string, unknown>) };
@@ -1524,6 +1561,7 @@ export function compileTimelinePatch(
             kind: updatedTrack.kind,
             label: updatedTrack.label,
             muted: updatedTrack.muted,
+            role: updatedTrack.role,
             mode,
           },
         });

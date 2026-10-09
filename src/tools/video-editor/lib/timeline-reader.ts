@@ -937,6 +937,7 @@ export function createTimelineReader(
             id: track.id,
             kind: track.kind,
             label: track.label,
+            role: track.role ?? 'output',
             muted: track.muted ?? false,
             ...(track.app !== undefined ? { app: track.app } : {}),
             ...(trackGeneratedMeta !== undefined ? { generatedMeta: trackGeneratedMeta } : {}),

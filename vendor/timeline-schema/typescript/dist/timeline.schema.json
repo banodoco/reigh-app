@@ -312,6 +312,14 @@
               "label": {
                 "type": "string"
               },
+              "role": {
+                "type": "string",
+                "enum": [
+                  "output",
+                  "source"
+                ],
+                "default": "output"
+              },
               "scale": {
                 "type": "number"
               },

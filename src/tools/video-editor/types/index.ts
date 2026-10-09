@@ -55,6 +55,7 @@ export type ParameterDefinition = {
 export type ParameterSchema = ParameterDefinition[];
 
 export type TrackKind = 'visual' | 'audio';
+export type TrackRole = 'output' | 'source';
 export type TrackFit = 'cover' | 'contain' | 'manual';
 export type TrackBlendMode =
   | 'normal'
@@ -77,6 +78,8 @@ export type TrackDefinition = {
   id: string;
   kind: TrackKind;
   label: string;
+  /** Source lanes stay authored and visible but are excluded from output. */
+  role?: TrackRole;
   scale?: number;
   fit?: TrackFit;
   opacity?: number;

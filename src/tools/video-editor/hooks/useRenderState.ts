@@ -31,6 +31,7 @@ import type { syncPlannerDiagnosticsToCollection } from '@/tools/video-editor/ru
 import type { PlannerBackedRenderRouteDecision } from '@/tools/video-editor/lib/renderRouter.ts';
 import type { RenderExportDestination } from '@/tools/video-editor/lib/renderRouter.ts';
 import { resolveCanonicalComposition } from '@/tools/video-editor/data/canonicalCompositionState.ts';
+import { projectOutputTimelineConfig } from '@/tools/video-editor/data/timelineOutputProjection.ts';
 import type { BridgeTaskDetailPayload } from '@/tools/video-editor/data/bridgeContract.ts';
 import type {
   CapabilityFinding,
@@ -601,6 +602,15 @@ export function useRenderState(
       setRenderProgress(null);
       setRenderDirty(false);
       setRenderLog(renderProjectionError.message);
+      return false;
+    }
+
+    if (renderConfig && renderConfig.clips.length > 0
+      && !projectOutputTimelineConfig(renderConfig).hasOutputContent) {
+      setRenderStatus('error');
+      setRenderProgress(null);
+      setRenderDirty(false);
+      setRenderLog('Cannot export: no output content. Source material is available in the editor.');
       return false;
     }
 

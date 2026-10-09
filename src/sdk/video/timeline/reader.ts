@@ -286,7 +286,7 @@ export interface TimelineSnapshot {
   extensionRequirements: readonly ProjectExtensionRequirement[];
   /** Ordered list of clip summaries (ID, track, at, clipType, duration). */
   clips: readonly TimelineClipSummary[];
-  /** Ordered list of track summaries (ID, kind, label, muted). */
+  /** Ordered list of track summaries (ID, kind, label, role, muted). */
   tracks: readonly TimelineTrackSummary[];
   /** Asset keys present in the timeline. */
   assetKeys: readonly string[];
@@ -371,6 +371,8 @@ export interface TimelineTrackSummary {
   id: string;
   kind: 'visual' | 'audio';
   label: string;
+  /** Omitted in authored data means output; source lanes are excluded from render. */
+  role?: 'output' | 'source';
   muted: boolean;
   /** Extension-owned app data attached to this track. */
   app?: Record<string, unknown>;

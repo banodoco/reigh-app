@@ -1,14 +1,17 @@
 import type { RefObject } from 'react';
-import { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { forwardRef, memo, useCallback, useContext, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { Pause, Play, SkipBack } from 'lucide-react';
 import { Player, type PlayerRef } from '@remotion/player';
 import { Button } from '@/shared/components/ui/button.tsx';
 import { cn } from '@/shared/components/ui/contracts/cn.ts';
+import { projectOutputTimelineConfig, trackRole } from '@/tools/video-editor/data/timelineOutputProjection.ts';
 import { TimelineRenderer } from '@/tools/video-editor/compositions/TimelineRenderer.tsx';
 import { useEffectDiagnostic, useRenderDiagnostic } from '@/tools/video-editor/hooks/usePerfDiagnostics.ts';
 import { getClipDurationInFrames, parseResolution, secondsToFrames } from '@/tools/video-editor/lib/config-utils.ts';
 import { VIDEO_EDITOR_THEME_VARS } from '@/tools/video-editor/lib/themeTokens.ts';
 import type { ResolvedTimelineConfig } from '@/tools/video-editor/types/index.ts';
+import { VideoEditorRuntimeContext } from '@/tools/video-editor/contexts/VideoEditorRuntimeContext.tsx';
 
 export interface PreviewHandle {
   seek: (time: number) => void;
@@ -30,6 +33,7 @@ const PREVIEW_SHARED_AUDIO_TAGS = 0;
 interface PendingSeek {
   frame: number;
   configGeneration: number;
+  time?: number;
 }
 
 interface RemotionPreviewProps {
@@ -42,18 +46,22 @@ interface RemotionPreviewProps {
   initialTime?: number;
   /** @deprecated Compatibility only; ignored. Use initialTime or PreviewHandle.seek. */
   currentTime?: number;
+  /** Optional host-owned outlet for transport controls (e.g. public shells). */
+  transportOutlet?: HTMLElement | null;
 }
 
 const RemotionPreviewComponent = forwardRef<PreviewHandle, RemotionPreviewProps>(function RemotionPreview(
-  { config, onTimeUpdate, playerContainerRef, compact = false, touchChrome = false, initialTime = 0 },
+  { config, onTimeUpdate, playerContainerRef, compact = false, touchChrome = false, initialTime = 0, transportOutlet = null },
   ref,
 ) {
+  const runtime = useContext(VideoEditorRuntimeContext);
   const playerRef = useRef<PlayerRef>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const playbackIntentRef = useRef<'playing' | 'paused'>('paused');
   const activeSeekFrameRef = useRef<number | null>(null);
   const pendingSeekRef = useRef<PendingSeek | null>(null);
   const seekFlushRafRef = useRef<number | null>(null);
+  const appliedConfigGenerationRef = useRef(0);
   const configIdentityRef = useRef(config);
   const configGenerationRef = useRef(0);
   if (configIdentityRef.current !== config) {
@@ -65,6 +73,10 @@ const RemotionPreviewComponent = forwardRef<PreviewHandle, RemotionPreviewProps>
   // Throttle config updates to the Player to avoid stutter during drag operations.
   // The timeline canvas shows immediate visual feedback; the Player catches up after 150ms idle.
   const [deferredConfig, setDeferredConfig] = useState(config);
+  // Incremented when the debounce mailbox applies a config even if React
+  // keeps the same object identity (A → B → A). This lets queued seeks use
+  // the newest semantic generation without forcing a Player remount.
+  const [deferredConfigEpoch, setDeferredConfigEpoch] = useState(0);
   const deferTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Live-edit mailbox: while playing, timeline edits must reach the Player on
   // the next animation frame (live media updates, no pause+restart), but no
@@ -80,9 +92,13 @@ const RemotionPreviewComponent = forwardRef<PreviewHandle, RemotionPreviewProps>
     }
     if (delayMs <= 0) {
       setDeferredConfig(nextConfig);
+      setDeferredConfigEpoch((epoch) => epoch + 1);
       return;
     }
-    deferTimerRef.current = setTimeout(() => setDeferredConfig(nextConfig), delayMs);
+    deferTimerRef.current = setTimeout(() => {
+      setDeferredConfig(nextConfig);
+      setDeferredConfigEpoch((epoch) => epoch + 1);
+    }, delayMs);
   };
 
   useEffect(() => {
@@ -122,21 +138,29 @@ const RemotionPreviewComponent = forwardRef<PreviewHandle, RemotionPreviewProps>
     };
   }, [config, isPlaying]);
 
-  const inputProps = useMemo(() => ({ config: deferredConfig }), [deferredConfig]);
+  const outputProjection = useMemo(() => projectOutputTimelineConfig(deferredConfig), [deferredConfig]);
+  // Preserve the ordinary preview identity/mailbox when nothing is excluded.
+  const outputConfig = outputProjection.excludedClipIds.length ? outputProjection.config : deferredConfig;
+  const hasSourceTracks = deferredConfig.tracks.some((track) => trackRole(track) === 'source');
+  const sourceOnly = hasSourceTracks && !outputProjection.hasOutputContent;
+  const inputProps = useMemo(() => ({
+    config: outputConfig,
+    ...(runtime?.astridElementHost ? { astridElementHost: runtime.astridElementHost } : {}),
+  }), [outputConfig, runtime?.astridElementHost]);
   const metadata = useMemo(() => {
-    const fps = deferredConfig.output.fps;
-    const { width, height } = parseResolution(deferredConfig.output.resolution);
+    const fps = outputConfig.output.fps;
+    const { width, height } = parseResolution(outputConfig.output.resolution);
 
     return {
       fps,
       durationInFrames: Math.max(
         1,
-        ...deferredConfig.clips.map((clip) => secondsToFrames(clip.at, fps) + getClipDurationInFrames(clip, fps)),
+        ...outputConfig.clips.map((clip) => secondsToFrames(clip.at, fps) + getClipDurationInFrames(clip, fps)),
       ),
       compositionWidth: Math.max(1, width),
       compositionHeight: Math.max(1, height),
     };
-  }, [deferredConfig.clips, deferredConfig.output.fps, deferredConfig.output.resolution]);
+  }, [outputConfig.clips, outputConfig.output.fps, outputConfig.output.resolution]);
   const metadataRef = useRef(metadata);
   metadataRef.current = metadata;
 
@@ -169,6 +193,13 @@ const RemotionPreviewComponent = forwardRef<PreviewHandle, RemotionPreviewProps>
     // command window keeps one active command plus one replaceable latest
     // target; it does not attempt to predict browser decode completion.
     const configGeneration = configGenerationRef.current;
+    // A prop update is debounced before it reaches Remotion. Keep imperative
+    // seeks queued until the Player is rendering that same config generation;
+    // otherwise a seek expressed in the new fps/extent is sent to stale media.
+    if (configGeneration !== appliedConfigGenerationRef.current) {
+      pendingSeekRef.current = { frame: targetFrame, configGeneration };
+      return;
+    }
     if (activeSeekFrameRef.current !== null) {
       if (activeSeekFrameRef.current === targetFrame) {
         pendingSeekRef.current = null;
@@ -216,13 +247,22 @@ const RemotionPreviewComponent = forwardRef<PreviewHandle, RemotionPreviewProps>
     dispatchSeek({ frame: targetFrame, configGeneration });
   }, []);
 
+  useEffect(() => {
+    appliedConfigGenerationRef.current = configGenerationRef.current;
+    const pendingSeek = pendingSeekRef.current;
+    if (pendingSeek?.configGeneration === appliedConfigGenerationRef.current) {
+      pendingSeekRef.current = null;
+      const frame = pendingSeek.time === undefined
+        ? pendingSeek.frame
+        : Math.max(0, Math.round(pendingSeek.time * metadataRef.current.fps));
+      requestSeek(frame);
+    }
+  }, [deferredConfig, deferredConfigEpoch, requestSeek]);
+
   // Live edits can shrink the timeline mid-playback; park the playhead on the
   // last frame instead of running past (or looping past) the new end. This
   // correction uses the same authoritative seek dispatcher as editor intent.
   useEffect(() => {
-    if (!isPlaying) {
-      return;
-    }
     const player = playerRef.current;
     if (player && player.getCurrentFrame() >= metadata.durationInFrames) {
       requestSeek(Math.max(0, metadata.durationInFrames - 1));
@@ -232,6 +272,14 @@ const RemotionPreviewComponent = forwardRef<PreviewHandle, RemotionPreviewProps>
   const seek = useCallback((time: number) => {
     const currentMetadata = metadataRef.current;
     const nextFrame = Math.max(0, Math.round(time * currentMetadata.fps));
+    if (configGenerationRef.current !== appliedConfigGenerationRef.current) {
+      pendingSeekRef.current = {
+        frame: nextFrame,
+        time,
+        configGeneration: configGenerationRef.current,
+      };
+      return;
+    }
     requestSeek(Math.min(nextFrame, Math.max(0, currentMetadata.durationInFrames - 1)));
   }, [requestSeek]);
 
@@ -294,12 +342,59 @@ const RemotionPreviewComponent = forwardRef<PreviewHandle, RemotionPreviewProps>
     },
   }), [isPlaying, pause, play, seek, togglePlayPause]);
 
+  const transportControls = (
+    <div
+      className="astrid-preview-transport pointer-events-none absolute inset-x-0 bottom-0 z-10 flex items-center justify-center gap-2 px-3 py-3"
+      style={{ backgroundImage: 'linear-gradient(to top, var(--video-editor-stage-gradient-start), transparent)' }}
+    >
+      <Button
+        type="button"
+        variant="outline"
+        size="icon"
+        className={cn(TRANSPORT_BUTTON_CLASS, touchChrome ? 'h-11 w-11' : 'h-8 w-8')}
+        disabled={sourceOnly}
+        onClick={() => requestSeek(0)}
+        title="Jump to beginning"
+        aria-label="Jump to beginning"
+      >
+        <SkipBack className="h-4 w-4" />
+      </Button>
+      <Button
+        type="button"
+        variant="outline"
+        size="icon"
+        className={cn(TRANSPORT_BUTTON_CLASS, touchChrome ? 'h-12 w-12' : 'h-10 w-10')}
+        disabled={sourceOnly}
+        onClick={togglePlayPause}
+        title={isPlaying ? 'Pause' : 'Play'}
+        aria-label={isPlaying ? 'Pause' : 'Play'}
+      >
+        {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4 fill-current" />}
+      </Button>
+      {!compact && (
+        <div className="pointer-events-none rounded-full bg-background/70 px-2 py-1 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+          {config.output.resolution}
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div
       ref={playerContainerRef}
       className="relative flex h-full min-h-[220px] w-full items-center justify-center overflow-hidden rounded-xl bg-background"
       style={VIDEO_EDITOR_THEME_VARS}
     >
+      {hasSourceTracks && (
+        <div className="pointer-events-none absolute left-3 top-3 z-10 rounded bg-background/90 px-2 py-1 text-xs text-foreground">
+          Output · source tracks excluded
+        </div>
+      )}
+      {sourceOnly && (
+        <div role="status" className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center px-6 text-center text-sm text-foreground">
+          No output content. Source material is available in the timeline.
+        </div>
+      )}
       <Player
         ref={playerRef}
         component={TimelineRenderer}
@@ -336,38 +431,7 @@ const RemotionPreviewComponent = forwardRef<PreviewHandle, RemotionPreviewProps>
         )}
         style={{ width: '100%', height: '100%' }}
       />
-      <div
-        className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex items-center justify-center gap-2 px-3 py-3"
-        style={{ backgroundImage: 'linear-gradient(to top, var(--video-editor-stage-gradient-start), transparent)' }}
-      >
-        <Button
-          type="button"
-          variant="outline"
-          size="icon"
-          className={cn(TRANSPORT_BUTTON_CLASS, touchChrome ? 'h-11 w-11' : 'h-8 w-8')}
-          onClick={() => requestSeek(0)}
-          title="Jump to beginning"
-          aria-label="Jump to beginning"
-        >
-          <SkipBack className="h-4 w-4" />
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          size="icon"
-          className={cn(TRANSPORT_BUTTON_CLASS, touchChrome ? 'h-12 w-12' : 'h-10 w-10')}
-          onClick={togglePlayPause}
-          title={isPlaying ? 'Pause' : 'Play'}
-          aria-label={isPlaying ? 'Pause' : 'Play'}
-        >
-          {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4 fill-current" />}
-        </Button>
-        {!compact && (
-          <div className="pointer-events-none rounded-full bg-background/70 px-2 py-1 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-            {config.output.resolution}
-          </div>
-        )}
-      </div>
+      {transportOutlet ? createPortal(transportControls, transportOutlet) : transportControls}
     </div>
   );
 });
