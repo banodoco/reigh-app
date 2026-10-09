@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import React from 'react';
+import userEvent from '@testing-library/user-event';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { VideoEditorRuntimeProvider, type VideoEditorRuntimeContextValue } from '@/tools/video-editor/contexts/VideoEditorRuntimeContext';
@@ -347,7 +348,7 @@ describe('TrackListRenderer', () => {
     expect(reorder.className).toContain('h-6 w-6');
     expect(reorder.closest('.opacity-0')).not.toBeNull();
     expect(screen.getByTitle('Remove track')).toBeInTheDocument();
-    expect(screen.getByTitle('Track defaults')).toBeInTheDocument();
+    expect(screen.getByTitle('Track settings')).toBeInTheDocument();
   });
 
   it('keeps public read-only track labels free of edit and reorder controls', () => {
@@ -365,7 +366,7 @@ describe('TrackListRenderer', () => {
 
     expect(screen.getByText('V1')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Reorder track' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Track defaults' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Track settings' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Remove track' })).not.toBeInTheDocument();
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
   });
@@ -506,4 +507,39 @@ describe('TrackListRenderer', () => {
       }),
     ]));
   });
+});
+
+
+describe('track source/output settings', () => {
+  it.each(['desktop', 'phone'] as const)('keeps the Source badge visible on %s and explains whole-track use', async (deviceClass) => {
+    const onChange = vi.fn();
+    render(<AIInputModeProvider><TrackLabelContent
+      track={{ ...tracks[0], role: 'source' }} isSelected={false} hasClips
+      deviceClass={deviceClass} onSelect={vi.fn()} onChange={onChange} onRemove={vi.fn()}
+    /></AIInputModeProvider>);
+    const badge = screen.getByLabelText('Source — excluded from final output');
+    expect(badge.closest('.opacity-0')).toBeNull();
+    expect(badge.parentElement?.className).not.toContain('group-hover:opacity-0');
+    fireEvent.click(screen.getByRole('button', { name: 'Track settings' }));
+    expect(await screen.findByText(/Applies to all items on this track/)).toHaveTextContent('Excluded from final output');
+    fireEvent.click(screen.getByRole('combobox', { name: 'Track role' }));
+    const option = await screen.findByRole('option', { name: 'Output' });
+    await userEvent.click(option);
+    expect(onChange).toHaveBeenCalledWith('V1', { role: 'output' });
+  }, 30000);
+
+  it('shows legacy tracks as Output and edits role through the ordinary callback', async () => {
+    const onChange = vi.fn();
+    render(<AIInputModeProvider><TrackLabelContent
+      track={tracks[0]} isSelected={false} hasClips
+      onSelect={vi.fn()} onChange={onChange} onRemove={vi.fn()}
+    /></AIInputModeProvider>);
+    expect(screen.queryByLabelText('Source — excluded from final output')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Track settings' }));
+    expect(await screen.findByRole('combobox', { name: 'Track role' })).toHaveTextContent('Output');
+    fireEvent.click(screen.getByRole('combobox', { name: 'Track role' }));
+    const option = await screen.findByRole('option', { name: 'Source' });
+    await userEvent.click(option);
+    expect(onChange).toHaveBeenCalledWith('V1', { role: 'source' });
+  }, 30000);
 });

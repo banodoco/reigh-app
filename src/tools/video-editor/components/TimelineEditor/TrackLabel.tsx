@@ -17,6 +17,7 @@ import {
   hasEligibleExtensionContextMenuItems,
 } from '@/tools/video-editor/components/TimelineEditor/ExtensionContextMenuItems.tsx';
 import { VideoEditorRuntimeContext } from '@/tools/video-editor/contexts/VideoEditorRuntimeContext.tsx';
+import { trackRole } from '@/tools/video-editor/data/timelineOutputProjection.ts';
 import { isTrackMuted } from '@/tools/video-editor/lib/editor-utils.ts';
 import { trackLabelAttrs } from '@/tools/video-editor/lib/timeline-dom.ts';
 import {
@@ -156,7 +157,7 @@ function TrackExtensionContextMenu({
   );
 }
 
-interface TrackDefaultsDialogProps {
+interface TrackSettingsDialogProps {
   track: TrackDefinition;
   triggerClassName: string;
   iconClassName: string;
@@ -167,7 +168,7 @@ interface TrackDefaultsDialogProps {
   onRemoveClick: (event: React.MouseEvent) => void;
 }
 
-function TrackDefaultsDialog({
+function TrackSettingsDialog({
   track,
   triggerClassName,
   iconClassName,
@@ -175,7 +176,7 @@ function TrackDefaultsDialog({
   showIdentityControls,
   confirmingDelete,
   onRemoveClick,
-}: TrackDefaultsDialogProps) {
+}: TrackSettingsDialogProps) {
   return (
     <Dialog>
       <DialogTrigger asChild>
@@ -184,8 +185,8 @@ function TrackDefaultsDialog({
           variant="ghost"
           size="icon"
           className={cn(triggerClassName, 'text-muted-foreground')}
-          title={showIdentityControls ? 'Track settings' : 'Track defaults'}
-          aria-label={showIdentityControls ? 'Track settings' : 'Track defaults'}
+          title="Track settings"
+          aria-label="Track settings"
           onClick={(event) => event.stopPropagation()}
         >
           <Settings className={iconClassName} />
@@ -193,12 +194,31 @@ function TrackDefaultsDialog({
       </DialogTrigger>
       <DialogContent className="max-w-sm" onClick={(e) => e.stopPropagation()}>
         <DialogHeader>
-          <DialogTitle>{track.label} — Track Defaults</DialogTitle>
+          <DialogTitle>{track.label} — Track settings</DialogTitle>
           <DialogDescription>
-            New items dropped on this track will inherit these settings.
+            Choose how this track is used, and defaults for new items.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 pt-2">
+          <div className="space-y-1.5">
+            <FieldLabel>Use</FieldLabel>
+            <Select
+              value={trackRole(track)}
+              onValueChange={(value) => {
+                if (value === 'output' || value === 'source') onChange(track.id, { role: value });
+              }}
+            >
+              <SelectTrigger className="h-9 text-xs" aria-label="Track role"><SelectValue>{trackRole(track) === 'source' ? 'Source' : 'Output'}</SelectValue></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="output">Output</SelectItem>
+                <SelectItem value="source">Source</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              {trackRole(track) === 'source' ? 'Reference material. Excluded from final output.' : 'Included in final output.'}
+              {' '}Applies to all items on this track.
+            </p>
+          </div>
           {showIdentityControls && (
             <div className="space-y-1.5">
               <FieldLabel>Name</FieldLabel>
@@ -382,6 +402,7 @@ export function TrackLabelContent({
   }, [commandRegistry, extensions, onSelect, readOnly, track.id]);
 
   const pinActions = shouldPinHoverAffordances(deviceClass);
+  const isSource = trackRole(track) === 'source';
 
   return (
     <>
@@ -390,13 +411,16 @@ export function TrackLabelContent({
           'group relative flex h-9 items-center gap-1 border-b border-border text-xs text-foreground',
           pinActions ? 'px-1' : 'px-2',
           isSelected ? 'bg-accent/70' : 'bg-card/60 hover:bg-accent/50',
+          isSource && 'border-l-2 border-l-amber-500/60',
         )}
         {...trackLabelAttrs(track.id)}
         onClick={() => onSelect(track.id)}
         onContextMenu={readOnly ? undefined : handleContextMenu}
       >
-        <span className="shrink-0 text-muted-foreground">
-          {track.kind === 'visual' ? <Video className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
+        <span className="pointer-events-none relative z-10 shrink-0 text-muted-foreground">
+          {isSource ? (
+            <span className="rounded bg-muted px-1 py-0.5 text-[9px] font-medium text-foreground" title="Source — excluded from final output" aria-label="Source — excluded from final output">Source</span>
+          ) : track.kind === 'visual' ? <Video className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
         </span>
 
         {/* Full label shown at rest; on pointer devices it fades out for the hover overlay */}
@@ -425,7 +449,7 @@ export function TrackLabelContent({
             >
               <GripVertical className="h-4 w-4" />
             </Button>
-            <TrackDefaultsDialog
+            <TrackSettingsDialog
               track={track}
               triggerClassName="h-9 w-9"
               iconClassName="h-4 w-4"
@@ -438,7 +462,7 @@ export function TrackLabelContent({
         ) : !readOnly ? (
           /* Editable input + action buttons on hover */
           <div className="absolute inset-0 flex items-center gap-1 px-2 opacity-0 transition-opacity group-hover:opacity-100">
-            <span className="w-[18px] shrink-0" />
+            <span className={cn('shrink-0', isSource ? 'w-10' : 'w-[18px]')} />
             <input
               className="min-w-0 flex-1 bg-transparent text-xs outline-none"
               value={track.label}
@@ -459,7 +483,7 @@ export function TrackLabelContent({
               >
                 <GripVertical className="h-3.5 w-3.5" />
               </Button>
-              <TrackDefaultsDialog
+              <TrackSettingsDialog
                 track={track}
                 triggerClassName="h-6 w-6"
                 iconClassName="h-3.5 w-3.5"

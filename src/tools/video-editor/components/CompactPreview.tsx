@@ -1,3 +1,4 @@
+import { projectOutputTimelineConfig } from '@/tools/video-editor/data/timelineOutputProjection.ts';
 import { useMemo } from 'react';
 import { ExternalLink, Plus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -42,7 +43,7 @@ export function CompactPreviewCore({ timelineId, onCreateTimeline, onOpenEditor 
       return 1;
     }
 
-    return getTimelineDurationInFrames(previewConfig, previewConfig.output.fps) / previewConfig.output.fps;
+    return getTimelineDurationInFrames(projectOutputTimelineConfig(previewConfig).config, previewConfig.output.fps) / previewConfig.output.fps;
   }, [previewConfig]);
 
   if (!previewConfig || !timelineId) {
