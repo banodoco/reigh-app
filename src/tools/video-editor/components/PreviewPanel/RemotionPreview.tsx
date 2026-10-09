@@ -1,4 +1,4 @@
-import type { RefObject } from 'react';
+import type { ComponentType, RefObject } from 'react';
 import { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Pause, Play, SkipBack } from 'lucide-react';
@@ -29,6 +29,7 @@ const TRANSPORT_BUTTON_CLASS = 'pointer-events-auto rounded-full border-[color:v
 // own its media element instead; this keeps source identity and timing local
 // to the clip and avoids a lifetime-fixed shared-pool prop during config swaps.
 const PREVIEW_SHARED_AUDIO_TAGS = 0;
+const TimelineRendererForPlayer = TimelineRenderer as unknown as ComponentType<Record<string, unknown>>;
 
 interface PendingSeek {
   time: number;
@@ -449,7 +450,7 @@ const RemotionPreviewComponent = forwardRef<PreviewHandle, RemotionPreviewProps>
     >
       <Player
         ref={playerRef}
-        component={TimelineRenderer}
+        component={TimelineRendererForPlayer}
         inputProps={inputProps}
         durationInFrames={metadata.durationInFrames}
         fps={metadata.fps}

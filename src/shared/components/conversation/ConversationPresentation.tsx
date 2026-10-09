@@ -100,7 +100,7 @@ export function ConversationPresentation({
             </div>
           )}
 
-          {(isProcessing || hasPendingWork || optimisticMessage) && (
+          {(isProcessing || hasPendingWork) && (
             <div className="flex items-center gap-2 py-1 text-xs text-muted-foreground">
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
               Thinking...

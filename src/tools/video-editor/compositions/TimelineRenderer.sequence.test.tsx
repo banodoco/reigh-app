@@ -1,10 +1,16 @@
 // @vitest-environment jsdom
 import { act, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { TimelineRenderer } from '@/tools/video-editor/compositions/TimelineRenderer';
+import { TimelineRenderer as TimelineRendererImplementation, type TimelineRendererProps } from '@/tools/video-editor/compositions/TimelineRenderer';
 import type { ResolvedTimelineConfig } from '@/tools/video-editor/types';
 import type { ClipRendererProps } from '@/tools/video-editor/clip-types/ClipTypeRegistry';
 import type { FC, PropsWithChildren } from 'react';
+import {
+  SEQUENCE_COMPONENT_REGISTRY,
+  describeClipCapabilityWith,
+  resolveSequenceClipEntry,
+} from '@/tools/video-editor/sequences/registry';
+import type { AstridDynamicSequenceEntry, AstridElementHost } from '@/tools/video-editor/runtime/astrid-element-host';
 import {
   VideoEditorRuntimeProvider,
   type VideoEditorRuntimeContextValue,
@@ -165,6 +171,29 @@ vi.mock('@/tools/video-editor/compositions/TextClip', () => ({
 vi.mock('@/tools/video-editor/runtime/astrid-element-components.tsx', () => ({
   resolveAstridElementComponent: astridElementComponentMock,
 }));
+
+const TEST_ASTRID_ELEMENT_HOST: AstridElementHost = {
+  descriptors: [],
+  sequenceRegistry: SEQUENCE_COMPONENT_REGISTRY,
+  resolveComponent: astridElementComponentMock as AstridElementHost['resolveComponent'],
+  resolveSequenceClipEntry: (clipType, dynamicEntries) => resolveSequenceClipEntry(
+    clipType,
+    dynamicEntries as Parameters<typeof resolveSequenceClipEntry>[1],
+  ) as AstridDynamicSequenceEntry | undefined,
+  describeClipCapability: (clip, dynamicEntries) => describeClipCapabilityWith(
+    clip,
+    dynamicEntries as Parameters<typeof describeClipCapabilityWith>[1],
+  ),
+};
+
+// These standalone composition tests exercise the installed registry semantics
+// through an explicit host while keeping element module resolution mocked.
+const TimelineRenderer: FC<TimelineRendererProps> = ({ astridElementHost, ...props }) => (
+  <TimelineRendererImplementation
+    {...props}
+    astridElementHost={astridElementHost ?? TEST_ASTRID_ELEMENT_HOST}
+  />
+);
 
 vi.mock('@/tools/video-editor/shaders/preview/PostprocessShaderPreviewCanvas.tsx', () => ({
   PostprocessShaderPreviewCanvas: (props: Record<string, unknown>) => {

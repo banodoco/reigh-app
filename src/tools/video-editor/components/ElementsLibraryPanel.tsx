@@ -75,7 +75,12 @@ export function ElementsLibraryPanel({
             expected_version: expectedVersion,
             from_clip: selectedIds[0],
             to_clip: selectedIds[1],
-            transition: { id: element.id, kind: element.kind, revision: element.revision },
+            transition: {
+              id: element.id,
+              kind: element.kind,
+              revision: element.revision,
+              ...(element.packId ? { packId: element.packId } : {}),
+            },
           })
         : await adapter.execute({
             name: 'timeline.apply_element',
@@ -84,7 +89,12 @@ export function ElementsLibraryPanel({
             expected_version: expectedVersion,
             clip_id: selectedIds[0],
             placement: element.kind === 'animation' ? 'clip' : 'overlay',
-            element: { id: element.id, kind: element.kind, revision: element.revision },
+            element: {
+              id: element.id,
+              kind: element.kind,
+              revision: element.revision,
+              ...(element.packId ? { packId: element.packId } : {}),
+            },
           });
       await queryClient.invalidateQueries({ queryKey: timelineQueryKey(timeline) });
       setMessage(`${element.label} applied${result.config_version ? ` · timeline v${result.config_version}` : ''}.`);

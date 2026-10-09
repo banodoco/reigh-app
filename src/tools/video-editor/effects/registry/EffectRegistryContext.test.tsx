@@ -92,7 +92,7 @@ describe('EffectRegistryContext', () => {
     expect(second.result.current.snapshot.has('fx.first')).toBe(false);
   });
 
-  it('disposes the provider-owned registry on unmount', () => {
+  it('disposes the provider-owned registry on unmount', async () => {
     const dispose = vi.fn();
     const { result, unmount } = renderHook(() => useEffectRegistryContext(), { wrapper });
 
@@ -100,6 +100,7 @@ describe('EffectRegistryContext', () => {
       result.current.registry.register(record('fx.cleanup', { dispose }));
     });
     unmount();
+    await act(async () => {});
 
     expect(dispose).toHaveBeenCalledTimes(1);
   });

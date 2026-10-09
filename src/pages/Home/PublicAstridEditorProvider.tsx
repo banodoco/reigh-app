@@ -6,6 +6,7 @@ import { PublicPreviewMediaFailureProvider } from '@/tools/video-editor/composit
 import { createVideoEditorEffectCatalog } from '@/tools/video-editor/lib/effect-catalog.ts';
 import { createVideoEditorSequenceComponentCatalog } from '@/tools/video-editor/lib/sequence-component-catalog.ts';
 import type { TimelineEditability } from '@/tools/video-editor/lib/timeline-editability.ts';
+import { PUBLIC_TIMELINE_SERVICE_HOOKS } from '@/tools/video-editor/runtime/timelineHostServiceHooks.ts';
 import { PUBLIC_ASTRID_ELEMENT_HOST } from './astrid-public-host.tsx';
 import { PublicAstridExampleProvider, type PublicAstridExampleBundle } from './publicAstridExample.tsx';
 
@@ -40,6 +41,7 @@ export function PublicAstridEditorProvider({
       astridElementHost={PUBLIC_ASTRID_ELEMENT_HOST}
       dataProvider={example.dataProvider}
       timelineId={example.timelineId}
+      timelineServices={PUBLIC_TIMELINE_SERVICE_HOOKS}
       timelineName={example.metadata.timelineName}
       timelineEditability={PUBLIC_ASTRID_READ_ONLY_EDITABILITY}
       effectCatalog={EMPTY_EFFECT_CATALOG}

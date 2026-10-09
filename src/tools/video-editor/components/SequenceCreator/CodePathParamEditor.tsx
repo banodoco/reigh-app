@@ -151,6 +151,7 @@ export function CodePathParamEditor({
         const description = prop.description;
         const value = values[name];
         const type = propertyType(prop);
+        const fieldId = `code-path-param-${name}`;
 
         let control: JSX.Element;
 
@@ -158,6 +159,7 @@ export function CodePathParamEditor({
           const step = type === 'integer' ? 1 : prop.multipleOf ?? 0.01;
           control = (
             <NumberInput
+              id={fieldId}
               value={toNumber(value)}
               min={prop.minimum}
               max={prop.maximum}
@@ -184,7 +186,7 @@ export function CodePathParamEditor({
               value={toString(value)}
               onValueChange={(next) => setField(name, next)}
             >
-              <SelectTrigger>
+              <SelectTrigger id={fieldId}>
                 <SelectValue placeholder="Select an option" />
               </SelectTrigger>
               <SelectContent>
@@ -210,6 +212,7 @@ export function CodePathParamEditor({
                 )}
               />
               <Input
+                id={fieldId}
                 value={colorValue}
                 onChange={(event) => setField(name, event.target.value)}
                 className="flex-1"
@@ -219,6 +222,7 @@ export function CodePathParamEditor({
         } else if (type === 'string') {
           control = (
             <Input
+              id={fieldId}
               value={toString(value)}
               onChange={(event) => setField(name, event.target.value)}
             />
@@ -274,6 +278,7 @@ export function CodePathParamEditor({
             const arrayValue = toStringArray(value);
             control = (
               <Input
+                id={fieldId}
                 value={arrayValue.join(', ')}
                 onChange={(event) => {
                   const next = event.target.value
@@ -290,6 +295,7 @@ export function CodePathParamEditor({
           // on parse failure so users don't lose mid-edit state.
           control = (
             <Input
+              id={fieldId}
               defaultValue={JSON.stringify(value ?? null)}
               onChange={(event) => {
                 try {
@@ -305,7 +311,7 @@ export function CodePathParamEditor({
 
         return (
           <div key={name} className="space-y-1">
-            <label className="text-xs font-medium text-foreground">{label}</label>
+            <label htmlFor={fieldId} className="text-xs font-medium text-foreground">{label}</label>
             {control}
             {description && (
               <p className="text-xs text-muted-foreground">{description}</p>

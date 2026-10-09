@@ -1,9 +1,10 @@
+import { useOwnedResourceDisposal } from '@/tools/video-editor/hooks/useOwnedResourceDisposal';
 import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
   useMemo,
+  useState,
   useSyncExternalStore,
   type ReactNode,
 } from 'react';
@@ -34,7 +35,7 @@ export interface ClipTypeRegistryProviderProps {
 export function ClipTypeRegistryProvider({
   children,
 }: ClipTypeRegistryProviderProps) {
-  const registry = useMemo(() => createClipTypeRegistry(), []);
+  const [registry] = useState(() => createClipTypeRegistry());
   const subscribe = useCallback((onStoreChange: () => void) => {
     const handle = registry.subscribe(() => onStoreChange());
     return () => handle.dispose();
@@ -42,9 +43,7 @@ export function ClipTypeRegistryProvider({
   const getSnapshot = useCallback(() => registry.getSnapshot(), [registry]);
   const snapshot = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 
-  useEffect(() => () => {
-    registry.dispose();
-  }, [registry]);
+  useOwnedResourceDisposal(registry, (owned) => owned.dispose());
 
   const value = useMemo<ClipTypeRegistryContextValue>(
     () => ({ registry, snapshot }),

@@ -12,15 +12,20 @@ vi.mock('remotion', () => ({
     return <img alt="owned still" src={props.src} onError={props.onError} />;
   },
 }));
-afterEach(() => {cleanup(); vi.clearAllMocks();});
+afterEach(() => {cleanup(); vi.useRealTimers(); vi.clearAllMocks();});
 
 // Native delayPlayback/premount behavior is exercised in the T3 browser suite.
 // These tests verify that terminal errors release the primitive through unmount
 // and that recovery creates a fresh primitive with the native readiness flag.
 describe('owned still cleanup and recovery', () => {
   it('requests native decode gating and removes loading presentation only after the decoded-image callback', () => {
+    vi.useFakeTimers();
     render(<ReadinessImage src="/pending.png" mediaId="test-still" />);
     expect(native.props.pauseWhenLoading).toBe(true);
+    expect(screen.queryByTestId('preview-media-loading')).toBeNull();
+    act(() => vi.advanceTimersByTime(149));
+    expect(screen.queryByTestId('preview-media-loading')).toBeNull();
+    act(() => vi.advanceTimersByTime(1));
     expect(screen.getByTestId('preview-media-loading')).toHaveAttribute('data-clip-id', 'test-still');
     expect(screen.getByTestId('preview-media-loading')).toHaveStyle({pointerEvents: 'none'});
     act(() => native.props.onImageFrame(document.querySelector('img')));
@@ -45,6 +50,7 @@ describe('owned still cleanup and recovery', () => {
   });
 
   it('unmounts the failed primitive and creates a fresh one for a same-source retry', () => {
+    vi.useFakeTimers();
     render(<ReadinessImage src="/pending.png" mediaId="test-still" />);
     fireEvent.error(document.querySelector('img')!);
     expect(native.cleanup).toHaveBeenCalledOnce();
@@ -55,14 +61,19 @@ describe('owned still cleanup and recovery', () => {
     expect(native.mount).toHaveBeenCalledTimes(2);
     expect(native.props.pauseWhenLoading).toBe(true);
     expect(screen.queryByTestId('preview-media-error')).toBeNull();
+    expect(screen.queryByTestId('preview-media-loading')).toBeNull();
+    act(() => vi.advanceTimersByTime(150));
     expect(screen.getByTestId('preview-media-loading')).toBeInTheDocument();
   });
 
   it('cleans up an in-flight source on replacement and seek-away/unmount', () => {
+    vi.useFakeTimers();
     const view = render(<ReadinessImage src="/pending.png" />);
     view.rerender(<ReadinessImage src="/replacement.png" />);
     expect(native.cleanup).toHaveBeenCalledOnce();
     expect(native.mount).toHaveBeenCalledTimes(2);
+    expect(screen.queryByTestId('preview-media-loading')).toBeNull();
+    act(() => vi.advanceTimersByTime(150));
     expect(screen.getByTestId('preview-media-loading')).toHaveAttribute('data-media-src', '/replacement.png');
     view.unmount();
     expect(native.cleanup).toHaveBeenCalledTimes(2);

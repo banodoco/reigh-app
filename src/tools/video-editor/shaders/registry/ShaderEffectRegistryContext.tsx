@@ -1,9 +1,10 @@
+import { useOwnedResourceDisposal } from '@/tools/video-editor/hooks/useOwnedResourceDisposal';
 import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
   useMemo,
+  useState,
   useSyncExternalStore,
   type ReactNode,
 } from 'react';
@@ -36,7 +37,7 @@ export interface ShaderEffectRegistryProviderProps {
 export function ShaderEffectRegistryProvider({
   children,
 }: ShaderEffectRegistryProviderProps) {
-  const registry = useMemo(() => createShaderEffectRegistry(), []);
+  const [registry] = useState(() => createShaderEffectRegistry());
   const subscribe = useCallback((onStoreChange: () => void) => {
     const handle = registry.subscribe(() => onStoreChange());
     return () => handle.dispose();
@@ -44,9 +45,7 @@ export function ShaderEffectRegistryProvider({
   const getSnapshot = useCallback(() => registry.getSnapshot(), [registry]);
   const snapshot = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 
-  useEffect(() => () => {
-    registry.dispose();
-  }, [registry]);
+  useOwnedResourceDisposal(registry, (owned) => owned.dispose());
 
   const value = useMemo<ShaderEffectRegistryContextValue>(
     () => ({ registry, snapshot }),

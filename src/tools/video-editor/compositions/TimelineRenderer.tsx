@@ -31,12 +31,6 @@ import {
   useTheme,
   type RuntimeTheme,
 } from '@banodoco/timeline-composition/theme-api';
-import {
-  describeClipCapabilityWith,
-  resolveSequenceClipEntry,
-  SEQUENCE_COMPONENT_REGISTRY,
-  type DynamicSequenceComponentEntry,
-} from '@/tools/video-editor/sequences/registry.ts';
 import { useSequenceComponentRegistrySnapshot } from '@/tools/video-editor/sequences/SequenceComponentRegistryContext.tsx';
 import { useClipTypeRegistrySnapshot } from '@/tools/video-editor/clip-types/ClipTypeRegistryContext.tsx';
 import type {
@@ -58,8 +52,12 @@ import type { LiveChannelDescriptor, LiveChannelMetadata, LiveSample, LiveSource
 import { PostprocessShaderPreviewCanvas } from '@/tools/video-editor/shaders/preview/PostprocessShaderPreviewCanvas.tsx';
 import { useShaderEffectRegistrySnapshot } from '@/tools/video-editor/shaders/registry/index.ts';
 import { tryCompileSequenceComponentAsync } from '@/tools/video-editor/sequences/compileSequenceComponent.tsx';
-import { resolveAstridElementComponent } from '@/tools/video-editor/runtime/astrid-element-components.tsx';
 import { boundCanonicalConfigClips } from '@/tools/video-editor/lib/canonicalRenderBounds.ts';
+import {
+  requireAstridElementHost,
+  type AstridDynamicSequenceEntry,
+  type AstridElementHost,
+} from '@/tools/video-editor/runtime/astrid-element-host.ts';
 
 // Phase 4d (Sprint 5): EFFECT_REGISTRY dispatch.
 //
@@ -81,18 +79,17 @@ const isBuiltinClipType = (value: string | undefined): boolean => {
   return (BUILTIN_CLIP_TYPES as readonly string[]).includes(value);
 };
 
-// Dynamic-aware sequence-component dispatch check. Built-in entries match
-// SEQUENCE_COMPONENT_REGISTRY directly; DB-stored entries (clipType
-// `custom:<name>`) match via the dynamic resolver. We accept any clipType
-// that has a registry entry on either side and a browser-preview-capable
-// capability descriptor.
+// Dynamic-aware sequence-component dispatch check. Both static and dynamic
+// entries come from the selected host, so public playback cannot fall through
+// to a private installed catalog.
 const isSequenceComponentClipType = (
   value: string | undefined,
-  dynamicEntries: readonly DynamicSequenceComponentEntry[],
+  dynamicEntries: readonly AstridDynamicSequenceEntry[],
+  astridElementHost: AstridElementHost,
 ): boolean => {
   if (typeof value !== 'string') return false;
-  if (resolveSequenceClipEntry(value, dynamicEntries)) return true;
-  return Object.prototype.hasOwnProperty.call(SEQUENCE_COMPONENT_REGISTRY, value);
+  if (astridElementHost.resolveSequenceClipEntry(value, dynamicEntries)) return true;
+  return Object.prototype.hasOwnProperty.call(astridElementHost.sequenceRegistry, value);
 };
 
 const isRecord = (value: unknown): value is Record<string, unknown> => (
@@ -203,7 +200,11 @@ const getShotChildSnapshot = (entry: ShotChildCacheEntry | null): ResolvedTimeli
   entry?.settled ? entry.resolved : null
 );
 
-const ShotClipSequence: FC<{ clip: ResolvedTimelineClip; fps: number }> = ({ clip, fps }) => {
+const ShotClipSequence: FC<{
+  clip: ResolvedTimelineClip;
+  fps: number;
+  astridElementHost: AstridElementHost;
+}> = ({ clip, fps, astridElementHost }) => {
   const runtime = useContext(VideoEditorRuntimeContext);
   const timelineDocumentId = isRecord(clip.params) && typeof clip.params.timeline_document_id === 'string'
     ? clip.params.timeline_document_id
@@ -250,7 +251,7 @@ const ShotClipSequence: FC<{ clip: ResolvedTimelineClip; fps: number }> = ({ cli
       premountFor={clip.app?.canonicalTiming ? 0 : fps * 2}
     >
       {childConfig ? (
-        <TimelineRenderer config={childConfig} />
+        <TimelineRenderer config={childConfig} astridElementHost={astridElementHost} />
       ) : (
         <AbsoluteFill
           data-testid="shot-preview-loading"
@@ -279,7 +280,8 @@ type ThemeEffectSequenceProps = {
   clip: ResolvedTimelineClip;
   fps: number;
   theme: RuntimeTheme;
-  dynamicEntries: readonly DynamicSequenceComponentEntry[];
+  dynamicEntries: readonly AstridDynamicSequenceEntry[];
+  astridElementHost: AstridElementHost;
 };
 
 const resolveAstridComponentAssetEntry = (
@@ -309,11 +311,19 @@ const ThemePackageComponent: FC<{
   return <Component clip={clip} params={clip.params} theme={theme} fps={fps} assetEntry={assetEntry} />;
 };
 
-const ThemeEffectSequence: FC<ThemeEffectSequenceProps> = ({ clip, fps, theme, dynamicEntries }) => {
-  // Dynamic-aware lookup: prefer DB-stored components for `custom:` clipTypes;
-  // fall back to the static SEQUENCE_COMPONENT_REGISTRY for built-ins.
-  const dynamicEntry = resolveSequenceClipEntry(clip.clipType, dynamicEntries);
-  const staticEntry = SEQUENCE_COMPONENT_REGISTRY[clip.clipType as keyof typeof SEQUENCE_COMPONENT_REGISTRY];
+const ThemeEffectSequence: FC<ThemeEffectSequenceProps> = ({
+  clip,
+  fps,
+  theme,
+  dynamicEntries,
+  astridElementHost,
+}) => {
+  // Dynamic-aware lookup: prefer host-provided dynamic entries, then the
+  // selected host's static registry for built-ins.
+  const dynamicEntry = astridElementHost.resolveSequenceClipEntry(clip.clipType, dynamicEntries);
+  const staticEntry = clip.clipType
+    ? astridElementHost.sequenceRegistry[clip.clipType]
+    : undefined;
   const Component = (dynamicEntry?.component ?? staticEntry?.component) as
     | FC<{
       clip: ResolvedTimelineClip;
@@ -448,17 +458,14 @@ const AstridEffectPreviewSequence: FC<{
   fps: number;
   theme: RuntimeTheme;
   assetEntry?: ResolvedTimelineClip['assetEntry'];
-  component?: ComponentType<{
+  component: ComponentType<{
     clip: ResolvedTimelineClip;
     params: Record<string, unknown>;
     theme: RuntimeTheme;
     fps: number;
     assetEntry?: ResolvedTimelineClip['assetEntry'];
   }>;
-}> = ({ clip, fps, theme, assetEntry, component }) => {
-  const Component = component ?? (clip.elementRef
-    ? resolveAstridElementComponent(clip.elementRef.id, clip.elementRef.kind, clip.elementRef.packId)
-    : undefined);
+}> = ({ clip, fps, theme, assetEntry, component: Component }) => {
   const durationInFrames = getClipDurationInFrames(clip, fps);
   if (!Component) return null;
   return (
@@ -485,11 +492,15 @@ const AstridAnimationPreviewSequence: FC<{
   track: TrackDefinition;
   fps: number;
   theme: RuntimeTheme;
+  component: ComponentType<{
+    clip: ResolvedTimelineClip;
+    params: Record<string, unknown>;
+    theme: RuntimeTheme;
+    fps: number;
+    children?: ReactNode;
+  }>;
   predecessor?: ResolvedTimelineClip | null;
-}> = ({ clip, track, fps, theme, predecessor }) => {
-  const Component = clip.elementRef
-    ? resolveAstridElementComponent(clip.elementRef.id, clip.elementRef.kind, clip.elementRef.packId)
-    : undefined;
+}> = ({ clip, track, fps, theme, component: Component, predecessor }) => {
   const durationInFrames = getClipDurationInFrames(clip, fps);
   const transitionFrames = predecessor && clip.transition
     ? secondsToFrames(clip.transition.duration, fps)
@@ -1341,6 +1352,7 @@ interface VisualTrackProps {
   allClips: readonly ResolvedTimelineClip[];
   liveBindingRecordsByClip: LiveBindingRecordsByClip;
   liveDataRegistry?: LiveDataRegistry;
+  astridElementHost: AstridElementHost;
 }
 
 // Lifted into a component so we can call useSequenceComponentRegistrySnapshot
@@ -1356,6 +1368,7 @@ const VisualTrack: FC<VisualTrackProps> = ({
   allClips,
   liveBindingRecordsByClip,
   liveDataRegistry,
+  astridElementHost,
 }) => {
   const { entries: dynamicEntries } = useSequenceComponentRegistrySnapshot();
   const clipTypeRegistry = useClipTypeRegistrySnapshot();
@@ -1420,7 +1433,10 @@ const VisualTrack: FC<VisualTrackProps> = ({
 
         // Dynamic-aware capability lookup (FLAG-001/002). DB-stored sequence
         // components surface workerRender:false through this path.
-        const descriptor = describeClipCapabilityWith(clip, dynamicEntries);
+        const descriptor = astridElementHost.describeClipCapability(
+          clip,
+          dynamicEntries as readonly AstridDynamicSequenceEntry[],
+        );
 
         if (clip.elementRef && clip.elementRef.kind !== 'transition') {
           const source = getPinnedElementSource(clip, renderConfig);
@@ -1436,7 +1452,7 @@ const VisualTrack: FC<VisualTrackProps> = ({
               />
             );
           }
-          const astridComponent = resolveAstridElementComponent(
+          const astridComponent = astridElementHost.resolveComponent(
             clip.elementRef.id,
             clip.elementRef.kind,
             clip.elementRef.packId,
@@ -1449,6 +1465,7 @@ const VisualTrack: FC<VisualTrackProps> = ({
                 fps={fps}
                 theme={theme}
                 assetEntry={clip.assetEntry}
+                component={astridComponent}
               />
             );
           }
@@ -1460,6 +1477,7 @@ const VisualTrack: FC<VisualTrackProps> = ({
                 track={track}
                 fps={fps}
                 theme={theme}
+                component={astridComponent}
                 predecessor={index > 0 ? sortedClips[index - 1] : null}
               />
             );
@@ -1511,7 +1529,14 @@ const VisualTrack: FC<VisualTrackProps> = ({
         }
 
         if (clip.clipType === 'shot') {
-          return <ShotClipSequence key={clip.id} clip={clip} fps={fps} />;
+          return (
+            <ShotClipSequence
+              key={clip.id}
+              clip={clip}
+              fps={fps}
+              astridElementHost={astridElementHost}
+            />
+          );
         }
 
         // First-party Astrid parity renderer. This is deliberately dispatched
@@ -1528,7 +1553,7 @@ const VisualTrack: FC<VisualTrackProps> = ({
         // scrolling-guide fall through to the unsupported placeholder even
         // though their checked-out Astrid component was bundled.
         if (!clip.elementRef && clip.clipType) {
-          const astridEffect = resolveAstridElementComponent(clip.clipType, 'effect');
+          const astridEffect = astridElementHost.resolveComponent(clip.clipType, 'effect');
           if (astridEffect) {
             return (
               <AstridEffectPreviewSequence
@@ -1547,7 +1572,7 @@ const VisualTrack: FC<VisualTrackProps> = ({
         // is provided by an installed theme package OR a DB-stored
         // sequence component, render via the dynamic-aware registry entry.
         // Mirrors HypeComposition.tsx:58-64 with DB augmentation.
-        if (isSequenceComponentClipType(clip.clipType, dynamicEntries)) {
+        if (isSequenceComponentClipType(clip.clipType, dynamicEntries, astridElementHost)) {
           return (
             <ThemeEffectSequence
               key={clip.id}
@@ -1555,6 +1580,7 @@ const VisualTrack: FC<VisualTrackProps> = ({
               fps={fps}
               theme={theme}
               dynamicEntries={dynamicEntries}
+              astridElementHost={astridElementHost}
             />
           );
         }
@@ -1660,8 +1686,19 @@ const VisualTrack: FC<VisualTrackProps> = ({
   );
 };
 
-export const TimelineRenderer: FC<{ config: ResolvedTimelineConfig }> = memo(({ config }) => {
+export interface TimelineRendererProps {
+  config: ResolvedTimelineConfig;
+  astridElementHost?: AstridElementHost;
+}
+
+export const TimelineRenderer: FC<TimelineRendererProps> = memo(({
+  config,
+  astridElementHost: suppliedAstridElementHost,
+}) => {
   const runtime = useContext(VideoEditorRuntimeContext);
+  const astridElementHost = requireAstridElementHost(
+    suppliedAstridElementHost ?? runtime?.astridElementHost,
+  );
   const environment = useRemotionEnvironment();
   const frame = useCurrentFrame();
   const liveDataRegistry = runtime?.liveDataRegistry;
@@ -1765,6 +1802,7 @@ export const TimelineRenderer: FC<{ config: ResolvedTimelineConfig }> = memo(({ 
               allClips={renderConfig.clips}
               liveBindingRecordsByClip={liveBindingRecordsByClip}
               liveDataRegistry={liveDataRegistry}
+              astridElementHost={astridElementHost}
             />
           )
         : null;
@@ -1793,6 +1831,7 @@ export const TimelineRenderer: FC<{ config: ResolvedTimelineConfig }> = memo(({ 
     fps,
     liveBindingRecordsByClip,
     liveDataRegistry,
+    astridElementHost,
     renderConfig,
     runtimeTheme,
     visualTracks,

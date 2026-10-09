@@ -25,9 +25,10 @@ function editorContext(port: LiveSceneOperationPort): AgentChatEditorContext {
 
 function emptyAcp() {
   return {
+    projectChat: vi.fn(async () => ({ sessions: ['session-origin', 'session-load-failure', 'session-cancel-during-load'].map(id => ({ id })) })),
     connect: vi.fn(async () => ({ connection_id: 'connection' })),
     loadSession: vi.fn(async () => ({})),
-    promptSession: vi.fn(async () => ({})),
+    promptProjectSession: vi.fn(async () => ({})),
     cancelSession: vi.fn(async () => ({})),
     events: vi.fn(async () => ({ notifications: [], disconnected: false })),
   };
@@ -50,9 +51,10 @@ describe('actual ACP store scene roundtrip', () => {
         affectedPlacements: ['clip'], acknowledgedTimelineVersion: 8, flushReceipt: { version: 8 } };
     });
     const acp = {
-      connect: vi.fn(async () => ({ connection_id: 'connection' })),
+      projectChat: vi.fn(async () => ({ sessions: ['session-origin', 'session-load-failure', 'session-cancel-during-load'].map(id => ({ id })) })),
+    connect: vi.fn(async () => ({ connection_id: 'connection' })),
       loadSession: vi.fn(async () => ({})),
-      promptSession: vi.fn(async (_connection: string, session: string, blocks: Array<{ text: string }>) => {
+      promptProjectSession: vi.fn(async (_project: string, _connection: string, session: string, blocks: Array<{ text: string }>) => {
         calls += 1;
         let text: string;
         if (calls === 1) {
@@ -84,16 +86,16 @@ describe('actual ACP store scene roundtrip', () => {
     const editor: AgentChatEditorContext = { ...editorContext(port),
       elementOperationAdapter: { execute: elementExecute } as unknown as AgentChatEditorContext['elementOperationAdapter'] };
     await store.prompt('session-origin', { message: 'Edit scene' }, editor);
-    expect(acp.promptSession).toHaveBeenCalledTimes(3);
-    for (const call of acp.promptSession.mock.calls) expect(call.slice(0, 2)).toEqual(['connection', 'session-origin']);
+    expect(acp.promptProjectSession).toHaveBeenCalledTimes(3);
+    for (const call of acp.promptProjectSession.mock.calls) expect(call.slice(0, 3)).toEqual(['p', 'connection', 'session-origin']);
     expect(elementExecute).toHaveBeenCalledExactlyOnceWith({ name: 'elements.list' });
-    const session = await store.get('session-origin');
+    const session = await store.get('p', 'session-origin');
     expect(session.turns).toHaveLength(2);
     expect(session.turns[1].content).toContain('elements.list: applied');
     expect(session.turns[1].content).toContain('Scene published:');
     expect(session.turns[1].content).toContain('received the durable publication receipt');
     expect(session.status).toBe('waiting_user');
-    expect(stripReighEditorContext(acp.promptSession.mock.calls[1][2][0].text)).toBe('');
+    expect(stripReighEditorContext(acp.promptProjectSession.mock.calls[1][3][0].text)).toBe('');
   });
 
   it('surfaces a live-scene ACP module-load failure and still ends the scene turn', async () => {
@@ -111,9 +113,9 @@ describe('actual ACP store scene roundtrip', () => {
 
       await expect(store.prompt('session-load-failure', { message: 'Edit scene' }, editorContext(port)))
         .rejects.toThrow(/Live-scene ACP implementation failed to load/);
-      expect(acp.promptSession).not.toHaveBeenCalled();
+      expect(acp.promptProjectSession).not.toHaveBeenCalled();
       expect(endTurn).toHaveBeenCalledOnce();
-      expect((await store.get('session-load-failure')).status).toBe('waiting_user');
+      expect((await store.get('p', 'session-load-failure')).status).toBe('waiting_user');
     } finally {
       vi.doUnmock('../runtime/liveSceneAcpRoundtrip');
       vi.resetModules();
@@ -144,9 +146,9 @@ describe('actual ACP store scene roundtrip', () => {
       await prompt;
 
       expect(acp.cancelSession).toHaveBeenCalledWith('connection', 'session-cancel-during-load');
-      expect(acp.promptSession).not.toHaveBeenCalled();
+      expect(acp.promptProjectSession).not.toHaveBeenCalled();
       expect(endTurn).toHaveBeenCalledOnce();
-      expect((await store.get('session-cancel-during-load')).status).toBe('waiting_user');
+      expect((await store.get('p', 'session-cancel-during-load')).status).toBe('cancelled');
     } finally {
       vi.doUnmock('../runtime/liveSceneAcpRoundtrip');
       vi.resetModules();

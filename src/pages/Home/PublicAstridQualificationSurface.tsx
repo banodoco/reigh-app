@@ -1,8 +1,11 @@
 import { useMemo } from 'react';
+import type { ComponentType } from 'react';
 import { Player } from '@remotion/player';
 import { TimelineRenderer } from '@/tools/video-editor/compositions/TimelineRenderer.tsx';
 import type { ResolvedTimelineConfig } from '@/tools/video-editor/types/index.ts';
 import { PUBLIC_ASTRID_ELEMENT_HOST } from './astrid-public-host.tsx';
+
+const PublicTimelineRendererForPlayer = TimelineRenderer as unknown as ComponentType<Record<string, unknown>>;
 
 export function PublicAstridQualificationSurface() {
   const config = useMemo<ResolvedTimelineConfig>(() => {
@@ -23,6 +26,7 @@ export function PublicAstridQualificationSurface() {
         elementRef: {
           id: descriptor.id,
           kind: descriptor.kind,
+          packId: descriptor.packId,
           revision: descriptor.revision,
         },
       }],
@@ -33,7 +37,7 @@ export function PublicAstridQualificationSurface() {
   return (
     <section aria-label="Astrid public editor preview" data-astrid-public-host="astrid-public-v1">
       <Player
-        component={TimelineRenderer}
+        component={PublicTimelineRendererForPlayer}
         inputProps={{config, astridElementHost: PUBLIC_ASTRID_ELEMENT_HOST}}
         durationInFrames={90}
         compositionWidth={1280}

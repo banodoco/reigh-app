@@ -38,6 +38,7 @@ import { useAgentChatRegistry, type AgentChatEditorContext } from '@/shared/cont
 import { clearTimelineClipData, setTimelineClipData } from '@/shared/state/selectionStore.ts';
 import { type VideoEditorEffectCatalog } from '@/tools/video-editor/hooks/useEffectResources.ts';
 import { type VideoEditorSequenceComponentCatalog } from '@/tools/video-editor/hooks/useSequenceResources.ts';
+import { INSTALLED_TIMELINE_SERVICE_HOOKS } from '@/tools/video-editor/runtime/installedTimelineHostServiceHooks.ts';
 import { useTimelineClipsForAttachments } from '@/tools/video-editor/hooks/useTimelineClipsForAttachments.ts';
 import type {
   TimelineActionResizeStart,
@@ -53,13 +54,16 @@ import { useTimelineConfigVersion, useTimelineEditorData } from '@/tools/video-e
 import { useEffectResources } from '@/tools/video-editor/hooks/useEffectResources.ts';
 import { useSequenceResources } from '@/tools/video-editor/hooks/useSequenceResources.ts';
 import { buildReighAgentElementContext } from '@/tools/video-editor/runtime/element-contract.ts';
-import { AstridElementOperationAdapter } from '@/tools/video-editor/runtime/element-adapter.ts';
+import {
+  AstridElementOperationAdapter,
+  createElementTimelineRoutes,
+} from '@/tools/video-editor/runtime/element-adapter.ts';
 import {
   ASTRID_ANIMATION_CATALOG,
   ASTRID_EFFECT_CATALOG,
   ASTRID_TRANSITION_CATALOG,
 } from '@/tools/video-editor/runtime/astrid-element-catalog.ts';
-import { AstridLocalClient } from '@/integrations/astrid/client.ts';
+import { INSTALLED_ASTRID_ELEMENT_HOST } from '@/tools/video-editor/runtime/astrid-element-components.tsx';
 import {
   ADD_GENERATION_QUERY_PARAM,
   readPendingAdds,
@@ -242,7 +246,7 @@ export function buildVideoEditorLightboxMedia(
 /** Registers video-editor state into the app-level AgentChatContext and keeps
  *  timeline attachment metadata synchronized in the selection store. */
 function AgentChatBridgeRegistration() {
-  const { timelineId, timelineName, project, agentChat, liveSceneOperationPort } = useVideoEditorRuntime();
+  const { timelineId, timelineName, project, provider, agentChat, liveSceneOperationPort } = useVideoEditorRuntime();
   const { registerTimeline, unregisterTimeline } = agentChat;
   const allClips = useTimelineClipsForAttachments();
   const { data, resolvedConfig, selectedClipIds } = useTimelineEditorData();
@@ -293,13 +297,12 @@ function AgentChatBridgeRegistration() {
   }), [effectCatalog.effects, selectedClipIds, sequenceCatalog.components, resolvedClips]);
   const elementOperationAdapter = useMemo(() => {
     if (!project.projectSlug || !timelineId) return undefined;
-    const client = new AstridLocalClient({ projectSlug: project.projectSlug });
     return new AstridElementOperationAdapter(
       elementContext,
-      client.timelines,
+      createElementTimelineRoutes(provider),
       project.projectSlug,
     );
-  }, [elementContext, project.projectSlug, timelineId]);
+  }, [elementContext, project.projectSlug, provider, timelineId]);
 
   useEffect(() => {
     setTimelineClipData(allClips);
@@ -364,6 +367,7 @@ function InnerProvider({
 
   const sync = useEditorRuntimeSync({
     assembly,
+    timelineServices: INSTALLED_TIMELINE_SERVICE_HOOKS,
     projectId: runtime.project.projectId,
     timelineId: runtime.timelineId,
     projectObjects: runtime.provider.projectObjects,
@@ -941,6 +945,7 @@ export function VideoEditorProvider({
   ]);
 
   const runtimeValue = useMemo(() => ({
+    astridElementHost: INSTALLED_ASTRID_ELEMENT_HOST,
     provider: dataProvider,
     assetResolver: {
       resolveAssetUrl: dataProvider.resolveAssetUrl.bind(dataProvider),

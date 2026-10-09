@@ -16,13 +16,14 @@ export type AstridElementComponentProps = {
 export type AstridElementDescriptor = {
   id: string;
   kind: AstridElementKind;
+  packId?: string;
   revision: string;
   componentPath: string;
 };
 
 export type AstridDynamicSequenceEntry = {
   clipType: string;
-  component: ComponentType<any>;
+  component: unknown;
   schemaJson?: object;
   themeId?: string;
 };
@@ -51,6 +52,7 @@ export interface AstridElementHost {
   resolveComponent(
     elementId: string,
     kind: AstridElementKind,
+    packId?: string,
   ): ComponentType<AstridElementComponentProps> | undefined;
   resolveSequenceClipEntry(
     clipType: string | undefined,

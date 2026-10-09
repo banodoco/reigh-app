@@ -1,4 +1,4 @@
-import type { AstridLocalTimelineRoutes } from '@/integrations/astrid/timelineRoutes.ts';
+import type { DataProvider } from '@/tools/video-editor/data/DataProvider.ts';
 import type { AssetRegistry, TimelineClip, TimelineConfig } from '@/tools/video-editor/types/index.ts';
 import { getClipTimelineDuration } from '@/tools/video-editor/lib/config-utils.ts';
 import {
@@ -36,7 +36,61 @@ export type ReighElementOperationResult = {
   };
 };
 
-export type ElementTimelineRoutes = Pick<AstridLocalTimelineRoutes, 'get' | 'save'>;
+type ElementTimelineDocument = {
+  config: unknown;
+  registry: unknown;
+  config_version: number;
+};
+
+export type ElementTimelineRoutes = {
+  get(timelineId: string): Promise<ElementTimelineDocument>;
+  save(
+    timelineId: string,
+    input: { config: unknown; registry: unknown; expectedVersion: number },
+  ): Promise<ElementTimelineDocument>;
+};
+
+/**
+ * Keep element mutations on the same provider and CAS boundary as ordinary
+ * editor saves. In particular, the Workspace Runtime editor must not fall
+ * back to Astrid's retired timeline bridge routes just to apply a catalog
+ * element.
+ */
+export function createElementTimelineRoutes(
+  provider: Pick<DataProvider, 'loadTimeline' | 'loadAssetRegistry' | 'saveTimeline'>,
+): ElementTimelineRoutes {
+  return {
+    async get(timelineId) {
+      const timeline = await provider.loadTimeline(timelineId);
+      const registry = await provider.loadAssetRegistry(timelineId);
+      // DataProvider exposes the registry separately. Re-read the version
+      // after that read so a concurrent save cannot pair one head's config
+      // with another head's registry for the following CAS mutation.
+      const confirmedTimeline = await provider.loadTimeline(timelineId);
+      if (confirmedTimeline.configVersion !== timeline.configVersion) {
+        throw new ReighElementOperationError(
+          `Timeline changed while loading element operation data: ${timelineId}`,
+        );
+      }
+      return {
+        config: confirmedTimeline.config,
+        registry,
+        config_version: confirmedTimeline.configVersion,
+      };
+    },
+    async save(timelineId, input) {
+      const config = input.config as TimelineConfig;
+      const registry = input.registry as AssetRegistry;
+      const configVersion = await provider.saveTimeline(
+        timelineId,
+        config,
+        input.expectedVersion,
+        registry,
+      );
+      return { config, registry, config_version: configVersion };
+    },
+  };
+}
 
 export class ReighElementOperationError extends Error {
   constructor(message: string) {

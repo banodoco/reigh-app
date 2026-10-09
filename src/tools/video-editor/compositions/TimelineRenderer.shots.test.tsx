@@ -222,6 +222,34 @@ describe('ShotClipSequence referenced-timeline cache', () => {
     expect(await screen.findByTestId('host-probe-B')).toBeInTheDocument();
   });
 
+  it('updates the cached nested timeline when the explicit host changes without remounting', async () => {
+    const { provider } = makeProvider({ load: async () => ({
+      ...loadedChild(),
+      timeline: { config: hostProbeConfig() as never, configVersion: 1 },
+    }) });
+    const view = renderShot(provider, 'host-rerender-child', {
+      contextHost: HOST_A,
+      explicitHost: HOST_A,
+    });
+
+    expect(await screen.findByTestId('host-probe-A')).toBeInTheDocument();
+
+    view.rerender(
+      <VideoEditorRuntimeContext.Provider value={{
+        provider,
+        astridElementHost: HOST_A,
+      } as unknown as VideoEditorRuntimeContextValue}>
+        <TimelineRenderer
+          config={parentConfig('host-rerender-child')}
+          astridElementHost={HOST_B}
+        />
+      </VideoEditorRuntimeContext.Provider>,
+    );
+
+    expect(await screen.findByTestId('host-probe-B')).toBeInTheDocument();
+    expect(screen.queryByTestId('host-probe-A')).toBeNull();
+  });
+
   it('fails loudly when neither runtime context nor props provide an Astrid host', () => {
     const { provider } = makeProvider({ load: async () => loadedChild() });
 

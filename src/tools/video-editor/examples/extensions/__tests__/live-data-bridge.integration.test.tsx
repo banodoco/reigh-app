@@ -38,6 +38,7 @@ import {
   createLiveDataRegistry,
   type LiveDataRegistry,
 } from '@/tools/video-editor/runtime/liveDataRegistry';
+import { INSTALLED_ASTRID_ELEMENT_HOST } from '@/tools/video-editor/runtime/astrid-element-components';
 import {
   collectBuiltInKnownIds,
   collectExtensionDeclaredIds,
@@ -245,6 +246,7 @@ function runtimeWithLiveRegistry(liveDataRegistry?: LiveDataRegistry): VideoEdit
     timelineId: 'timeline-integration',
     userId: 'user-integration',
     extensions: {},
+    astridElementHost: INSTALLED_ASTRID_ELEMENT_HOST,
     liveDataRegistry,
   } as unknown as VideoEditorRuntimeContextValue;
 }

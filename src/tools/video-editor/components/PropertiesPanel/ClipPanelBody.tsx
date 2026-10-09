@@ -28,7 +28,7 @@ import type {
   ResolvedTimelineConfig,
   TrackDefinition,
 } from '@/tools/video-editor/types/index.ts';
-import { useOptionalClipTypeRegistryContext } from '@/tools/video-editor/clip-types/ClipTypeRegistryContext.tsx';
+import { useClipTypeRegistrySnapshot } from '@/tools/video-editor/clip-types/ClipTypeRegistryContext.tsx';
 import type { ClipTypeRegistryRecord } from '@/tools/video-editor/clip-types/ClipTypeRegistry.ts';
 import { FieldLabel, TAB_COLUMNS_CLASS } from './clip-panel-primitives.tsx';
 import { getEffectDisplayLabel } from './clip-effect-helpers.tsx';
@@ -78,6 +78,8 @@ export interface ClipPanelBodyProps extends ClipPanelProps {
   effectResources: VideoEditorEffectCatalog;
   VariantPicker?: EditorVariantPicker;
   EffectCreator?: ComponentType<EffectCreatorPanelProps>;
+  /** True only when ClipPanel will render a matching editable Astrid schema form. */
+  hasActiveAstridElementParams?: boolean;
 }
 
 export function ClipPanelBody({
@@ -85,6 +87,7 @@ export function ClipPanelBody({
   effectResources,
   VariantPicker,
   EffectCreator,
+  hasActiveAstridElementParams = false,
   clip,
   track,
   deviceClass,
@@ -118,8 +121,9 @@ export function ClipPanelBody({
   const [creatorOpen, setCreatorOpen] = useState(false);
   const [editingEffect, setEditingEffect] = useState<EffectResource | null>(null);
   const visibleTabs = useMemo(() => getVisibleClipTabs(clip, track), [clip, track]);
+  const clipTypeRegistrySnapshot = useClipTypeRegistrySnapshot();
   const clipDescriptor = clip
-    ? getRegisteredClipTypeDescriptor(clip.clipType)
+    ? getRegisteredClipTypeDescriptor(clip.clipType, clipTypeRegistrySnapshot.records)
     : undefined;
   const holdTiming = clipDescriptor?.hold;
   const clipTypeResolution = resolveAvailableClipType(clip?.clipType);
@@ -152,11 +156,10 @@ export function ClipPanelBody({
   const showInspectorActions = !readOnly && deviceClass !== 'desktop';
 
   // M9 T9: Extension-provided clip inspector section
-  const clipTypeRegistryContext = useOptionalClipTypeRegistryContext();
   const clipTypeRegistryRecord: ClipTypeRegistryRecord | undefined = useMemo(() => {
-    if (!clip?.clipType || !clipTypeRegistryContext) return undefined;
-    return clipTypeRegistryContext.snapshot.get(clip.clipType);
-  }, [clip?.clipType, clipTypeRegistryContext]);
+    if (!clip?.clipType) return undefined;
+    return clipTypeRegistrySnapshot.get(clip.clipType);
+  }, [clip?.clipType, clipTypeRegistrySnapshot]);
 
   if (!clip) {
     return (
@@ -263,6 +266,7 @@ export function ClipPanelBody({
               clipTypeResolution={clipTypeResolution}
               isEffectLayer={isEffectLayer}
               isSequenceClip={isSequenceClip}
+              hasActiveAstridElementParams={hasActiveAstridElementParams}
               registry={registry}
               timelineFps={timelineFps}
               currentTime={currentTime}

@@ -1,9 +1,10 @@
+import { useOwnedResourceDisposal } from '@/tools/video-editor/hooks/useOwnedResourceDisposal';
 import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
   useMemo,
+  useState,
   useSyncExternalStore,
   type ReactNode,
 } from 'react';
@@ -34,7 +35,7 @@ export interface TransitionRegistryProviderProps {
 export function TransitionRegistryProvider({
   children,
 }: TransitionRegistryProviderProps) {
-  const registry = useMemo(() => createTransitionRegistry(), []);
+  const [registry] = useState(() => createTransitionRegistry());
   const subscribe = useCallback((onStoreChange: () => void) => {
     const handle = registry.subscribe(() => onStoreChange());
     return () => handle.dispose();
@@ -42,9 +43,7 @@ export function TransitionRegistryProvider({
   const getSnapshot = useCallback(() => registry.getSnapshot(), [registry]);
   const snapshot = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 
-  useEffect(() => () => {
-    registry.dispose();
-  }, [registry]);
+  useOwnedResourceDisposal(registry, (owned) => owned.dispose());
 
   const value = useMemo<TransitionRegistryContextValue>(
     () => ({ registry, snapshot }),

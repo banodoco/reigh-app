@@ -32,7 +32,7 @@ describe('Astrid declared element component bridge', () => {
     expect(local).not.toBe(rendering);
     expect(resolveAstridElementComponent('text-card', 'effect')).toBe(rendering);
     expect(resolveAstridElementComponent('text-card', 'effect', 'unknown')).toBeUndefined();
-    expect(ASTRID_RENDERING_ELEMENTS.filter((element) => element.packId === 'local')).toHaveLength(14);
+    expect(ASTRID_RENDERING_ELEMENTS.filter((element) => element.packId === 'local')).toHaveLength(15);
   });
 
   it('keeps kind identity and rejects undeclared component lookups', () => {

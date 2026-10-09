@@ -53,5 +53,8 @@ describe('ConversationPresentation', () => {
     );
     expect(screen.getByText('Queued request')).toBeInTheDocument();
     expect(screen.getByText('Thinking...')).toBeInTheDocument();
+    rerender(<ConversationPresentation items={[]} optimisticMessage={{ text: 'Queued request', attachments: [] }} />);
+    expect(screen.getByText('Queued request')).toBeInTheDocument();
+    expect(screen.queryByText('Thinking...')).not.toBeInTheDocument();
   });
 });

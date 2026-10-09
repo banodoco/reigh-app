@@ -5,6 +5,10 @@ import { resolveAstridSource } from '../vite/astridSource';
 
 const projectRoot = path.resolve(__dirname, '../..');
 const astridSource = resolveAstridSource();
+const astridPublicSource = resolveAstridSource(
+  process.env.ASTRID_PUBLIC_CHECKOUT ?? '',
+  'ASTRID_PUBLIC_CHECKOUT',
+);
 const timelineCompositionRegistryPath = path.resolve(
   projectRoot,
   'node_modules/@banodoco/timeline-composition/typescript/src/registry.generated.ts',
@@ -27,8 +31,10 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(projectRoot, 'src'),
+      '@test-react-refresh': path.resolve(projectRoot, 'node_modules/@vitejs/plugin-react-swc/refresh-runtime.js'),
       '@reigh/editor-sdk': path.resolve(projectRoot, 'src/sdk/index.ts'),
       ...(astridSource ? { '@astrid': astridSource.sourceRoot } : {}),
+      ...(astridPublicSource ? { '@astrid-public': astridPublicSource.sourceRoot } : {}),
       'fake-indexeddb': path.resolve(projectRoot, 'vendor/fake-indexeddb/index.js'),
       // Sprint 5: deduplicate react / remotion / @banodoco/* across linked
       // packages. The timeline-theme-2rp peer-dep package lives at a
@@ -65,7 +71,11 @@ export default defineConfig({
   server: {
     fs: {
       // Allow Vite to read from sibling banodoco-workspace.
-      allow: [path.resolve(projectRoot, '..', '..'), ...(astridSource ? [astridSource.checkout] : [])],
+      allow: [
+        path.resolve(projectRoot, '..', '..'),
+        ...(astridSource ? [astridSource.checkout] : []),
+        ...(astridPublicSource ? [astridPublicSource.checkout] : []),
+      ],
     },
   },
   test: {
@@ -78,6 +88,9 @@ export default defineConfig({
       // own config so its linked workspace aliases resolve to Astrid's pack.
       'src/tools/video-editor/runtime/astridSceneComposition.test.tsx',
     ],
-    setupFiles: [path.resolve(projectRoot, 'src/test/setup.ts')],
+    setupFiles: [
+      path.resolve(projectRoot, 'src/test/reactRefreshSetup.ts'),
+      path.resolve(projectRoot, 'src/test/setup.ts'),
+    ],
   },
 });

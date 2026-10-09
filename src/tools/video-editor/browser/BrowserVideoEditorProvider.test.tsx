@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { BrowserVideoEditorProvider } from '@/tools/video-editor/browser/BrowserVideoEditorProvider';
+import { INSTALLED_TIMELINE_SERVICE_HOOKS } from '@/tools/video-editor/runtime/installedTimelineHostServiceHooks.ts';
 import { defineExtension } from '@reigh/editor-sdk';
 import type { ExtensionContext, DisposeHandle } from '@reigh/editor-sdk';
 import type { DataProvider } from '@/tools/video-editor/data/DataProvider';
@@ -69,6 +70,7 @@ describe('BrowserVideoEditorProvider', () => {
       timelineId: 'timeline-1',
       timelineName: 'Provider demo',
       userId: null,
+      timelineServices: INSTALLED_TIMELINE_SERVICE_HOOKS,
       runtime: expect.objectContaining({
         hostContext: { projectId: 'project-1' },
       }),

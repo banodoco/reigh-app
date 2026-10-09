@@ -1,9 +1,10 @@
+import { useOwnedResourceDisposal } from '@/tools/video-editor/hooks/useOwnedResourceDisposal';
 import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
   useMemo,
+  useState,
   useSyncExternalStore,
   type ReactNode,
 } from 'react';
@@ -44,7 +45,7 @@ export function DataKindRegistryProvider({
   children,
   registry: bridgedRegistry,
 }: DataKindRegistryProviderProps) {
-  const ownedRegistry = useMemo(() => createDataKindRegistry(), []);
+  const [ownedRegistry] = useState(() => createDataKindRegistry());
   const registry = bridgedRegistry ?? ownedRegistry;
   const subscribe = useCallback((onStoreChange: () => void) => {
     const handle = registry.subscribe(() => onStoreChange());
@@ -53,12 +54,8 @@ export function DataKindRegistryProvider({
   const getSnapshot = useCallback(() => registry.getSnapshot(), [registry]);
   const snapshot = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 
-  useEffect(() => {
-    if (bridgedRegistry) return undefined; // Owner (runtime assembly) disposes it.
-    return () => {
-      ownedRegistry.dispose();
-    };
-  }, [bridgedRegistry, ownedRegistry]);
+  // The assembly owns an injected registry; this provider owns only its fallback.
+  useOwnedResourceDisposal(ownedRegistry, (owned) => owned.dispose());
 
   const value = useMemo<DataKindRegistryContextValue>(
     () => ({ registry, snapshot }),

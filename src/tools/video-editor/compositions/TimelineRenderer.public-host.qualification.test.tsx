@@ -114,7 +114,7 @@ describe('V009 public host behavior qualification', () => {
       })}
     />);
     expect(screen.getByTestId('probe-effect')).toBeInTheDocument();
-    expect(typedEffect.resolveComponent).toHaveBeenCalledWith('probe', 'effect');
+    expect(typedEffect.resolveComponent).toHaveBeenCalledWith('probe', 'effect', undefined);
     typedEffectView.unmount();
 
     const typedAnimation = makeProbeHost();
@@ -126,7 +126,7 @@ describe('V009 public host behavior qualification', () => {
       })}
     />);
     expect(screen.getByTestId('probe-animation')).toBeInTheDocument();
-    expect(typedAnimation.resolveComponent).toHaveBeenCalledWith('probe', 'animation');
+    expect(typedAnimation.resolveComponent).toHaveBeenCalledWith('probe', 'animation', undefined);
     typedAnimationView.unmount();
 
     const legacy = makeProbeHost();
@@ -182,25 +182,90 @@ describe('V009 public host behavior qualification', () => {
     expect(INSTALLED_ASTRID_ELEMENT_HOST.resolveComponent('scrolling-guide', 'effect')).toBeDefined();
     expect(PUBLIC_ASTRID_ELEMENT_HOST.resolveComponent('scrolling-guide', 'effect')).toBeUndefined();
     expect(PUBLIC_ASTRID_ELEMENT_HOST.resolveComponent('missing-public-id', 'effect')).toBeUndefined();
+    const installedOnlyDescriptor = ASTRID_RENDERING_ELEMENTS.find((item) => (
+      item.id === 'scrolling-guide' && item.kind === 'effect'
+    ));
+    expect(installedOnlyDescriptor?.packId).toBeTruthy();
 
     render(<TimelineRenderer
       astridElementHost={PUBLIC_ASTRID_ELEMENT_HOST}
       config={baseConfig({
-        id: 'unsupported', clipType: 'missing-public-id', track: 'V1', at: 0, hold: 1, params: {},
-        elementRef: { id: 'missing-public-id', kind: 'effect', revision: 'missing-r1' },
+        id: 'unsupported', clipType: 'scrolling-guide', track: 'V1', at: 0, hold: 1, params: {},
+        elementRef: {
+          id: 'scrolling-guide',
+          kind: 'effect',
+          packId: installedOnlyDescriptor?.packId,
+          revision: 'installed-only-r1',
+        },
       })}
     />);
     const placeholder = screen.getByTestId('generated-module-placeholder');
-    expect(placeholder).toHaveAttribute('data-artifact-id', 'missing-public-id');
+    expect(placeholder).toHaveAttribute('data-artifact-id', 'scrolling-guide');
     expect(placeholder).toHaveAttribute('data-placeholder-reason', 'element_source_missing');
-    expect(placeholder).toHaveTextContent('missing-public-id@missing-r1');
+    expect(placeholder).toHaveTextContent(`scrolling-guide@installed-only-r1`);
+  });
+
+  it('keeps a public owner mismatch unavailable instead of resolving another text-card owner', () => {
+    expect(PUBLIC_ASTRID_ELEMENT_HOST.resolveComponent('text-card', 'effect', 'local')).toBeUndefined();
+
+    render(<TimelineRenderer
+      astridElementHost={PUBLIC_ASTRID_ELEMENT_HOST}
+      config={baseConfig({
+        id: 'wrong-public-owner',
+        clipType: 'text-card',
+        track: 'V1',
+        at: 0,
+        hold: 1,
+        params: {},
+        elementRef: {
+          id: 'text-card',
+          kind: 'effect',
+          packId: 'local',
+          revision: 'wrong-owner-r1',
+        },
+      })}
+    />);
+
+    const placeholder = screen.getByTestId('generated-module-placeholder');
+    expect(placeholder).toHaveAttribute('data-artifact-id', 'text-card');
+    expect(placeholder).toHaveAttribute('data-placeholder-reason', 'element_source_missing');
+    expect(placeholder).toHaveTextContent('text-card@wrong-owner-r1');
+  });
+
+  it('preserves exact owner resolution and ownerless catalog order', () => {
+    const installedRenderingTextCard = INSTALLED_ASTRID_ELEMENT_HOST.resolveComponent(
+      'text-card',
+      'effect',
+      'rendering',
+    );
+    const installedLocalTextCard = INSTALLED_ASTRID_ELEMENT_HOST.resolveComponent(
+      'text-card',
+      'effect',
+      'local',
+    );
+
+    expect(installedRenderingTextCard).toBeDefined();
+    expect(installedLocalTextCard).toBeDefined();
+    expect(installedLocalTextCard).not.toBe(installedRenderingTextCard);
+    expect(INSTALLED_ASTRID_ELEMENT_HOST.resolveComponent('text-card', 'effect'))
+      .toBe(installedRenderingTextCard);
+
+    expect(PUBLIC_ASTRID_ELEMENT_HOST.resolveComponent('text-card', 'effect', 'rendering')).toBeDefined();
+    expect(PUBLIC_ASTRID_ELEMENT_HOST.resolveComponent('text-card', 'effect')).toBeDefined();
+    expect(PUBLIC_ASTRID_ELEMENT_HOST.resolveComponent('text-card', 'effect', 'local')).toBeUndefined();
+    expect(PUBLIC_ASTRID_ELEMENT_HOST.resolveComponent('text-card', 'effect', 'unknown-owner')).toBeUndefined();
+    expect(PUBLIC_ASTRID_ELEMENT_HOST.resolveComponent('frame-overlay', 'effect', 'local')).toBeDefined();
+    expect(PUBLIC_ASTRID_ELEMENT_HOST.resolveComponent('frame-overlay', 'effect', 'rendering')).toBeUndefined();
+    expect(PUBLIC_ASTRID_ELEMENT_HOST.resolveComponent('frame-overlay', 'effect', 'unknown-owner')).toBeUndefined();
+    expect(PUBLIC_ASTRID_ELEMENT_HOST.resolveComponent('missing-id', 'effect')).toBeUndefined();
+    expect(PUBLIC_ASTRID_ELEMENT_HOST.resolveComponent('frame-overlay', 'transform' as never, 'local')).toBeUndefined();
   });
 
   it('preserves installed catalog, sequence registry, capability, and resolver identity', () => {
     expect(INSTALLED_ASTRID_ELEMENT_HOST.descriptors).toBe(ASTRID_RENDERING_ELEMENTS);
     expect(INSTALLED_ASTRID_ELEMENT_HOST.sequenceRegistry).toBe(SEQUENCE_COMPONENT_REGISTRY);
     const textCard = ASTRID_RENDERING_ELEMENTS.find((item) => item.kind === 'effect' && item.id === 'text-card');
-    expect(textCard?.componentPath).toBe('packs/rendering/elements/effects/text-card/component.tsx');
+    expect(textCard?.componentPath).toBe('packs/rendering/rendering/elements/effects/text-card/component.tsx');
 
     for (const clipType of Object.keys(SEQUENCE_COMPONENT_REGISTRY)) {
       expect(INSTALLED_ASTRID_ELEMENT_HOST.describeClipCapability({ clipType }, [])).toEqual(
@@ -231,6 +296,7 @@ describe('V009 public host behavior qualification', () => {
     const home = readFileSync(path.join(root, 'src/pages/Home/HomePage.tsx'), 'utf8');
     const publicBootstrap = readFileSync(path.join(root, 'src/app/publicBootstrap.tsx'), 'utf8');
     const publicShell = readFileSync(path.join(root, 'src/pages/Home/PublicAstridShell.tsx'), 'utf8');
+    const mountedEditor = readFileSync(path.join(root, 'src/pages/Home/PublicAstridMountedEditor.tsx'), 'utf8');
     const renderer = readFileSync(path.join(root, 'src/tools/video-editor/compositions/TimelineRenderer.tsx'), 'utf8');
     expect(routes).toContain('path="/home"');
     expect(routes).toContain('path="/"');
@@ -241,11 +307,13 @@ describe('V009 public host behavior qualification', () => {
     expect(routes).toContain('<HomeDocumentHandoff replaceDocument={replaceDocument} />');
     expect(home).not.toContain('PublicAstridQualificationSurface');
     expect(publicShell).not.toContain('PublicAstridQualificationSurface');
-    expect(publicShell).toContain('<PublicAstridEditorProvider>');
-    expect(publicShell).toContain('<PublicAstridPreview transportOutlet={transportOutlet} />');
-    expect(publicShell).toContain('<PublicAstridInspector />');
-    expect(publicShell).toContain('<PublicAstridTimeline />');
-    expect(publicShell).toContain('<PublicAstridScriptedConversation />');
+    expect(publicShell).toContain("import('./PublicAstridMountedEditor.tsx')");
+    expect(mountedEditor).toContain('<PublicAstridEditorProvider example={example}');
+    expect(mountedEditor).toContain('<PublicAstridPreview transportOutlet={transportOutlet} />');
+    expect(mountedEditor).toContain('<PublicAstridInspector active={active}');
+    expect(mountedEditor).toContain('<PublicAstridTimeline active={active}');
+    expect(mountedEditor).toContain("import('./PublicAstridScriptedConversation.tsx')");
+    expect(mountedEditor).toContain('<LazyConversation');
     expect(publicBootstrap).not.toContain('@/app/bootstrap');
     expect(publicBootstrap).not.toContain('initializeVideoEditorExtensionRuntime');
     expect(renderer).not.toContain("from '@/tools/video-editor/sequences/registry.ts'");

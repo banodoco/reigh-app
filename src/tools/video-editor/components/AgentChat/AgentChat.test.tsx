@@ -456,41 +456,19 @@ describe('AgentChat', () => {
     });
   });
 
-  it('does not clear optimistic state for duplicate text until a newer matching turn appears', async () => {
+  it('settles optimism after completion without requiring an echoed user turn', async () => {
     const state = createState();
-    const dateNowSpy = vi.spyOn(Date, 'now').mockReturnValue(10_000);
     state.activeSessionData.status = 'processing';
-    state.activeSessionData.turns = [
-      createUserTurn('same text', 9_000),
-    ];
+    state.activeSessionData.turns = [createUserTurn('same text', 9_000)];
     mockFromState(state);
-
     const view = renderAgentChat();
     const textbox = await getInput();
-
     await queueMessage(textbox, 'same text');
     await queueMessage(textbox, 'same text');
-
     state.activeSessionData.status = 'waiting_user';
     rerenderAgentChat(view.rerender);
-
-    await waitFor(() => expect(state.sendMessage.mutateAsync).toHaveBeenCalledTimes(1));
-
-    state.activeSessionData.turns = [
-      createUserTurn('same text', 9_000),
-    ];
-    rerenderAgentChat(view.rerender);
-
-    await waitFor(() => expect(state.sendMessage.mutateAsync).toHaveBeenCalledTimes(1));
-
-    state.activeSessionData.turns = [
-      createUserTurn('same text', 9_000),
-      createUserTurn('same text', 10_500),
-    ];
-    rerenderAgentChat(view.rerender);
-
     await waitFor(() => expect(state.sendMessage.mutateAsync).toHaveBeenCalledTimes(2));
-    dateNowSpy.mockRestore();
+    expect(screen.queryByText('Thinking...')).not.toBeInTheDocument();
   });
 
   it('keeps a failed head queued, shows an error, and only resumes draining after the failed head is removed', async () => {

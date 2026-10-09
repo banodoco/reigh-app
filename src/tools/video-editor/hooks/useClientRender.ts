@@ -3,6 +3,8 @@ import type { ComponentType, Dispatch, SetStateAction } from 'react';
 import { toast } from '@/shared/components/ui/toast.tsx';
 import { TimelineRenderer } from '@/tools/video-editor/compositions/TimelineRenderer.tsx';
 import type { ResolvedTimelineConfig } from '@/tools/video-editor/types/index.ts';
+import { useOptionalVideoEditorRuntime } from '@/tools/video-editor/contexts/VideoEditorRuntimeContext.tsx';
+import type { AstridElementHost } from '@/tools/video-editor/runtime/astrid-element-host.ts';
 
 type RenderStatus = 'idle' | 'rendering' | 'done' | 'error';
 type RenderProgress = { current: number; total: number; percent: number; phase: string } | null;
@@ -199,6 +201,8 @@ export function useClientRender({
   setRenderDirty,
   setRenderResult,
 }: UseClientRenderOptions) {
+  const astridElementHost = useOptionalVideoEditorRuntime()?.astridElementHost;
+
   return useCallback(async () => {
     if (!resolvedConfig || !metadata) {
       const message = 'Timeline is not ready to render yet';
@@ -253,7 +257,10 @@ export function useClientRender({
       // renderMediaOnWeb expects a composition object
       const composition = {
         id: 'video-editor-timeline-renderer',
-        component: TimelineRenderer as ComponentType<{ config: ResolvedTimelineConfig }>,
+        component: TimelineRenderer as ComponentType<{
+          config: ResolvedTimelineConfig;
+          astridElementHost?: AstridElementHost;
+        }>,
         fps: metadata.fps,
         width,
         height,
@@ -262,7 +269,7 @@ export function useClientRender({
 
       const renderResult = await renderMediaOnWeb({
         composition,
-        inputProps: { config: resolvedConfig },
+        inputProps: { config: resolvedConfig, astridElementHost },
         licenseKey: FREE_LICENSE_KEY,
         videoCodec: resolvedVideoCodec,
         audioCodec: resolvedAudioCodec,
@@ -302,6 +309,7 @@ export function useClientRender({
       return { status: 'error', message } satisfies ClientRenderExecutionResult;
     }
   }, [
+    astridElementHost,
     metadata,
     resolvedConfig,
     setRenderDirty,

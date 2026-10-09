@@ -17,6 +17,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { TimelineRenderer } from '@/tools/video-editor/compositions/TimelineRenderer';
+import { INSTALLED_ASTRID_ELEMENT_HOST } from '@/tools/video-editor/runtime/astrid-element-components';
 import { SequenceComponentRegistryProvider } from '@/tools/video-editor/sequences/SequenceComponentRegistryContext';
 import {
   describeClipCapabilityWith,
@@ -107,7 +108,7 @@ describe('TimelineRenderer — dynamic registry dispatch (FLAG-001/002)', () => 
 
     render(
       <SequenceComponentRegistryProvider components={[FAKE_DB_COMPONENT]}>
-        <TimelineRenderer config={buildConfig('custom:my-seq')} />
+        <TimelineRenderer astridElementHost={INSTALLED_ASTRID_ELEMENT_HOST} config={buildConfig('custom:my-seq')} />
       </SequenceComponentRegistryProvider>,
     );
 

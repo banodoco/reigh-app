@@ -35,6 +35,7 @@ export function ClipEffectsTab({
   clipTypeResolution,
   isEffectLayer,
   isSequenceClip,
+  hasActiveAstridElementParams,
   registry,
   timelineFps,
   currentTime,
@@ -50,6 +51,7 @@ export function ClipEffectsTab({
   clipTypeResolution: ReturnType<typeof resolveAvailableClipType>;
   isEffectLayer: boolean;
   isSequenceClip: boolean;
+  hasActiveAstridElementParams?: boolean;
   registry: ResolvedTimelineConfig['registry'];
   timelineFps?: number;
   currentTime: number;
@@ -83,6 +85,7 @@ export function ClipEffectsTab({
         clipType={clip.clipType}
         params={clip.params}
         registry={registry}
+        hideEmptyState={hasActiveAstridElementParams}
         onChange={(nextParams) => onChange({ params: nextParams })}
       />
     );

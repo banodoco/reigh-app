@@ -1,13 +1,15 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { createHash } from 'node:crypto';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react';
 import { useEffect } from 'react';
 import type { FC, ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { defineExtension } from '@reigh/editor-sdk';
-import type { ReighExtension, ExtensionContext, DisposeHandle } from '@reigh/editor-sdk';
+import type { ReighExtension, ExtensionContext, DisposeHandle, ProjectObjectMetadata, ProjectObjectStorage, TimelineOps } from '@reigh/editor-sdk';
+import { LIVE_SCENE_CLIP_TYPE_ID, LIVE_SCENE_EXTENSION_ID, LIVE_SCENE_IMPORT_COMMAND_ID, liveSceneExtension } from '@astrid/packs/rendering/ui/live-scenes/extension';
 import { commandExtension } from '@/examples/command-extension';
 import { flagshipLocalExtension } from '@/tools/video-editor/examples/extensions/flagship-local/index';
 import { useAddToVideoEditor } from '@/domains/media-lightbox/hooks/useAddToVideoEditor';
@@ -56,6 +58,7 @@ import {
   shouldToggleTouchSelection,
 } from '@/tools/video-editor/lib/mobile-interaction-model';
 import { configToRows, type TimelineData } from '@/tools/video-editor/lib/timeline-data';
+import { runLiveSceneAcpRoundtrip } from '@/tools/video-editor/runtime/liveSceneAcpRoundtrip';
 import { applyPreparedMediaCommand, type PlacePreparedMediaCommand } from '@/tools/video-editor/commands/media';
 import { VIDEO_EDITOR_HOST_PORT_NAMES } from '@/tools/video-editor/runtime/ports';
 import type { DataProvider } from '@/tools/video-editor/data/DataProvider';
@@ -97,7 +100,10 @@ const mocks = {
 };
 
 const operationalChromeState = {
-  editorData: null as null | { dataLanes: Array<{ items: unknown[] }> },
+  editorData: null as null | { dataLanes: Array<{ items: unknown[] }> } & Partial<TimelineData>,
+  timelineOps: null as TimelineOps | null,
+  configVersion: 0,
+  store: null as ReturnType<typeof createTimelineStore> | null,
   isConflictExhausted: false,
   renderStatus: 'idle' as 'idle' | 'rendering' | 'done' | 'error',
 };
@@ -290,13 +296,18 @@ vi.mock('@/tools/video-editor/hooks/useTimelineState', () => ({
       formatTime: vi.fn(() => '0:12'),
     };
 
+    const store = createTimelineStore({
+      data: editor,
+      ops: editor,
+      chrome,
+      playback,
+      timelineOps: operationalChromeState.timelineOps,
+    });
+    store.getState().setConfigVersion(operationalChromeState.configVersion);
+    operationalChromeState.store = store;
+
     return {
-      store: createTimelineStore({
-        data: editor,
-        ops: editor,
-        chrome,
-        playback,
-      }),
+      store,
       editor,
       chrome,
       playback,
@@ -384,6 +395,150 @@ function buildCommandTimelineData(): TimelineData {
     clipOrder: rowData.clipOrder,
     signature: 'signature',
     stableSignature: 'stable-signature',
+  };
+}
+
+function fixtureDigest(bytes: Uint8Array): string {
+  return `sha256:${createHash('sha256').update(bytes).digest('hex')}`;
+}
+
+function metadataForFixture(bytes: Uint8Array, mediaType: string, filename: string): ProjectObjectMetadata {
+  const digest = fixtureDigest(bytes);
+  return { object_id: digest, digest, media_type: mediaType, size: bytes.byteLength, filename };
+}
+
+function buildLiveSceneTimelineData(liveScene: Record<string, unknown>): TimelineData {
+  const config: TimelineData['config'] = {
+    output: { resolution: '1920x1080', fps: 30, file: 'out.mp4' },
+    tracks: [{ id: 'V1', kind: 'visual', label: 'V1' }],
+    clips: [{
+      id: 'scene-placement',
+      at: 1.25,
+      track: 'V1',
+      clipType: LIVE_SCENE_CLIP_TYPE_ID,
+      from: 0,
+      to: 4,
+      speed: 1,
+      app: { liveScene },
+    }],
+  };
+  const rowData = configToRows(config);
+  const resolvedConfig = {
+    ...config,
+    tracks: config.tracks?.map((track) => ({ ...track })),
+    clips: config.clips.map((clip) => ({ ...clip, assetEntry: undefined })),
+    registry: {},
+  } as TimelineData['resolvedConfig'];
+  return {
+    config,
+    configVersion: 1,
+    registry: { assets: {} },
+    resolvedConfig,
+    rows: rowData.rows,
+    meta: rowData.meta,
+    effects: rowData.effects,
+    assetMap: {},
+    output: { ...config.output },
+    tracks: config.tracks ?? [],
+    clipOrder: rowData.clipOrder,
+    signature: 'live-scene-fixture',
+    stableSignature: 'live-scene-fixture',
+    dataLanes: [],
+  };
+}
+
+async function createLiveSceneProviderFixture() {
+  const html = '<html><body><main data-preserve="exact-bytes">keep me</main><p>color: #ff9f68;</p></body></html>';
+  const entryBytes = new TextEncoder().encode(html);
+  const assetBytes = new TextEncoder().encode('immutable scene asset bytes');
+  const entry = metadataForFixture(entryBytes, 'text/html', 'scene.html');
+  const asset = metadataForFixture(assetBytes, 'image/png', 'texture.png');
+  const manifest = { formatVersion: 1 as const, entry: 'scene.html', duration: 7.25, authoredFps: 24 };
+  const packageBody = JSON.stringify({ manifest, entry, assets: [asset] });
+  const packageBytes = new TextEncoder().encode(packageBody);
+  const packageObject = metadataForFixture(packageBytes, 'application/json', 'scene.package.json');
+  const objects = new Map<string, Uint8Array>([
+    [entry.object_id, entryBytes],
+    [asset.object_id, assetBytes],
+    [packageObject.object_id, packageBytes],
+  ]);
+  const storage: ProjectObjectStorage = {
+    async ingest(bytes, mediaType, filename) {
+      const copy = new Uint8Array(bytes);
+      const metadata = metadataForFixture(copy, mediaType, filename ?? '');
+      objects.set(metadata.object_id, copy);
+      return metadata;
+    },
+    async read(objectId) {
+      const bytes = objects.get(objectId);
+      if (!bytes) throw new Error(`missing fixture project object ${objectId}`);
+      return new Uint8Array(bytes);
+    },
+  };
+  const liveScene = {
+    revision: packageObject.digest,
+    source: { objectId: packageObject.object_id, revision: packageObject.digest },
+    packageBody,
+    html,
+  };
+  const initialData = buildLiveSceneTimelineData(liveScene);
+  let version = 1;
+  let durableConfig: TimelineData['config'] | null = null;
+  const timelineOps = {
+    validate: () => ({ valid: true, diagnostics: [] }),
+    preview: () => ({ diff: { version, entries: [], affectedObjectIds: [] }, fullyPreviewable: true, diagnostics: [] }),
+    apply(patch: { version: number; operations: ReadonlyArray<{ op: string; target: string; payload?: unknown }> }) {
+      if (patch.version !== version) throw new Error('stale fixture timeline patch');
+      const nextConfig = structuredClone(operationalChromeState.editorData!.config!) as TimelineData['config'];
+      for (const operation of patch.operations) {
+        if (operation.op !== 'clip.update') continue;
+        const clip = nextConfig.clips.find((candidate) => candidate.id === operation.target);
+        const payload = operation.payload as { app?: Record<string, unknown> } | undefined;
+        if (clip && payload?.app) clip.app = payload.app as typeof clip.app;
+      }
+      const nextVersion = version + 1;
+      const rowData = configToRows(nextConfig);
+      const current = operationalChromeState.editorData!;
+      const nextData = {
+        ...current,
+        config: nextConfig,
+        configVersion: nextVersion,
+        resolvedConfig: { ...current.resolvedConfig, ...nextConfig, registry: current.registry },
+        rows: rowData.rows,
+        meta: rowData.meta,
+        effects: rowData.effects,
+        tracks: nextConfig.tracks ?? [],
+        clipOrder: rowData.clipOrder,
+      } as TimelineData;
+      version = nextVersion;
+      operationalChromeState.editorData = nextData;
+      const store = operationalChromeState.store;
+      if (store) {
+        const currentSlice = store.getState().data;
+        store.getState().syncDataSlice({ ...currentSlice, data: nextData, resolvedConfig: nextData.resolvedConfig });
+        store.getState().setConfigVersion(nextVersion);
+      }
+      return { version, entries: [], affectedObjectIds: patch.operations.map((operation) => operation.target) };
+    },
+    async flush() {
+      durableConfig = structuredClone(operationalChromeState.editorData!.config!) as TimelineData['config'];
+      return { version };
+    },
+    checkpoint: () => 'fixture-checkpoint',
+    rollback: () => null,
+    setAllTracksMuted: () => ({ version, entries: [], affectedObjectIds: [] }),
+  } as unknown as TimelineOps;
+  return {
+    data: initialData,
+    storage,
+    objects,
+    manifest,
+    html,
+    entryBytes,
+    assetBytes,
+    packageObject,
+    timelineOps,
+    get durableConfig() { return durableConfig; },
   };
 }
 
@@ -612,6 +767,9 @@ describe('VideoEditorProvider', () => {
     useResolvedEffectCatalogMock.mockReset();
     useResolvedEffectCatalogMock.mockReturnValue(createVideoEditorEffectCatalog());
     operationalChromeState.editorData = null;
+    operationalChromeState.timelineOps = null;
+    operationalChromeState.configVersion = 0;
+    operationalChromeState.store = null;
     operationalChromeState.isConflictExhausted = false;
     operationalChromeState.renderStatus = 'idle';
   });
@@ -641,6 +799,271 @@ describe('VideoEditorProvider', () => {
       location: 'https://example.com/video.mp4',
       name: 'media-123',
     }));
+  });
+
+  it('runs the real Astrid scene read and publish through the app-shell provider with live data disabled', async () => {
+    const fixture = await createLiveSceneProviderFixture();
+    operationalChromeState.editorData = fixture.data;
+    operationalChromeState.timelineOps = fixture.timelineOps;
+    operationalChromeState.configVersion = 1;
+    const dataProvider: DataProvider = {
+      loadTimeline: vi.fn(),
+      saveTimeline: vi.fn(),
+      loadAssetRegistry: vi.fn(),
+      resolveAssetUrl: vi.fn(),
+      projectObjects: fixture.storage,
+    };
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    let editorContext: ReturnType<typeof useAgentChatBridge>['editorContext'] = null;
+    let runtime: ReturnType<typeof useVideoEditorRuntime> | null = null;
+    function CaptureProviderContext() {
+      editorContext = useAgentChatBridge().editorContext;
+      runtime = useVideoEditorRuntime();
+      return null;
+    }
+
+    const renderProvider = (extensions: readonly ReighExtension[]) => (
+      <MemoryRouter>
+        <QueryClientProvider client={queryClient}>
+          <AgentChatProvider>
+            <VideoEditorProvider
+              dataProvider={dataProvider}
+              projectId="live-scene-project"
+              timelineId="live-scene-timeline"
+              userId={null}
+              extensions={extensions}
+              initialTimelineData={fixture.data}
+            >
+              <CaptureProviderContext />
+            </VideoEditorProvider>
+          </AgentChatProvider>
+        </QueryClientProvider>
+      </MemoryRouter>
+    );
+    const view = render(renderProvider([liveSceneExtension]));
+
+    try {
+      await waitFor(() => {
+        expect(editorContext?.liveSceneOperationPort).toBeDefined();
+        expect(runtime?.extensionRuntime.extensions.some((extension) => extension.manifest.id === LIVE_SCENE_EXTENSION_ID)).toBe(true);
+        expect(runtime?.commandRegistry?.getSnapshot().commands.map((command) => command.commandId))
+          .toContain(LIVE_SCENE_IMPORT_COMMAND_ID);
+      });
+      const port = editorContext?.liveSceneOperationPort;
+      expect(port).toBeDefined();
+      const scope = {
+        sessionId: 'video-editor-provider-session',
+        turnId: 'bounded-color-edit',
+        projectId: 'live-scene-project',
+        timelineId: 'live-scene-timeline',
+        capturedTimelineVersion: 1,
+      };
+      const requestBlock = (request: Record<string, unknown>) =>
+        `<reigh_live_scene_request>${JSON.stringify(request)}</reigh_live_scene_request>`;
+      let followupCount = 0;
+      let readCapture: Record<string, unknown> | null = null;
+      const followup = vi.fn(async (prompt: string) => {
+        const serialized = prompt.match(/<reigh_live_scene_result>([\s\S]*?)<\/reigh_live_scene_result>/)?.[1];
+        expect(serialized).toBeDefined();
+        const feedback = JSON.parse(serialized!) as {
+          results: Array<{ ok: boolean; result?: { kind: string; capture?: Record<string, unknown> } }>;
+        };
+        followupCount += 1;
+        if (followupCount === 1) {
+          expect(feedback.results[0]).toMatchObject({ ok: true, result: { kind: 'read' } });
+          readCapture = feedback.results[0].result?.capture ?? null;
+          expect(readCapture).toBeTruthy();
+          return requestBlock({
+            schema: 'reigh.live-scene-request/v1',
+            requestId: 'provider-publish',
+            scope,
+            placementIds: ['scene-placement'],
+            action: 'publish',
+            capture: readCapture,
+            replacements: [{ before: '#ff9f68', after: '#2d6cdf' }],
+          });
+        }
+        expect(feedback.results[0]).toMatchObject({ ok: true, result: { kind: 'published' } });
+        return 'Acknowledged the durable scene receipt.';
+      });
+
+      let output = '';
+      await act(async () => {
+        output = await runLiveSceneAcpRoundtrip({
+          content: requestBlock({
+            schema: 'reigh.live-scene-request/v1',
+            requestId: 'provider-read',
+            scope,
+            placementIds: ['scene-placement'],
+            action: 'read',
+            offset: 0,
+            length: 512,
+          }),
+          scope,
+          port,
+          signal: new AbortController().signal,
+          followup,
+        });
+      });
+
+      expect(output).toContain('Scene published:');
+      expect(output).toContain('Acknowledged the durable scene receipt.');
+      expect(followup).toHaveBeenCalledTimes(2);
+      expect(readCapture).toMatchObject({
+        projectId: scope.projectId,
+        timelineId: scope.timelineId,
+        capturedTimelineVersion: scope.capturedTimelineVersion,
+      });
+      expect(fixture.durableConfig).toBeDefined();
+      const durableClip = fixture.durableConfig!.clips.find((clip) => clip.id === 'scene-placement')!;
+      const publishedScene = durableClip.app?.liveScene as {
+        revision: string;
+        source: { objectId: string };
+        packageBody: string;
+        html: string;
+      };
+      expect(publishedScene.revision).not.toBe(fixture.packageObject.digest);
+      expect(publishedScene.html).toBe(fixture.html.replace('#ff9f68', '#2d6cdf'));
+      expect(publishedScene.html).toContain('<main data-preserve="exact-bytes">keep me</main>');
+      const publishedPackage = JSON.parse(publishedScene.packageBody) as {
+        manifest: typeof fixture.manifest;
+        entry: ProjectObjectMetadata;
+        assets: ProjectObjectMetadata[];
+      };
+      expect(publishedPackage.manifest).toEqual(fixture.manifest);
+      expect(publishedPackage.assets).toHaveLength(1);
+      expect(publishedPackage.assets[0].object_id).toBe(metadataForFixture(fixture.assetBytes, 'image/png', 'texture.png').object_id);
+      expect(Array.from(await fixture.storage.read(publishedPackage.assets[0].object_id))).toEqual(Array.from(fixture.assetBytes));
+      expect(Array.from(await fixture.storage.read(publishedPackage.entry.object_id))).toEqual(
+        Array.from(new TextEncoder().encode(publishedScene.html)),
+      );
+      expect(fixture.objects.has(fixture.packageObject.object_id)).toBe(true);
+      expect(Array.from(await fixture.storage.read(fixture.packageObject.object_id))).toEqual(
+        Array.from(new TextEncoder().encode(JSON.stringify({
+          manifest: fixture.manifest,
+          entry: metadataForFixture(fixture.entryBytes, 'text/html', 'scene.html'),
+          assets: [metadataForFixture(fixture.assetBytes, 'image/png', 'texture.png')],
+        }))),
+      );
+
+      const firstPort = port!;
+      view.rerender(renderProvider([]));
+      await waitFor(() => {
+        expect(runtime?.commandRegistry?.getSnapshot().commands.map((command) => command.commandId))
+          .not.toContain(LIVE_SCENE_IMPORT_COMMAND_ID);
+      });
+      const removedExtensionOutput = await runLiveSceneAcpRoundtrip({
+        content: requestBlock({
+          schema: 'reigh.live-scene-request/v1',
+          requestId: 'after-extension-removal',
+          scope,
+          placementIds: ['scene-placement'],
+          action: 'read',
+          offset: 0,
+          length: 32,
+        }),
+        scope,
+        port: firstPort,
+        signal: new AbortController().signal,
+        followup: async () => 'old handler should remain unavailable',
+      });
+      expect(removedExtensionOutput).toContain('Live-scene handler unavailable or disposed');
+
+      view.unmount();
+      const secondFixture = await createLiveSceneProviderFixture();
+      operationalChromeState.editorData = secondFixture.data;
+      operationalChromeState.timelineOps = secondFixture.timelineOps;
+      operationalChromeState.configVersion = 1;
+      let secondEditorContext: ReturnType<typeof useAgentChatBridge>['editorContext'] = null;
+      let secondRuntime: ReturnType<typeof useVideoEditorRuntime> | null = null;
+      function CaptureSecondProvider() {
+        secondEditorContext = useAgentChatBridge().editorContext;
+        secondRuntime = useVideoEditorRuntime();
+        return null;
+      }
+      const secondDataProvider: DataProvider = {
+        loadTimeline: vi.fn(),
+        saveTimeline: vi.fn(),
+        loadAssetRegistry: vi.fn(),
+        resolveAssetUrl: vi.fn(),
+        projectObjects: secondFixture.storage,
+      };
+      const secondView = render(
+        <MemoryRouter>
+          <QueryClientProvider client={queryClient}>
+            <AgentChatProvider>
+              <VideoEditorProvider
+                dataProvider={secondDataProvider}
+                projectId="second-live-scene-project"
+                timelineId="second-live-scene-timeline"
+                userId={null}
+                extensions={[liveSceneExtension]}
+                initialTimelineData={secondFixture.data}
+              >
+                <CaptureSecondProvider />
+              </VideoEditorProvider>
+            </AgentChatProvider>
+          </QueryClientProvider>
+        </MemoryRouter>,
+      );
+      try {
+        await waitFor(() => {
+          expect(secondEditorContext?.liveSceneOperationPort).toBeDefined();
+          expect(secondRuntime?.commandRegistry?.getSnapshot().commands.map((command) => command.commandId))
+            .toContain(LIVE_SCENE_IMPORT_COMMAND_ID);
+        });
+        const secondPort = secondEditorContext!.liveSceneOperationPort!;
+        expect(secondPort).not.toBe(firstPort);
+        const oldProviderOutput = await runLiveSceneAcpRoundtrip({
+          content: requestBlock({
+            schema: 'reigh.live-scene-request/v1',
+            requestId: 'old-provider-after-replacement',
+            scope,
+            placementIds: ['scene-placement'],
+            action: 'read',
+            offset: 0,
+            length: 32,
+          }),
+          scope,
+          port: firstPort,
+          signal: new AbortController().signal,
+          followup: async () => 'old provider remains disposed',
+        });
+        expect(oldProviderOutput).toContain('Live-scene handler unavailable or disposed');
+        const secondScope = {
+          sessionId: 'second-video-editor-provider-session',
+          turnId: 'second-provider-read',
+          projectId: 'second-live-scene-project',
+          timelineId: 'second-live-scene-timeline',
+          capturedTimelineVersion: 1,
+        };
+        const secondOutput = await runLiveSceneAcpRoundtrip({
+          content: requestBlock({
+            schema: 'reigh.live-scene-request/v1',
+            requestId: 'second-provider-read',
+            scope: secondScope,
+            placementIds: ['scene-placement'],
+            action: 'read',
+            offset: 0,
+            length: 32,
+          }),
+          scope: secondScope,
+          port: secondPort,
+          signal: new AbortController().signal,
+          followup: async (prompt) => {
+            const serialized = prompt.match(/<reigh_live_scene_result>([\s\S]*?)<\/reigh_live_scene_result>/)?.[1];
+            expect(JSON.parse(serialized!).results[0]).toMatchObject({ ok: true, result: { kind: 'read' } });
+            return 'second provider read acknowledged';
+          },
+        });
+        expect(secondOutput).not.toContain('Live-scene request failed');
+        expect(secondFixture.objects.has(secondFixture.packageObject.object_id)).toBe(true);
+      } finally {
+        secondView.unmount();
+      }
+    } finally {
+      if (view.container.isConnected) view.unmount();
+    }
   });
 
   it('reports only effective host activation and real per-extension lifecycle transitions', async () => {

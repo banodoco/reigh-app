@@ -23,6 +23,7 @@ import { createAstridPreviewAssetWrapper } from '@/tools/video-editor/sequences/
 import type {
   AstridDynamicSequenceEntry,
   AstridElementComponentProps,
+  AstridElementDescriptor,
   AstridElementHost,
 } from '@/tools/video-editor/runtime/astrid-element-host.ts';
 
@@ -48,14 +49,23 @@ const componentEntries: Array<[string, ComponentType<AstridElementComponentProps
   ['effect:frame-overlay', asComponent(FrameOverlayPreview)],
 ];
 const components = new Map(componentEntries);
+const publicComponentKeys = new Set<string>();
 
 if (ASTRID_RENDERING_ELEMENTS.length !== 12 || components.size !== 12) {
   throw new Error('Astrid public host requires exactly twelve descriptors and components');
 }
 for (const descriptor of ASTRID_RENDERING_ELEMENTS) {
-  if (!components.has(`${descriptor.kind}:${descriptor.id}`)) {
+  const componentKey = `${descriptor.kind}:${descriptor.id}`;
+  if (publicComponentKeys.has(componentKey)) {
+    throw new Error(`Astrid public host has more than one owner for ${componentKey}`);
+  }
+  publicComponentKeys.add(componentKey);
+  if (!components.has(componentKey)) {
     throw new Error(`Astrid public host is missing ${descriptor.kind}:${descriptor.id}`);
   }
+}
+if (publicComponentKeys.size !== components.size) {
+  throw new Error('Astrid public host component map and descriptor catalog do not match');
 }
 
 const sequenceRegistry = Object.freeze({
@@ -77,7 +87,13 @@ function resolvePublicSequenceEntry(
 const publicAstridElementHost: AstridElementHost = {
   descriptors: ASTRID_RENDERING_ELEMENTS,
   sequenceRegistry,
-  resolveComponent(elementId, kind) {
+  resolveComponent(elementId, kind, packId) {
+    const descriptor = ASTRID_RENDERING_ELEMENTS.find((item: AstridElementDescriptor) => (
+      item.id === elementId
+      && item.kind === kind
+      && (packId === undefined || item.packId === packId)
+    ));
+    if (!descriptor) return undefined;
     return components.get(`${kind}:${elementId}`);
   },
   resolveSequenceClipEntry: resolvePublicSequenceEntry,

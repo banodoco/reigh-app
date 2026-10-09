@@ -5,6 +5,7 @@ import { PublicAstridEditorProvider, PUBLIC_ASTRID_READ_ONLY_EDITABILITY } from 
 import { PUBLIC_ASTRID_ELEMENT_HOST } from './astrid-public-host.tsx';
 import { PUBLIC_LIGHT_STUDY_PROVIDER, PUBLIC_LIGHT_TIMELINE_ID, PublicLightStudyWriteError } from './astrid-light-study.ts';
 import { LIGHT_STUDY_PUBLIC_EXAMPLE } from './content/light-study-v1/public-example.ts';
+import { PUBLIC_TIMELINE_SERVICE_HOOKS } from '@/tools/video-editor/runtime/timelineHostServiceHooks.ts';
 
 const runtimeProviderSpy = vi.fn();
 vi.mock('@/tools/video-editor/contexts/EditorRuntimeProvider.tsx', () => ({
@@ -56,6 +57,7 @@ describe('public Light study runtime boundary', () => {
       astridElementHost: PUBLIC_ASTRID_ELEMENT_HOST,
       dataProvider: PUBLIC_LIGHT_STUDY_PROVIDER,
       timelineId: PUBLIC_LIGHT_TIMELINE_ID,
+      timelineServices: PUBLIC_TIMELINE_SERVICE_HOOKS,
       timelineEditability: PUBLIC_ASTRID_READ_ONLY_EDITABILITY,
       enableMutationServices: false,
       enableLiveServices: false,

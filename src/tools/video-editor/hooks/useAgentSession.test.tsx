@@ -1,22 +1,36 @@
 import React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, renderHook } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { act, renderHook, waitFor } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   appendAcpAssistantDraft,
   appendAcpTextTurn,
+  AstridAgentSessionStore,
   extractReighElementOperations,
   isTimelineAgentSessionsAvailable,
+  projectChatQueryKey,
   stripReighEditorContext,
   useCancelSession,
   useCreateSession,
+  useProjectChat,
+  useSaveProjectDraft,
+  useSelectProjectSession,
   useSendMessage,
 } from './useAgentSession.ts';
+import type { ProjectChatState } from '@/integrations/astrid/acpRoutes.ts';
 
 function wrapper({ children }: { children: React.ReactNode }) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return React.createElement(QueryClientProvider, { client }, children);
 }
+
+function wrapperWithClient(client: QueryClient) {
+  return function QueryClientWrapper({ children }: { children: React.ReactNode }) {
+    return React.createElement(QueryClientProvider, { client }, children);
+  };
+}
+
+afterEach(() => vi.restoreAllMocks());
 
 describe('timeline agent ACP chat', () => {
   it('advertises the local Astrid ACP implementation', () => {
@@ -25,15 +39,78 @@ describe('timeline agent ACP chat', () => {
 
   it('keeps missing identifiers as input errors before contacting ACP', async () => {
     const create = renderHook(() => useCreateSession(null), { wrapper });
-    await expect(act(async () => create.result.current.mutateAsync())).rejects.toThrow('projectId is required');
+    await expect(act(async () => create.result.current.mutateAsync('operation'))).rejects.toThrow('projectId is required');
     create.unmount();
 
-    const send = renderHook(() => useSendMessage(null, 'timeline-1'), { wrapper });
-    await expect(act(async () => send.result.current.mutateAsync({ message: 'hello' }))).rejects.toThrow('sessionId is required');
+    const send = renderHook(() => useSendMessage(null), { wrapper });
+    await expect(act(async () => send.result.current.mutateAsync({ input: { message: 'hello' }, sessionId: '', projectId: 'p', context: {tool: 'video-editor', projectId: 'p', projectSlug: null, timelineId: 't', timelineName: null} }))).rejects.toThrow('sessionId is required');
     send.unmount();
 
     const cancel = renderHook(() => useCancelSession(null), { wrapper });
     await expect(act(async () => cancel.result.current.mutateAsync())).rejects.toThrow('sessionId is required');
+  });
+
+  it('restores project chat reads and writes through the existing ACP routes', async () => {
+    const chat = {
+      project_id: 'project-1',
+      scope_key: 'project:project-1',
+      revision: 4,
+      selected_session_id: 'session-1',
+      sessions: [{ id: 'session-1' }],
+      draft: { text: 'draft', revision: 2, queued_messages: [] },
+    };
+    const acp = {
+      projectChat: vi.fn(async () => chat),
+      saveProjectDraft: vi.fn(async () => chat),
+      selectProjectSession: vi.fn(async () => chat),
+    };
+    const store = new AstridAgentSessionStore({ acp } as never);
+
+    await expect(store.projectChat('project-1')).resolves.toBe(chat);
+    await expect(store.saveProjectDraft('project-1', 2, 'new draft', [])).resolves.toBe(chat);
+    await expect(store.selectProjectSession('project-1', 4, null)).resolves.toBe(chat);
+    expect(acp.projectChat).toHaveBeenCalledWith('project-1');
+    expect(acp.saveProjectDraft).toHaveBeenCalledWith('project-1', 2, 'new draft', []);
+    expect(acp.selectProjectSession).toHaveBeenCalledWith('project-1', 4, null);
+  });
+
+  it('loads project chat through the query hook and uses the project-scoped cache key', async () => {
+    const chat = {project_id: 'project-1', revision: 4} as ProjectChatState;
+    const projectChat = vi.spyOn(AstridAgentSessionStore.prototype, 'projectChat').mockResolvedValue(chat);
+    const client = new QueryClient({defaultOptions: {queries: {retry: false}}});
+    const {result, unmount} = renderHook(() => useProjectChat('project-1'), {wrapper: wrapperWithClient(client)});
+
+    await waitFor(() => expect(result.current.data).toBe(chat));
+    expect(projectChat).toHaveBeenCalledWith('project-1');
+    expect(client.getQueryData(projectChatQueryKey('project-1'))).toBe(chat);
+    unmount();
+    client.clear();
+  });
+
+  it('saves project drafts through the mutation hook and refreshes the scoped chat cache', async () => {
+    const chat = {project_id: 'project-1', revision: 5} as ProjectChatState;
+    const saveProjectDraft = vi.spyOn(AstridAgentSessionStore.prototype, 'saveProjectDraft').mockResolvedValue(chat);
+    const client = new QueryClient({defaultOptions: {queries: {retry: false}}});
+    const {result, unmount} = renderHook(() => useSaveProjectDraft('project-1'), {wrapper: wrapperWithClient(client)});
+
+    await act(async () => result.current.mutateAsync({expectedRevision: 4, text: 'draft update', queuedMessages: []}));
+    expect(saveProjectDraft).toHaveBeenCalledWith('project-1', 4, 'draft update', []);
+    expect(client.getQueryData(projectChatQueryKey('project-1'))).toBe(chat);
+    unmount();
+    client.clear();
+  });
+
+  it('selects a project session through the mutation hook and refreshes the scoped chat cache', async () => {
+    const chat = {project_id: 'project-1', revision: 5} as ProjectChatState;
+    const selectProjectSession = vi.spyOn(AstridAgentSessionStore.prototype, 'selectProjectSession').mockResolvedValue(chat);
+    const client = new QueryClient({defaultOptions: {queries: {retry: false}}});
+    const {result, unmount} = renderHook(() => useSelectProjectSession('project-1'), {wrapper: wrapperWithClient(client)});
+
+    await act(async () => result.current.mutateAsync({expectedRevision: 4, sessionId: 'session-2'}));
+    expect(selectProjectSession).toHaveBeenCalledWith('project-1', 4, 'session-2');
+    expect(client.getQueryData(projectChatQueryKey('project-1'))).toBe(chat);
+    unmount();
+    client.clear();
   });
 
   it('preserves ACP message boundaries when adjacent replies arrive', () => {
