@@ -179,7 +179,7 @@ describe('bounded stage passes', () => {
         expect(path.getAttribute('data-connector-target')).toBe('community');
       }
       view.rerender(<Stage audience="agent" />);
-      const message = view.container.querySelector<HTMLElement>('.justify-end > .rounded-2xl')!;
+      const message = view.container.querySelector<HTMLElement>('.justify-start > .rounded-2xl')!;
       let targetWidth = 40;
       Object.defineProperty(message, 'getBoundingClientRect', { value: () => new DOMRect(130, 120, targetWidth, 30), configurable: true });
       act(() => mutationCallbacks.at(-1)!([], {} as MutationObserver));
@@ -479,7 +479,7 @@ describe('bounded stage passes', () => {
     const milliseconds = (element: HTMLElement | SVGElement, name: string) => parseFloat(element.style.getPropertyValue(`--astrid-${name}`));
     // Keep the narrative legible without returning to the previous five-second entrance.
     expect(milliseconds(cards[0], 'callout-start')).toBe(450);
-    expect(milliseconds(cards[2], 'endpoint-start') + milliseconds(cards[2], 'endpoint-duration')).toBe(2360);
+    expect(milliseconds(cards[2], 'endpoint-start') + milliseconds(cards[2], 'endpoint-duration')).toBe(3670);
     for (const [index, card] of cards.entries()) {
       const group = view.container.querySelector<SVGElement>(`g:has(path[data-callout="${card.dataset.callout}"])`)!;
       expect(group.getAttribute('style')).toBe(card.getAttribute('style'));
@@ -492,7 +492,7 @@ describe('bounded stage passes', () => {
       expect(endStart).toBeGreaterThanOrEqual(lineStart + milliseconds(card, 'connector-duration'));
       if (cards[index + 1]) {
         expect(milliseconds(cards[index + 1], 'callout-start')).toBeGreaterThan(endStart + milliseconds(card, 'endpoint-duration'));
-        expect(milliseconds(cards[index + 1], 'callout-start') - start).toBe(680);
+        expect(milliseconds(cards[index + 1], 'callout-start') - start).toBe(1080);
       }
     }
   });

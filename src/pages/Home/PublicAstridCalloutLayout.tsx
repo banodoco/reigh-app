@@ -15,14 +15,15 @@ export const CALLOUT_VACUUM_SETTLE_MS = 24;
 export const CALLOUT_VACUUM_POST_CONNECT_SETTLE_MS = 180;
 // Keep the final control-point convergence finite so the last painted organic
 // frame cannot be followed by an ungated canonical snap.
-export const CALLOUT_VACUUM_CANONICALIZE_MS = 140;
+export const CALLOUT_VACUUM_CANONICALIZE_MS = 280;
 export const CALLOUT_GEOMETRY_EPSILON_PX = 2;
 export const CALLOUT_VACUUM_PRIME_DISTANCE_PX = 64;
 export const CALLOUT_VACUUM_RESIDUAL_RATIO = 0.2;
 // The organic control handoff is intentionally longer than the prime lead. The
-// first painted curve must remain the exact synchronous prime, then ease into the
-// S-bend without a visible control-point jump on the next compositor frame.
-export const CALLOUT_CURVE_HANDOFF_MS = 240;
+// first painted curve must remain the exact synchronous prime, then let long
+// moving connectors follow the new S-bend with a soft tail instead of taking a
+// large fraction of a recomputed baseline on one compositor frame.
+export const CALLOUT_CURVE_HANDOFF_MS = 480;
 const CALLOUT_CONTENT_FADE_OUT_MS = 360;
 export type CalloutTransitionPhase = 'retracting' | 'waiting-for-layout' | 'extending' | 'canonicalizing';
 export interface CalloutMove {
@@ -38,6 +39,9 @@ export interface CalloutMove {
   /** Last painted time per slot; controls use it for a frame-rate-independent handoff. */
   curveLastPaintedAt: Array<number | undefined>;
   paintedCurves: number[][];
+  /** Control velocities (px/ms), carried through the terminal latch. */
+  curveVelocities: number[][];
+  canonicalizeVelocities: number[][];
   canonicalizeFrom: number[][];
   /** Exact settled canonical curve captured per slot for the terminal frame. */
   canonicalTarget: number[][];
@@ -95,6 +99,8 @@ export class PublicAstridCalloutLayout extends Component<Props> {
       primedCurves: [],
       curveLastPaintedAt: [],
       paintedCurves: [],
+      curveVelocities: [],
+      canonicalizeVelocities: [],
       canonicalizeFrom: [],
       canonicalTarget: [],
       canonicalizeStartedAt: [],
@@ -144,6 +150,7 @@ export class PublicAstridCalloutLayout extends Component<Props> {
       card.style.removeProperty('translate');
       card.style.removeProperty('width');
       card.style.removeProperty('height');
+      for (const property of ['left', 'top', 'right', 'bottom']) card.style.removeProperty(property);
     });
     this.root.current?.querySelectorAll('.astrid-callout-outgoing').forEach(layer => layer.remove());
     this.root.current?.querySelectorAll<HTMLElement>('article > .astrid-callout-content').forEach(layer => layer.style.removeProperty('width'));
@@ -163,12 +170,23 @@ export class PublicAstridCalloutLayout extends Component<Props> {
     const destinations = cards.map(card => card.getBoundingClientRect());
     const move = this.props.move.current;
     if (!move || move.epoch !== snapshot.epoch) return;
-    move.boxes = snapshot.boxes;
+    // Agent's visual order should enter counterclockwise from App. App -> Agent
+    // deliberately pairs Effects -> Community, Models -> Tools, Timeline ->
+    // Workflows; the reverse direction keeps the established Agent -> App path.
+    const sourceOrder = previous.audience === 'app' && this.props.audience === 'agent'
+      ? [1, 2, 0]
+      : snapshot.boxes.map((_, index) => index);
+    const sourceBoxes = sourceOrder.map(index => snapshot.boxes[index]);
+    const sourceCurves = sourceOrder.map(index => snapshot.curves[index]);
+    const sourceContent = sourceOrder.map(index => snapshot.content[index]);
+    move.boxes = sourceBoxes;
     move.destinations = destinations;
-    move.curves = snapshot.curves;
+    move.curves = sourceCurves;
     move.primedCurves = cards.map(() => []);
     move.curveLastPaintedAt = cards.map(() => undefined);
     move.paintedCurves = cards.map(() => []);
+    move.curveVelocities = cards.map(() => []);
+    move.canonicalizeVelocities = cards.map(() => []);
     move.canonicalizeFrom = cards.map(() => []);
     move.canonicalTarget = cards.map(() => []);
     move.canonicalizeStartedAt = cards.map(() => undefined);
@@ -177,7 +195,7 @@ export class PublicAstridCalloutLayout extends Component<Props> {
     // synchronously prime every path into a visibly retracted state so the new audience
     // cannot paint beside a fully extended old connector.
     root.querySelectorAll('path').forEach((path, index) => {
-      const curve = primeRetractedCurve(snapshot.curves[index]).map((value, coordinate) => value - (coordinate % 2 ? origin.top : origin.left));
+      const curve = primeRetractedCurve(sourceCurves[index]).map((value, coordinate) => value - (coordinate % 2 ? origin.top : origin.left));
       if (curve.length !== 8) return;
       move.primedCurves[index] = curve;
       move.paintedCurves[index] = curve.slice();
@@ -190,7 +208,7 @@ export class PublicAstridCalloutLayout extends Component<Props> {
       });
     });
     this.animations = cards.flatMap((card, index) => {
-      const from = snapshot.boxes[index];
+      const from = sourceBoxes[index];
       const to = destinations[index];
       const content = card.querySelector<HTMLElement>(':scope > .astrid-callout-content')!;
       const padding = getComputedStyle(card);
@@ -209,7 +227,7 @@ export class PublicAstridCalloutLayout extends Component<Props> {
         transformOrigin: 'top left',
         pointerEvents: 'none',
       });
-      outgoing.append(...snapshot.content[index]);
+      outgoing.append(...sourceContent[index]);
       card.append(outgoing);
       // Animate from the captured geometry with a FLIP transform. The cards deliberately
       // alternate between CSS `left` and `right` anchors across audiences; animating those
@@ -224,6 +242,14 @@ export class PublicAstridCalloutLayout extends Component<Props> {
         width: `${box.width}px`, height: `${box.height}px`,
       });
       card.dataset.layoutMoving = 'true';
+      // The destination's CSS may anchor the card from the right/bottom. Changing
+      // its width/height would then move its base position as well as the FLIP
+      // transform (and jump on reversals). Pin the destination's top-left for the
+      // duration so only the explicit transform and dimensions own the motion.
+      card.style.left = `${to.left - origin.left}px`;
+      card.style.top = `${to.top - origin.top}px`;
+      card.style.right = 'auto';
+      card.style.bottom = 'auto';
       // Prime the captured FLIP frame synchronously. Without this, a reversal can
       // expose the destination layout for one commit before WAAPI applies frame 0.
       card.style.setProperty('transform', `translate(${dx}px, ${dy}px)`);
@@ -244,6 +270,7 @@ export class PublicAstridCalloutLayout extends Component<Props> {
         card.style.removeProperty('translate');
         card.style.removeProperty('width');
         card.style.removeProperty('height');
+        for (const property of ['left', 'top', 'right', 'bottom']) card.style.removeProperty(property);
         content.style.removeProperty('width');
         outgoing.remove();
       };

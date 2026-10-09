@@ -128,18 +128,26 @@ function routeAnnouncement(state: ExperienceState): string {
   return state.audience === 'app' ? 'App.' : 'Agent.';
 }
 
-function HeroSubtitle({ audience, onSwitch }: { audience: ExperienceState['audience']; onSwitch: (audience: ExperienceState['audience']) => void }) {
-  if (audience === 'app') {
-    return (
-      <p className="astrid-hero-subtitle">
-        An <button type="button" className="astrid-audience-phrase" onClick={() => onSwitch('agent')} aria-label="Switch to Agent">agent-powered</button> video editor built to unlock the artistic potential of open-source models.
-      </p>
-    );
-  }
+function HeroSubtitle({ audience, phone, onSwitch }: { audience: ExperienceState['audience']; phone: boolean; onSwitch: (audience: ExperienceState['audience']) => void }) {
   return (
-    <p className="astrid-hero-subtitle">
-      An <button type="button" className="astrid-audience-phrase" onClick={() => onSwitch('app')} aria-label="Switch to App">editor-powered</button> creative agent built to unlock the artistic potential of open-source models.
-    </p>
+    <div className={phone ? 'astrid-mobile-hero-subtitles' : undefined}>
+      <p className="astrid-hero-subtitle">
+        <span className="astrid-subtitle-shared">An </span><span className="astrid-subtitle-swap">
+          {(['app', 'agent'] as const).map((mode) => (
+            <span key={mode} className="astrid-subtitle-variant" data-active={audience === mode} aria-hidden={audience !== mode}>
+              <button
+                type="button"
+                className="astrid-audience-phrase"
+                tabIndex={audience === mode ? undefined : -1}
+                onClick={() => onSwitch(mode === 'app' ? 'agent' : 'app')}
+                aria-label={mode === 'app' ? 'Switch to Agent' : 'Switch to App'}
+              >{mode === 'app' ? 'agent-powered' : 'editor-powered'}</button>
+              {mode === 'app' ? ' video editor' : ' creative agent'}
+            </span>
+          ))}
+        </span><span className="astrid-subtitle-shared"> built to unlock the artistic potential of open models.</span>
+      </p>
+    </div>
   );
 }
 
@@ -170,6 +178,8 @@ export function PublicAstridShell({ onOpenVision, lifecycle = 'active', environm
   const [localState, setLocalState] = useState<ExperienceState>(readPublicAstridExperience);
   const state = navigation?.experience ?? localState;
   const standalone = navigation === undefined;
+  // The rendered intro guard must also match the current audience: callout
+  // componentDidUpdate reads layout before our effects can retire this state.
   const [directEntryAudience, setDirectEntryAudience] = useState<ExperienceState['audience'] | null>(() => state.audience);
   const previousAudienceRef = useRef(state.audience);
   useLayoutEffect(() => {
@@ -261,13 +271,13 @@ export function PublicAstridShell({ onOpenVision, lifecycle = 'active', environm
   const lastHistoryChangeRef = useRef(0);
   const pendingAudienceFocusRef = useRef<'agent' | 'launcher' | null>(null);
   const [motionTiming, setMotionTiming] = useState<MotionTiming>({
-    duration: 600,
+    duration: 720,
     assemblyDelay: 0,
-    assemblyDuration: 240,
-    surfaceDelay: 240,
-    surfaceDuration: 360,
-    labelDelay: 480,
-    labelDuration: 120,
+    assemblyDuration: 720,
+    surfaceDelay: 0,
+    surfaceDuration: 720,
+    labelDelay: 504,
+    labelDuration: 216,
   });
   const appView = state.audience === 'app';
   const agentView = state.audience === 'agent';
@@ -666,7 +676,7 @@ export function PublicAstridShell({ onOpenVision, lifecycle = 'active', environm
       data-astrid-lifecycle={lifecycle}
       data-astrid-visual-active={visualActive}
       data-astrid-public-entry="astrid-public-v1"
-      data-astrid-direct-entry={directEntryAudience ?? undefined}
+      data-astrid-direct-entry={directEntryAudience === state.audience ? directEntryAudience : undefined}
       data-audience={state.audience}
       data-theme={theme}
       data-dusk
@@ -744,9 +754,9 @@ export function PublicAstridShell({ onOpenVision, lifecycle = 'active', environm
               App
             </button>
           </nav>
-          <h1 id="astrid-hero-title">Push local AI to its creative limits.</h1>
+          <h1 id="astrid-hero-title">Push local AI to its <span className="astrid-hero-emphasis">creative limits.</span></h1>
           <div className="astrid-hero-detail">
-            <HeroSubtitle audience={state.audience} onSwitch={(audience) => updateState({ audience })} />
+            <HeroSubtitle audience={state.audience} phone={environment.phone} onSwitch={(audience) => updateState({ audience })} />
             <div className="astrid-hero-actions">
               <PublicAstridHeroCta audience={state.audience} pixelIcons={sky.details.pixelIcons} active={visualActive} />
             </div>

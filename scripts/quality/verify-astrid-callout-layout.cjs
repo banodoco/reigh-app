@@ -10,7 +10,7 @@ const CALLOUT_VACUUM_PHONE_EXTEND_MS = 440;
 const CALLOUT_VACUUM_RECONNECT_STAGGER_MS = 140;
 const CALLOUT_VACUUM_SETTLE_MS = 24;
 const CALLOUT_VACUUM_POST_CONNECT_SETTLE_MS = 180;
-const CALLOUT_VACUUM_CANONICALIZE_MS = 140;
+const CALLOUT_VACUUM_CANONICALIZE_MS = 280;
 const CALLOUT_VACUUM_RESIDUAL_RATIO = 0.2;
 const base = process.argv[2] || 'http://127.0.0.1:2245';
 const out = process.argv[3] || '/tmp/astrid-callout-layout';
@@ -43,7 +43,15 @@ fs.mkdirSync(out, {recursive:true});
                 const start=root.querySelectorAll('.astrid-callout-dot-start')[i];
                 const end=root.querySelectorAll('.astrid-callout-dot-end')[i];
                 const point=d=>[origin.x+Number(d.getAttribute('cx')),origin.y+Number(d.getAttribute('cy'))];
+                const geometryAnimation=c.getAnimations().find(animation=>{
+                  const keys=animation.effect?.getKeyframes() || [];
+                  return keys.some(key=>key.width!==undefined && key.height!==undefined && key.transform!==undefined);
+                });
+                const timing=geometryAnimation?.effect.getComputedTiming();
                 return {id:c.dataset.callout,box:box(c),moving:!!c.dataset.layoutMoving,opacity:getComputedStyle(c).opacity,
+                  motionTime:typeof geometryAnimation?.currentTime==='number'?geometryAnimation.currentTime:null,
+                  motionDuration:typeof timing?.duration==='number'?timing.duration:null,
+                  motionProgress:timing?.progress ?? null,
                   textOpacity:+getComputedStyle(c.querySelector(':scope > .astrid-callout-content')).opacity,
                   outgoingOpacity:c.querySelector(':scope > .astrid-callout-outgoing') ? +getComputedStyle(c.querySelector(':scope > .astrid-callout-outgoing')).opacity : 0,
                   target:paths[i].dataset.connectorTarget,pulse:root.querySelectorAll('.astrid-callout-ping')[i]?.dataset.astridReconnectPulse==='true',start:point(start),end:point(end),curve:(paths[i].getAttribute('d')?.match(/-?\d+(?:\.\d+)?/g)||[]).map(Number),endOpacity:+(end.getAttribute('opacity') || '1'),path:paths[i].getAttribute('d')};
@@ -129,8 +137,11 @@ fs.mkdirSync(out, {recursive:true});
           for(let j=1;j<transitionCurves.length;j++) {
             const a=transitionCurves[j-1],b=transitionCurves[j];
             const dt=Math.max(16,b.t-a.t);
-            const maxCurveDelta=Math.max(...b.cards[i].curve.map((value,k)=>Math.abs(value-a.cards[i].curve[k])));
-            assert(maxCurveDelta<3*dt+48,'Connector control points jumped during motion');
+            // Endpoints follow the crossing cards, whose faster travel is checked below.
+            // This bound checks only the cubic controls that ease the rope's shape.
+            const maxCurveDelta=Math.max(...[2,3,4,5].map(k=>Math.abs(b.cards[i].curve[k]-a.cards[i].curve[k])));
+            assert(maxCurveDelta<3*dt+48,
+              `Connector control points jumped during motion (${b.cards[i].id}, ${maxCurveDelta.toFixed(1)}px over ${dt.toFixed(1)}ms; bound ${(3*dt+48).toFixed(1)}px)`);
           }
           const postCurves=[expansion.at(-1),...postSettle].filter(Boolean);
           for(let j=1;j<postCurves.length;j++) {
@@ -150,6 +161,24 @@ fs.mkdirSync(out, {recursive:true});
           assert(terminal.length>0,'Missing exact canonical terminal frame');
           const terminalCurve=terminal.at(-1).cards[i].curve;
           assert(terminal.every(f=>f.cards[i].curve.every((value,k)=>Math.abs(value-terminalCurve[k])<=0.1)),'Canonical curve drifted after cleanup');
+          // Measure the actual painted stroke, not only its endpoints (which can
+          // stay exact while the middle snaps taut). A late fast catch-up used to
+          // pass the generous transition bounds above.
+          const point=(curve,t)=>[0,1].map(axis => (1-t)**3*curve[axis]
+            +3*(1-t)**2*t*curve[axis+2]+3*(1-t)*t*t*curve[axis+4]+t**3*curve[axis+6]);
+          let peakLatchSpeed=0;
+          const latch=switched.filter(f=>f.t-pulseFrames[0].t>=180 && f.t-pulseFrames[0].t<=700);
+          for(let j=1;j<latch.length;j++) {
+            const a=latch[j-1],b=latch[j],dt=Math.max(16,b.t-a.t);
+            const speed=Math.max(...[.25,.5,.75].map(t=>{
+              const p=point(a.cards[i].curve,t),q=point(b.cards[i].curve,t);
+              return Math.hypot(q[0]-p[0],q[1]-p[1])/dt;
+            }));
+            peakLatchSpeed=Math.max(peakLatchSpeed,speed);
+          }
+          assert(latch.length>=4,'Missing post-connect continuity samples');
+          assert(peakLatchSpeed<.12,`Late connector snap (${newIds[i]}: ${peakLatchSpeed.toFixed(3)}px/ms)`);
+          console.log(JSON.stringify({width,audience,connector:newIds[i],peakLatchSpeed}));
           const hold=audience==='agent'
             ? switched.filter(f=>relative(f)>=retractUntil && relative(f)<slotExtendAt)
             : [];
@@ -173,14 +202,35 @@ fs.mkdirSync(out, {recursive:true});
             return sx>=x-20 && sx<=x+w+20 && sy>=y-20 && sy<=y+h+20;
           }),'Connector detached from moving card');
           assert.equal(result.frames.at(-1).cards[i].target,newIds[i]);
+          // Chromium can deliver two screenshot/RAF observations only a few wall
+          // milliseconds apart while its document animation timeline advances by
+          // several frames. Compare geometry using the clock that actually paints
+          // it, and independently check the eased path and final cleanup below.
           for(let j=1;j<switched.length;j++) {
             const a=switched[j-1],b=switched[j];
-            if(b.t-a.t>80)continue;
-            // Desktop cards cross ~830px; account for dropped frames during screenshots.
-            // Screenshot/RAF sampling can produce sub-16ms deltas even when the browser
-            // has advanced by one compositor frame. Compare against a 60Hz floor so a
-            // dropped capture sample cannot turn smooth motion into a false jump.
-            assert(Math.max(...b.cards[i].box.map((v,k)=>Math.abs(v-a.cards[i].box[k])))<6*Math.max(16,b.t-a.t)+20,'Abrupt card geometry jump');
+            const previous=a.cards[i],current=b.cards[i];
+            const animationDelta=previous.motionTime!==null && current.motionTime!==null
+              ? current.motionTime-previous.motionTime
+              : previous.motionTime!==null && !current.moving
+                ? previous.motionDuration-previous.motionTime
+                : b.t-a.t;
+            assert(animationDelta>=-1,'Card animation clock reversed unexpectedly');
+            const delta=Math.max(...current.box.map((v,k)=>Math.abs(v-previous.box[k])));
+            assert(delta<6*Math.max(16,animationDelta)+20,
+              `Abrupt card geometry jump (${newIds[i]}: ${delta.toFixed(2)}px; wall ${(b.t-a.t).toFixed(2)}ms; animation ${animationDelta.toFixed(2)}ms)`);
+          }
+          // A large timeline advance must not mask a wrong box or an end-of-motion
+          // jump. Every sample must lie on the same eased interpolation to the final
+          // CSS box, including the frame where inline animation styles are removed.
+          const animated=switched.filter(f=>f.cards[i].motionProgress!==null && f.cards[i].motionProgress<.98);
+          assert(animated.length>=4,'Missing card animation-clock samples');
+          const first=animated[0].cards[i],final=switched.at(-1).cards[i].box;
+          const extrapolatedStart=first.box.map((v,k)=>(v-final[k]*first.motionProgress)/(1-first.motionProgress));
+          for(const f of switched.filter(f=>f.t>=animated[0].t)) {
+            const card=f.cards[i],progress=card.motionProgress ?? (card.moving?null:1);
+            if(progress===null)continue;
+            const error=Math.max(...card.box.map((v,k)=>Math.abs(v-(extrapolatedStart[k]+(final[k]-extrapolatedStart[k])*progress))));
+            assert(error<2,`Card departed from eased geometry (${newIds[i]}: ${error.toFixed(2)}px at ${progress.toFixed(4)})`);
           }
         }
         console.log(JSON.stringify({width,audience,frames:result.frames.length,movingFrames:moving.length,identity:true,targets:true}));
@@ -203,7 +253,7 @@ fs.mkdirSync(out, {recursive:true});
         await page.waitForFunction(()=>{
           const stage=document.querySelector('.astrid-editor-stage');
           const chat=stage.querySelector('.astrid-chat-surface').getBoundingClientRect();
-          const target=stage.querySelector('.justify-end > .rounded-2xl').getBoundingClientRect();
+          const target=stage.querySelector('.justify-start > .rounded-2xl').getBoundingClientRect();
           const origin=stage.getBoundingClientRect();
           const end=stage.querySelector('.astrid-callout-dot-end[data-callout="community"]');
           const x=origin.left+stage.clientLeft+Number(end.getAttribute('cx'));
@@ -247,27 +297,41 @@ fs.mkdirSync(out, {recursive:true});
       await page.waitForTimeout(220);
       // Sample and reverse in one browser task. Pausing the old WAAPI animation here
       // changes the View Transition snapshot timing and creates a verifier-only jump.
-      const {before,after}=await page.getByRole('button',{name:'App',exact:true}).evaluate(async button=>{
+      const reversal=await page.getByRole('button',{name:'App',exact:true}).evaluate(async button=>{
         const root=document.querySelector('.astrid-callouts');
         const boxes=()=>[...document.querySelectorAll('.astrid-callout')].map(e=>{const r=e.getBoundingClientRect();return [r.x,r.y,r.width,r.height];});
-        const before=boxes();
+        let before=boxes(),beforeAt=performance.now();
+        const original=document.startViewTransition;
+        // Desktop navigation commits inside an asynchronous View Transition
+        // callback. The old animation legitimately keeps moving after the click.
+        // Observe immediately before that callback, where React captures its FLIP
+        // source, instead of comparing against an obsolete pre-click position.
+        if(original) document.startViewTransition=function(update){
+          return original.call(this,()=>{
+            before=boxes();beforeAt=performance.now();
+            return update();
+          });
+        };
         return new Promise(resolve=>{
           const observer=new MutationObserver(()=>{
             if(root.dataset.audience!=='app')return;
             observer.disconnect();
-            root.getAnimations({subtree:true}).forEach(animation=>animation.pause());
             const after=boxes();
-            root.getAnimations({subtree:true}).forEach(animation=>animation.play());
-            resolve({before,after});
+            if(original)document.startViewTransition=original;
+            resolve({before,after,beforeAt,afterAt:performance.now()});
           });
           observer.observe(root,{attributes:true,attributeFilter:['data-audience']});
           button.click();
         });
       });
+      fs.writeFileSync(`${out}/${width}-reversal.json`,JSON.stringify(reversal,null,2));
+      const {before,after}=reversal;
       assert.equal(await page.locator('.astrid-callouts').getAttribute('data-audience'),'app');
       // The compositor can advance one frame while the mutation observer samples
       // the newly primed FLIP frame; keep this below the old-layout snap distance.
-      assert(before.every((b,i)=>b.every((v,k)=>Math.abs(v-after[i][k])<120)),'Rapid reversal snapped to stale layout');
+      const reversalDelta=Math.max(...before.flatMap((b,i)=>b.map((v,k)=>Math.abs(v-after[i][k]))));
+      assert(reversalDelta<120,`Rapid reversal snapped to stale layout (${reversalDelta.toFixed(2)}px across ${(reversal.afterAt-reversal.beforeAt).toFixed(2)}ms commit)`);
+      console.log(JSON.stringify({width,rapidReversal:true,reversalDelta}));
       await page.waitForTimeout(1100);
       await page.emulateMedia({reducedMotion:'reduce'});
       await page.getByRole('button',{name:'Agent',exact:true}).evaluate(e=>e.click());

@@ -64,15 +64,15 @@ const PHONE_CLAMP_SELECTOR = '.astrid-chat-surface';
 const AGENT_CALLOUTS: readonly CalloutDefinition[] = [
   {
     id: 'community',
-    title: 'The community’s collective intelligence',
-    body: 'Shared ideas and examples inform every decision your agent makes.',
+    title: 'The community’s intelligence',
+    body: 'Shared discoveries inform every agent decision.',
     target: '.astrid-chat-surface',
     at: [0, 0.2],
     side: 'right',
     phoneSide: 'top',
     phoneSwing: 0.9,
-    // On phones: the person's request, reached along the conversation's right edge.
-    phoneTarget: '.astrid-chat-surface .justify-end > .rounded-2xl',
+    // On phones: Astrid's reply, reached along the conversation's right edge.
+    phoneTarget: '.astrid-chat-surface .justify-start > .rounded-2xl',
     phoneAt: [1, 0.5],
   },
   {
@@ -96,9 +96,10 @@ const AGENT_CALLOUTS: readonly CalloutDefinition[] = [
     at: [1, 0.42],
     side: 'left',
     phoneSide: 'bottom',
-    // On phones: Astrid's reply.
-    phoneTarget: '.astrid-chat-surface .justify-start > .rounded-2xl',
-    phoneAt: [1, 0.5],
+    // On phones: the person's request.
+    phoneTarget: '.astrid-chat-surface .justify-end > .rounded-2xl',
+    // Land on the top edge of the request bubble, slightly in from its right corner.
+    phoneAt: [0.93, 0],
     phoneSwing: 0.9,
   },
 ];
@@ -145,7 +146,7 @@ const APP_CALLOUTS: readonly CalloutDefinition[] = [
   {
     id: 'timeline',
     title: 'Do complex editing with your agents',
-    body: 'Arrange, trim and layer clips by hand or with your agent.',
+    body: "Edit by hand or with your agent's help.",
     // A fixed point on the timeline panel (where the first clip rests), not the clip itself, so the
     // connector holds still when the timeline is scrolled.
     target: '.astrid-timeline-surface',
@@ -212,11 +213,14 @@ function calloutSequenceIndex(audience: PublicAstridAudience, id: string, phone:
 // Both the card and its SVG group consume these same timings on every screen size.
 function calloutTiming(index: number, audience: PublicAstridAudience, id: string): CSSProperties {
   const card = 360;
-  const connector = 200;
-  const endpoint = 100;
-  const connectorLead = 250;
+  // Let the card visibly settle before the initial connector draw begins. The
+  // old 200ms draw overlapped the card entrance so closely that the first
+  // connection looked static on a real page load.
+  const connector = 480;
+  const endpoint = 180;
+  const connectorLead = card + 40;
   const mobileIndex = calloutSequenceIndex(audience, id, true);
-  const start = 450 + index * (card + connector + endpoint + 20);
+  const start = 450 + index * (connectorLead + connector + endpoint + 20);
   return {
     '--astrid-callout-index': index,
     '--astrid-mobile-callout-index': mobileIndex,
@@ -285,22 +289,44 @@ function blendPoint(from: Point, to: Point, progress: number): Point {
 }
 
 /** Add a bounded S-bend without moving either endpoint. The opposite control-point offsets
- * make the connector breathe laterally instead of translating as one rigid curve. */
-function snakeBend(controls: CurveControls, start: Point, end: Point, amount: number): CurveControls {
+ * make the connector breathe laterally instead of translating as one rigid curve. The small
+ * tangential trail makes the rear half follow the leading half like a flexible drawn stroke. */
+function snakeBend(controls: CurveControls, start: Point, end: Point, amount: number, trail = 0): CurveControls {
   const dx = end.x - start.x;
   const dy = end.y - start.y;
   const length = Math.hypot(dx, dy);
   if (!amount || !length) return controls;
   const normal = { x: -dy / length, y: dx / length };
+  const tangent = { x: dx / length, y: dy / length };
   return {
-    c1: { x: controls.c1.x + normal.x * amount, y: controls.c1.y + normal.y * amount },
-    c2: { x: controls.c2.x - normal.x * amount * .72, y: controls.c2.y - normal.y * amount * .72 },
+    c1: {
+      x: controls.c1.x + normal.x * amount + tangent.x * trail,
+      y: controls.c1.y + normal.y * amount + tangent.y * trail,
+    },
+    c2: {
+      x: controls.c2.x - normal.x * amount * .72 - tangent.x * trail * .58,
+      y: controls.c2.y - normal.y * amount * .72 - tangent.y * trail * .58,
+    },
   };
 }
 
 function restingBendAmount(length: number) {
   return Math.min(CALLOUT_RESTING_BEND_MAX_PX,
     Math.max(CALLOUT_RESTING_BEND_MIN_PX, length * CALLOUT_RESTING_BEND_RATIO));
+}
+
+function snakeTrailAmount(length: number) {
+  return Math.min(2.4, Math.max(.75, length * .004));
+}
+
+/** Gravity adds one quiet downward bow, shared by the moving and resting curves.
+ * Equal control offsets keep both anchors exact and add at most 9px at midspan. */
+function ropeSlack(controls: CurveControls, start: Point, end: Point): CurveControls {
+  const sag = Math.min(12, Math.abs(end.x - start.x) * .06);
+  return {
+    c1: { x: controls.c1.x, y: controls.c1.y + sag },
+    c2: { x: controls.c2.x, y: controls.c2.y + sag },
+  };
 }
 
 /** A zero-at-rest bend envelope for retract/extension plus a finite post-connect settle.
@@ -317,7 +343,7 @@ function connectorSnakeWave(elapsed: number, retractUntil: number, extensionAt: 
     const settleProgress = Math.max(0, Math.min(1,
       (elapsed - extensionAt - extendDuration) / CALLOUT_VACUUM_POST_CONNECT_SETTLE_MS));
     const envelope = (1 - eased(settleProgress)) * Math.exp(-4 * settleProgress * settleProgress);
-    return envelope * Math.cos(Math.PI * 2 * settleProgress);
+    return envelope;
   }
   return 0;
 }
@@ -350,7 +376,9 @@ function connectorGeometry(stage: HTMLElement, callout: CalloutDefinition, phone
   // Surface-relative fallback coordinates are already inside the panel, even if
   // an empty mobile conversation has not acquired its content height yet.
   const clampBox = !chatFallback && phone && callout.phoneTarget ? resolved.element.closest(PHONE_CLAMP_SELECTOR)?.getBoundingClientRect() : undefined;
-  if (clampBox) end.y = Math.max(clampBox.top + 56, Math.min(clampBox.bottom - 16, end.y));
+  // The Tools connector is intentionally attached to the request bubble's exact top border;
+  // clamping it to the chat surface would pull that endpoint a few pixels inside the card.
+  if (clampBox && callout.id !== 'tools') end.y = Math.max(clampBox.top + 56, Math.min(clampBox.bottom - 16, end.y));
   return { end, side, swing: phone ? callout.phoneSwing : undefined };
 }
 
@@ -628,12 +656,23 @@ export function PublicAstridCallouts({ stageRef, audience, reducedMotion, active
           ? connectorSnakeWave(elapsed, retractUntil, extensionAt, extendDuration)
           : 0;
         const curveLength = Math.hypot(effectiveEnd.x - sx, effectiveEnd.y - sy);
-        const bendAmount = Math.min(12, Math.max(4, curveLength * .04)) * wave;
+        // Keep the moving stroke a little more expressive than the resting curve,
+        // but bound it so long vertical paths do not develop a large S-wave and
+        // short horizontal paths do not look pinched. Both components share the
+        // same smooth phase envelope, so position and velocity meet at every gate.
+        const bendAmount = Math.min(14, Math.max(5, curveLength * .045)) * wave;
+        const trailAmount = snakeTrailAmount(curveLength) * wave;
         // Keep a small shared normal offset in the resting shape. The animated
         // bend is layered on top of that same canonical curve so the connector
         // retains a little tension instead of becoming rigid at rest.
-        const canonicalControls = snakeBend(baseControls, curveStart, effectiveEnd, restingBendAmount(curveLength));
-        const organicControls = snakeBend(canonicalControls, curveStart, effectiveEnd, bendAmount);
+        const canonicalControls = ropeSlack(snakeBend(
+          baseControls,
+          curveStart,
+          effectiveEnd,
+          restingBendAmount(curveLength),
+          snakeTrailAmount(curveLength) * .55,
+        ), curveStart, effectiveEnd);
+        const organicControls = snakeBend(canonicalControls, curveStart, effectiveEnd, bendAmount, trailAmount);
         const primedCurve = move?.primedCurves[index];
         const baseline = [
           curveStart.x, curveStart.y,
@@ -671,12 +710,21 @@ export function PublicAstridCallouts({ stageRef, audience, reducedMotion, active
         const frameDelta = move && move.curveLastPaintedAt[index] !== undefined
           ? Math.max(0, elapsed - move.curveLastPaintedAt[index]!)
           : 0;
-        // Frame-delta exponential easing is time-normalized and never snaps when
-        // a target or card geometry changes between measurements. It is applied
-        // only to controls; endpoints remain the exact residual/extension result.
-        const handoffProgress = move && !firstPaint
-          ? 1 - Math.exp(-frameDelta / Math.max(1, CALLOUT_CURVE_HANDOFF_MS))
-          : 0;
+        // Critically damped controls carry velocity instead of spending 480ms
+        // chasing the target and then catching up in one short terminal phase.
+        // Analytic integration is stable even when a screenshot drops frames.
+        const response = CALLOUT_CURVE_HANDOFF_MS / 6;
+        const velocities = move?.curveVelocities[index] ?? [];
+        const nextVelocities = Array(8).fill(0) as number[];
+        const followingCurve = renderedBaseline.map((value, coordinate) => {
+          if (!move || coordinate < 2 || coordinate > 5) return value;
+          const offset = handoffFrom[coordinate] - value;
+          const velocity = velocities[coordinate] ?? 0;
+          const decay = Math.exp(-frameDelta / response);
+          const coefficient = velocity + offset / response;
+          nextVelocities[coordinate] = (velocity - coefficient * frameDelta / response) * decay;
+          return value + (offset + coefficient * frameDelta) * decay;
+        });
         const postSettleAt = move?.extensionStartedAt[index] === undefined
           ? Infinity
           : move.extensionStartedAt[index]! + extendDuration + CALLOUT_VACUUM_SETTLE_MS + CALLOUT_VACUUM_POST_CONNECT_SETTLE_MS;
@@ -688,11 +736,10 @@ export function PublicAstridCallouts({ stageRef, audience, reducedMotion, active
         let capturedCanonical = canonicalCurve;
         if (canonicalizing) {
           if (move!.canonicalizeStartedAt[index] === undefined) {
-            // Anchor the finite phase to the scheduled post-settle boundary,
-            // not to the first draw that happens to observe it. A dropped or
-            // delayed frame must not strand cleanup at a fixed test/browser
-            // clock, and a late observation should never resurrect an old curve.
-            move!.canonicalizeStartedAt[index] = postSettleAt;
+            // Start from the actual painted position AND velocity at its actual
+            // sample time. Restarting at zero velocity makes a visible latch click.
+            move!.canonicalizeStartedAt[index] = move!.curveLastPaintedAt[index] ?? elapsed;
+            move!.canonicalizeVelocities[index] = velocities.slice();
             move!.canonicalizeFrom[index] = painted?.length === 8
               ? painted.slice()
               : renderedBaseline.slice();
@@ -711,7 +758,8 @@ export function PublicAstridCallouts({ stageRef, audience, reducedMotion, active
             move!.canonicalizeFrom[index] = painted?.length === 8
               ? painted.slice()
               : renderedBaseline.slice();
-            move!.canonicalizeStartedAt[index] = elapsed;
+            move!.canonicalizeStartedAt[index] = move!.curveLastPaintedAt[index] ?? elapsed;
+            move!.canonicalizeVelocities[index] = velocities.slice();
             move!.canonicalFramePainted[index] = false;
             capturedCanonical = move!.canonicalTarget[index];
           }
@@ -725,27 +773,37 @@ export function PublicAstridCallouts({ stageRef, audience, reducedMotion, active
         // always come from the live card anchor and target, including the first
         // post-commit frame and every reversal/post-settle frame. This keeps the
         // path attached while preserving continuity in the organic controls.
+        const latchControl = (coordinate: number) => {
+          const t = canonicalProgress;
+          const duration = CALLOUT_VACUUM_CANONICALIZE_MS;
+          const from = canonicalFrom[coordinate];
+          const to = capturedCanonical[coordinate];
+          const tangent = (move!.canonicalizeVelocities[index]?.[coordinate] ?? 0) * duration;
+          // Cubic Hermite: the incoming velocity is preserved and the resting
+          // curve is reached with exactly zero velocity, without oscillation.
+          nextVelocities[coordinate] = ((to - from) * (6 * t - 6 * t * t)
+            + tangent * (3 * t * t - 4 * t + 1)) / duration;
+          return from + (to - from) * eased(t) + tangent * t * (1 - t) * (1 - t);
+        };
         const curve = canonicalizing
           ? canonicalProgress >= 1
             ? capturedCanonical.slice()
             : canonicalCurve.map((value, coordinate) => coordinate >= 2 && coordinate <= 5
-              ? canonicalFrom[coordinate] + (capturedCanonical[coordinate] - canonicalFrom[coordinate]) * eased(canonicalProgress)
+              ? latchControl(coordinate)
               : value)
           : move
-            ? renderedBaseline.map((value, coordinate) => coordinate >= 2 && coordinate <= 5
-              ? handoffFrom[coordinate] + (value - handoffFrom[coordinate]) * handoffProgress
-              : value)
+            ? followingCurve
             : staticCanonical.slice();
         if (canonicalizing && canonicalProgress >= 1) move!.canonicalFramePainted[index] = true;
         // The first post-commit draw keeps the exact live endpoints and captured
         // controls. Later frames store their actual painted controls for the next
         // frame's continuous handoff.
         const exactHandoffFrame = firstPaint;
-        const paintedCurve = exactHandoffFrame ? curve.slice() : curve.map(value => Number(value.toFixed(1)));
+        const paintedCurve = exactHandoffFrame ? curve.slice() : curve.map(value => Number(value.toFixed(3)));
         setAttribute(path, 'data-connector-target', move && elapsed < slotTransitionEnd ? 'transition' : callout.id);
         const pathValue = exactHandoffFrame
           ? `M${paintedCurve[0]} ${paintedCurve[1]} C${paintedCurve.slice(2).join(' ')}`
-          : `M${paintedCurve[0].toFixed(1)} ${paintedCurve[1].toFixed(1)} C${paintedCurve.slice(2).map(value => value.toFixed(1)).join(' ')}`;
+          : `M${paintedCurve[0]} ${paintedCurve[1]} C${paintedCurve.slice(2).join(' ')}`;
         setAttribute(path, 'd', pathValue);
         setAttribute(dots[0], 'cx', paintedCurve[0].toFixed(1));
         setAttribute(dots[0], 'cy', paintedCurve[1].toFixed(1));
@@ -769,6 +827,7 @@ export function PublicAstridCallouts({ stageRef, audience, reducedMotion, active
           }
         }
         if (move) {
+          move.curveVelocities[index] = canonicalizing && canonicalProgress >= 1 ? Array(8).fill(0) : nextVelocities;
           move.paintedCurves[index] = paintedCurve;
           move.curveLastPaintedAt[index] = elapsed;
         }
