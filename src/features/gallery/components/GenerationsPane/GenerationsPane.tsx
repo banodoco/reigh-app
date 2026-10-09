@@ -12,6 +12,7 @@ import { UI_Z_LAYERS } from '@/shared/lib/uiLayers';
 import { usePanesStore } from '@/shared/state/panesStore';
 import { isToolLaunchable } from '@/shared/lib/tooling/toolCatalog';
 import { TOOL_IDS } from '@/shared/lib/tooling/toolIds';
+import { isVideoEditorShellActiveForLocation } from '@/app/hooks/useVideoEditorRouteState';
 
 type GenerationsPaneController = ReturnType<typeof useGenerationsPaneController>;
 
@@ -43,6 +44,8 @@ function GenerationsPaneBackdrop({ controller }: { controller: GenerationsPaneCo
 
 function GenerationsPaneTab({ controller }: { controller: GenerationsPaneController }) {
   const { pane, navigation, modal } = controller;
+  const isVideoEditorShellActive = typeof window !== 'undefined'
+    && isVideoEditorShellActiveForLocation(window.location.pathname, window.location.search);
   const effectiveGenerationsPaneHeight = usePanesStore((state) => state.effectiveGenerationsPaneHeight);
 
   if (pane.isOnImageGenerationPage) {
@@ -73,18 +76,20 @@ function GenerationsPaneTab({ controller }: { controller: GenerationsPaneControl
         shortcutHint: '⌥S',
       }}
       actions={{
-        thirdButton: isToolLaunchable(TOOL_IDS.IMAGE_GENERATION) ? {
+        thirdButton: !isVideoEditorShellActive && isToolLaunchable(TOOL_IDS.IMAGE_GENERATION) ? {
           onClick: navigation.handleNavigateToImageGeneration,
           ariaLabel: 'Go to Image Generation tool',
           tooltip: 'Go to Image Generation tool (⌥⇧S)',
           content: <Images className="h-4 w-4" />,
         } : undefined,
-        fourthButton: {
-          onClick: () => modal.setIsGenerationModalOpen(true),
-          ariaLabel: 'Generate new image',
-          tooltip: 'Generate new image',
-          content: <Sparkles className="h-4 w-4" />,
-        },
+        fourthButton: !isVideoEditorShellActive
+          ? {
+              onClick: () => modal.setIsGenerationModalOpen(true),
+              ariaLabel: 'Generate new image',
+              tooltip: 'Generate new image',
+              content: <Sparkles className="h-4 w-4" />,
+            }
+          : undefined,
       }}
       dataTour="generations-pane-tab"
       dataTourLock="generations-lock"

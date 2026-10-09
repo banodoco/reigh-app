@@ -3,7 +3,10 @@ import { renderHook } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import type { ReactNode } from 'react';
 import { MemoryRouter } from 'react-router-dom';
-import { useVideoEditorRouteState } from '@/app/hooks/useVideoEditorRouteState';
+import {
+  isVideoEditorShellActiveForLocation,
+  useVideoEditorRouteState,
+} from '@/app/hooks/useVideoEditorRouteState';
 
 function wrapperFor(initialPath: string) {
   return ({ children }: { children: ReactNode }) => (
@@ -16,6 +19,12 @@ function stateFor(path: string) {
 }
 
 describe('useVideoEditorRouteState', () => {
+  it('recognizes only timeline-backed editor locations for shell-only chrome', () => {
+    expect(isVideoEditorShellActiveForLocation('/tools/video-editor', '?localTimeline=local-timeline')).toBe(true);
+    expect(isVideoEditorShellActiveForLocation('/tools/video-editor', '')).toBe(false);
+    expect(isVideoEditorShellActiveForLocation('/tools/join-clips', '?timeline=app-timeline')).toBe(false);
+  });
+
   it('is inactive off the editor route', () => {
     const state = stateFor('/tools/join-clips?timeline=abc');
     expect(state.isEditorRoute).toBe(false);
