@@ -9,6 +9,7 @@ import type {
   AstridElementHost,
 } from '@/tools/video-editor/runtime/astrid-element-host.ts';
 import { INSTALLED_ASTRID_ELEMENT_HOST } from '@/tools/video-editor/runtime/astrid-element-components.tsx';
+import { resolveEndSpanningLayerPreviewParams } from '@/tools/video-editor/sequences/components/EndSpanningLayerSequence.tsx';
 import {
   SEQUENCE_COMPONENT_REGISTRY,
   describeClipCapabilityWith,
@@ -19,6 +20,12 @@ import {
   PUBLIC_ASTRID_ELEMENT_HOST,
 } from '@/pages/Home/astrid-public-host.tsx';
 import { ASTRID_RENDERING_ELEMENTS } from '@astrid/packs/rendering/elements/catalog.ts';
+import canonicalCard0 from '@astrid/packs/local/rendering/elements/effects/end-spanning-layer/assets/card-0-canonical-mink.png?url';
+import canonicalCard1 from '@astrid/packs/local/rendering/elements/effects/end-spanning-layer/assets/card-1.png?url';
+import canonicalCard2 from '@astrid/packs/local/rendering/elements/effects/end-spanning-layer/assets/card-2.png?url';
+import canonicalCard3 from '@astrid/packs/local/rendering/elements/effects/end-spanning-layer/assets/card-3.png?url';
+import canonicalCard4 from '@astrid/packs/local/rendering/elements/effects/end-spanning-layer/assets/card-4-canonical-mink.png?url';
+import canonicalCard5 from '@astrid/packs/local/rendering/elements/effects/end-spanning-layer/assets/card-5-canonical-mink.png?url';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
@@ -176,6 +183,85 @@ describe('V009 public host behavior qualification', () => {
       fps={30}
     />);
     expect(endView.container.querySelector('img')).toHaveAttribute('src', 'data:image/png;base64,caller-card');
+  });
+
+  it('renders canonical defaults and per-clip managed overrides through the installed local owner', () => {
+    const local = ASTRID_RENDERING_ELEMENTS.find((item) => (
+      item.id === 'end-spanning-layer' && item.kind === 'effect' && item.packId === 'local'
+    ));
+    expect(local).toBeDefined();
+    const clip = (id: string, at: number, params: Record<string, unknown>) => ({
+      id,
+      clipType: 'end-spanning-layer',
+      track: 'V1',
+      at,
+      hold: 4,
+      params,
+      elementRef: { id: 'end-spanning-layer', kind: 'effect' as const, packId: 'local', revision: local!.revision },
+    });
+    const clips = [
+      clip('override-this-clip', 0, {
+        phaseDurations: { prep: 1, iteration: 1, anchors: 1, workflow: 1 },
+        cardAssets: { card1: 'source-image' },
+      }),
+      clip('leave-this-clip-default', 5, {
+        phaseDurations: { prep: 1, iteration: 1, anchors: 1, workflow: 1 },
+      }),
+    ];
+    const config: ResolvedTimelineConfig = {
+      ...baseConfig(clips[0] as ResolvedTimelineConfig['clips'][number]),
+      clips: clips as ResolvedTimelineConfig['clips'],
+      registry: { 'source-image': { type: 'image/png', src: '/runtime/managed/source-image.png' } },
+    };
+    const view = render(<TimelineRenderer astridElementHost={INSTALLED_ASTRID_ELEMENT_HOST} config={config} />);
+    const sources = [...view.container.querySelectorAll('img')].map((image) => image.getAttribute('src'));
+    expect(sources.slice(0, 6)).toEqual([
+      canonicalCard0,
+      '/runtime/managed/source-image.png',
+      canonicalCard2,
+      canonicalCard3,
+      canonicalCard4,
+      canonicalCard5,
+    ]);
+    expect(sources.slice(6, 12)).toEqual([
+      canonicalCard0,
+      canonicalCard1,
+      canonicalCard2,
+      canonicalCard3,
+      canonicalCard4,
+      canonicalCard5,
+    ]);
+  });
+
+  it.each([
+    ['array override', { cardAssets: ['source-image'] }, /cardAssets must be an object/],
+    ['unresolved override', { cardAssets: { card1: 'missing-image' } }, /references unresolved asset/],
+  ])('fails closed for %s on the local effect adapter', (_label, params, message) => {
+    expect(() => resolveEndSpanningLayerPreviewParams(params, {})).toThrow(message);
+  });
+
+  it('does not interpret another installed owner’s params as local end-spanning card assets', () => {
+    const renderingTextCard = ASTRID_RENDERING_ELEMENTS.find((item) => (
+      item.id === 'text-card' && item.kind === 'effect' && item.packId === 'rendering'
+    ));
+    expect(renderingTextCard).toBeDefined();
+    expect(() => render(<TimelineRenderer
+      astridElementHost={INSTALLED_ASTRID_ELEMENT_HOST}
+      config={baseConfig({
+        id: 'rendering-owner-text-card',
+        clipType: 'text-card',
+        track: 'V1',
+        at: 0,
+        hold: 1,
+        params: { cardAssets: { card1: 'unrelated-value' } },
+        elementRef: {
+          id: 'text-card',
+          kind: 'effect',
+          packId: 'rendering',
+          revision: renderingTextCard!.revision,
+        },
+      })}
+    />)).not.toThrow();
   });
 
   it('rejects installed-only and unknown IDs without substitution and renders a loud typed placeholder', () => {

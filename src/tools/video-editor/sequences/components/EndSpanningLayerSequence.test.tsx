@@ -7,7 +7,7 @@ import {beforeEach, describe, expect, it, vi} from 'vitest';
 // Remotion's CJS graph and the sequence context is duplicated.
 import type {PlayerRef} from '@remotion/player';
 import {Sequence} from 'remotion';
-import EndSpanningLayer from '@astrid/packs/local/elements/effects/end-spanning-layer/component.tsx';
+import EndSpanningLayer, {END_SPANNING_CANVAS, fitEndSpanningCanvas} from '@astrid/packs/local/rendering/elements/effects/end-spanning-layer/component.tsx';
 
 const {Player} = createRequire(import.meta.url)('@remotion/player') as typeof import('@remotion/player');
 
@@ -47,7 +47,7 @@ const PHASES = {prep: 8 + 1 / 6, iteration: 3.7, anchors: 19 / 6, workflow: 163 
 const EFFECT_START = 1014;
 const WORKFLOW_START = 1465;
 const EFFECT_END = EFFECT_START + 810;
-type FixtureProps = {fps: number; params: Record<string, unknown>; hold: number; source?: string};
+type FixtureProps = {fps: number; params: Record<string, unknown>; hold: number; source?: string; width?: number; height?: number};
 
 function Fixture({fps, params, hold, source = '/api/media/minkhole.mp4'}: FixtureProps) {
   const props = {
@@ -61,9 +61,9 @@ function Fixture({fps, params, hold, source = '/api/media/minkhole.mp4'}: Fixtur
 
 function setup(frame: number, input: Partial<FixtureProps> = {}) {
   const ref = createRef<PlayerRef>();
-  const props: FixtureProps = {fps: 30, params: {phaseDurations: PHASES, selectedSegmentId: 'blue'}, hold: 27, ...input};
+  const props: FixtureProps = {fps: 30, params: {phaseDurations: PHASES, selectedSegmentId: 'blue'}, hold: 27, width: 1920, height: 1080, ...input};
   const view = render(<Player ref={ref} component={Fixture} inputProps={props} fps={props.fps}
-    durationInFrames={3000} compositionWidth={1920} compositionHeight={1080} initialFrame={frame}
+    durationInFrames={3000} compositionWidth={props.width} compositionHeight={props.height} initialFrame={frame}
     numberOfSharedAudioTags={0} acknowledgeRemotionLicense />);
   const seek = (next: number) => act(() => ref.current!.seekTo(next));
   return {...view, ref, seek};
@@ -78,6 +78,41 @@ beforeEach(() => {
 });
 
 describe('end-spanning workflow phase lifecycle with real Remotion sequences', () => {
+  it.each([
+    {width: 1920, height: 1080, scale: 1, left: 0, top: 0},
+    {width: 1280, height: 720, scale: 2 / 3, left: 0, top: 0},
+    {width: 1440, height: 1080, scale: 3 / 4, left: 0, top: 135},
+  ])('contains the authored canvas in a $width×$height composition without changing phase content', ({width, height, scale, left, top}) => {
+    const fit = fitEndSpanningCanvas(width, height);
+    expect(fit).toEqual({scale, left, top});
+
+    const {container} = setup(WORKFLOW_START + 100, {width, height});
+    const canvas = [...container.querySelectorAll('div')].find((element) =>
+      element.style.width === `${END_SPANNING_CANVAS.width}px`
+      && element.style.height === `${END_SPANNING_CANVAS.height}px`
+      && element.style.transformOrigin === 'top left',
+    );
+    expect(canvas).toBeDefined();
+    expect(canvas!.style.left).toBe(`${left}px`);
+    expect(canvas!.style.top).toBe(`${top}px`);
+    expect(canvas!.style.transform).toBe(`scale(${scale})`);
+    expect(container.querySelector('[style*="background-color: transparent"]')).toBeInTheDocument();
+
+    const strip = [...canvas!.querySelectorAll('div')].find((element) =>
+      element.style.left === '960px' && element.style.width === '1760px',
+    );
+    expect(strip).toBeDefined();
+    // The six-card authored strip spans [80, 1840] inside the 1920px canvas.
+    // Uniform contain scaling keeps it inside all three target compositions.
+    expect(left + 80 * scale).toBeGreaterThanOrEqual(0);
+    expect(left + 1840 * scale).toBeLessThanOrEqual(width);
+    const workflowLabel = [...canvas!.querySelectorAll('div')].find((element) =>
+      element.style.left === '24px' && element.style.top === '18px'
+      && element.textContent?.startsWith('MINKHOLE OUTPUT ·'),
+    );
+    expect(workflowLabel?.textContent).toContain('MINKHOLE OUTPUT ·');
+  });
+
   it('prepares at phase-local zero for two seconds and activates the same media instance at frame 1465', () => {
     const {seek} = setup(WORKFLOW_START - 61);
     expect(screen.queryByTestId('media-probe')).toBeNull();

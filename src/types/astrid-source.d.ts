@@ -100,3 +100,18 @@ declare module '@astrid/packs/local/rendering/elements/effects/end-spanning-laye
   const cardUrl: string;
   export default cardUrl;
 }
+
+declare module '@astrid/packs/local/rendering/elements/effects/end-spanning-layer/assets/card-0-canonical-mink.png?url' {
+  const cardUrl: string;
+  export default cardUrl;
+}
+
+declare module '@astrid/packs/local/rendering/elements/effects/end-spanning-layer/assets/card-4-canonical-mink.png?url' {
+  const cardUrl: string;
+  export default cardUrl;
+}
+
+declare module '@astrid/packs/local/rendering/elements/effects/end-spanning-layer/assets/card-5-canonical-mink.png?url' {
+  const cardUrl: string;
+  export default cardUrl;
+}

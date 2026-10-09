@@ -45,6 +45,7 @@ export function useVideoEditorPreviewSurface({
   }), [hasShotClips, previewComposition, resolvedConfig, runtime?.shots?.canonicalCompositionError,
     runtime?.shots?.shotComposition, runtime?.userId]);
   const previewConfig = compositionResolution.config;
+  const hasConfig = Boolean(previewConfig);
   const previewSource = compositionResolution.source;
   const {
     currentTime,
@@ -57,7 +58,10 @@ export function useVideoEditorPreviewSurface({
     playerContainerRef: playback.playerContainerRef,
     onPreviewTimeUpdate: playback.onPreviewTimeUpdate,
   }), shallow);
-  const [slotNode, setSlotNode] = useState<HTMLDivElement | null>(null);
+  const [{ slotNode, generation: attachmentGeneration }, setAttachment] = useState({
+    slotNode: null as HTMLDivElement | null,
+    generation: 0,
+  });
   const [hostNode] = useState<HTMLDivElement | null>(() => {
     if (typeof document === 'undefined') {
       return null;
@@ -69,19 +73,17 @@ export function useVideoEditorPreviewSurface({
   });
 
   const slotRef = useCallback<RefCallback<HTMLDivElement>>((node) => {
-    setSlotNode(node);
+    setAttachment((previous) => previous.slotNode === node
+      ? previous
+      : { slotNode: node, generation: previous.generation + 1 });
   }, []);
 
+  // Config revisions update the portal props, not its physical attachment.
+  // Disconnecting a retained host destroys any nested iframe document while
+  // React still owns its acknowledged scene transport.
   useLayoutEffect(() => {
-    if (!hostNode) {
+    if (!hostNode || !hasConfig || !slotNode) {
       return;
-    }
-
-    if (!previewConfig || !slotNode) {
-      hostNode.remove();
-      return () => {
-        hostNode.remove();
-      };
     }
 
     if (hostNode.parentElement !== slotNode) {
@@ -91,16 +93,18 @@ export function useVideoEditorPreviewSurface({
     return () => {
       hostNode.remove();
     };
-  }, [hostNode, previewConfig, slotNode]);
+  }, [hostNode, hasConfig, slotNode]);
 
   const portal = useMemo(() => {
-    if (!hostNode || !previewConfig) {
+    if (!hostNode || !previewConfig || !slotNode) {
       return null;
     }
 
     return createPortal(
       <RemotionPreview
-        key={previewSource}
+        // A physical slot move replaces nested iframe documents. Remount all
+        // preview ownership together, starting at the current paused playhead.
+        key={`${previewSource}:${attachmentGeneration}`}
         ref={previewRef}
         config={previewConfig}
         compact={compact}
@@ -112,6 +116,8 @@ export function useVideoEditorPreviewSurface({
       hostNode,
     );
   }, [
+    attachmentGeneration,
+    slotNode,
     compact,
     currentTime,
     touchChrome,

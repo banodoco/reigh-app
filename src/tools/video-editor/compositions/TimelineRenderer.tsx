@@ -58,6 +58,7 @@ import {
   type AstridDynamicSequenceEntry,
   type AstridElementHost,
 } from '@/tools/video-editor/runtime/astrid-element-host.ts';
+import { resolveEndSpanningLayerPreviewParams } from '@/tools/video-editor/sequences/components/EndSpanningLayerSequence.tsx';
 
 // Phase 4d (Sprint 5): EFFECT_REGISTRY dispatch.
 //
@@ -458,6 +459,8 @@ const AstridEffectPreviewSequence: FC<{
   fps: number;
   theme: RuntimeTheme;
   assetEntry?: ResolvedTimelineClip['assetEntry'];
+  resolvedAssets: ResolvedTimelineConfig['registry'];
+  elementOwner?: AstridElementHost['descriptors'][number];
   component: ComponentType<{
     clip: ResolvedTimelineClip;
     params: Record<string, unknown>;
@@ -465,9 +468,21 @@ const AstridEffectPreviewSequence: FC<{
     fps: number;
     assetEntry?: ResolvedTimelineClip['assetEntry'];
   }>;
-}> = ({ clip, fps, theme, assetEntry, component: Component }) => {
+}> = ({ clip, fps, theme, assetEntry, resolvedAssets, elementOwner, component: Component }) => {
   const durationInFrames = getClipDurationInFrames(clip, fps);
   if (!Component) return null;
+  const pinMatchesOwner = !clip.elementRef || (
+    clip.elementRef.id === elementOwner?.id
+    && clip.elementRef.kind === elementOwner?.kind
+    && clip.elementRef.packId === elementOwner?.packId
+    && clip.elementRef.revision === elementOwner?.revision
+  );
+  const params = elementOwner?.id === 'end-spanning-layer'
+    && elementOwner.kind === 'effect'
+    && elementOwner.packId === 'local'
+    && pinMatchesOwner
+    ? resolveEndSpanningLayerPreviewParams(clip.params, resolvedAssets)
+    : clip.params ?? {};
   return (
     <Sequence
       key={clip.id}
@@ -477,7 +492,7 @@ const AstridEffectPreviewSequence: FC<{
       <ThemeProvider value={theme}>
         <Component
           clip={clip}
-          params={clip.params ?? {}}
+          params={params}
           theme={theme}
           fps={fps}
           assetEntry={resolveAstridComponentAssetEntry(assetEntry)}
@@ -1465,6 +1480,13 @@ const VisualTrack: FC<VisualTrackProps> = ({
                 fps={fps}
                 theme={theme}
                 assetEntry={clip.assetEntry}
+                resolvedAssets={renderConfig.registry}
+                elementOwner={astridElementHost.descriptors.find((candidate) => (
+                  candidate.id === clip.elementRef?.id
+                  && candidate.kind === clip.elementRef?.kind
+                  && candidate.packId === clip.elementRef?.packId
+                  && candidate.revision === clip.elementRef?.revision
+                ))}
                 component={astridComponent}
               />
             );
@@ -1562,6 +1584,10 @@ const VisualTrack: FC<VisualTrackProps> = ({
                 fps={fps}
                 theme={theme}
                 assetEntry={clip.assetEntry}
+                resolvedAssets={renderConfig.registry}
+                elementOwner={astridElementHost.descriptors.find((candidate) => (
+                  candidate.id === clip.clipType && candidate.kind === 'effect'
+                ))}
                 component={astridEffect}
               />
             );

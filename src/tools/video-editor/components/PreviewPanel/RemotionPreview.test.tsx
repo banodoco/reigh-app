@@ -12,7 +12,7 @@ vi.mock('@/tools/video-editor/compositions/TimelineRenderer', () => ({
 }));
 
 const playerListeners = new Map<string, Set<(...args: any[]) => void>>();
-const playerPropsHistory: Array<{ config: ResolvedTimelineConfig; astridElementHost?: AstridElementHost; numberOfSharedAudioTags?: number }> = [];
+const playerPropsHistory: Array<{ config: ResolvedTimelineConfig; astridElementHost?: AstridElementHost; numberOfSharedAudioTags?: number; initialFrame?: number; compositionWidth?: number; compositionHeight?: number }> = [];
 const playerHandles: Array<{
   seekTo: ReturnType<typeof vi.fn>;
   getCurrentFrame: ReturnType<typeof vi.fn>;
@@ -25,13 +25,16 @@ vi.mock('@remotion/player', async () => {
 
   return {
     Player: React.forwardRef(function MockPlayer(
-      props: { inputProps: { config: ResolvedTimelineConfig; astridElementHost?: AstridElementHost }; numberOfSharedAudioTags?: number },
+      props: { inputProps: { config: ResolvedTimelineConfig; astridElementHost?: AstridElementHost }; numberOfSharedAudioTags?: number; initialFrame?: number; compositionWidth?: number; compositionHeight?: number },
       ref: React.Ref<unknown>,
     ) {
       playerPropsHistory.push({
         config: props.inputProps.config,
         astridElementHost: props.inputProps.astridElementHost,
         numberOfSharedAudioTags: props.numberOfSharedAudioTags,
+        initialFrame: props.initialFrame,
+        compositionWidth: props.compositionWidth,
+        compositionHeight: props.compositionHeight,
       });
       React.useImperativeHandle(ref, () => {
         const seekTo = vi.fn();
@@ -156,6 +159,40 @@ describe('RemotionPreview', () => {
 
   afterEach(() => {
     vi.useRealTimers();
+  });
+
+  it('starts a genuine attachment remount paused at the latest authoritative playhead and dimensions', () => {
+    const previewRef = createRef<PreviewHandle>();
+    const playerContainerRef = createRef<HTMLDivElement>();
+    const onTimeUpdate = vi.fn();
+    const { rerender } = render(<RemotionPreview
+      key="attachment-1"
+      ref={previewRef}
+      config={makeConfig('before-slot-move', 4)}
+      initialTime={1.25}
+      onTimeUpdate={onTimeUpdate}
+      playerContainerRef={playerContainerRef}
+    />);
+    expect(playerPropsHistory.at(-1)?.initialFrame).toBe(38);
+    act(() => previewRef.current?.play());
+    expect(playerHandles[0]!.play).toHaveBeenCalledTimes(1);
+
+    const latest = makeConfig('latest-slot', 4, 24);
+    latest.output.resolution = '1920x1080';
+    rerender(<RemotionPreview
+      key="attachment-2"
+      ref={previewRef}
+      config={latest}
+      initialTime={2.5}
+      onTimeUpdate={onTimeUpdate}
+      playerContainerRef={playerContainerRef}
+    />);
+    expect(playerHandles).toHaveLength(2);
+    expect(playerPropsHistory.at(-1)).toMatchObject({
+      config: latest, initialFrame: 60, compositionWidth: 1920, compositionHeight: 1080,
+    });
+    expect(playerHandles[1]!.play).not.toHaveBeenCalled();
+    expect(previewRef.current?.isPlaying).toBe(false);
   });
 
   it('forwards the provider-owned Astrid element host to the actual Player', () => {
