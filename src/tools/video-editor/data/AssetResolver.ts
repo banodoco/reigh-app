@@ -51,7 +51,7 @@ export interface MediaImportOptions {
  * whole browser file or creating an import operation when the request cannot
  * be accepted by Runtime.
  */
-export const RUNTIME_MEDIA_IMPORT_MAX_BYTES = 64 * 1024 * 1024;
+export const RUNTIME_MEDIA_IMPORT_MAX_BYTES = 5 * 1024 ** 3;
 
 export function assertRuntimeMediaImportSize(file: Pick<File, 'name' | 'size'>): void {
   if (file.size <= RUNTIME_MEDIA_IMPORT_MAX_BYTES) {
@@ -59,7 +59,7 @@ export function assertRuntimeMediaImportSize(file: Pick<File, 'name' | 'size'>):
   }
 
   throw new Error(
-    `${file.name} exceeds the Workspace Runtime media limit of 64 MiB`,
+    `${file.name} exceeds the Workspace Runtime media limit of 5 GiB`,
   );
 }
 

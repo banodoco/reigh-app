@@ -9,6 +9,11 @@ const mocks = vi.hoisted(() => ({
   useAgentChatActionsRegistry: vi.fn(),
   useVideoEditorRuntime: vi.fn(),
   useAgentSessions: vi.fn(),
+  useProjectChat: vi.fn(),
+  useSaveProjectDraft: vi.fn(),
+  useSelectProjectSession: vi.fn(),
+  useUnassignedProjectSessions: vi.fn(),
+  useAssociateProjectSession: vi.fn(),
   useCreateSession: vi.fn(),
   useAgentSession: vi.fn(),
   useSendMessage: vi.fn(),
@@ -36,6 +41,11 @@ vi.mock('@/tools/video-editor/contexts/VideoEditorRuntimeContext', () => ({
 vi.mock('@/tools/video-editor/hooks/useAgentSession', () => ({
   isTimelineAgentSessionsAvailable: () => mocks.agentSessionsAvailable,
   useAgentSessions: (...args: unknown[]) => mocks.useAgentSessions(...args),
+  useProjectChat: (...args: unknown[]) => mocks.useProjectChat(...args),
+  useSaveProjectDraft: (...args: unknown[]) => mocks.useSaveProjectDraft(...args),
+  useSelectProjectSession: (...args: unknown[]) => mocks.useSelectProjectSession(...args),
+  useUnassignedProjectSessions: (...args: unknown[]) => mocks.useUnassignedProjectSessions(...args),
+  useAssociateProjectSession: (...args: unknown[]) => mocks.useAssociateProjectSession(...args),
   useCreateSession: (...args: unknown[]) => mocks.useCreateSession(...args),
   useAgentSession: (...args: unknown[]) => mocks.useAgentSession(...args),
   useSendMessage: (...args: unknown[]) => mocks.useSendMessage(...args),
@@ -182,6 +192,11 @@ function mockFromState(state: ReturnType<typeof createState>) {
     data: state.sessionsData,
     isLoading: false,
   }));
+  mocks.useProjectChat.mockImplementation(() => ({ data: undefined, refetch: vi.fn() }));
+  mocks.useSaveProjectDraft.mockImplementation(() => ({ mutateAsync: vi.fn(), isPending: false }));
+  mocks.useSelectProjectSession.mockImplementation(() => ({ mutate: vi.fn(), isPending: false }));
+  mocks.useUnassignedProjectSessions.mockImplementation(() => ({ data: undefined, isLoading: false }));
+  mocks.useAssociateProjectSession.mockImplementation(() => ({ mutate: vi.fn(), isPending: false }));
   mocks.useCreateSession.mockImplementation(() => state.createSession);
   mocks.useAgentSession.mockImplementation(() => ({
     data: state.activeSessionData,
@@ -281,6 +296,18 @@ describe('AgentChat', () => {
 
     expect(await screen.findByText('Select a project to start chatting.')).toBeInTheDocument();
     await waitFor(() => expect(state.createSession.mutate).not.toHaveBeenCalled());
+  });
+
+  it('shows saved-chat load failures and retries only when the user clicks Retry saved chat', async () => {
+    const state = createState();
+    mockFromState(state);
+    const refetch = vi.fn();
+    mocks.useAgentSession.mockReturnValue({ data: undefined, error: new Error('ACP session not found: saved-chat'), isFetching: false, refetch });
+    renderAgentChat();
+    expect(await screen.findByText('ACP session not found: saved-chat')).toBeInTheDocument();
+    expect(refetch).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Retry saved chat' }));
+    expect(refetch).toHaveBeenCalledTimes(1);
   });
 
   it('uses four composer rows in split view and eight when chat fills the pane', async () => {
@@ -540,6 +567,59 @@ describe('project-only Astrid chat', () => {
     await waitFor(() => expect(state.sendMessage.mutateAsync).toHaveBeenCalled());
     expect(mocks.useAgentSessions).toHaveBeenCalledWith(null, 'project-1');
     expect(mocks.useCreateSession).toHaveBeenCalledWith(null, 'project-1');
-    expect(mocks.useSendMessage).toHaveBeenCalledWith('session-1', context);
+    expect(mocks.useSendMessage).toHaveBeenCalledWith('session-1', context, 'project-1');
+  });
+});
+
+
+describe('project draft consumer ownership', () => {
+  it('hydrates each project draft/queue, flushes to its original owner on switch, and reopens retained local text', async () => {
+    vi.clearAllMocks();
+    mocks.agentSessionsAvailable = true;
+    mocks.panesState.isTasksPaneLocked = true;
+    const state = createState();
+    state.activeSessionData.status = 'processing';
+    mockFromState(state);
+    const context = (projectId: string) => ({ tool: 'video-editor' as const, projectId, projectSlug: projectId, timelineId: null, timelineName: null });
+    let currentProject = 'draft-owner-a';
+    mocks.useAgentChatBridge.mockImplementation(() => ({ timelineId: null, editorContext: context(currentProject) }));
+    const drafts = new Map(['draft-owner-a', 'draft-owner-b'].map((projectId) => [projectId, {
+      project_id: projectId, scope_key: `realm:store:${projectId}`, revision: 1,
+      selected_session_id: `session-${projectId}`, sessions: [{ id: `session-${projectId}` }],
+      draft: { text: `saved ${projectId}`, revision: 3, queued_messages: [
+        { id: `queue-${projectId}`, text: `queued ${projectId}`, session_id: `session-${projectId}`, attachments: [] },
+      ] },
+    }]));
+    mocks.useProjectChat.mockImplementation((projectId: string) => ({ data: drafts.get(projectId), refetch: vi.fn() }));
+    mocks.useAgentSessions.mockImplementation((_timelineId: null, projectId: string) => ({ data: [{ id: `session-${projectId}`, status: 'processing' }], isLoading: false }));
+    const saved: Array<{ projectId: string; text: string; queuedMessages: Array<{ session_id: string }> }> = [];
+    mocks.useSaveProjectDraft.mockImplementation((projectId: string) => ({ isPending: false, mutateAsync: vi.fn(async (input: {
+      expectedRevision: number; text: string; queuedMessages: Array<{ id: string; text: string; session_id: string; attachments: never[] }>;
+    }) => {
+      saved.push({ projectId, text: input.text, queuedMessages: input.queuedMessages });
+      const previous = drafts.get(projectId)!;
+      const next = { ...previous, draft: { text: input.text, revision: input.expectedRevision + 1, queued_messages: input.queuedMessages } };
+      drafts.set(projectId, next); return next;
+    }) }));
+    const view = renderAgentChat();
+    try {
+      await waitFor(() => expect(screen.getByRole('textbox')).toHaveValue('saved draft-owner-a'));
+      expect(getQueuedTexts()).toEqual(['queued draft-owner-a']);
+      fireEvent.change(screen.getByRole('textbox'), { target: { value: 'local text for A' } });
+      currentProject = 'draft-owner-b';
+      rerenderAgentChat(view.rerender);
+      await waitFor(() => expect(screen.getByRole('textbox')).toHaveValue('saved draft-owner-b'));
+      await waitFor(() => expect(saved).toContainEqual(expect.objectContaining({ projectId: 'draft-owner-a', text: 'local text for A' })));
+      expect(getQueuedTexts()).toEqual(['queued draft-owner-b']);
+      expect(mocks.useSendMessage).toHaveBeenCalledWith('session-draft-owner-b', context('draft-owner-b'), 'draft-owner-b');
+      fireEvent.change(screen.getByRole('textbox'), { target: { value: 'local text for B' } });
+      currentProject = 'draft-owner-a';
+      rerenderAgentChat(view.rerender);
+      await waitFor(() => expect(screen.getByRole('textbox')).toHaveValue('local text for A'));
+      await waitFor(() => expect(saved).toContainEqual(expect.objectContaining({ projectId: 'draft-owner-b', text: 'local text for B' })));
+      expect(getQueuedTexts()).toEqual(['queued draft-owner-a']);
+      expect(saved.every(({ projectId, queuedMessages }) => queuedMessages.every(item => item.session_id === `session-${projectId}`))).toBe(true);
+      expect(state.sendMessage.mutateAsync).not.toHaveBeenCalled();
+    } finally { view.unmount(); }
   });
 });

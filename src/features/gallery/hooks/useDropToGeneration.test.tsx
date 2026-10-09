@@ -2,6 +2,7 @@ import React from 'react';
 import { beforeAll, describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { RUNTIME_MEDIA_IMPORT_MAX_BYTES } from '@/tools/video-editor/data/AssetResolver.ts';
 
 const createGenerationForUploadedImageMock = vi.fn();
 const createGenerationForUploadedVideoMock = vi.fn();
@@ -171,7 +172,7 @@ describe('useDropToGeneration', () => {
     });
   });
 
-  it('rejects Runtime files above 64 MiB before media import or gallery refresh', async () => {
+  it('rejects Runtime files above 5 GiB before media import or gallery refresh', async () => {
     useResolvedGalleryProjectMock.mockReturnValue({
       projectId: 'runtime-project-id',
       runtimeAuthority: true,
@@ -188,7 +189,7 @@ describe('useDropToGeneration', () => {
       wrapper: createWrapper(queryClient),
     });
     const oversizedVideo = new File(['x'], 'huge.mp4', { type: 'video/mp4' });
-    Object.defineProperty(oversizedVideo, 'size', { value: 64 * 1024 * 1024 + 1 });
+    Object.defineProperty(oversizedVideo, 'size', { value: RUNTIME_MEDIA_IMPORT_MAX_BYTES + 1 });
 
     await act(async () => {
       await result.current([oversizedVideo]);

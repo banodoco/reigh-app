@@ -1,0 +1,24 @@
+{
+  "extends": "./tsconfig.app.json",
+  "compilerOptions": {
+    "types": [
+      "node",
+      "vitest/globals"
+    ],
+    "resolveJsonModule": true
+  },
+  "include": [
+    "src/integrations/runtime/client.test.ts",
+    "src/integrations/runtime/mediaImport.test.ts",
+    "src/integrations/runtime/dataProvider.test.ts",
+    "src/integrations/runtime/shotCompositionRuntime.test.ts",
+    "src/tools/video-editor/hooks/useAssetManagement.mediaImport.test.tsx",
+    "src/features/gallery/hooks/useDropToGeneration.test.tsx",
+    "src/vite-env.d.ts",
+    "src/types/browser-extensions.d.ts",
+    "src/types/gifenc.d.ts",
+    "src/types/astrid-source.d.ts",
+    "src/test/setup.ts"
+  ],
+  "exclude": []
+}

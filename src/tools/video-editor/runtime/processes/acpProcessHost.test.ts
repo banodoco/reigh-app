@@ -110,6 +110,20 @@ describe('AcpProcessHost', () => {
     expect(process.stdin.ended).toBe(true);
   });
 
+  it('surfaces the installed agent session-not-found detail instead of generic Internal error', async () => {
+    const process = new FakeProcess();
+    const host = new AcpProcessHost({ process: process.asProcess() });
+    const loading = host.loadSession({ sessionId: 'saved-chat' });
+    await flush();
+    const request = lastRequest(process);
+    process.stdout.emit('data', `${JSON.stringify({
+      jsonrpc: '2.0', id: request.id,
+      error: { code: -32603, message: 'Internal error', data: { details: 'ACP session not found: saved-chat' } },
+    })}\n`);
+    await expect(loading).rejects.toMatchObject({ code: 'acp_transport', message: 'ACP request "session/load" failed: ACP session not found: saved-chat' });
+    await host.dispose();
+  });
+
   it('forwards notifications and answers explicit permission callbacks without ambient authority', async () => {
     const notifications: Record<string, unknown>[] = [];
     const process = new FakeProcess();

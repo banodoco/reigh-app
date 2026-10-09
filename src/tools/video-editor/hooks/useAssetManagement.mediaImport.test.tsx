@@ -8,6 +8,7 @@ import {
   type VideoEditorRuntimeContextValue,
 } from '@/tools/video-editor/contexts/VideoEditorRuntimeContext.tsx';
 import { useAssetManagement } from './useAssetManagement';
+import { RUNTIME_MEDIA_IMPORT_MAX_BYTES } from '@/tools/video-editor/data/AssetResolver.ts';
 
 const extractVideoMetadataMock = vi.fn();
 
@@ -111,10 +112,10 @@ describe('useAssetManagement Runtime media imports', () => {
       resolveAssetUrl: vi.fn(),
     });
     const oversizedImage = new File(['image'], 'huge.png', { type: 'image/png' });
-    Object.defineProperty(oversizedImage, 'size', { value: 64 * 1024 * 1024 + 1 });
+    Object.defineProperty(oversizedImage, 'size', { value: RUNTIME_MEDIA_IMPORT_MAX_BYTES + 1 });
 
     await expect(result.current.uploadImageGeneration(oversizedImage)).rejects.toThrow(
-      'huge.png exceeds the Workspace Runtime media limit of 64 MiB',
+      'huge.png exceeds the Workspace Runtime media limit of 5 GiB',
     );
     expect(prepareMediaImport).not.toHaveBeenCalled();
   });

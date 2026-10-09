@@ -6,9 +6,11 @@ import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import VideoEditorPage from '@/tools/video-editor/pages/VideoEditorPage.tsx';
 import { RuntimeAuthenticationError } from '@/integrations/runtime/client.ts';
+import { AgentChatProvider, useAgentChatBridge } from '@/shared/contexts/AgentChatContext.tsx';
 import { setDevExtensionEnabled } from '@/tools/video-editor/dev/devExtensionEnablement.ts';
 
 const state = vi.hoisted(() => ({
+  workspaceV1: false,
   auth: { userId: 'user-1' as string | null },
   project: {
     selectedProjectId: 'project-1' as string | null,
@@ -50,7 +52,7 @@ const state = vi.hoisted(() => ({
     healthLoading: false,
     projectsLoading: false,
     projectsError: null as Error | null,
-    projects: [] as { slug: string; name: string }[],
+    projects: [] as { slug: string; name: string; project_id?: string }[],
     timelinesLoading: false,
     timelinesError: null as Error | null,
     timelines: [] as {
@@ -99,6 +101,11 @@ const state = vi.hoisted(() => ({
     state.runtimeOnError = (options as { onRuntimeError?: (error: unknown) => void }).onRuntimeError ?? null;
   }),
 }));
+
+vi.mock('@/integrations/astrid/workspaceV1.ts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/integrations/astrid/workspaceV1.ts')>();
+  return { ...actual, get isAstridWorkspaceV1() { return state.workspaceV1; } };
+});
 
 vi.mock('@/shared/contexts/AuthContext.tsx', () => ({
   useAuth: () => state.auth,
@@ -178,10 +185,13 @@ vi.mock('@/tools/video-editor/components/ReighVideoEditorShell.tsx', () => ({
 
 vi.mock('@/tools/video-editor/contexts/VideoEditorProvider.tsx', async () => {
   const ReactModule = await import('react');
+  const { useOptionalAgentChatRegistry } = await import('@/shared/contexts/AgentChatContext.tsx');
 
   return {
     VideoEditorProvider: ({
       dataProvider,
+      projectId,
+      projectSlug,
       timelineId,
       timelineName,
       onSaveStatusChange,
@@ -190,6 +200,8 @@ vi.mock('@/tools/video-editor/contexts/VideoEditorProvider.tsx', async () => {
       children,
     }: {
       dataProvider: { kind?: string };
+      projectId?: string | null;
+      projectSlug?: string | null;
       timelineId: string;
       timelineName?: string | null;
       onSaveStatusChange?: (status: 'saved' | 'saving' | 'dirty' | 'retrying' | 'error') => void;
@@ -197,6 +209,15 @@ vi.mock('@/tools/video-editor/contexts/VideoEditorProvider.tsx', async () => {
       timelineOverlaysEnabled?: boolean;
       children: React.ReactNode;
     }) => {
+      const registry = useOptionalAgentChatRegistry();
+      ReactModule.useEffect(() => {
+        if (!registry) return;
+        registry.register({ timelineId, editorContext: projectId ? {
+          tool: 'video-editor', projectId, projectSlug: projectSlug ?? null, timelineId, timelineName: timelineName ?? null,
+          timelineSummary: { configVersion: 7, trackCount: 1, clipCount: 2, assetCount: 1, duration: 4 },
+        } : null });
+        return registry.unregister;
+      }, [registry, projectId, projectSlug, timelineId, timelineName]);
       const [saveStatus, setSaveStatus] = ReactModule.useState<'saved' | 'saving' | 'dirty' | 'retrying' | 'error'>('saved');
       state.saveStatusCallback = onSaveStatusChange ?? null;
       state.lastProviderExtensions = extensions ?? null;
@@ -268,7 +289,12 @@ vi.mock('@/tools/video-editor/contexts/VideoEditorProvider.tsx', async () => {
   };
 });
 
-function renderPage(initialEntry: string) {
+function ChatScopeProbe() {
+  const scope = useAgentChatBridge();
+  return <output data-testid="chat-scope">{JSON.stringify(scope.editorContext)}</output>;
+}
+
+function renderPage(initialEntry: string, withChatScope = false) {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: {
@@ -283,7 +309,7 @@ function renderPage(initialEntry: string) {
         initialEntries={[initialEntry]}
         future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
       >
-        <VideoEditorPage />
+        {withChatScope ? <AgentChatProvider><VideoEditorPage /><ChatScopeProbe /></AgentChatProvider> : <VideoEditorPage />}
       </MemoryRouter>
     </QueryClientProvider>,
   );
@@ -302,6 +328,7 @@ describe('VideoEditorPage', () => {
   beforeEach(() => {
     (import.meta.env as Record<string, unknown>).DEV = true;
     window.localStorage.clear();
+    state.workspaceV1 = false;
     state.auth.userId = 'user-1';
     state.project.selectedProjectId = 'project-1';
     state.project.setSelectedProjectId.mockClear();
@@ -361,6 +388,36 @@ describe('VideoEditorPage', () => {
 
   afterEach(() => {
     (import.meta.env as Record<string, unknown>).DEV = originalDEV;
+  });
+
+  it('publishes canonical Runtime project chat scope before any timeline exists and updates it on dropdown selection', async () => {
+    state.workspaceV1 = true;
+    state.discovery.timelines = [];
+    state.discovery.projects = [
+      { slug: 'fresh-project', name: 'Fresh project', project_id: 'runtime-p1' },
+      { slug: 'other-project', name: 'Other project', project_id: 'runtime-p2' },
+    ];
+    renderPage('/tools/video-editor?localProject=fresh-project', true);
+    const scope = () => JSON.parse(screen.getByTestId('chat-scope').textContent!);
+    await waitFor(() => expect(scope()).toMatchObject({ projectId: 'runtime-p1', projectSlug: 'fresh-project', timelineId: null }));
+    expect(screen.queryByTestId('video-editor-provider')).toBeNull();
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('combobox', { name: 'Select project' }));
+    await user.click(await screen.findByRole('option', { name: /Other project/ }));
+    await waitFor(() => expect(scope()).toMatchObject({ projectId: 'runtime-p2', projectSlug: 'other-project', timelineId: null }));
+    expect(state.runtimeCtor).not.toHaveBeenCalled();
+  });
+
+  it('keeps canonical Runtime identity and full live editor context when a timeline is present', async () => {
+    state.workspaceV1 = true;
+    state.discovery.projects = [{ slug: 'fresh-project', name: 'Fresh project', project_id: 'runtime-p1' }];
+    renderPage('/tools/video-editor?localProject=fresh-project&localTimeline=11111111-1111-1111-1111-111111111111', true);
+    await screen.findByTestId('video-editor-provider');
+    await waitFor(() => expect(JSON.parse(screen.getByTestId('chat-scope').textContent!)).toMatchObject({
+      projectId: 'runtime-p1', projectSlug: 'fresh-project', timelineId: '11111111-1111-1111-1111-111111111111',
+      timelineSummary: { configVersion: 7 },
+    }));
+    expect(state.runtimeCtor).toHaveBeenCalledWith(expect.objectContaining({ projectId: 'runtime-p1' }));
   });
 
   it('surfaces Runtime auth recovery in the existing Runtime editor route', async () => {

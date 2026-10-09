@@ -12,6 +12,7 @@ import { isHomeToolPathActive } from '@/shared/lib/tooling/homeNavigation.ts';
 import { Button } from '@/shared/components/ui/button.tsx';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/shared/components/ui/card.tsx';
 import { Skeleton } from '@/shared/components/ui/skeleton.tsx';
+import { useOptionalAgentChatRegistry } from '@/shared/contexts/AgentChatContext.tsx';
 import { useOptionalGlobalHeaderSlot } from '@/shared/contexts/ToolPageHeaderContext.tsx';
 import { toast } from '@/shared/components/ui/toast.tsx';
 import {
@@ -394,6 +395,25 @@ export default function VideoEditorPage() {
   const localProjectId = discovery.projectsQuery.data?.projects?.find(
     (project) => project.slug === localProjectSlug,
   )?.project_id ?? null;
+
+  // Project chat is available even when the selected project has no timeline.
+  // The mounted editor adds its live timeline/Elements context as a higher layer.
+  const agentChatRegistry = useOptionalAgentChatRegistry();
+  const chatProjectId = mode === 'runtime' ? runtimeProjectId
+    : isAstridWorkspaceV1 ? localProjectId : localProjectSlug;
+  const chatProjectSlug = mode === 'runtime' ? runtimeProjectId : localProjectSlug;
+  useEffect(() => {
+    if (!agentChatRegistry) return;
+    agentChatRegistry.registerProject({
+      timelineId: null,
+      editorContext: chatProjectId ? {
+        tool: 'video-editor', projectId: chatProjectId, projectSlug: chatProjectSlug,
+        timelineId: null, timelineName: null,
+        deepLink: typeof globalThis.location?.href === 'string' ? globalThis.location.href : null,
+      } : null,
+    });
+    return agentChatRegistry.unregisterProject;
+  }, [agentChatRegistry, chatProjectId, chatProjectSlug]);
 
   const [mountedSaveStatus, setMountedSaveStatus] = useState<SaveStatus>('saved');
   const [settingPrimaryTimelineId, setSettingPrimaryTimelineId] = useState<string | null>(null);

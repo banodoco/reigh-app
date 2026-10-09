@@ -100,6 +100,38 @@ function headers(token = 'test-token'): Record<string, string> {
 }
 
 describe('Reigh ACP HTTP bridge', () => {
+  it('rejects nested inline project-draft media before durable storage in hosted local-only mode', async () => {
+    const draft = async (_projectId: string, _expectedRevision: number, _text: string, _queued: unknown) => ({
+      project_id: 'project-1', scope_key: 'scope', revision: 1, selected_session_id: null, sessions: [],
+      draft: { text: 'saved', revision: 1, queued_messages: [] },
+    });
+    let writes = 0;
+    const { bridge, server } = createReighAcpHttpServer({
+      config: { token: 'test-token', port: 0, cwd: '/tmp/reigh-project', localMediaOnly: true },
+      chatRegistry: { draft: async (...args: Parameters<typeof draft>) => { writes += 1; return draft(...args); } } as never,
+      hostFactory: () => { throw new Error('no ACP host needed for draft route'); },
+    });
+    const port = await listen(server);
+    const base = `http://127.0.0.1:${port}`;
+
+    const rejected = await fetch(`${base}/projects/project-1/chat/draft`, {
+      method: 'PATCH', headers: headers(),
+      body: JSON.stringify({ expected_revision: 0, text: '', queued_messages: [{ id: 'q1', text: 'later', session_id: 's1', attachments: [{ type: 'resource', resource: { uri: 'data:audio/wav;base64,AAAA' } }] }] }),
+    });
+    expect(rejected.status).toBe(415);
+    expect(writes).toBe(0);
+
+    const accepted = await fetch(`${base}/projects/project-1/chat/draft`, {
+      method: 'PATCH', headers: headers(),
+      body: JSON.stringify({ expected_revision: 0, text: 'plain text', queued_messages: [] }),
+    });
+    expect(accepted.status).toBe(200);
+    expect(writes).toBe(1);
+
+    await bridge.close();
+    await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  });
+
   it('defaults to OMP canonical session storage when no override is configured', () => {
     expect(resolveReighAcpBridgeConfig({
       ASTRID_BRIDGE_TOKEN: 'test-token',

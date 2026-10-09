@@ -1,3 +1,4 @@
+import { types } from 'node:util';
 import { describe, expect, it } from 'vitest';
 import type { Transport } from './generated.ts';
 import { ReighRuntimeClient, RuntimeCompatibilityError } from './client.ts';
@@ -111,9 +112,14 @@ function createTransport(options: {
   };
 
   const transport: Transport = async (method, path, headers, body) => {
+    if (body !== undefined && !types.isUint8Array(body)) {
+      throw new Error('JSON fixture expected a Uint8Array request body');
+    }
     const parsedBody = body === undefined
       ? undefined
-      : JSON.parse(new TextDecoder().decode(body)) as Record<string, unknown>;
+      : JSON.parse(new TextDecoder().decode(
+        new Uint8Array(body.buffer, body.byteOffset, body.byteLength),
+      )) as Record<string, unknown>;
     requests.push({ method, path, headers, ...(parsedBody ? { body: parsedBody } : {}) });
 
     if (path === '/v1/health') {
@@ -165,7 +171,7 @@ function createTransport(options: {
     }
     if (method === 'POST' && path === '/v1/tasks') {
       expect(headers['Idempotency-Key']).toBe('reigh.admit:r3');
-      expect(parsedBody).toEqual({ schema_version: '1', ...exactGenTaskInput });
+      expect(parsedBody).toEqual(exactGenTaskInput);
       return { status: 201, headers: {}, body: json({ data: task, receipt: receipt('task.create', 'reigh.admit:r3') }) };
     }
     if (method === 'GET' && path === '/v1/tasks/task-r3') {
@@ -250,6 +256,38 @@ function createTransport(options: {
 }
 
 describe('ReighRuntimeClient canonical Runtime reads and browser task seam', () => {
+  it('accepts the frozen Runtime R2 singleton digest during handshake', async () => {
+    const r2Digest = 'sha256:125a10f03c274afcf43b4373c5ba811e6bb87ee7737b24c8cd3bae47a96738d3';
+    expect(RUNTIME_SCHEMA_DIGEST).toBe(r2Digest);
+    const fixture = createTransport();
+    const client = new ReighRuntimeClient({ baseUrl: 'http://runtime.test', transport: fixture.transport });
+
+    const session = await client.ensureSession();
+
+    expect(session.health.schema_digest).toBe(r2Digest);
+    expect(session.handshake.schema_digest).toBe(r2Digest);
+    expect(fixture.requests.map(({ method, path }) => `${method} ${path}`)).toEqual([
+      'GET /v1/health',
+      'POST /v1/handshake',
+      'GET /v1/realm',
+    ]);
+  });
+
+  it('rejects the previous Runtime singleton digest before loading the realm', async () => {
+    const fixture = createTransport({
+      schemaDigest: 'sha256:d2f5a6d546f5220b0e33b52dec114e502d1aa9be58f83a376d6efc9ede8d7860',
+    });
+    const client = new ReighRuntimeClient({ baseUrl: 'http://runtime.test', transport: fixture.transport });
+
+    await expect(client.ensureSession()).rejects.toMatchObject({
+      name: 'RuntimeCompatibilityError',
+      code: 'runtime_incompatible',
+    });
+    expect(fixture.requests.map(({ method, path }) => `${method} ${path}`)).toEqual([
+      'GET /v1/health',
+      'POST /v1/handshake',
+    ]);
+  });
   it('fails closed on a Runtime schema digest mismatch', async () => {
     const fixture = createTransport({ schemaDigest: `sha256:${'0'.repeat(64)}` });
     const client = new ReighRuntimeClient({ baseUrl: 'http://runtime.test', transport: fixture.transport });

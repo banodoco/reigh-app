@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ReighRuntimeClient, RuntimeAuthenticationError } from './client.ts';
-import type { Transport } from './generated.ts';
+import type { RequestBody, Transport } from './generated.ts';
 import { RuntimeDataProvider, toRuntimePublication } from './dataProvider.ts';
 import { TimelineSchemaIncompatibleError, TimelineVersionConflictError } from '@/tools/video-editor/data/DataProvider.ts';
 import { createTimelineReader } from '@/tools/video-editor/lib/timeline-reader.ts';
@@ -14,8 +14,8 @@ import type { ProjectObjectMetadata } from '@reigh/editor-sdk';
 
 const PROJECT_ID = 'project-r1';
 const TIMELINE_ID = 'timeline-r1';
-const MANAGED_OBJECT_ID = 'object-r3-managed';
 const MANAGED_OBJECT_DIGEST = 'sha256:837705df2d47b071382f374110cbb5ef50b037c431cac6974cdfba986d836be7';
+const MANAGED_OBJECT_ID = MANAGED_OBJECT_DIGEST;
 
 async function sha256Digest(bytes: Uint8Array): Promise<string> {
   const digest = await globalThis.crypto.subtle.digest('SHA-256', bytes);
@@ -117,11 +117,12 @@ function runtimeFixture(options: {
     method: string,
     path: string,
     headers: Record<string, string>,
-    body?: Uint8Array,
+    body?: RequestBody,
   ): ReturnType<Transport> => {
     const projectObjectPath = /^\/v1\/projects\/([^/]+)\/objects$/.exec(path);
-    const parsedBody = body && !projectObjectPath
-      ? JSON.parse(new TextDecoder().decode(body)) as Record<string, unknown>
+    const isMediaImport = path.endsWith('/media-imports');
+    const parsedBody = body && !projectObjectPath && !isMediaImport
+      ? JSON.parse(body instanceof Blob ? await body.text() : new TextDecoder().decode(body)) as Record<string, unknown>
       : undefined;
     requests.push({ method, path, headers, ...(parsedBody ? { body: parsedBody } : {}) });
 
@@ -134,11 +135,41 @@ function runtimeFixture(options: {
     if (path === '/v1/realm') {
       return { status: 200, headers: {}, body: json({ realm_id: 'realm-r1', display_name: 'R1 fixture', version: 1, created_at: '2026-09-11T00:00:00Z' }) };
     }
+    if (method === 'POST' && path === `/v1/projects/${PROJECT_ID}/media-imports`) {
+      const operationId = headers['Idempotency-Key'] ?? '';
+      const bytes = body instanceof Blob
+        ? new Uint8Array(await body.arrayBuffer())
+        : body instanceof Uint8Array ? new Uint8Array(body) : new Uint8Array();
+      objects.set(MANAGED_OBJECT_ID, {
+        projectId: PROJECT_ID,
+        bytes,
+        digest: MANAGED_OBJECT_DIGEST,
+        mediaType: headers['Content-Type'] ?? 'video/mp4',
+        filename: headers['X-Original-Name'] ?? 'managed-creative.mp4',
+      });
+      return {
+        status: 201,
+        headers: {},
+        body: json({
+          data: {
+            provider: 'runtime', project: PROJECT_ID, import_operation_id: operationId, status: 'completed',
+            task_id: 'task-import-r3', generation_id: 'generation-import-r3', variant_id: 'variant-import-r3',
+            asset_id: MANAGED_OBJECT_ID,
+            entry: { object_id: MANAGED_OBJECT_ID, media_type: headers['Content-Type'] ?? 'video/mp4', size: bytes.byteLength, filename: headers['X-Original-Name'] ?? 'managed-creative.mp4' },
+            provenance: { source: 'external_upload', origin: 'imported', actor_id: 'owner' },
+            actor_id: 'owner',
+          },
+          receipt: {
+            receipt_id: 'receipt-import-r3', command_kind: 'media.import', idempotency_key: operationId,
+          },
+        }),
+      };
+    }
     if (projectObjectPath && method === 'POST') {
       if (!body) {
         return { status: 400, headers: {}, body: fixtureError('empty_body', 'project object body is required') };
       }
-      const bytes = new Uint8Array(body);
+      const bytes = body instanceof Uint8Array ? new Uint8Array(body) : new Uint8Array(await body.arrayBuffer());
       const digest = await sha256Digest(bytes);
       const filename = headers['X-Original-Name'];
       const projectId = projectObjectPath[1]!;
@@ -910,7 +941,7 @@ describe('RuntimeDataProvider', () => {
       .toEqual({ objectId: winningPackageObject.object_id, revision: winningPackageObject.digest });
   });
 
-  it('returns a playable locator for a freshly prepared object before registry readback', async () => {
+  it('returns the stable catalog identity for freshly prepared media before registry readback', async () => {
     const fixture = runtimeFixture();
     const provider = new RuntimeDataProvider({ projectId: PROJECT_ID, baseUrl: 'http://runtime.test', token: 'fixture-token', transport: fixture.transport });
 
@@ -919,6 +950,10 @@ describe('RuntimeDataProvider', () => {
       { timelineId: TIMELINE_ID, userId: 'owner-r3' },
     );
 
+    expect(prepared.assetId).toBe(MANAGED_OBJECT_ID);
+    expect(prepared.entry).toMatchObject({ media_id: MANAGED_OBJECT_ID, generationId: 'generation-import-r3', variantId: 'variant-import-r3' });
+    expect(fixture.requests.some((request) => request.method === 'POST' && request.path.endsWith('/media-imports'))).toBe(true);
+    expect(fixture.requests.some((request) => request.method === 'POST' && request.path.endsWith('/objects'))).toBe(false);
     expect(prepared.entry.file).toBe(`http://runtime.test/v1/objects/${MANAGED_OBJECT_ID}`);
     await expect(provider.resolveAssetUrl(prepared.entry.file!))
       .resolves.toBe(`http://runtime.test/v1/objects/${MANAGED_OBJECT_ID}`);

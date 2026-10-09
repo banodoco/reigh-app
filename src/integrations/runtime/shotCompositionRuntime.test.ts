@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { createFakeIndexedDB, resetFakeIndexedDB } from 'fake-indexeddb';
 import fixture from '@/tools/video-editor/data/shotComposition.fixture.json';
 import { RuntimeDataProvider } from './dataProvider.ts';
+import type { RequestBody } from './generated.ts';
 import {
   RUNTIME_SCHEMA_DIGEST,
   RUNTIME_TARGETED_EXECUTION_CAPABILITY,
@@ -121,8 +122,10 @@ function fixtureTransport(options: {
   const committedInternals = new Map<string, Record<string, unknown>>();
   const durableReceipts = new Map<string, Record<string, unknown>>();
   let lostFirstResponse = false;
-  const transport = async (method: string, path: string, headers: Record<string, string>, body?: Uint8Array) => {
-    const parsedBody = body ? JSON.parse(new TextDecoder().decode(body)) as Record<string, unknown> : undefined;
+  const transport = async (method: string, path: string, headers: Record<string, string>, body?: RequestBody) => {
+    const parsedBody = body
+      ? JSON.parse(body instanceof Blob ? await body.text() : new TextDecoder().decode(body)) as Record<string, unknown>
+      : undefined;
     requests.push({ method, path, headers, ...(parsedBody ? { body: parsedBody } : {}) });
     if (path === '/v1/health') return { status: 200, headers: {}, body: json({ status: 'ok', protocol: 'workspace.v1', schema_digest: RUNTIME_SCHEMA_DIGEST, runtime_epoch: 1 }) };
     if (path === '/v1/handshake') return { status: 200, headers: {}, body: json({ protocol: 'workspace.v1', schema_digest: RUNTIME_SCHEMA_DIGEST, session_id: 'session', actor_id: 'owner', realm_id: 'realm', scopes: ['projects:read', 'projects:write'], capabilities: [RUNTIME_TARGETED_EXECUTION_CAPABILITY] }) };

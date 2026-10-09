@@ -1,4 +1,4 @@
-import { ApiError, type ByteResponse, type MediaImportOperation as MediaImport } from './generated.ts';
+import { ApiError, type ByteResponse, type MediaImportOperation as MediaImport, type RequestBody } from './generated.ts';
 import {
   ReighRuntimeClient,
   RuntimeAuthenticationError,
@@ -24,13 +24,13 @@ import type {
 } from '@/tools/video-editor/types/index.ts';
 import type { GenerationRow } from '@/domains/generation/types/index.ts';
 import type { TimelineInspectionResult, Transport } from './generated.ts';
-import type {
-  AssetResolveRequest,
-  AssetUploadRequest,
-  MediaImportOptions,
-  PreparedMediaImport,
+import {
+  assertRuntimeMediaImportSize,
+  type AssetResolveRequest,
+  type AssetUploadRequest,
+  type MediaImportOptions,
+  type PreparedMediaImport,
 } from '@/tools/video-editor/data/AssetResolver.ts';
-import { assertRuntimeMediaImportSize } from '@/tools/video-editor/data/AssetResolver.ts';
 import type { TimelineBundleEnvelope } from '@/tools/video-editor/data/typed/timelineBundle.ts';
 import { parseTimelineBundle } from '@/tools/video-editor/data/typed/timelineBundle.ts';
 import { withDefaultTimelineOutput } from '@/tools/video-editor/lib/defaults.ts';
@@ -570,7 +570,7 @@ export class RuntimeDataProvider implements DataProvider {
     const filename = options.filename ?? file.name;
     persistMediaImportOperation(this.projectId, importOperationId, { filename, mediaType });
 
-    const data = new Uint8Array(await file.arrayBuffer());
+    const data = file;
     let imported: MediaImport;
     try {
       imported = await this.client.importProjectMedia(
@@ -611,33 +611,34 @@ export class RuntimeDataProvider implements DataProvider {
       options.durationSeconds,
     );
     persistMediaImportOperation(this.projectId, importOperationId, prepared);
+    this.activeRegistry = {
+      assets: {
+        ...(this.activeRegistry?.assets ?? {}),
+        [prepared.assetId]: prepared.entry,
+      },
+    };
     return prepared;
   }
 
   async prepareAsset(file: File, options: UploadAssetOptions): Promise<UploadedAssetResult> {
-    const object = await this.client.ingestProjectObject(
-      this.projectId,
-      new Uint8Array(await file.arrayBuffer()),
-      file.type || 'application/octet-stream',
-      options.filename ?? file.name,
-    );
+    // AssetPanel and external drops use this seam. User media must take the
+    // same validated host import/catalog operation as gallery imports.
+    const prepared = await this.prepareMediaImport(file, {
+      filename: options.filename ?? file.name,
+    });
     const entry: AssetRegistryEntry = {
-      media_id: object.object_id,
-      content_sha256: object.digest,
-      type: object.media_type,
-      // The filename is provenance, not a playable locator.  Use the
-      // managed-object URL here so a freshly prepared object can be placed
-      // before the timeline registry has been read back into activeRegistry.
-      file: this.client.objectContentUrl(object.object_id),
+      ...prepared.entry,
       metadata: {
+        ...prepared.entry.metadata,
         provenance: {
+          ...prepared.entry.metadata?.provenance,
           sourceProvider: 'workspace-runtime',
           importedBy: options.userId,
           originalFilename: options.filename ?? file.name,
         },
       },
     };
-    return { assetId: object.object_id, entry };
+    return { assetId: prepared.assetId, entry };
   }
 
   async uploadAsset(file: File, options: UploadAssetOptions): Promise<UploadedAssetResult> {
@@ -825,7 +826,7 @@ function persistMediaImportOperation(
 async function recoverMediaImportAfterLostAck(
   client: ReighRuntimeClient,
   projectId: string,
-  data: Uint8Array,
+  data: RequestBody,
   mediaType: string,
   filename: string,
   importOperationId: string,

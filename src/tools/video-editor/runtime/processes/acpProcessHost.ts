@@ -449,8 +449,9 @@ export class AcpProcessHost {
     clearTimeout(pending.timeout);
     this.pending.delete(response.id);
     if (response.error) {
+      const details = asRecord(response.error.data)?.details;
       pending.reject(new AcpProcessHostError(
-        `ACP request "${pending.method}" failed: ${response.error.message}`,
+        `ACP request "${pending.method}" failed: ${typeof details === 'string' ? details : response.error.message}`,
         { code: 'acp_transport', method: pending.method, requestId: response.id },
       ));
       return;

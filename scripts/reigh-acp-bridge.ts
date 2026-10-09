@@ -1,7 +1,10 @@
 import { randomUUID } from 'node:crypto';
+import { ApiError } from '../src/integrations/runtime/generated.ts';
+import { ChatError, ProjectChatRegistry, chatClaimIdentity, chatStoreIdentity, projectChatClaimDirectory, runtimeChatClient, type QueuedChatMessage } from './reigh-project-chat.ts';
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import { delimiter } from 'node:path';
 
 import {
   AcpProcessHost,
@@ -10,6 +13,7 @@ import {
 } from '../src/tools/video-editor/runtime/processes/acpProcessHost.ts';
 import {
   ASTRID_ACP_SYSTEM_PROMPT_FILE,
+  ASTRID_ACP_CONTEXT_SYSTEM_PROMPT,
   createAstridAcpProcessHost,
   type AstridAcpLauncherOptions,
 } from '../src/tools/video-editor/runtime/processes/astridAcpLauncher.ts';
@@ -20,6 +24,7 @@ import {
 
 const DEFAULT_PORT = 17_335;
 const MAX_BODY_BYTES = 128 * 1024;
+const MAX_NOTIFICATION_BYTES = 1024 * 1024;
 const CLIENT_VERSION = 'reigh-r1-consumer-20260911';
 const REQUEST_METHODS = new Set([
   'authenticate',
@@ -35,6 +40,8 @@ const REQUEST_METHODS = new Set([
 
 type JsonRecord = Record<string, unknown>;
 
+class LocalMediaOnlyError extends Error {}
+
 export type ReighAcpBridgeConfig = {
   readonly token: string;
   readonly port: number;
@@ -44,6 +51,8 @@ export type ReighAcpBridgeConfig = {
   readonly sessionDir?: string;
   readonly systemPromptFile?: string;
   readonly command?: string;
+  /** Hosted same-machine mode refuses inline prompt attachments. */
+  readonly localMediaOnly?: boolean;
 };
 
 type Connection = {
@@ -53,6 +62,8 @@ type Connection = {
   readonly sessions: Set<string>;
   readonly configOptions: Map<string, Map<string, Set<string>>>;
   disconnected: boolean;
+  notificationBytes: number;
+  readonly localMediaOnly: boolean;
 };
 
 type TerminalExitStatus = {
@@ -71,6 +82,7 @@ type TerminalRecord = {
 };
 
 type BridgeOptions = {
+  readonly chatRegistry?: ProjectChatRegistry;
   readonly config: ReighAcpBridgeConfig;
   readonly hostFactory?: (options: AstridAcpLauncherOptions) => AcpProcessHost;
   readonly idFactory?: () => string;
@@ -99,6 +111,22 @@ function requiredAbsolute(env: Readonly<Record<string, string | undefined>>, key
 
 function isRecord(value: unknown): value is JsonRecord {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+/** Reject inline binary media while retaining text and scoped resource metadata. */
+export function assertLocalMediaOnly(value: unknown): void {
+  if (Array.isArray(value)) {
+    for (const item of value) assertLocalMediaOnly(item);
+    return;
+  }
+  const record = asRecord(value);
+  if (!record) return;
+  const inlineUri = typeof record.uri === 'string' && /^(data|blob):/i.test(record.uri);
+  if (['image', 'audio', 'video'].includes(String(record.type))
+      || typeof record.blob === 'string' || inlineUri) {
+    throw new LocalMediaOnlyError('Hosted local-only ACP accepts text and scoped resource metadata, not inline image, audio, video or binary resources. Import the media into the local Runtime and send its resource ID instead.');
+  }
+  for (const child of Object.values(record)) assertLocalMediaOnly(child);
 }
 
 function advertisedConfigOptions(value: unknown): Map<string, Set<string>> {
@@ -227,11 +255,14 @@ function closeTerminals(terminals: Map<string, TerminalRecord>): void {
 export function resolveReighAcpBridgeConfig(
   env: Readonly<Record<string, string | undefined>> = process.env,
 ): ReighAcpBridgeConfig {
-  const token = env.ASTRID_BRIDGE_TOKEN?.trim();
-  if (!token) throw new Error('ASTRID_BRIDGE_TOKEN is required');
+  const token = env.ASTRID_ACP_BRIDGE_TOKEN?.trim() || env.ASTRID_BRIDGE_TOKEN?.trim();
+  if (!token) throw new Error('ASTRID_ACP_BRIDGE_TOKEN (or legacy ASTRID_BRIDGE_TOKEN) is required');
+  const policy = env.ASTRID_ACP_LOCAL_MEDIA_ONLY?.trim();
+  if (policy && policy !== '0' && policy !== '1') throw new Error('ASTRID_ACP_LOCAL_MEDIA_ONLY must be 0 or 1');
   const profile = env.ASTRID_ACP_PROFILE?.trim() || undefined;
   return {
     token,
+    localMediaOnly: policy === '1',
     port: parsePort(env.ASTRID_ACP_BRIDGE_PORT),
     cwd: requiredAbsolute(env, 'ASTRID_ACP_CWD'),
     profile,
@@ -273,6 +304,9 @@ async function readJson(request: IncomingMessage): Promise<unknown> {
 }
 
 function hostError(error: unknown): { status: number; body: JsonRecord } {
+  if (error instanceof ChatError || error instanceof ApiError) {
+    return { status: error.status, body: { error: error.code, detail: error.message } };
+  }
   if (error instanceof AcpProcessHostError) {
     return { status: 502, body: { error: error.code, detail: error.message } };
   }
@@ -287,11 +321,14 @@ export class ReighAcpBridge {
   private readonly hostFactory: (options: AstridAcpLauncherOptions) => AcpProcessHost;
   private readonly idFactory: () => string;
   private readonly connections = new Map<string, Connection>();
+  private readonly chatRegistry?: ProjectChatRegistry;
 
   constructor(options: BridgeOptions) {
     this.config = options.config;
     this.hostFactory = options.hostFactory ?? createAstridAcpProcessHost;
     this.idFactory = options.idFactory ?? randomUUID;
+    const runtime = options.chatRegistry ? undefined : runtimeChatClient();
+    this.chatRegistry = options.chatRegistry ?? (runtime ? new ProjectChatRegistry(runtime, chatStoreIdentity(this.config), Date.now, projectChatClaimDirectory(this.config), chatClaimIdentity(this.config)) : undefined);
   }
 
   async handle(request: IncomingMessage, response: ServerResponse): Promise<void> {
@@ -317,7 +354,13 @@ export class ReighAcpBridge {
         return;
       }
       if (request.method === 'POST' && url.pathname === '/connect') {
-        await this.connect(response);
+        await this.connect(response, this.localMediaOnly(request));
+        return;
+      }
+
+      const projectChat = url.pathname.match(/^\/projects\/([^/]+)\/chat(?:\/(sessions|unassigned|associate|draft|prompt))?$/);
+      if (projectChat) {
+        await this.projectChat(decodeURIComponent(projectChat[1]), projectChat[2], request, response, this.localMediaOnly(request));
         return;
       }
 
@@ -331,13 +374,18 @@ export class ReighAcpBridge {
         jsonResponse(response, 404, { error: 'not_found', detail: 'ACP connection is not available; reconnect' });
         return;
       }
+      if (this.localMediaOnly(request) && !connection.localMediaOnly) {
+        jsonResponse(response, 409, { error: 'hosted_connection_required', detail: 'Create a new hosted ACP connection to enable local media protections in the installed agent' });
+        return;
+      }
       if (match[2] === 'events' && request.method === 'GET') {
         const notifications = connection.notifications.splice(0);
+        connection.notificationBytes = 0;
         jsonResponse(response, 200, { notifications, disconnected: connection.disconnected });
         return;
       }
       if (match[2] === 'rpc' && request.method === 'POST') {
-        await this.rpc(connection, request, response);
+        await this.rpc(connection, request, response, connection.localMediaOnly || this.localMediaOnly(request));
         return;
       }
       if (match[2] === 'cancel' && request.method === 'POST') {
@@ -359,7 +407,9 @@ export class ReighAcpBridge {
       }
       jsonResponse(response, 404, { error: 'not_found', detail: 'Unknown Reigh ACP connection route' });
     } catch (error) {
-      const result = error instanceof Error && error.message.includes('128 KiB')
+      const result = error instanceof LocalMediaOnlyError
+        ? { status: 415, body: { error: 'local_media_required', detail: error.message } }
+        : error instanceof Error && error.message.includes('128 KiB')
         ? { status: 413, body: { error: 'payload_too_large', detail: error.message } }
       : error instanceof Error && (error.message.includes('request body') || error.message.includes('method') || error.message.includes('sessionId') || error.message.includes('config option'))
           ? { status: 400, body: { error: 'invalid_body', detail: error.message } }
@@ -380,7 +430,11 @@ export class ReighAcpBridge {
     return Boolean(this.config.token) && request.headers.authorization === `Bearer ${this.config.token}`;
   }
 
-  private async connect(response: ServerResponse): Promise<void> {
+  private localMediaOnly(request: IncomingMessage): boolean {
+    return this.config.localMediaOnly === true || request.headers['x-reigh-local-media-only'] === '1';
+  }
+
+  private async connect(response: ServerResponse, localMediaOnly: boolean): Promise<void> {
     const connectionId = this.idFactory();
     const notifications: unknown[] = [];
     const terminals = new Map<string, TerminalRecord>();
@@ -418,9 +472,27 @@ export class ReighAcpBridge {
         terminals.delete(terminalId);
         return {};
       },
-      onNotification: (notification) => notifications.push(notification),
+      onNotification: (notification) => {
+        if (!connection || connection.disconnected) return;
+        const bytes = Buffer.byteLength(JSON.stringify(notification));
+        if (connection.notificationBytes + bytes > MAX_NOTIFICATION_BYTES) {
+          connection.disconnected = true;
+          notifications.splice(0, notifications.length, {
+            jsonrpc: '2.0', method: 'reigh/acp/disconnected',
+            params: { code: 'acp_event_overflow', detail: 'ACP event queue exceeded 1 MiB; reconnect and resume the installed session' },
+          });
+          connection.notificationBytes = 0;
+          closeTerminals(terminals);
+          void connection.host.dispose();
+          return;
+        }
+        connection.notificationBytes += bytes;
+        notifications.push(notification);
+      },
       onDisconnect: (error) => {
+        if (connection?.disconnected) return;
         if (connection) connection.disconnected = true;
+        closeTerminals(terminals);
         notifications.push({
           jsonrpc: '2.0',
           method: 'reigh/acp/disconnected',
@@ -435,8 +507,13 @@ export class ReighAcpBridge {
       systemPromptFile: this.config.systemPromptFile,
       command: this.config.command,
       callbacks,
+      ...(localMediaOnly ? { env: {
+        PI_CONFIG_FILES: [process.env.PI_CONFIG_FILES, fileURLToPath(new URL('./reigh-acp-local-only.yml', import.meta.url))].filter(Boolean).join(delimiter),
+        PI_BASH_NO_LOGIN: '1',
+        ASTRID_SYSTEM_PROMPT: `${ASTRID_ACP_CONTEXT_SYSTEM_PROMPT}\nHosted same-machine mode: keep all media bytes on this computer. Use Runtime IDs, text and scoped metadata for CPU edits. Do not send media to model/provider tools or cloud media executors, including through shell commands. Native image submission and inspection are disabled for this session.`,
+      } } : {}),
     });
-    connection = { host, notifications, terminals, sessions: new Set(), configOptions: new Map(), disconnected: false };
+    connection = { host, notifications, terminals, sessions: new Set(), configOptions: new Map(), disconnected: false, notificationBytes: 0, localMediaOnly };
     this.connections.set(connectionId, connection);
     try {
       const initialize = await host.initialize({
@@ -453,13 +530,114 @@ export class ReighAcpBridge {
     }
   }
 
-  private async rpc(connection: Connection, request: IncomingMessage, response: ServerResponse): Promise<void> {
+  private async projectChat(projectId: string, action: string | undefined, request: IncomingMessage, response: ServerResponse, localMediaOnly: boolean): Promise<void> {
+    const registry = this.chatRegistry;
+    if (!registry) throw new ChatError(503, 'chat_storage_unavailable', 'Project chat requires the configured Workspace Runtime endpoint and credential');
+    if (!action && request.method === 'GET') {
+      jsonResponse(response, 200, await registry.get(projectId));
+      return;
+    }
+    if (action === 'unassigned' && request.method === 'GET') {
+      const connectionId = new URL(request.url ?? '/', 'http://localhost').searchParams.get('connection_id');
+      const connection = connectionId ? this.connections.get(connectionId) : undefined;
+      if (!connection || connection.disconnected) throw new ChatError(404, 'connection_not_found', 'ACP connection is unavailable; reconnect');
+      if (localMediaOnly && !connection.localMediaOnly) throw new ChatError(409, 'hosted_connection_required', 'Create a hosted ACP connection to enable installed-agent media protections');
+      const result = await connection.host.request('session/list', { cwd: this.config.cwd });
+      const root = asRecord(result) ?? {};
+      const items = Array.isArray(result) ? result : Array.isArray(root.sessions) ? root.sessions : Array.isArray(root.items) ? root.items : [];
+      const candidates = items.flatMap(item => {
+        const session = asRecord(item);
+        const id = sessionIdFrom(item);
+        if (!id) return [];
+        const title = typeof session?.title === 'string' ? session.title : undefined;
+        return [{ id, ...(title ? { title } : {}) }];
+      });
+      jsonResponse(response, 200, { sessions: await registry.unassigned(projectId, candidates) });
+      return;
+    }
+    const body = asRecord(await readJson(request));
+    if (!body) throw new ChatError(400, 'invalid_body', 'Expected a JSON object');
+    if (localMediaOnly) assertLocalMediaOnly(body);
+    if (request.method === 'PATCH' && (!action || action === 'draft')) {
+      if (!Number.isInteger(body.expected_revision) || (body.expected_revision as number) < 0) throw new ChatError(400, 'invalid_body', 'expected_revision must be a nonnegative integer');
+      if (action === 'draft') {
+        if (typeof body.text !== 'string' || body.text.length > 100_000) throw new ChatError(400, 'invalid_body', 'Draft text must be a string of at most 100000 characters');
+        if (body.queued_messages !== undefined && (!Array.isArray(body.queued_messages) || body.queued_messages.length > 100 || !body.queued_messages.every(item => isRecord(item) && typeof item.id === 'string' && typeof item.text === 'string' && typeof item.session_id === 'string' && (item.attachments === undefined || Array.isArray(item.attachments))))) throw new ChatError(400, 'invalid_body', 'queued_messages must contain scoped message records');
+        jsonResponse(response, 200, await registry.draft(projectId, body.expected_revision as number, body.text, body.queued_messages as QueuedChatMessage[] | undefined));
+      } else {
+        if (body.selected_session_id !== null && typeof body.selected_session_id !== 'string') throw new ChatError(400, 'invalid_body', 'selected_session_id is required');
+        jsonResponse(response, 200, await registry.select(projectId, body.expected_revision as number, body.selected_session_id as string | null));
+      }
+      return;
+    }
+    if (request.method === 'POST' && (action === 'sessions' || action === 'prompt' || action === 'associate')) {
+      const connection = typeof body.connection_id === 'string' ? this.connections.get(body.connection_id) : undefined;
+      if (!connection || connection.disconnected) throw new ChatError(404, 'connection_not_found', 'ACP connection is unavailable; reconnect');
+      if (localMediaOnly && !connection.localMediaOnly) throw new ChatError(409, 'hosted_connection_required', 'Create a hosted ACP connection to enable installed-agent media protections');
+      // Follow-up requests inherit the connection's sticky hosted policy even
+      // when a direct caller omits the per-request header. Check before registry
+      // mutations, session creation/resume or agent forwarding.
+      if (connection.localMediaOnly || localMediaOnly) assertLocalMediaOnly(body);
+      if (action === 'sessions') {
+        if ((body.mode !== 'ensure' && body.mode !== 'new') || typeof body.operation_id !== 'string' || !body.operation_id || body.operation_id.length > 200) throw new ChatError(400, 'invalid_body', 'mode and operation_id are required');
+        const state = await registry.create(projectId, body.mode, body.operation_id, async () => {
+          const result = await connection.host.request('session/new', { cwd: this.config.cwd, mcpServers: [] });
+          this.rememberSession(connection, 'session/new', {}, result);
+          return result;
+        }, async sessionId => {
+          try {
+            const result = await connection.host.request('session/resume', { sessionId, cwd: this.config.cwd, mcpServers: [] });
+            this.rememberSession(connection, 'session/resume', { sessionId }, result);
+            return true;
+          } catch (error) {
+            if (error instanceof AcpProcessHostError && error.code === 'acp_transport' && error.message === `ACP request "session/resume" failed: ACP session not found: ${sessionId}`) return false;
+            throw error;
+          }
+        });
+        if (state.operation_session_id) connection.sessions.add(state.operation_session_id);
+        jsonResponse(response, 200, state);
+      } else if (action === 'associate') {
+        if (typeof body.session_id !== 'string' || !Number.isInteger(body.expected_revision)) throw new ChatError(400, 'invalid_body', 'session_id and expected_revision are required');
+        const state = await registry.associate(projectId, body.expected_revision as number, body.session_id, async sessionId => {
+          try {
+            const result = await connection.host.request('session/resume', { sessionId, cwd: this.config.cwd, mcpServers: [] });
+            this.rememberSession(connection, 'session/resume', { sessionId }, result);
+            return true;
+          } catch (error) {
+            if (error instanceof AcpProcessHostError && error.code === 'acp_transport' && error.message === `ACP request "session/resume" failed: ACP session not found: ${sessionId}`) return false;
+            throw error;
+          }
+        });
+        jsonResponse(response, 200, state);
+      } else {
+        if (typeof body.session_id !== 'string' || !Array.isArray(body.prompt)) throw new ChatError(400, 'invalid_body', 'session_id and prompt are required');
+        await registry.assertOwned(projectId, body.session_id);
+        const result = await connection.host.request('session/prompt', { sessionId: body.session_id, prompt: body.prompt });
+        jsonResponse(response, 200, { result });
+      }
+      return;
+    }
+    throw new ChatError(404, 'not_found', 'Unknown project chat operation');
+  }
+
+  private rememberSession(connection: Connection, method: string, params: unknown, result: unknown): void {
+    if (method !== 'session/new' && method !== 'session/load' && method !== 'session/resume') return;
+    const input = asRecord(params);
+    const sessionId = sessionIdFrom(result) ?? (method === 'session/load' || method === 'session/resume' ? sessionIdFrom(input) : null);
+    if (!sessionId) return;
+    connection.sessions.add(sessionId);
+    const options = advertisedConfigOptions(result);
+    if (options.size > 0) connection.configOptions.set(sessionId, options);
+  }
+
+  private async rpc(connection: Connection, request: IncomingMessage, response: ServerResponse, localMediaOnly: boolean): Promise<void> {
     const body = asRecord(await readJson(request));
     const method = body?.method;
     if (typeof method !== 'string' || !REQUEST_METHODS.has(method)) {
       throw new Error(`method must be one of: ${[...REQUEST_METHODS].join(', ')}`);
     }
     let params = body?.params;
+    if (localMediaOnly) assertLocalMediaOnly(params);
     if (method === 'session/new' || method === 'session/load' || method === 'session/resume') {
       const input = asRecord(params) ?? {};
       // The host owns the process cwd; the browser cannot redirect the ACP session.

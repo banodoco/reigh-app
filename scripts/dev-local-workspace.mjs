@@ -7,9 +7,10 @@
  * proxy.  The token is never printed and is intentionally not a VITE_ value.
  */
 import { existsSync, readFileSync } from 'node:fs';
+import { randomBytes } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { homedir } from 'node:os';
-import { resolve } from 'node:path';
+import { delimiter, dirname, resolve } from 'node:path';
 import { readGeneratedSchemaDigest, schemaDigestMismatch } from './runtime-schema-guard.mjs';
 import {
   parseDevLocalWorkspaceArgs,
@@ -46,6 +47,29 @@ if (launcherOptions.preview) {
   }
 }
 const pairedRelayOrigin = process.env.REIGH_PAIRED_RELAY_ORIGIN?.trim();
+const hostedOriginArgumentIndex = process.argv.indexOf('--hosted-origin');
+const hostedOriginArgument = hostedOriginArgumentIndex >= 0
+  ? process.argv[hostedOriginArgumentIndex + 1]?.trim()
+  : undefined;
+const hostedOrigin = process.env.REIGH_LOOPBACK_ORIGIN?.trim() || hostedOriginArgument;
+if (hostedOriginArgumentIndex >= 0 && (!hostedOriginArgument || hostedOriginArgument.startsWith('--'))) {
+  console.error('dev:local: --hosted-origin requires an exact HTTPS origin');
+  process.exit(1);
+}
+if (hostedOrigin) {
+  let parsed;
+  try {
+    parsed = new URL(hostedOrigin);
+  } catch {
+    console.error('dev:local: hosted origin must be an exact HTTPS origin');
+    process.exit(1);
+  }
+  if (parsed.protocol !== 'https:' || parsed.origin !== hostedOrigin) {
+    console.error('dev:local: hosted origin must be an exact HTTPS origin');
+    process.exit(1);
+  }
+}
+const loopbackPort = process.env.REIGH_LOOPBACK_PORT?.trim() || '0';
 const generatedMetadataPath = resolve(process.cwd(), 'src/integrations/runtime/generated-contract-metadata.ts');
 
 function fail(message) {
@@ -136,6 +160,8 @@ if (!token) process.exit(process.exitCode ?? 1);
 if (!(await verifyRuntime(endpoint, token))) process.exit(process.exitCode ?? 1);
 if (paired && !pairedRelayOrigin) process.exit(fail('--paired requires REIGH_PAIRED_RELAY_ORIGIN') ? 1 : 1);
 
+const acpToken = process.env.ASTRID_ACP_BRIDGE_TOKEN?.trim() || randomBytes(32).toString('base64url');
+const acpPort = process.env.VITE_ASTRID_ACP_BRIDGE_PORT ?? '17335';
 const env = {
   ...process.env,
   ...(astridCheckout ? { ASTRID_CHECKOUT: astridCheckout } : {}),
@@ -143,6 +169,11 @@ const env = {
   VITE_ASTRID_WORKSPACE_V1: '1',
   VITE_ASTRID_BRIDGE_PORT: endpoint.port,
   ASTRID_BRIDGE_TOKEN: token,
+  ASTRID_ACP_BRIDGE_TOKEN: acpToken,
+  ...(hostedOrigin ? { ASTRID_ACP_LOCAL_MEDIA_ONLY: '1' } : {}),
+  ...(hostedOrigin && process.env.ASTRID_ACP_COMMAND?.startsWith('/')
+    ? { PATH: `${dirname(process.env.ASTRID_ACP_COMMAND)}${delimiter}${process.env.PATH ?? ''}` }
+    : {}),
   // The editor's RuntimeDataProvider talks to `/api/runtime`, which is a
   // separate Vite proxy from the historical `/api/astrid` bridge. Keep the
   // Runtime endpoint and credential server-side so the browser never sees the
@@ -159,7 +190,7 @@ const env = {
   ...(process.env.ASTRID_ACP_PROFILE?.trim()
     ? { ASTRID_ACP_PROFILE: process.env.ASTRID_ACP_PROFILE.trim() }
     : {}),
-  ASTRID_ACP_BRIDGE_PORT: process.env.VITE_ASTRID_ACP_BRIDGE_PORT ?? '17335',
+  ASTRID_ACP_BRIDGE_PORT: acpPort,
 };
 
 console.log(`workspace.v1 runtime healthy at ${endpoint.origin}; Reigh will use ${launcherOptions.preview ? `preview output ${previewDirectory} on port ${port}` : `port ${port}`}`);
@@ -170,6 +201,20 @@ const acpBridge = spawn('npm', ['run', 'dev:astrid-acp'], {
   stdio: 'inherit',
   env,
 });
+const gateway = hostedOrigin
+  ? spawn(process.execPath, [
+    '--import', 'tsx',
+    'scripts/reigh-loopback-gateway.ts',
+    '--discovery', discoveryPath,
+    '--token-file', credentialPath,
+    '--origin', hostedOrigin,
+    '--acp-endpoint', `http://127.0.0.1:${acpPort}`,
+    '--port', loopbackPort,
+    ...(process.env.REIGH_LOOPBACK_AUDIT_LOG?.trim() ? ['--audit-log', process.env.REIGH_LOOPBACK_AUDIT_LOG.trim()] : []),
+    ...(process.env.REIGH_PAIRED_PRODUCT_ACTOR?.trim() ? ['--actor', process.env.REIGH_PAIRED_PRODUCT_ACTOR.trim()] : []),
+  ], { stdio: 'inherit', env })
+  : null;
+if (hostedOrigin) console.log(`loopback gateway starting for ${hostedOrigin}; it will print the hosted session link when ready`);
 if (paired) {
   connector = spawn('npx', ['tsx', 'scripts/reigh-local-connector.ts', '--discovery', discoveryPath, '--relay-origin', pairedRelayOrigin, ...(resetPairing ? ['--reset-pairing'] : [])], {
     stdio: 'inherit',
@@ -193,15 +238,30 @@ const shutdown = (signal) => {
   if (child.exitCode === null) child.kill(signal);
   if (connector?.exitCode === null) connector.kill(signal);
   if (acpBridge.exitCode === null) acpBridge.kill(signal);
+  if (gateway?.exitCode === null) gateway.kill(signal);
 };
 process.on('SIGINT', () => shutdown('SIGINT'));
 process.on('SIGTERM', () => shutdown('SIGTERM'));
-child.on('error', (error) => { fail(`could not start Vite: ${error.message}`); });
+child.on('error', (error) => { fail(`could not start Vite: ${error.message}`); shutdown('SIGTERM'); });
 child.on('exit', (code, signal) => {
   if (connector?.exitCode === null) connector.kill('SIGTERM');
   if (acpBridge.exitCode === null) acpBridge.kill('SIGTERM');
+  if (gateway?.exitCode === null) gateway.kill('SIGTERM');
   if (signal && !shuttingDown) process.kill(process.pid, signal);
   else process.exitCode = code ?? 0;
 });
 connector?.on('error', (error) => { fail(`could not start paired connector: ${error.message}`); });
-acpBridge.on('error', (error) => { fail(`could not start Astrid ACP bridge: ${error.message}`); });
+acpBridge.on('error', (error) => { fail(`could not start Astrid ACP bridge: ${error.message}`); shutdown('SIGTERM'); });
+acpBridge.on('exit', (code, signal) => {
+  if (!shuttingDown) {
+    fail(`Astrid ACP bridge exited${signal ? ` with ${signal}` : ` with code ${code}`}; ACP is offline`);
+    shutdown('SIGTERM');
+  }
+});
+gateway?.on('error', (error) => { fail(`could not start loopback gateway: ${error.message}`); shutdown('SIGTERM'); });
+gateway?.on('exit', (code, signal) => {
+  if (!shuttingDown) {
+    fail(`loopback gateway exited${signal ? ` with ${signal}` : ` with code ${code}`}; hosted session link is unavailable`);
+    shutdown('SIGTERM');
+  }
+});

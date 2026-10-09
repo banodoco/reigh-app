@@ -39,6 +39,9 @@ export type AgentChatContextValue = {
 type AgentChatRegistryValue = {
   register: (value: AgentChatContextValue) => void;
   unregister: () => void;
+  /** Route-selected project scope exists before a timeline editor mounts. */
+  registerProject: (value: AgentChatContextValue) => void;
+  unregisterProject: () => void;
 };
 
 // AgentChatPanel-side handlers that live as long as the panel is mounted.
@@ -72,10 +75,12 @@ const AgentChatActionsRegistryContext = createContext<AgentChatActionsRegistry |
 
 /**
  * Single app-level provider. Holds a default (settings-based) value that can be
- * overridden by VideoEditorProvider via register/unregister.
+ * extended by route-selected project scope, then overridden by the loaded
+ * VideoEditorProvider timeline context via register/unregister.
  */
 export function AgentChatProvider({ children }: { children: ReactNode }) {
   const { settings: videoSettings } = useToolSettings(videoEditorSettings.id);
+  const [projectScope, setProjectScope] = useState<AgentChatContextValue | null>(null);
   const [override, setOverride] = useState<AgentChatContextValue | null>(null);
   const [pendingComposerPrompt, setPendingComposerPrompt] = useState<string | null>(null);
 
@@ -94,7 +99,9 @@ export function AgentChatProvider({ children }: { children: ReactNode }) {
   const register = useCallback((value: AgentChatContextValue) => setOverride(value), []);
   const unregister = useCallback(() => setOverride(null), []);
 
-  const registry = useMemo(() => ({ register, unregister }), [register, unregister]);
+  const registerProject = useCallback((value: AgentChatContextValue) => setProjectScope(value), []);
+  const unregisterProject = useCallback(() => setProjectScope(null), []);
+  const registry = useMemo(() => ({ register, unregister, registerProject, unregisterProject }), [register, unregister, registerProject, unregisterProject]);
 
   // Actions bridge — kept in refs so registered handlers always invoke the latest
   // panel-side closures even after the AgentChatPanel re-renders. Reactive state
@@ -136,11 +143,13 @@ export function AgentChatProvider({ children }: { children: ReactNode }) {
   }, [reactiveState]);
 
   const contextValue = useMemo<AgentChatContextValue>(() => ({
-    ...(override ?? defaultValue),
+    // A previous editor must not leak its context after route project switch.
+    ...((projectScope && override?.editorContext?.projectId !== projectScope.editorContext?.projectId
+      ? null : override) ?? projectScope ?? defaultValue),
     requestComposerPrompt,
     pendingComposerPrompt,
     clearPendingComposerPrompt,
-  }), [clearPendingComposerPrompt, defaultValue, override, pendingComposerPrompt, requestComposerPrompt]);
+  }), [clearPendingComposerPrompt, defaultValue, override, projectScope, pendingComposerPrompt, requestComposerPrompt]);
 
   return (
     <AgentChatRegistryContext.Provider value={registry}>
@@ -164,6 +173,11 @@ export function useAgentChatBridge(): AgentChatContextValue {
 /** Optional bridge for editor chrome that also renders in isolated host tests. */
 export function useOptionalAgentChatBridge(): AgentChatContextValue | null {
   return useContext(AgentChatContext);
+}
+
+/** Route scope is optional for isolated page hosts without global chat chrome. */
+export function useOptionalAgentChatRegistry(): AgentChatRegistryValue | null {
+  return useContext(AgentChatRegistryContext);
 }
 
 /** Consumed by VideoEditorProvider to push timeline state into the bridge. */

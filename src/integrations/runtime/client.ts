@@ -19,6 +19,7 @@ import {
   type ObjectLocation,
   type TimelineInspectionResult,
   type Transport,
+  type RequestBody,
 } from './generated.ts';
 import {
   RUNTIME_ACCEPTED_SCHEMA_DIGESTS,
@@ -219,7 +220,10 @@ export class ReighRuntimeClient {
     timelineId: string,
     options: Record<string, unknown> = {},
   ): Promise<TimelineInspectionResult> {
-    return this.withSession(() => this.client.inspectTimeline(projectId, timelineId, options)) as Promise<TimelineInspectionResult>;
+    return this.withSession(async () => {
+      const result = await this.client.inspectTimeline(projectId, timelineId, options);
+      return result as unknown as TimelineInspectionResult;
+    });
   }
 
   async publishParentComposition(
@@ -267,7 +271,7 @@ export class ReighRuntimeClient {
 
   async ingestProjectObject(
     projectId: string,
-    data: Uint8Array,
+    data: RequestBody,
     mediaType: string,
     filename?: string,
   ) {
@@ -280,7 +284,7 @@ export class ReighRuntimeClient {
   }
   async importProjectMedia(
     projectId: string,
-    data: Uint8Array,
+    data: RequestBody,
     mediaType: string,
     idempotencyKey: string,
     filename?: string,

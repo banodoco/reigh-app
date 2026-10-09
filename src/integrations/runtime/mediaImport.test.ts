@@ -1,5 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { RuntimeDataProvider } from './dataProvider.ts';
+import type { RequestBody, Transport } from './generated.ts';
+import { RUNTIME_MEDIA_IMPORT_MAX_BYTES } from '@/tools/video-editor/data/AssetResolver.ts';
 import {
   RUNTIME_SCHEMA_DIGEST,
   RUNTIME_TARGETED_EXECUTION_CAPABILITY,
@@ -27,7 +29,7 @@ function receipt(key: string) {
 }
 
 function createTransport(options: { lostAck?: boolean } = {}) {
-  const requests: Array<{ method: string; path: string; headers: Record<string, string>; body?: Uint8Array }> = [];
+  const requests: Array<{ method: string; path: string; headers: Record<string, string>; body?: RequestBody }> = [];
   let importPostCount = 0;
   const completed = {
     provider: 'runtime' as const,
@@ -44,7 +46,7 @@ function createTransport(options: { lostAck?: boolean } = {}) {
     duration_seconds: 2.5,
   };
 
-  const transport = async (method: string, path: string, headers: Record<string, string>, body?: Uint8Array) => {
+  const transport: Transport = async (method, path, headers, body) => {
     requests.push({ method, path, headers, body });
     if (path === '/v1/health') return { status: 200, headers: {}, body: json({ status: 'ok', protocol: 'workspace.v1', schema_digest: RUNTIME_SCHEMA_DIGEST, runtime_epoch: 1 }) };
     if (path === '/v1/handshake') return { status: 200, headers: {}, body: json({ protocol: 'workspace.v1', schema_digest: RUNTIME_SCHEMA_DIGEST, session_id: 'session-import', actor_id: 'connector-owner', realm_id: 'realm-import', scopes: ['handshake', 'projects:read', 'projects:write'], capabilities: [RUNTIME_TARGETED_EXECUTION_CAPABILITY] }) };
@@ -117,21 +119,38 @@ describe('Runtime media import adapter', () => {
     expect(fixture.importPostCount).toBe(1);
   });
 
-  it('accepts the exact 64 MiB boundary and rejects larger files before operation persistence', async () => {
+  it('accepts the exact 5 GiB boundary and rejects larger files before operation persistence', async () => {
     localStorage.clear();
     const fixture = createTransport();
     const provider = new RuntimeDataProvider({ projectId: PROJECT_ID, baseUrl: 'http://runtime.test', transport: fixture.transport });
 
+    expect(RUNTIME_MEDIA_IMPORT_MAX_BYTES).toBe(5 * 1024 ** 3);
     const exactBoundary = new File(['bytes'], 'clip.mp4', { type: 'video/mp4' });
-    Object.defineProperty(exactBoundary, 'size', { value: 64 * 1024 * 1024 });
-    await provider.prepareMediaImport(exactBoundary);
+    const exactBoundaryArrayBuffer = vi.fn();
+    Object.defineProperty(exactBoundary, 'size', { value: RUNTIME_MEDIA_IMPORT_MAX_BYTES });
+    Object.defineProperty(exactBoundary, 'arrayBuffer', { value: exactBoundaryArrayBuffer });
+    const prepared = await provider.prepareMediaImport(exactBoundary);
+    const importRequest = fixture.requests.find((request) => request.method === 'POST' && request.path.endsWith('/media-imports'));
+
+    expect(importRequest?.body).toBe(exactBoundary);
+    expect(exactBoundaryArrayBuffer).not.toHaveBeenCalled();
+    expect(prepared.assetId).toBe(ASSET_ID);
 
     const oversized = new File(['bytes'], 'oversized.mp4', { type: 'video/mp4' });
-    Object.defineProperty(oversized, 'size', { value: 64 * 1024 * 1024 + 1 });
+    Object.defineProperty(oversized, 'size', { value: RUNTIME_MEDIA_IMPORT_MAX_BYTES + 1 });
     await expect(provider.prepareMediaImport(oversized)).rejects.toThrow(
-      'oversized.mp4 exceeds the Workspace Runtime media limit of 64 MiB',
+      'oversized.mp4 exceeds the Workspace Runtime media limit of 5 GiB',
     );
     expect(fixture.importPostCount).toBe(1);
     expect(fixture.requests.some((request) => request.path.includes('oversized.mp4'))).toBe(false);
+
+    const oversizedObject = new File(['bytes'], 'oversized-object.mp4', { type: 'video/mp4' });
+    Object.defineProperty(oversizedObject, 'size', { value: RUNTIME_MEDIA_IMPORT_MAX_BYTES + 1 });
+    const readBytes = vi.fn();
+    Object.defineProperty(oversizedObject, 'arrayBuffer', { value: readBytes });
+    await expect(provider.prepareAsset(oversizedObject, { timelineId: 'timeline-import', userId: 'actor' })).rejects.toThrow(
+      'oversized-object.mp4 exceeds the Workspace Runtime media limit of 5 GiB',
+    );
+    expect(readBytes).not.toHaveBeenCalled();
   });
 });

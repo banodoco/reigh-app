@@ -4,6 +4,37 @@ import { AstridLocalAcpRoutes } from './acpRoutes.ts';
 import type { AstridBridgeTransport } from './transport.ts';
 
 describe('AstridLocalAcpRoutes', () => {
+  it('keeps project chat association, durable drafts, and owned prompts on the ACP transport', async () => {
+    const requestJson = vi.fn(async (path: string, request: unknown, _schema: unknown) => {
+      if (path.endsWith('/unassigned?connection_id=connection-1')) return { sessions: [{ id: 'legacy-1' }] };
+      if (path.endsWith('/chat/prompt')) return { result: { accepted: true } };
+      return {
+        project_id: 'project-1', scope_key: 'realm:store:project-1', revision: 2,
+        selected_session_id: 'session-1', sessions: [{ id: 'session-1' }],
+        draft: { text: 'draft', revision: 1, queued_messages: [] },
+      };
+    });
+    const routes = new AstridLocalAcpRoutes({ requestJson } as unknown as AstridBridgeTransport);
+
+    await routes.projectChat('project-1');
+    await routes.createProjectSession('project-1', 'connection-1', 'ensure', 'op-1');
+    await expect(routes.unassignedProjectSessions('project-1', 'connection-1')).resolves.toEqual([{ id: 'legacy-1' }]);
+    await routes.associateProjectSession('project-1', 'connection-1', 1, 'legacy-1');
+    await routes.saveProjectDraft('project-1', 1, 'draft', [{ id: 'q1', text: 'queued', session_id: 'session-1' }]);
+    await routes.selectProjectSession('project-1', 2, 'session-1');
+    await expect(routes.promptProjectSession('project-1', 'connection-1', 'session-1', [{ type: 'text', text: 'hello' }])).resolves.toEqual({ accepted: true });
+
+    expect(requestJson.mock.calls.map(([path, request]) => ({ path, method: (request as { method?: string }).method ?? 'GET' }))).toEqual([
+      { path: '/acp/projects/project-1/chat', method: 'GET' },
+      { path: '/acp/projects/project-1/chat/sessions', method: 'POST' },
+      { path: '/acp/projects/project-1/chat/unassigned?connection_id=connection-1', method: 'GET' },
+      { path: '/acp/projects/project-1/chat/associate', method: 'POST' },
+      { path: '/acp/projects/project-1/chat/draft', method: 'PATCH' },
+      { path: '/acp/projects/project-1/chat', method: 'PATCH' },
+      { path: '/acp/projects/project-1/chat/prompt', method: 'POST' },
+    ]);
+  });
+
   it('keeps browser lifecycle controls on the same-origin ACP transport', async () => {
     let connectionCount = 0;
     const requestJson = vi.fn(async (

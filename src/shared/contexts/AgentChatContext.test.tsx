@@ -142,3 +142,25 @@ describe('AgentChatActions registry', () => {
     errSpy.mockRestore();
   });
 });
+
+describe('AgentChat project scope', () => {
+  it('supports project chat without a timeline, retains full editor context, and clears stale project scope', async () => {
+    const { useAgentChatRegistry, useAgentChatBridge } = await import('./AgentChatContext');
+    const { result } = renderHook(() => ({ registry: useAgentChatRegistry(), scope: useAgentChatBridge() }), { wrapper });
+    const project = { timelineId: null, editorContext: { tool: 'video-editor' as const, projectId: 'runtime-p1', projectSlug: 'fresh-project', timelineId: null, timelineName: null } };
+    act(() => result.current.registry.registerProject(project));
+    expect(result.current.scope.editorContext?.projectId).toBe('runtime-p1');
+    expect(result.current.scope.timelineId).toBeNull();
+    const editor = { timelineId: 't1', editorContext: { ...project.editorContext, timelineId: 't1', timelineName: 'Main', timelineSummary: { configVersion: 7, trackCount: 1, clipCount: 2, assetCount: 1, duration: 4 } } };
+    act(() => result.current.registry.register(editor));
+    expect(result.current.scope.editorContext).toEqual(editor.editorContext);
+    act(() => result.current.registry.unregister());
+    expect(result.current.scope.editorContext).toEqual(project.editorContext);
+    act(() => result.current.registry.register(editor));
+    act(() => result.current.registry.registerProject({ timelineId: null, editorContext: { ...project.editorContext, projectId: 'runtime-p2', projectSlug: 'other-project' } }));
+    expect(result.current.scope.editorContext?.projectId).toBe('runtime-p2');
+    expect(result.current.scope.timelineId).toBeNull();
+    act(() => { result.current.registry.unregister(); result.current.registry.unregisterProject(); });
+    expect(result.current.scope.editorContext).toBeNull();
+  });
+});
