@@ -22,7 +22,7 @@ export function useHomeNavigation() {
   const { selectedProjectId } = useProjectSelectionContext();
   const setIsShotsPaneLocked = usePanesStore((state) => state.setIsShotsPaneLocked);
   const { value: defaultTool } = useUserUIState('defaultTool', {
-    toolId: TOOL_IDS.TRAVEL_BETWEEN_IMAGES,
+    toolId: TOOL_IDS.VIDEO_EDITOR,
   });
   const { settings: videoEditorProjectSettings } = useToolSettings(videoEditorSettings.id, {
     projectId: selectedProjectId ?? undefined,

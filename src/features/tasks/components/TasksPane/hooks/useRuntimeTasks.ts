@@ -254,16 +254,16 @@ export function useRuntimeTasks(projectId: string | null) {
   const transitionMutation = useMutation<
     MutationResult<RuntimeTask>,
     Error,
-    RuntimeTaskMutationInput
+    RuntimeTaskMutationInput & { projectId: string | null }
   >({
     mutationFn: (input) => {
-      if (!projectId) {
+      if (!input.projectId) {
         throw new Error('A Runtime project is required for task mutation');
       }
-      return transitionRuntimeTask(client, projectId, input);
+      return transitionRuntimeTask(client, input.projectId, input);
     },
-    onSuccess: (updated) => {
-      queryClient.setQueryData<RuntimeTask[]>(queryKey, (current) =>
+    onSuccess: (updated, input) => {
+      queryClient.setQueryData<RuntimeTask[]>(runtimeTaskQueryKey(input.projectId), (current) =>
         mergeRuntimeTaskResults(current, [updated]),
       );
     },
@@ -272,18 +272,17 @@ export function useRuntimeTasks(projectId: string | null) {
   const cancelAllMutation = useMutation<
     readonly MutationResult<RuntimeTask>[],
     Error,
-    void
+    { projectId: string | null; pending: RuntimeTask[] }
   >({
-    mutationFn: async () => {
-      if (!projectId) return [];
-      const pending = (query.data ?? []).filter(runtimeTaskIsCancellable);
-      return Promise.all(pending.map((task) => transitionRuntimeTask(client, projectId, {
+    mutationFn: async ({ projectId: capturedProjectId, pending }) => {
+      if (!capturedProjectId) return [];
+      return Promise.all(pending.map((task) => transitionRuntimeTask(client, capturedProjectId, {
         taskId: task.task_id,
         action: 'cancel',
       })));
     },
-    onSuccess: (updated) => {
-      queryClient.setQueryData<RuntimeTask[]>(queryKey, (current) =>
+    onSuccess: (updated, input) => {
+      queryClient.setQueryData<RuntimeTask[]>(runtimeTaskQueryKey(input.projectId), (current) =>
         mergeRuntimeTaskResults(current, updated),
       );
     },
@@ -292,13 +291,13 @@ export function useRuntimeTasks(projectId: string | null) {
   const exportMutation = useMutation<
     MutationResult<ManagedOutputExportReceipt>,
     Error,
-    { taskId: string; timelineId: string }
+    { projectId: string | null; taskId: string; timelineId: string }
   >({
-    mutationFn: ({ taskId, timelineId }) => {
-      if (!projectId) {
+    mutationFn: ({ projectId: capturedProjectId, taskId, timelineId }) => {
+      if (!capturedProjectId) {
         throw new Error('A Runtime project is required for managed-output export');
       }
-      return exportSelectedRuntimeTaskOutput(client, projectId, taskId, timelineId);
+      return exportSelectedRuntimeTaskOutput(client, capturedProjectId, taskId, timelineId);
     },
   });
 
@@ -315,12 +314,12 @@ export function useRuntimeTasks(projectId: string | null) {
   return {
     ...query,
     tasks: query.data ?? [],
-    cancelTask: (taskId: string) => transitionMutation.mutate({ taskId, action: 'cancel' }),
-    retryTask: (taskId: string) => transitionMutation.mutate({ taskId, action: 'retry' }),
+    cancelTask: (taskId: string) => transitionMutation.mutate({ projectId, taskId, action: 'cancel' }),
+    retryTask: (taskId: string) => transitionMutation.mutate({ projectId, taskId, action: 'retry' }),
     exportManagedOutput: (taskId: string, timelineId: string) =>
-      exportMutation.mutate({ taskId, timelineId }),
+      exportMutation.mutate({ projectId, taskId, timelineId }),
     isExportTaskPending,
-    cancelAllPending: () => cancelAllMutation.mutate(),
+    cancelAllPending: () => cancelAllMutation.mutate({ projectId, pending: (query.data ?? []).filter(runtimeTaskIsCancellable) }),
     isCancelAllPending: cancelAllMutation.isPending,
     isTaskActionPending,
     actionError: transitionMutation.error ?? cancelAllMutation.error ?? exportMutation.error,

@@ -178,6 +178,12 @@ interface UseKeyboardShortcutsOptions {
 // Hook
 // ---------------------------------------------------------------------------
 
+export function isEditorKeyboardEvent(event: KeyboardEvent, root: HTMLElement | null): boolean {
+  if (!root) return false;
+  const target = event.target;
+  return target instanceof Node && root.contains(target);
+}
+
 export function useKeyboardShortcuts({
   hasSelectedClip,
   canMoveSelectedClipToTrack,
@@ -205,6 +211,7 @@ export function useKeyboardShortcuts({
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      if (runtime?.shellRootRef && !isEditorKeyboardEvent(event, runtime.shellRootRef.current)) return;
       if (isEditableTarget(event.target)) {
         return;
       }
@@ -348,6 +355,7 @@ export function useKeyboardShortcuts({
     selectAllClips,
     selectedClipIds,
     splitSelectedClip,
+    runtime?.shellRootRef,
     timelineFps,
     toggleMute,
     togglePlayPause,

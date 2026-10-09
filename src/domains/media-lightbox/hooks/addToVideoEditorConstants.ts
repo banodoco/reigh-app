@@ -1,4 +1,7 @@
 export const ADD_GENERATION_QUERY_PARAM = 'addGenerationId';
+// Scoped intent parameters do not change the primary editor's route.
+export const ADD_GENERATION_PROJECT_PARAM = 'addGenerationProject';
+export const ADD_GENERATION_TIMELINE_PARAM = 'addGenerationTimeline';
 
 export const PENDING_ADDS_STORAGE_KEY = 'reigh:videoEditor:pendingAdds';
 

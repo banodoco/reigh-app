@@ -16,15 +16,20 @@ import { useAddToVideoEditor } from '@/domains/media-lightbox/hooks/useAddToVide
 import {
   ADD_GENERATION_QUERY_PARAM,
   readPendingAdds,
+  writePendingAdds,
 } from '@/domains/media-lightbox/hooks/addToVideoEditorConstants';
 import { AgentChatProvider, useAgentChatBridge } from '@/shared/contexts/AgentChatContext';
 import {
   __getSelectionStateForTests,
+  activateTimelineClipData,
+  editorSelectTimelineClip,
   editorReplaceTimelineSelection,
   systemResetSelectionForProjectChange,
   userSelectGalleryItem,
 } from '@/shared/state/selectionStore';
 import { useVideoEditorRuntime } from '@/tools/video-editor/contexts/VideoEditorRuntimeContext';
+import { EditorRuntimeProvider } from '@/tools/video-editor/contexts/EditorRuntimeProvider';
+import type { VideoEditorScopedServices } from '@/tools/video-editor/browser/scopedServices';
 import { buildVideoEditorLightboxMedia, VideoEditorProvider } from '@/tools/video-editor/contexts/VideoEditorProvider';
 import { ExtensionSettingsPanel } from '@/tools/video-editor/components/ExtensionSettings/ExtensionSettingsPanel';
 import type { EffectRegistryRecord } from '@/tools/video-editor/effects/registry/types';
@@ -772,6 +777,143 @@ describe('VideoEditorProvider', () => {
     operationalChromeState.store = null;
     operationalChromeState.isConflictExhausted = false;
     operationalChromeState.renderStatus = 'idle';
+  });
+
+
+  it('supplies real scoped ports and routed agent/save behavior to the public runtime assembly', async () => {
+    const services: VideoEditorScopedServices = {
+      contract: 'reigh.video-editor.scoped-services.v1',
+      scope: { instanceId: 'editor-dialog', projectId: 'scoped-project', projectSlug: 'scoped-slug', timelineId: 'scoped-timeline' },
+      shots: { shots: [], isLoading: false, error: null, refetchShots: vi.fn(), finalVideoMap: new Map(), dismissFinalVideo: vi.fn(), canonicalThumbnailUrls: new Map([['occurrence-1', 'thumbnail.png']]) },
+      mediaLightbox: { Lightbox: () => null, loadGenerationForLightbox: vi.fn(async () => null) },
+      agentChat: { registerTimeline: vi.fn(), unregisterTimeline: vi.fn() },
+      toast: { error: vi.fn(), success: vi.fn(), warning: vi.fn(), info: vi.fn() },
+      telemetry: { log: vi.fn(), warn: vi.fn(), error: vi.fn() },
+    };
+    const provider: DataProvider = { loadTimeline: vi.fn(), saveTimeline: vi.fn(), loadAssetRegistry: vi.fn(), resolveAssetUrl: vi.fn(async (file) => file) };
+    const onSaveStatusChange = vi.fn();
+    const exporter = { render: vi.fn() };
+    let runtime!: ReturnType<typeof useVideoEditorRuntime>;
+    function Capture() { runtime = useVideoEditorRuntime(); return null; }
+    const view = render(<QueryClientProvider client={new QueryClient()}><MemoryRouter>
+      <EditorRuntimeProvider dataProvider={provider} timelineId="scoped-timeline" hostServices={services}
+        runtime={{ assetResolver: provider, exporter, hostContext: { projectId: 'scoped-project' } }}
+        onSaveStatusChange={onSaveStatusChange}>
+        <Capture />
+      </EditorRuntimeProvider>
+    </MemoryRouter></QueryClientProvider>);
+    await waitFor(() => expect(services.agentChat.registerTimeline).toHaveBeenCalledWith(expect.objectContaining({
+      projectId: 'scoped-project', projectSlug: 'scoped-slug', timelineId: 'scoped-timeline',
+    })));
+    expect(runtime.instanceScope).toEqual(services.scope);
+    expect(runtime.instanceScope).not.toBe(services.scope);
+    expect(Object.isFrozen(runtime.instanceScope)).toBe(true);
+    expect(runtime.shellRootRef).toEqual({ current: null });
+    expect(typeof runtime.agentSelectionOwner).toBe('symbol');
+    expect(runtime.provider).toBe(provider);
+    expect(runtime.shots).toBe(services.shots);
+    expect(runtime.shots.canonicalThumbnailUrls?.get('occurrence-1')).toBe('thumbnail.png');
+    expect(runtime.mediaLightbox).toBe(services.mediaLightbox);
+    expect(runtime.agentChat).toBe(services.agentChat);
+    expect(runtime.toast).toBe(services.toast);
+    expect(runtime.telemetry).toBe(services.telemetry);
+    expect(runtime.exporter).toBe(exporter);
+    expect(onSaveStatusChange).toHaveBeenCalled();
+    view.unmount();
+    expect(services.agentChat.unregisterTimeline).toHaveBeenCalled();
+  });
+
+  it('keeps same-project full/dialog registration and renderer ownership through update, close, reopen and authority change', async () => {
+    const provider: DataProvider = { loadTimeline: vi.fn(), saveTimeline: vi.fn(), loadAssetRegistry: vi.fn(), resolveAssetUrl: vi.fn() };
+    const runtimes = new Map<string, ReturnType<typeof useVideoEditorRuntime>>();
+    const contexts = new Map<string, ExtensionContext>();
+    const releases = new Map<string, ReturnType<typeof vi.fn>>();
+    const buildExtension = (name: string) => defineExtension({
+      manifest: { id: 'example.concurrent', version: '1.0.0', label: name, apiVersion: 1,
+        contributions: [{ kind: 'slot', id: 'instance-status', slot: 'statusBar', render: 'instance-status' }] },
+      activate(ctx) {
+        contexts.set(name, ctx);
+        const release = vi.fn(); releases.set(name, release);
+        const renderer = ctx.ui.registerRenderer('instance-status', () => name);
+        return { dispose() { release(); renderer.dispose(); } };
+      },
+    });
+    const fullExtension = buildExtension('full'); const dialogExtension = buildExtension('dialog');
+    let chat!: ReturnType<typeof useAgentChatBridge>;
+    function Host() { chat = useAgentChatBridge(); return null; }
+    function Capture({ name }: { name: string }) {
+      const runtime = useVideoEditorRuntime(); runtimes.set(name, runtime);
+      return <button data-testid={name} onClick={() => {
+        runtime.agentChat.activateTimeline?.(); activateTimelineClipData(runtime.agentSelectionOwner!);
+      }}>Activate {name}</button>;
+    }
+    const tree = (dialogOpen: boolean, dialogTimeline = 'instance-dialog', fullName = 'Full') => (
+      <MemoryRouter><QueryClientProvider client={new QueryClient()}><AgentChatProvider>
+        <Host />
+        <VideoEditorProvider dataProvider={provider} projectId="same-project" projectSlug="same-slug"
+          timelineId="instance-full" timelineName={fullName} userId={null} extensions={[fullExtension]}>
+          <Capture name="full" />
+        </VideoEditorProvider>
+        {dialogOpen && <VideoEditorProvider dataProvider={provider} projectId="same-project" projectSlug="same-slug"
+          timelineId={dialogTimeline} userId={null} extensions={[dialogExtension]}><Capture name="dialog" /></VideoEditorProvider>}
+      </AgentChatProvider></QueryClientProvider></MemoryRouter>
+    );
+    const view = render(tree(true));
+    await waitFor(() => expect(contexts.size).toBe(2));
+    expect(chat.timelineId).toBe('instance-full');
+    expect(runtimes.get('full')!.agentSelectionOwner).not.toBe(runtimes.get('dialog')!.agentSelectionOwner);
+    const oldFull = runtimes.get('full')!; const oldDialog = runtimes.get('dialog')!;
+    const fullProgress = vi.fn(); contexts.get('full')!.chrome.subscribe('progress', fullProgress);
+    act(() => editorSelectTimelineClip('clip-1', oldFull.agentSelectionOwner));
+    fireEvent.click(screen.getByTestId('dialog'));
+    expect(chat.timelineId).toBe('instance-dialog');
+    expect(chat.editorContext?.projectId).toBe('same-project');
+    view.rerender(tree(true, 'instance-dialog', 'Full updated'));
+    expect(chat.timelineId).toBe('instance-dialog');
+    view.rerender(tree(false));
+    await waitFor(() => expect(releases.get('dialog')).toHaveBeenCalledOnce());
+    expect(chat.timelineId).toBe('instance-full');
+    expect([...__getSelectionStateForTests().timeline.selectedClipIds]).toEqual(['clip-1']);
+    contexts.get('full')!.chrome.progress(10); expect(fullProgress).toHaveBeenCalledOnce();
+    expect(releases.get('full')).not.toHaveBeenCalled();
+    view.rerender(tree(true));
+    await waitFor(() => expect(runtimes.get('dialog')!.agentSelectionOwner).not.toBe(oldDialog.agentSelectionOwner));
+    expect(chat.timelineId).toBe('instance-full');
+    fireEvent.click(screen.getByTestId('dialog'));
+    view.rerender(tree(true, 'instance-dialog-next'));
+    await waitFor(() => expect(chat.timelineId).toBe('instance-full'));
+    expect(runtimes.get('dialog')!.timelineId).toBe('instance-dialog-next');
+    expect(runtimes.get('full')!.agentSelectionOwner).toBe(oldFull.agentSelectionOwner);
+    view.unmount();
+    await waitFor(() => expect(releases.get('full')).toHaveBeenCalledOnce());
+  });
+
+  it('admits Gallery queued media only in the active instance and ignores a load completing after unmount', async () => {
+    let resolveLoad!: (value: null) => void;
+    const loading = new Promise<null>((resolve) => { resolveLoad = resolve; });
+    const fullLoad = vi.fn(() => loading); const dialogLoad = vi.fn(async () => null);
+    const toastError = vi.fn();
+    const provider: DataProvider = { loadTimeline: vi.fn(), saveTimeline: vi.fn(), loadAssetRegistry: vi.fn(), resolveAssetUrl: vi.fn() };
+    const services = (name: string, load: typeof fullLoad | typeof dialogLoad): VideoEditorScopedServices => ({
+      contract: 'reigh.video-editor.scoped-services.v1', scope: { instanceId: name, projectId: 'same-project', timelineId: name },
+      shots: { shots: [], isLoading: false, error: null, refetchShots: vi.fn(), finalVideoMap: new Map(), dismissFinalVideo: vi.fn() },
+      mediaLightbox: { Lightbox: () => null, loadGenerationForLightbox: load },
+      agentChat: { registerTimeline: vi.fn(), unregisterTimeline: vi.fn() },
+      toast: { error: toastError, success: vi.fn(), warning: vi.fn(), info: vi.fn() },
+      telemetry: { log: vi.fn(), warn: vi.fn(), error: vi.fn() },
+    });
+    const full = services('full', fullLoad); const dialog = services('dialog', dialogLoad);
+    writePendingAdds(['queued-generation']);
+    const view = render(<MemoryRouter><QueryClientProvider client={new QueryClient()}>
+      <EditorRuntimeProvider dataProvider={provider} timelineId="full" hostServices={full}><span>Full</span></EditorRuntimeProvider>
+      <EditorRuntimeProvider dataProvider={provider} timelineId="dialog" hostServices={dialog}><span>Dialog</span></EditorRuntimeProvider>
+    </QueryClientProvider></MemoryRouter>);
+    await waitFor(() => expect(fullLoad).toHaveBeenCalledOnce());
+    expect(dialogLoad).not.toHaveBeenCalled();
+    view.unmount();
+    await act(async () => { resolveLoad(null); await loading; });
+    expect(toastError).not.toHaveBeenCalled();
+    expect(readPendingAdds()).toEqual(['queued-generation']);
   });
 
   it('builds fallback lightbox media for raw video assets without a generation id', () => {

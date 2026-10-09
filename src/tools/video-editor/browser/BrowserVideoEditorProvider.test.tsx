@@ -1,11 +1,11 @@
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { BrowserVideoEditorProvider } from '@/tools/video-editor/browser/BrowserVideoEditorProvider';
 import { INSTALLED_TIMELINE_SERVICE_HOOKS } from '@/tools/video-editor/runtime/installedTimelineHostServiceHooks.ts';
 import { defineExtension } from '@reigh/editor-sdk';
 import type { ExtensionContext, DisposeHandle } from '@reigh/editor-sdk';
-import type { DataProvider } from '@/tools/video-editor/data/DataProvider';
+import type { DataProvider, ExtensionPersistenceService } from '@/tools/video-editor/data/DataProvider';
 import {
   EXTENSION_SMOKE_CONTRIBUTION_ID,
   EXTENSION_SMOKE_QUERY_PARAM,
@@ -512,5 +512,36 @@ describe('BrowserVideoEditorProvider', () => {
         timelineOverlaysEnabled: false,
       }));
     });
+  });
+});
+
+
+describe('BrowserVideoEditorProvider persistence ownership', () => {
+  it('releases each derived service once, ignores late init and rebinds on provider replacement', async () => {
+    let finishFirst!: () => void;
+    const firstService = {
+      initialize: vi.fn(() => new Promise<void>((resolve) => { finishFirst = resolve; })),
+      dispose: vi.fn(async () => {}), stateRepository: null,
+    };
+    const secondService = { initialize: vi.fn(async () => {}), dispose: vi.fn(async () => {}), stateRepository: null };
+    const firstProvider: DataProvider = { ...provider, createExtensionPersistenceService: vi.fn(() => firstService as unknown as ExtensionPersistenceService) };
+    const secondProvider: DataProvider = { ...provider, createExtensionPersistenceService: vi.fn(() => secondService as unknown as ExtensionPersistenceService) };
+    const view = render(<BrowserVideoEditorProvider dataProvider={firstProvider} timelineId="timeline-1" userId="user-1"><div /></BrowserVideoEditorProvider>);
+    view.rerender(<BrowserVideoEditorProvider dataProvider={secondProvider} timelineId="timeline-1" userId="user-1"><div /></BrowserVideoEditorProvider>);
+    expect(firstService.dispose).toHaveBeenCalledOnce();
+    expect(secondProvider.createExtensionPersistenceService).toHaveBeenCalledWith({ userId: 'user-1', timelineId: 'timeline-1' }, []);
+    await act(async () => { finishFirst(); await Promise.resolve(); });
+    expect(firstService.dispose).toHaveBeenCalledOnce();
+    view.unmount();
+    expect(secondService.dispose).toHaveBeenCalledOnce();
+  });
+
+  it('keeps explicitly supplied repository/bundle bytes host-owned', () => {
+    const factory = vi.fn();
+    const dataProvider = { ...provider, createExtensionPersistenceService: factory };
+    const view = render(<BrowserVideoEditorProvider dataProvider={dataProvider} timelineId="timeline-1" userId="user-1" repository={null}
+      bundleStore={{ getBundleContent: vi.fn(async () => null) }}><div /></BrowserVideoEditorProvider>);
+    view.unmount();
+    expect(factory).not.toHaveBeenCalled();
   });
 });

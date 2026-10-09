@@ -115,3 +115,9 @@ declare module '@astrid/packs/local/rendering/elements/effects/end-spanning-laye
   const cardUrl: string;
   export default cardUrl;
 }
+
+// Whole-Tool JSON is validated against the selected source at build time.
+declare module '@astrid/tools/catalog.json' {
+  const catalog: import('@/shared/lib/tooling/toolCatalog').AstridToolCatalog;
+  export default catalog;
+}

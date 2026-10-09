@@ -1,10 +1,11 @@
 import { defineConfig } from 'vitest/config';
 import path from 'path';
 import fs from 'fs';
-import { resolveAstridSource } from '../vite/astridSource';
+import { resolveAstridSource, validateAstridToolCatalog } from '../vite/astridSource';
 
 const projectRoot = path.resolve(__dirname, '../..');
 const astridSource = resolveAstridSource();
+if (astridSource) validateAstridToolCatalog(astridSource.sourceRoot);
 const astridPublicSource = resolveAstridSource(
   process.env.ASTRID_PUBLIC_CHECKOUT ?? '',
   'ASTRID_PUBLIC_CHECKOUT',

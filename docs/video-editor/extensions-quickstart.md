@@ -13,6 +13,11 @@ A Reigh extension is a TypeScript module that uses **only** the public `@reigh/e
 
 In V1, every extension is a **trusted-local extension**: it runs in the same browser JavaScript context as the Reigh editor with full renderer privileges. There is no sandbox, no process isolation, and no capability enforcement. **Review extension source before enabling it in a shared project.** See the [Trust Envelope](./extensions-trust-envelope.md) for full details.
 
+For the admitted Astrid Video Editor Tool, its existing host route, scoped
+provider services, catalog binding, and source/reopen workflow, see
+[Tool authoring](./tool-authoring.md). This editor-specific host contract is
+separate from the extension APIs described below.
+
 ---
 
 ## 2. Your first extension

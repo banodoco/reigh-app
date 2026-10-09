@@ -63,6 +63,8 @@ interface ShotSliceState {
 interface SelectionStoreState {
   gallery: GallerySliceState;
   timeline: TimelineSliceState;
+  timelineSelectionOwner: TimelineClipDataOwner | null;
+  timelineSelectionsByOwner: ReadonlyMap<TimelineClipDataOwner, TimelineSliceState>;
   shot: ShotSliceState;
   clipDataById: ReadonlyMap<string, SelectedMediaClip>;
   clearGallerySelection: () => void;
@@ -158,6 +160,16 @@ const initialShotState = (): ShotSliceState => ({
 });
 
 const initialClipDataById = (): ReadonlyMap<string, SelectedMediaClip> => new Map();
+
+export type TimelineClipDataOwner = string | symbol;
+const legacyTimelineClipDataOwner = Symbol('legacy-timeline-clip-data');
+const timelineClipDataRegistrations = new Map<TimelineClipDataOwner, ReadonlyMap<string, SelectedMediaClip>>();
+let activeTimelineClipDataOwner: TimelineClipDataOwner | null = null;
+
+function resetTimelineClipDataRegistrations(): void {
+  timelineClipDataRegistrations.clear();
+  activeTimelineClipDataOwner = null;
+}
 
 function resolveMediaType(value: string | null | undefined): GallerySelectionMediaType | null {
   if (!value) {
@@ -425,6 +437,8 @@ function matchesAttachment(
 const selectionStore = createStore<SelectionStoreState>((set) => ({
   gallery: initialGalleryState(),
   timeline: initialTimelineState(),
+  timelineSelectionOwner: null,
+  timelineSelectionsByOwner: new Map(),
   shot: initialShotState(),
   clipDataById: initialClipDataById(),
 
@@ -726,9 +740,12 @@ const selectionStore = createStore<SelectionStoreState>((set) => ({
   },
 
   resetForProjectChange: () => {
+    resetTimelineClipDataRegistrations();
     set({
       gallery: initialGalleryState(),
       timeline: initialTimelineState(),
+      timelineSelectionOwner: null,
+      timelineSelectionsByOwner: new Map(),
       shot: {
         ...initialShotState(),
         currentShotId: null,
@@ -868,46 +885,25 @@ export function userSelectGalleryItems(
 export function userSelectTimelineClip(
   clipId: string,
   opts: { additive: boolean; preserveIfSelected?: boolean },
+  owner?: TimelineClipDataOwner,
 ): void {
-  selectionStore.setState((state) => {
-    if (opts.preserveIfSelected && state.timeline.selectedClipIds.has(clipId)) {
-      return state;
-    }
-
-    const nextTimeline = computeTimelineSingleSelection(
-      state.timeline,
-      clipId,
-      { toggle: opts.additive },
-    );
-
-    return {
-      timeline: hasSameTimelineState(state.timeline, nextTimeline) ? state.timeline : nextTimeline,
-      gallery: initialGalleryState(),
-    };
-  });
+  updateTimelineSelection(owner, (timeline) => (
+    opts.preserveIfSelected && timeline.selectedClipIds.has(clipId)
+      ? timeline
+      : computeTimelineSingleSelection(timeline, clipId, { toggle: opts.additive })
+  ), true, opts.preserveIfSelected ? clipId : undefined);
 }
 
-/**
- * User marquee timeline intent.
- *
- * `additive: true` means APPEND-ONLY for marquee selection. It never toggles
- * existing selected clips off.
- */
+/** User marquee selection appends when additive and otherwise replaces. */
 export function userSelectTimelineClips(
   clipIds: Iterable<string>,
   opts: { additive: boolean },
+  owner?: TimelineClipDataOwner,
 ): void {
   const nextClipIds = new Set(clipIds);
-  selectionStore.setState((state) => {
-    const nextTimeline = opts.additive
-      ? computeTimelineAppend(state.timeline, nextClipIds)
-      : computeTimelineReplacement(state.timeline, nextClipIds);
-
-    return {
-      timeline: hasSameTimelineState(state.timeline, nextTimeline) ? state.timeline : nextTimeline,
-      gallery: initialGalleryState(),
-    };
-  });
+  updateTimelineSelection(owner, (timeline) => opts.additive
+    ? computeTimelineAppend(timeline, nextClipIds)
+    : computeTimelineReplacement(timeline, nextClipIds), true);
 }
 
 export function userClearAllSelection(): void {
@@ -968,64 +964,76 @@ export function composerClearAttachments(): void {
   }));
 }
 
-export function editorReplaceTimelineSelection(clipIds: Iterable<string>): void {
+function timelineForOwner(state: SelectionStoreState, owner?: TimelineClipDataOwner): TimelineSliceState {
+  return owner === undefined || owner === state.timelineSelectionOwner
+    ? state.timeline
+    : state.timelineSelectionsByOwner.get(owner) ?? emptyScopedTimeline;
+}
+
+const emptyScopedTimeline = initialTimelineState();
+
+function updateTimelineSelection(
+  owner: TimelineClipDataOwner | undefined,
+  update: (timeline: TimelineSliceState) => TimelineSliceState,
+  clearGallery = false,
+  preserveIfSelected?: string,
+): void {
+  selectionStore.setState((state) => {
+    const previous = timelineForOwner(state, owner);
+    if (preserveIfSelected && previous.selectedClipIds.has(preserveIfSelected)) return state;
+    const next = update(previous);
+    const active = owner === undefined || owner === state.timelineSelectionOwner;
+    if (!active && owner !== undefined) {
+      if (hasSameTimelineState(previous, next) && state.timelineSelectionsByOwner.has(owner)) return state;
+      const snapshots = new Map(state.timelineSelectionsByOwner);
+      snapshots.set(owner, next);
+      return { timelineSelectionsByOwner: snapshots };
+    }
+    const unchanged = hasSameTimelineState(previous, next);
+    if (unchanged && (!clearGallery || state.gallery.gallerySelectionMap.size === 0)) return state;
+    return {
+      timeline: unchanged ? previous : next,
+      ...(clearGallery ? { gallery: initialGalleryState() } : {}),
+    };
+  });
+}
+
+export function editorReplaceTimelineSelection(clipIds: Iterable<string>, owner?: TimelineClipDataOwner): void {
   const nextClipIds = new Set(clipIds);
-  selectionStore.setState((state) => {
-    const nextTimeline = computeTimelineReplacement(state.timeline, nextClipIds);
-    return hasSameTimelineState(state.timeline, nextTimeline)
-      ? state
-      : { timeline: nextTimeline };
-  });
+  updateTimelineSelection(owner, (timeline) => computeTimelineReplacement(timeline, nextClipIds));
 }
 
-export function editorSelectTimelineClip(clipId: string | null): void {
-  selectionStore.setState((state) => {
-    const nextTimeline = clipId
-      ? computeTimelineSingleSelection(state.timeline, clipId)
-      : clearTimelineClipSelection(state.timeline);
-    return hasSameTimelineState(state.timeline, nextTimeline)
-      ? state
-      : { timeline: nextTimeline };
-  });
+export function editorSelectTimelineClip(clipId: string | null, owner?: TimelineClipDataOwner): void {
+  updateTimelineSelection(owner, (timeline) => clipId
+    ? computeTimelineSingleSelection(timeline, clipId)
+    : clearTimelineClipSelection(timeline));
 }
 
-export function editorClearTimelineSelection(): void {
-  selectionStore.setState((state) => {
-    const nextTimeline = clearTimelineClipSelection(state.timeline);
-    return nextTimeline === state.timeline ? state : { timeline: nextTimeline };
-  });
+export function editorClearTimelineSelection(owner?: TimelineClipDataOwner): void {
+  updateTimelineSelection(owner, clearTimelineClipSelection);
 }
 
-export function editorSetSelectedTrackId(trackId: string | null): void {
-  selectionStore.setState((state) => (
-    state.timeline.selectedTrackId === trackId
-      ? state
-      : {
-          timeline: {
-            ...state.timeline,
-            selectedTrackId: trackId,
-          },
-        }
-  ));
+export function editorSetSelectedTrackId(trackId: string | null, owner?: TimelineClipDataOwner): void {
+  updateTimelineSelection(owner, (timeline) => timeline.selectedTrackId === trackId
+    ? timeline
+    : { ...timeline, selectedTrackId: trackId });
 }
 
-export function systemPruneTimelineSelection(validIds: ReadonlySet<string>): void {
-  selectionStore.setState((state) => {
-    const nextTimeline = computeTimelinePrune(state.timeline, validIds);
-    return hasSameTimelineState(state.timeline, nextTimeline)
-      ? state
-      : { timeline: nextTimeline };
-  });
+export function systemPruneTimelineSelection(validIds: ReadonlySet<string>, owner?: TimelineClipDataOwner): void {
+  updateTimelineSelection(owner, (timeline) => computeTimelinePrune(timeline, validIds));
 }
 
-export function systemResetTimelineSelection(): void {
-  selectionStore.setState({ timeline: initialTimelineState() });
+export function systemResetTimelineSelection(owner?: TimelineClipDataOwner): void {
+  updateTimelineSelection(owner, initialTimelineState);
 }
 
 export function systemResetSelectionForProjectChange(): void {
+  resetTimelineClipDataRegistrations();
   selectionStore.setState({
     gallery: initialGalleryState(),
     timeline: initialTimelineState(),
+    timelineSelectionOwner: null,
+    timelineSelectionsByOwner: new Map(),
     shot: {
       ...initialShotState(),
       currentShotId: null,
@@ -1093,8 +1101,7 @@ export function systemSetLastAffectedShotId(shotIdOrUpdater: SetStateAction<stri
   selectionStore.getState().setLastAffectedShotId(shotIdOrUpdater);
 }
 
-export function setTimelineClipData(entries: Iterable<SelectedMediaClip>): void {
-  const next = new Map(Array.from(entries, (clip) => [clip.clipId, clip]));
+function publishTimelineClipData(next: ReadonlyMap<string, SelectedMediaClip>): void {
   selectionStore.setState((state) => {
     const previous = state.clipDataById;
     if (previous.size !== next.size) return { clipDataById: next };
@@ -1112,10 +1119,76 @@ export function setTimelineClipData(entries: Iterable<SelectedMediaClip>): void 
   });
 }
 
-export function clearTimelineClipData(): void {
-  selectionStore.setState((state) => state.clipDataById.size === 0
-    ? state
-    : { clipDataById: initialClipDataById() });
+/**
+ * Register one editor's clip catalog. Scoped background updates cannot change
+ * the catalog used by host Chat/Tasks attachment lookup. The returned disposer
+ * only removes this registration, including when the same owner is replaced.
+ */
+export function setTimelineClipData(
+  entries: Iterable<SelectedMediaClip>,
+  owner: TimelineClipDataOwner = legacyTimelineClipDataOwner,
+): () => void {
+  const registration = new Map(Array.from(entries, (clip) => [clip.clipId, clip]));
+  timelineClipDataRegistrations.set(owner, registration);
+  if (owner === legacyTimelineClipDataOwner || activeTimelineClipDataOwner === null) {
+    activateTimelineClipData(owner);
+  } else if (activeTimelineClipDataOwner === owner) {
+    publishTimelineClipData(registration);
+  }
+  return () => {
+    if (timelineClipDataRegistrations.get(owner) === registration) clearTimelineClipData(owner);
+  };
+}
+
+/** Select an explicit mounted editor's catalog; unrelated gallery state is preserved. */
+export function activateTimelineClipData(owner: TimelineClipDataOwner): void {
+  const registration = timelineClipDataRegistrations.get(owner);
+  if (!registration) return;
+  timelineClipDataRegistrations.delete(owner);
+  timelineClipDataRegistrations.set(owner, registration);
+  activeTimelineClipDataOwner = owner;
+  if (selectionStore.getState().timelineSelectionOwner === owner) {
+    publishTimelineClipData(registration);
+    return;
+  }
+  selectionStore.setState((state) => {
+    if (state.timelineSelectionOwner === owner) return state;
+    const snapshots = new Map(state.timelineSelectionsByOwner);
+    if (state.timelineSelectionOwner !== null) snapshots.set(state.timelineSelectionOwner, state.timeline);
+    return {
+      timelineSelectionOwner: owner,
+      timelineSelectionsByOwner: snapshots,
+      timeline: snapshots.get(owner)
+        ?? (state.timelineSelectionOwner === null && owner === legacyTimelineClipDataOwner
+          ? state.timeline
+          : initialTimelineState()),
+      clipDataById: registration,
+    };
+  });
+}
+
+export function clearTimelineClipData(owner: TimelineClipDataOwner = legacyTimelineClipDataOwner): void {
+  if (!timelineClipDataRegistrations.delete(owner)) return;
+  if (activeTimelineClipDataOwner === owner) {
+    const remainingOwners = Array.from(timelineClipDataRegistrations.keys());
+    const remainingOwner = remainingOwners[remainingOwners.length - 1];
+    if (remainingOwner !== undefined) {
+      activateTimelineClipData(remainingOwner);
+    } else {
+      activeTimelineClipDataOwner = null;
+      selectionStore.setState({
+        timelineSelectionOwner: null,
+        timeline: owner === legacyTimelineClipDataOwner ? selectionStore.getState().timeline : initialTimelineState(),
+        clipDataById: initialClipDataById(),
+      });
+    }
+  }
+  selectionStore.setState((state) => {
+    if (!state.timelineSelectionsByOwner.has(owner)) return state;
+    const snapshots = new Map(state.timelineSelectionsByOwner);
+    snapshots.delete(owner);
+    return { timelineSelectionsByOwner: snapshots };
+  });
 }
 
 export function __getSelectionStateForTests(): SelectionStoreState {
@@ -1157,14 +1230,22 @@ export function useShotAdditionSelectionOptional() {
   }), shallow);
 }
 
-export function useTimelineSelectionStore() {
-  return useSelectionStore((state) => ({
-    selectedClipId: state.timeline.selectedClipId,
-    selectedTrackId: state.timeline.selectedTrackId,
-    selectedClipIds: state.timeline.selectedClipIds,
-    primaryClipId: state.timeline.primaryClipId,
-    additiveSelection: state.timeline.additiveSelection,
-  }), shallow);
+/** Legacy editors are always admitted; scoped editors consume ambient host intent only when active. */
+export function useTimelineClipDataActive(owner?: TimelineClipDataOwner): boolean {
+  return useSelectionStore((state) => owner === undefined || state.timelineSelectionOwner === owner);
+}
+
+export function useTimelineSelectionStore(owner?: TimelineClipDataOwner) {
+  return useSelectionStore((state) => {
+    const timeline = timelineForOwner(state, owner);
+    return {
+      selectedClipId: timeline.selectedClipId,
+      selectedTrackId: timeline.selectedTrackId,
+      selectedClipIds: timeline.selectedClipIds,
+      primaryClipId: timeline.primaryClipId,
+      additiveSelection: timeline.additiveSelection,
+    };
+  }, shallow);
 }
 
 export interface UseTimelineMultiSelectResult {
@@ -1176,12 +1257,12 @@ export interface UseTimelineMultiSelectResult {
   pruneSelection: (validIds: Set<string>) => void;
 }
 
-export function useTimelineMultiSelect(): UseTimelineMultiSelectResult {
+export function useTimelineMultiSelect(owner?: TimelineClipDataOwner): UseTimelineMultiSelectResult {
   const {
     selectedClipIds,
     primaryClipId,
     additiveSelection,
-  } = useTimelineSelectionStore();
+  } = useTimelineSelectionStore(owner);
 
   const selectedClipIdsRef = useRef<Set<string>>(new Set(selectedClipIds));
   const additiveSelectionRef = useRef(additiveSelection);
@@ -1195,24 +1276,32 @@ export function useTimelineMultiSelect(): UseTimelineMultiSelectResult {
     return selectedClipIdsRef.current.has(clipId);
   }, []);
 
+  const pruneSelection = useCallback((validIds: Set<string>) => {
+    systemPruneTimelineSelection(validIds, owner);
+  }, [owner]);
+
   return useMemo(() => ({
     selectedClipIds,
     selectedClipIdsRef,
     additiveSelectionRef,
     primaryClipId,
     isClipSelected,
-    pruneSelection: systemPruneTimelineSelection,
+    pruneSelection,
   }), [
     isClipSelected,
     primaryClipId,
+    pruneSelection,
     selectedClipIds,
   ]);
 }
 
 export function __resetSelectionStoreForTests(): void {
+  resetTimelineClipDataRegistrations();
   selectionStore.setState({
     gallery: initialGalleryState(),
     timeline: initialTimelineState(),
+    timelineSelectionOwner: null,
+    timelineSelectionsByOwner: new Map(),
     shot: initialShotState(),
     clipDataById: initialClipDataById(),
   });

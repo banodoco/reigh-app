@@ -269,7 +269,7 @@ const ToolsPaneComponent: React.FC = () => {
   if (env === 'production' || env === 'prod') env = AppEnv.WEB;
   const currentEnv = env as AppEnvValue;
 
-  const { value: defaultTool, update: updateDefaultTool } = useUserUIState('defaultTool', { toolId: 'travel-between-images' });
+  const { value: defaultTool, update: updateDefaultTool } = useUserUIState('defaultTool', { toolId: 'video-editor' });
   const isCloudGenerationEnabled = true;
   const isLoadingGenerationMethods = false;
   const { settings } = useToolSettings(videoEditorSettings.id, {

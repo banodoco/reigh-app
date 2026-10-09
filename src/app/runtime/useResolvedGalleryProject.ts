@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { useOptionalAgentChatBridge } from '@/shared/contexts/AgentChatContext';
 import { getRuntimeDocumentProjectId } from './runtimeDocument';
 import { getLocalProjectSlug } from '@/shared/dev/devSession';
 import { isAstridWorkspaceV1 } from '@/integrations/astrid/workspaceV1';
@@ -69,7 +70,9 @@ export function useResolvedGalleryProject(
   pathname: string,
 ): ResolvedGalleryProject {
   const localProjectSlug = getLocalProjectSlug(search);
-  const explicitRuntimeProjectId = getRuntimeDocumentProjectId(search, pathname);
+  const selectedEditor = useOptionalAgentChatBridge()?.editorContext;
+  const explicitRuntimeProjectId = selectedEditor?.projectId
+    ?? getRuntimeDocumentProjectId(search, pathname);
   const localRuntimeMode = isAstridWorkspaceV1
     && explicitRuntimeProjectId === null
     && localProjectSlug !== null;

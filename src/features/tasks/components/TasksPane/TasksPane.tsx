@@ -10,7 +10,7 @@ import { Button } from '@/shared/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/components/ui/tooltip';
 import { ListTodo, Loader2, Lock, MessageSquareText, Mic, Square, Unlock } from 'lucide-react';
 import { PaneControlTab } from '@/shared/components/PaneControlTab';
-import { useAgentChatActions } from '@/shared/contexts/AgentChatContext';
+import { useAgentChatActions, useOptionalAgentChatBridge } from '@/shared/contexts/AgentChatContext';
 import { AgentChatPanel } from '@/tools/video-editor/components/AgentChat';
 import { useProjectCrudContext, useProjectSelectionContext } from '@/shared/contexts/ProjectContext';
 import { useIncomingTasks } from '@/shared/contexts/IncomingTasksContext';
@@ -53,12 +53,16 @@ const TasksPaneComponent: React.FC<TasksPaneProps> = ({ onOpenSettings }) => {
   useRenderBudget('TasksPane', 5);
   const { pathname, search } = useLocation();
   const runtimeParams = useMemo(() => new URLSearchParams(search), [search]);
-  const runtimeProjectId = pathname === '/tools/video-editor'
+  const selectedEditor = useOptionalAgentChatBridge()?.editorContext;
+  const routeRuntimeProjectId = pathname === '/tools/video-editor'
     && runtimeParams.get('runtime') === '1'
     && runtimeParams.get('runtimeTimeline')
     ? runtimeParams.get('runtimeProject')?.trim() || null
     : null;
-  const runtimeTimelineId = runtimeProjectId ? runtimeParams.get('runtimeTimeline')?.trim() || null : null;
+  const runtimeProjectId = selectedEditor?.projectId ?? routeRuntimeProjectId;
+  const runtimeTimelineId = selectedEditor?.projectId
+    ? selectedEditor.timelineId
+    : routeRuntimeProjectId ? runtimeParams.get('runtimeTimeline')?.trim() || null : null;
   const {
     isTasksPaneLocked,
     setIsTasksPaneLocked,

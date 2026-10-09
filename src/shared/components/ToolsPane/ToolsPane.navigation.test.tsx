@@ -69,12 +69,11 @@ describe('ToolsPane navigation', () => {
     currentLocation = { pathname: '/tools/video-editor', search: '?localProject=demo&localTimeline=abc' };
   });
 
-  it('carries local params onto tool navigation in local mode', () => {
+  it('omits hidden Travel navigation while preserving the saved hidden preference', () => {
     render(<ToolsPane />);
 
-    fireEvent.pointerUp(screen.getByText('Travel Between Images'));
-
-    expect(navigate).toHaveBeenCalledWith('/tools/travel-between-images?localProject=demo&localTimeline=abc');
+    expect(screen.queryByText('Travel Between Images')).toBeNull();
+    expect(navigate).not.toHaveBeenCalled();
   });
 
   it('carries local params onto the Video Editor tool (same local timeline)', () => {
@@ -89,8 +88,8 @@ describe('ToolsPane navigation', () => {
     currentLocation = { pathname: '/tools/video-editor', search: '?timeline=app-timeline' };
     render(<ToolsPane />);
 
-    fireEvent.pointerUp(screen.getByText('Travel Between Images'));
+    fireEvent.pointerUp(screen.getByText('Video Editor'));
 
-    expect(navigate).toHaveBeenCalledWith('/tools/travel-between-images');
+    expect(navigate).toHaveBeenCalledWith('/tools/video-editor');
   });
 });

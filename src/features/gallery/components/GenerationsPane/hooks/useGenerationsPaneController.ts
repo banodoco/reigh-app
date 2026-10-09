@@ -34,7 +34,8 @@ import { useAppEventListener } from '@/shared/lib/typedEvents';
 import { withLocalModeParams } from '@/shared/dev/localModeUrl';
 import { withRuntimeDocumentParams } from '@/app/runtime/runtimeDocument';
 import { useResolvedGalleryProject } from '@/app/runtime/useResolvedGalleryProject';
-import { ADD_GENERATION_QUERY_PARAM } from '@/domains/media-lightbox/hooks/addToVideoEditorConstants';
+import { useOptionalAgentChatBridge } from '@/shared/contexts/AgentChatContext';
+import { ADD_GENERATION_PROJECT_PARAM, ADD_GENERATION_TIMELINE_PARAM, ADD_GENERATION_QUERY_PARAM } from '@/domains/media-lightbox/hooks/addToVideoEditorConstants';
 
 // Fallback rows for pane (smaller than full page galleries)
 const PANE_ROWS = 2;
@@ -293,6 +294,7 @@ const usePaneLayout = (projectAspectRatio: ProjectAspectRatio | undefined, expan
 export const useGenerationsPaneController = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const selectedEditor = useOptionalAgentChatBridge()?.editorContext;
   const isGenerationsPaneLocked = usePanesStore((state) => state.isGenerationsPaneLocked);
   const setIsGenerationsPaneLocked = usePanesStore((state) => state.setIsGenerationsPaneLocked);
   const isGenerationsPaneOpen = usePanesStore((state) => state.isGenerationsPaneOpen);
@@ -368,8 +370,14 @@ export const useGenerationsPaneController = () => {
   const handleAddGenerationToTimeline = useCallback((generationId: string) => {
     const nextSearch = new URLSearchParams(location.search);
     nextSearch.set(ADD_GENERATION_QUERY_PARAM, generationId);
+    nextSearch.delete(ADD_GENERATION_PROJECT_PARAM);
+    nextSearch.delete(ADD_GENERATION_TIMELINE_PARAM);
+    if (selectedEditor?.projectId && selectedEditor.timelineId) {
+      nextSearch.set(ADD_GENERATION_PROJECT_PARAM, selectedEditor.projectId);
+      nextSearch.set(ADD_GENERATION_TIMELINE_PARAM, selectedEditor.timelineId);
+    }
     navigate({ pathname: location.pathname, search: `?${nextSearch.toString()}` });
-  }, [location.pathname, location.search, navigate]);
+  }, [location.pathname, location.search, navigate, selectedEditor?.projectId, selectedEditor?.timelineId]);
 
   useRenderLogger('GenerationsPane', {
     page: generationData.page,

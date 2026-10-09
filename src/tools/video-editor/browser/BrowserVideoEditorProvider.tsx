@@ -4,7 +4,6 @@ import { MemoryRouter, useInRouterContext } from 'react-router-dom';
 import { EditorRuntimeProvider, type EditorRuntimeProviderProps } from '@/tools/video-editor/contexts/EditorRuntimeProvider.tsx';
 import { useResolvedEffectCatalog } from '@/tools/video-editor/hooks/useEffectResources.ts';
 import { useResolvedSequenceComponentCatalog } from '@/tools/video-editor/hooks/useSequenceResources.ts';
-import { useEffects } from '@/tools/video-editor/hooks/useEffects.ts';
 import { INSTALLED_TIMELINE_SERVICE_HOOKS } from '@/tools/video-editor/runtime/installedTimelineHostServiceHooks.ts';
 import type { DataProvider } from '@/tools/video-editor/data/DataProvider.ts';
 import type { VideoEditorEffectCatalog } from '@/tools/video-editor/hooks/useEffectResources.ts';
@@ -19,10 +18,15 @@ import { getExtensionSmokeExtension } from '@/sdk/smoke/extensionSmoke';
 import { useExtensionLoaderWiring } from '@/tools/video-editor/runtime/useExtensionLoaderWiring';
 import type { ExtensionStateRepository } from '@/tools/video-editor/runtime/extensionStateRepository';
 import type { BundleContentStore } from '@/tools/video-editor/runtime/useExtensionLoaderWiring';
+import { VIDEO_EDITOR_SCOPED_SERVICES_CONTRACT, assertVideoEditorScope, videoEditorScopeKey, type VideoEditorScopedServices } from './scopedServices.ts';
+import type { SaveStatus } from '../hooks/useTimelinePersistence.ts';
+import { useOwnedResourceDisposal } from '../hooks/useOwnedResourceDisposal.ts';
 import { INSTALLED_ASTRID_ELEMENT_HOST } from '@/tools/video-editor/runtime/astrid-element-components.tsx';
 
 export interface BrowserVideoEditorProviderProps {
   dataProvider: DataProvider;
+  hostServices?: VideoEditorScopedServices;
+  onSaveStatusChange?: (status: SaveStatus) => void;
   timelineId: string;
   timelineName?: string | null;
   userId?: string | null;
@@ -62,7 +66,6 @@ function createDefaultQueryClient() {
 
 /** Installed browser adapter: private catalogs stay outside the shared runtime assembly. */
 function BrowserRuntimeWithCatalogs({effectCatalog, userId = null, ...props}: EditorRuntimeProviderProps) {
-  const effectsQuery = useEffects(userId, {enabled: !effectCatalog && Boolean(userId)});
   const resolvedEffectCatalog = useResolvedEffectCatalog(userId, effectCatalog);
   const sequenceComponentCatalog = useResolvedSequenceComponentCatalog(userId);
   return (
@@ -71,8 +74,7 @@ function BrowserRuntimeWithCatalogs({effectCatalog, userId = null, ...props}: Ed
       userId={userId}
       effectCatalog={resolvedEffectCatalog}
       sequenceComponentCatalog={sequenceComponentCatalog}
-      effectsQueryData={effectsQuery.data}
-      timelineServices={INSTALLED_TIMELINE_SERVICE_HOOKS}
+      timelineServices={props.hostServices?.timelineServices ?? INSTALLED_TIMELINE_SERVICE_HOOKS}
     />
   );
 }
@@ -82,8 +84,30 @@ function BrowserRuntimeWithCatalogs({effectCatalog, userId = null, ...props}: Ed
  * Browser-only runtime provider for custom shells that use the supported
  * public hooks instead of the stock editor chrome.
  */
-export function BrowserVideoEditorProvider({
+export function BrowserVideoEditorProvider(props: BrowserVideoEditorProviderProps) {
+  // A service/provider/repository change is a new authority. Remount the
+  // existing assembly and loader together so neither can reuse old scope state.
+  const authority = useRef({
+    dataProvider: props.dataProvider, repository: props.repository,
+    bundleStore: props.bundleStore, generation: 0,
+  });
+  if (authority.current.dataProvider !== props.dataProvider
+    || authority.current.repository !== props.repository
+    || authority.current.bundleStore !== props.bundleStore) {
+    authority.current = {
+      dataProvider: props.dataProvider, repository: props.repository,
+      bundleStore: props.bundleStore, generation: authority.current.generation + 1,
+    };
+  }
+  const scopeKey = props.hostServices
+    ? videoEditorScopeKey(props.hostServices.scope) : JSON.stringify([props.timelineId]);
+  return <BrowserVideoEditorProviderInstance key={JSON.stringify([scopeKey, props.userId ?? null, authority.current.generation])} {...props} />;
+}
+
+function BrowserVideoEditorProviderInstance({
   dataProvider,
+  hostServices,
+  onSaveStatusChange,
   timelineId,
   timelineName,
   userId = null,
@@ -100,7 +124,17 @@ export function BrowserVideoEditorProvider({
   timelineOverlaysEnabled = false,
   children,
 }: BrowserVideoEditorProviderProps) {
-  const [ownedQueryClient] = useState(() => queryClient ?? createDefaultQueryClient());
+  if (hostServices) {
+    if (hostServices.contract !== VIDEO_EDITOR_SCOPED_SERVICES_CONTRACT) {
+      throw new Error('Unsupported Video Editor scoped service contract.');
+    }
+    assertVideoEditorScope(hostServices.scope, timelineId);
+    if (hostContext?.projectId && hostContext.projectId !== hostServices.scope.projectId) {
+      throw new Error('Video Editor hostContext projectId must match the captured service scope.');
+    }
+  }
+  const [ownedQueryClient] = useState(createDefaultQueryClient);
+  useOwnedResourceDisposal(ownedQueryClient, (client) => client.clear());
   const hasHostRouter = useInRouterContext();
 
   // ---- M5: Internal refresh key for extension re-resolution ----------------
@@ -121,72 +155,44 @@ export function BrowserVideoEditorProvider({
   // ---- M2: Derive effective repository / bundleStore from DataProvider when
   //        explicit props are not supplied ----------------------------------
 
-  // Stabilize dataProvider identity so the effect doesn't re-fire on new
-  // object references with the same logical dataProvider.
-  const dataProviderRef = useRef(dataProvider);
-  dataProviderRef.current = dataProvider;
-
-  const [effectiveRepository, setEffectiveRepository] = useState<
-    ExtensionStateRepository | null | undefined
-  >(undefined);
-  const [effectiveBundleStore, setEffectiveBundleStore] = useState<
-    BundleContentStore | null | undefined
-  >(undefined);
+  const [derivedPersistence, setDerivedPersistence] = useState<{
+    provider: DataProvider; userId: string; timelineId: string;
+    repository: ExtensionStateRepository | null;
+    bundleStore: BundleContentStore | null;
+  } | null>(null);
 
   useEffect(() => {
-    // If explicit repository is provided, use it directly (caller-owned,
-    // assumed pre-hydrated). This is the backward-compatible path.
-    if (explicitRepository !== undefined) {
-      setEffectiveRepository(explicitRepository);
-      setEffectiveBundleStore(explicitBundleStore ?? null);
-      return;
-    }
-
-    // No explicit repository: try to derive from DataProvider.
-    // We need both a userId and a factory method to proceed.
-    if (!userId || !dataProviderRef.current.createExtensionPersistenceService) {
-      setEffectiveRepository(null);
-      setEffectiveBundleStore(null);
-      return;
-    }
-
+    if (explicitRepository !== undefined || !userId || !dataProvider.createExtensionPersistenceService) return;
     const diagnostics: ExtensionDiagnostic[] = [];
-    const service = dataProviderRef.current.createExtensionPersistenceService(
-      { userId, timelineId },
-      diagnostics,
-    );
-
+    const service = dataProvider.createExtensionPersistenceService({ userId, timelineId }, diagnostics);
     let cancelled = false;
-
-    service.initialize().then(() => {
-      if (cancelled) {
-        service.dispose().catch(() => {});
-        return;
-      }
-      const repo = service.stateRepository ?? null;
-      setEffectiveRepository(repo);
-
-      // Derive bundleStore: if the repository has getBundleContent, use it.
-      if (repo && 'getBundleContent' in repo && typeof repo.getBundleContent === 'function') {
-        const getBundleContent = repo.getBundleContent;
-        setEffectiveBundleStore({
-          getBundleContent: (ref) => getBundleContent.call(repo, ref),
-        });
-      } else {
-        setEffectiveBundleStore(null);
-      }
-    }).catch(() => {
-      if (!cancelled) {
-        setEffectiveRepository(null);
-        setEffectiveBundleStore(null);
-      }
-    });
-
-    return () => {
-      cancelled = true;
-      service.dispose().catch(() => {});
+    // Initialization and cleanup share one terminal disposal, even if init
+    // resolves after this instance has changed scope or been unmounted.
+    let disposed = false;
+    const dispose = () => {
+      if (disposed) return;
+      disposed = true;
+      void service.dispose().catch(() => {});
     };
-  }, [explicitRepository, explicitBundleStore, userId, timelineId]);
+    void service.initialize().then(() => {
+      if (cancelled) return;
+      const repository = service.stateRepository ?? null;
+      const getBundleContent = repository && 'getBundleContent' in repository && typeof repository.getBundleContent === 'function'
+        ? repository.getBundleContent : null;
+      const bundleStore = getBundleContent
+        ? { getBundleContent: (ref: string) => getBundleContent.call(repository, ref) } : null;
+      setDerivedPersistence({ provider: dataProvider, userId, timelineId, repository, bundleStore });
+    }).catch(() => {
+      if (!cancelled) setDerivedPersistence(null);
+    });
+    return () => { cancelled = true; dispose(); };
+  }, [explicitRepository, userId, timelineId, dataProvider]);
+
+  const currentPersistence = derivedPersistence?.provider === dataProvider
+    && derivedPersistence.userId === userId && derivedPersistence.timelineId === timelineId
+    ? derivedPersistence : null;
+  const effectiveRepository = explicitRepository !== undefined ? explicitRepository : currentPersistence?.repository ?? null;
+  const effectiveBundleStore = explicitBundleStore !== undefined ? explicitBundleStore : currentPersistence?.bundleStore ?? null;
 
   const effectiveAssetResolver = assetResolver ?? createLocalAssetResolver();
 
@@ -218,6 +224,8 @@ export function BrowserVideoEditorProvider({
 
   const runtime = (
     <BrowserRuntimeWithCatalogs
+      hostServices={hostServices}
+      onSaveStatusChange={onSaveStatusChange}
       astridElementHost={INSTALLED_ASTRID_ELEMENT_HOST}
       dataProvider={dataProvider}
       timelineId={timelineId}
@@ -236,7 +244,7 @@ export function BrowserVideoEditorProvider({
   );
 
   return (
-    <QueryClientProvider client={ownedQueryClient}>
+    <QueryClientProvider client={queryClient ?? ownedQueryClient}>
       {hasHostRouter
         ? runtime
         : (

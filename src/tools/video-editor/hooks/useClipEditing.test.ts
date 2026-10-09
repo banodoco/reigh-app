@@ -21,7 +21,8 @@ vi.mock('@/shared/components/ui/runtime/sonner', () => ({
   },
 }));
 
-vi.mock('@/tools/video-editor/contexts/VideoEditorRuntimeContext', () => ({
+vi.mock('@/tools/video-editor/contexts/VideoEditorRuntimeContext', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/tools/video-editor/contexts/VideoEditorRuntimeContext')>(),
   useVideoEditorRuntime: () => ({
     toast: {
       error: vi.fn(),

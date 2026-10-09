@@ -85,7 +85,8 @@ import type {
 } from '@/sdk/video/families/dataKind';
 
 // ---------------------------------------------------------------------------
-// Editor shell root registry (module-level, set by host shell on mount)
+// Legacy shell root for direct context-factory callers. Production assemblies
+// always inject their own root getter; concurrent editors never consult it.
 // ---------------------------------------------------------------------------
 
 /**
@@ -248,6 +249,7 @@ export function createExtensionContext(
   uiService?: ExtensionUiService,
   dataKinds?: DataKindRegistrationService,
   liveSceneAuthoring?: ExtensionContext['liveSceneAuthoring'],
+  shellRoot: () => HTMLElement | null = getEditorShellRoot,
 ): ExtensionContext {
   const extensionId = extension.manifest.id as string;
   const manifest = extension.manifest; // Already frozen by defineExtension
@@ -300,11 +302,13 @@ export function createExtensionContext(
 
   // ---- aria-live host node (created lazily on first announce) -------------
   let _ariaLiveHost: HTMLElement | null = null;
+  let chromeDisposed = false;
+  let announcementFrame: number | null = null;
 
   /** Get or create the aria-live container inside the shell root. */
   function getOrCreateAriaLiveHost(politeness: 'polite' | 'assertive'): HTMLElement | null {
-    const root = _editorShellRoot;
-    if (!root) return null;
+    const root = shellRoot();
+    if (chromeDisposed || !root) return null;
 
     if (_ariaLiveHost && root.contains(_ariaLiveHost)) {
       _ariaLiveHost.setAttribute('aria-live', politeness);
@@ -372,7 +376,8 @@ export function createExtensionContext(
       };
     },
     focus(selector: string): void {
-      const root = _editorShellRoot;
+      const root = shellRoot();
+      if (chromeDisposed) return;
       if (!root) {
         diagnosticsService.report({
           severity: 'warning',
@@ -430,15 +435,23 @@ export function createExtensionContext(
       host.textContent = '';
       // Force a reflow so the clear takes effect before setting new text.
       // Use requestAnimationFrame so assistive tech registers the change.
-      requestAnimationFrame(() => {
-        host.textContent = message;
+      if (announcementFrame !== null) cancelAnimationFrame(announcementFrame);
+      const root = shellRoot();
+      announcementFrame = requestAnimationFrame(() => {
+        announcementFrame = null;
+        if (!chromeDisposed && root === shellRoot() && root?.contains(host)) host.textContent = message;
       });
     },
   };
 
   /** Clean up all chrome event subscribers. */
   function disposeChromeSubscriptions(): void {
+    chromeDisposed = true;
     subscribers.clear();
+    if (announcementFrame !== null) cancelAnimationFrame(announcementFrame);
+    announcementFrame = null;
+    _ariaLiveHost?.remove();
+    _ariaLiveHost = null;
   }
 
   // ---- creative context (stubs with optional live overrides) --------------

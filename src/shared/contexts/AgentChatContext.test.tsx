@@ -6,6 +6,8 @@ import {
   AgentChatProvider,
   useAgentChatActions,
   useAgentChatActionsRegistry,
+  useAgentChatBridge,
+  useAgentChatRegistry,
   type AgentChatActionsHandlers,
 } from './AgentChatContext';
 
@@ -140,5 +142,85 @@ describe('AgentChatActions registry', () => {
       /useAgentChatActionsRegistry must be used within an AgentChatProvider/,
     );
     errSpy.mockRestore();
+  });
+});
+
+
+describe('AgentChat editor ownership', () => {
+  const value = (timelineId: string) => ({
+    timelineId,
+    editorContext: {
+      tool: 'video-editor' as const,
+      projectId: 'shared-project',
+      projectSlug: 'shared-project',
+      timelineId,
+      timelineName: timelineId,
+    },
+  });
+
+  const useBridgeAndRegistry = () => ({
+    bridge: useAgentChatBridge(),
+    registry: useAgentChatRegistry(),
+  });
+
+  it('background editor updates and disposal preserve the active editor and host composer', () => {
+    const { result } = renderHook(useBridgeAndRegistry, { wrapper });
+    const ownerA = Symbol('editor-a');
+    const ownerB = Symbol('editor-b');
+    let disposeB: (() => void) | undefined;
+    act(() => {
+      result.current.registry.register(value('timeline-a'), ownerA);
+      disposeB = result.current.registry.register(value('timeline-b'), ownerB);
+      result.current.bridge.requestComposerPrompt?.('Keep this host prompt');
+    });
+    expect(result.current.bridge.timelineId).toBe('timeline-a');
+    act(() => {
+      disposeB = result.current.registry.register(value('timeline-b-updated'), ownerB);
+    });
+    expect(result.current.bridge.timelineId).toBe('timeline-a');
+    act(() => { disposeB?.(); });
+    expect(result.current.bridge.editorContext?.timelineId).toBe('timeline-a');
+    expect(result.current.bridge.pendingComposerPrompt).toBe('Keep this host prompt');
+  });
+
+  it('explicit activation selects an editor and active disposal resumes the remaining editor', () => {
+    const { result } = renderHook(useBridgeAndRegistry, { wrapper });
+    const ownerA = Symbol('same-instance-id');
+    const ownerB = Symbol('same-instance-id');
+    let disposeA: (() => void) | undefined;
+    let disposeB: (() => void) | undefined;
+    act(() => {
+      disposeA = result.current.registry.register(value('timeline-a'), ownerA);
+      disposeB = result.current.registry.register(value('timeline-b'), ownerB);
+      result.current.registry.activate(ownerB);
+    });
+    expect(result.current.bridge.timelineId).toBe('timeline-b');
+    act(() => { disposeB?.(); });
+    expect(result.current.bridge.timelineId).toBe('timeline-a');
+    act(() => { disposeA?.(); });
+    expect(result.current.bridge.timelineId).toBeNull();
+    expect(result.current.bridge.editorContext).toBeNull();
+  });
+
+  it('stale cleanup cannot remove a replacement or a separately owned registration', () => {
+    const { result } = renderHook(useBridgeAndRegistry, { wrapper });
+    const owner = Symbol('editor');
+    let staleCleanup: (() => void) | undefined;
+    act(() => {
+      staleCleanup = result.current.registry.register(value('old-timeline'), owner);
+      result.current.registry.register(value('new-timeline'), owner);
+      staleCleanup();
+      result.current.registry.unregister();
+      result.current.registry.activate(Symbol('missing'));
+    });
+    expect(result.current.bridge.timelineId).toBe('new-timeline');
+  });
+
+  it('retains the legacy register/unregister behavior for a single caller', () => {
+    const { result } = renderHook(useBridgeAndRegistry, { wrapper });
+    act(() => { result.current.registry.register(value('legacy')); });
+    expect(result.current.bridge.timelineId).toBe('legacy');
+    act(() => { result.current.registry.unregister(); });
+    expect(result.current.bridge.editorContext).toBeNull();
   });
 });

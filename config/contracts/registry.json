@@ -172,7 +172,10 @@
         "VideoEditorExportJob",
         "VideoEditorExportProgress",
         "VideoEditorExportRequest",
-        "VideoEditorHostContext"
+        "VideoEditorHostContext",
+        "VideoEditorInstanceScope",
+        "VideoEditorScopedServices",
+        "VIDEO_EDITOR_SCOPED_SERVICES_CONTRACT"
       ]
     },
     {
@@ -212,7 +215,10 @@
         "VideoEditorExportJob",
         "VideoEditorExportProgress",
         "VideoEditorExportRequest",
-        "VideoEditorHostContext"
+        "VideoEditorHostContext",
+        "VideoEditorInstanceScope",
+        "VideoEditorScopedServices",
+        "VIDEO_EDITOR_SCOPED_SERVICES_CONTRACT"
       ]
     },
     {

@@ -450,17 +450,18 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
     return () => observer.disconnect();
   }, [overlayScrollContainer]);
 
+  const timelineViewStore = runtime?.timelineViewStore;
   useEffect(() => () => {
     overlayStores.viewport.dispose();
     overlayStores.playhead.dispose();
     // The timeline surface is gone: extensions reading the provider-owned
     // store must observe surfaceMounted=false instead of stale layout.
-    runtime?.timelineViewStore?.publish({
+    timelineViewStore?.publish({
       surfaceMounted: false,
       viewport: null,
       geometry: null,
     });
-  }, [overlayStores, runtime]);
+  }, [overlayStores, timelineViewStore]);
 
   usePortalMousedownGuard(shotGroupMenuRef, Boolean(shotGroupMenu));
 
@@ -632,7 +633,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
   // Reactive selection from the module-level selection store (the adapter's
   // selectedClipIdsRef is a render-lagging mirror updated in a layout effect;
   // reading it during render would publish stale selection).
-  const timelineSelection = useTimelineSelectionStore();
+  const timelineSelection = useTimelineSelectionStore(runtime?.agentSelectionOwner);
   const overlaySelectedClipIds = selectedClipIdsRef.current;
   const overlaySelection = useMemo(() => Object.freeze({
     selectedClipIds: overlaySelectedClipIds,

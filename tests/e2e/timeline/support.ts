@@ -299,12 +299,24 @@ export async function openEditor(page: Page): Promise<void> {
   // project state re-enable backend queries (the regression Codex flagged).
   await page.addInitScript(() => {
     try {
+      // A fresh browser profile otherwise opens the first-run onboarding
+      // dialog over the editor and intercepts the timeline interactions below.
+      window.localStorage.setItem('astrid-setup-complete', 'true');
       window.localStorage.setItem('reigh.lastSelectedProjectId', 'stale-project-from-earlier-session');
     } catch {
       // storage unavailable — the assertion below still covers the happy path
     }
   });
   await page.goto(EDITOR_URL, { waitUntil: 'domcontentloaded', timeout: 45_000 });
+  // A cold Vite module graph can outlast the geometry-settle delay. Wait for
+  // the actual bootstrap and editor before using that delay for layout.
+  await page.waitForFunction(() => {
+    const runtime = window.__REIGH_LOCAL_TEST__;
+    return runtime?.enabled
+      && Array.isArray(runtime.diagnostics.loader)
+      && Array.isArray(runtime.diagnostics.runtime);
+  }, undefined, { timeout: 45_000 });
+  await page.getByRole('button', { name: 'Render', exact: true }).waitFor({ state: 'visible', timeout: 45_000 });
   await page.waitForTimeout(EDITOR_SETTLE_MS);
   const localTestSnapshot = await page.evaluate(() => window.__REIGH_LOCAL_TEST__);
   if (

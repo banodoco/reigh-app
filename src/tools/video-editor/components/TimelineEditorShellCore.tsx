@@ -6,7 +6,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Button } from '@/shared/components/ui/button.tsx';
 import { cn } from '@/shared/components/ui/contracts/cn.ts';
 import { Slider } from '@/shared/components/ui/slider.tsx';
-import { editorReplaceTimelineSelection } from '@/shared/state/selectionStore.ts';
+import { activateTimelineClipData, editorReplaceTimelineSelection } from '@/shared/state/selectionStore.ts';
 import { usePanesStore } from '@/shared/state/panesStore.ts';
 import { useOptionalAgentChatBridge } from '@/shared/contexts/AgentChatContext.tsx';
 import { PreviewPanel } from '@/tools/video-editor/components/PreviewPanel/PreviewPanel.tsx';
@@ -27,7 +27,7 @@ import {
   useProposalRuntimeFromStoreSafe,
   useProposalImportDiagnosticsFromStoreSafe,
 } from '@/tools/video-editor/hooks/timelineStore.ts';
-import { useKeyboardShortcuts } from '@/tools/video-editor/hooks/useKeyboardShortcuts.ts';
+import { isEditorKeyboardEvent, useKeyboardShortcuts } from '@/tools/video-editor/hooks/useKeyboardShortcuts.ts';
 import { useTimelineRealtime } from '@/tools/video-editor/hooks/useTimelineRealtime.ts';
 import { getTimelineDurationInFrames, parseResolution } from '@/tools/video-editor/lib/config-utils.ts';
 import { buildKeyboardDeleteMutation } from '@/tools/video-editor/lib/keyboard-delete.ts';
@@ -168,9 +168,11 @@ function TimelineEditorShellCoreComponent({
   const requestComposerPrompt = agentChatBridge?.requestComposerPrompt;
   const setIsTasksPaneOpen = usePanesStore((state) => state.setIsTasksPaneOpen);
   const openElementCreationPrompt = useCallback((prompt: string) => {
+    runtime.agentChat?.activateTimeline?.();
+    if (runtime.agentSelectionOwner) activateTimelineClipData(runtime.agentSelectionOwner);
     requestComposerPrompt?.(prompt);
     setIsTasksPaneOpen(true);
-  }, [requestComposerPrompt, setIsTasksPaneOpen]);
+  }, [requestComposerPrompt, setIsTasksPaneOpen, runtime.agentChat, runtime.agentSelectionOwner]);
   const handleActivityDismiss = useCallback((eventId: string) => {
     setActivityEvents((prev) => prev.filter((e) => e.id !== eventId));
   }, []);
@@ -196,6 +198,7 @@ function TimelineEditorShellCoreComponent({
       // Don't trigger when the palette is already open — the cmdk dialog
       // owns keyboard handling in that case.
       if (isCommandPaletteOpen) return;
+      if (runtime.shellRootRef && !isEditorKeyboardEvent(event, runtime.shellRootRef.current)) return;
 
       const isModifierPressed = event.metaKey || event.ctrlKey;
       if (isModifierPressed && event.shiftKey && event.key.toLowerCase() === 'p') {
@@ -207,7 +210,7 @@ function TimelineEditorShellCoreComponent({
 
     window.addEventListener('keydown', onKeyDown, { capture: true });
     return () => window.removeEventListener('keydown', onKeyDown, { capture: true });
-  }, [isCommandPaletteOpen]);
+  }, [isCommandPaletteOpen, runtime.shellRootRef]);
 
   const handleKeyboardDelete = useCallback(() => {
     const mutation = buildKeyboardDeleteMutation(editorData.dataRef.current, editorData.selectedClipIds);
@@ -241,7 +244,7 @@ function TimelineEditorShellCoreComponent({
     nudgeSelectedClipsInTime: handleKeyboardTimeNudge,
     undo: chrome.undo,
     redo: chrome.redo,
-    selectAllClips: () => editorReplaceTimelineSelection(Object.keys(editorData.data?.meta ?? {})),
+    selectAllClips: () => editorReplaceTimelineSelection(Object.keys(editorData.data?.meta ?? {}), runtime.agentSelectionOwner),
     togglePlayPause: () => playback.previewRef.current?.togglePlayPause(),
     seekRelative: (deltaSeconds) => playback.previewRef.current?.seek(Math.max(0, playback.currentTime + deltaSeconds)),
     toggleMute: () => editorOps.handleToggleMuteClips([...editorData.selectedClipIds]),
@@ -264,7 +267,17 @@ function TimelineEditorShellCoreComponent({
     return width / height;
   }, [outputResolution]);
   const [tooSmall, setTooSmall] = useState(false);
-  const outerRef = useRef<HTMLDivElement>(null);
+  const outerRef = useRef<HTMLDivElement | null>(null);
+  const setShellRoot = useCallback((node: HTMLDivElement | null) => {
+    if (runtime.shellRootRef && (node || runtime.shellRootRef.current === outerRef.current)) {
+      runtime.shellRootRef.current = node;
+    }
+    outerRef.current = node;
+  }, [runtime.shellRootRef]);
+  const activateInstance = useCallback(() => {
+    runtime.agentChat?.activateTimeline?.();
+    if (runtime.agentSelectionOwner) activateTimelineClipData(runtime.agentSelectionOwner);
+  }, [runtime.agentChat, runtime.agentSelectionOwner]);
   const selectedClipIdsList = useMemo(() => [...editorData.selectedClipIds], [editorData.selectedClipIds]);
   const inspectorTarget = useMemo(
     () => getInspectorTargetForSelection(selectedClipIdsList, editorData.selectedTrackId),
@@ -661,7 +674,10 @@ function TimelineEditorShellCoreComponent({
 
   return (
     <>
-      <div ref={outerRef} className="flex h-full w-full min-h-0 min-w-0 max-w-full flex-col overflow-hidden bg-background text-foreground">
+      <div ref={setShellRoot} data-video-editor-instance={runtime.instanceScope?.instanceId} tabIndex={-1} onFocusCapture={activateInstance} onPointerDownCapture={() => {
+        activateInstance();
+        if (!outerRef.current?.contains(document.activeElement)) outerRef.current?.focus({ preventScroll: true });
+      }} className="flex h-full w-full min-h-0 min-w-0 max-w-full flex-col overflow-hidden bg-background text-foreground">
         <div className="sr-only" aria-live="polite" aria-atomic="true">
           {interactionStatusLabel}
         </div>

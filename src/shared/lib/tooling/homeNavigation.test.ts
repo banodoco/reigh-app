@@ -14,7 +14,7 @@ describe('resolveHomeToolPath', () => {
         isCloudGenerationEnabled: true,
         isLoadingGenerationMethods: false,
       }),
-    ).toBe('/tools/image-generation');
+    ).toBe('/tools/video-editor');
   });
 
   it('builds the video editor path with the saved timeline', () => {
@@ -29,7 +29,7 @@ describe('resolveHomeToolPath', () => {
     ).toBe('/tools/video-editor?timeline=timeline-123');
   });
 
-  it('falls back to travel-between-images when the preferred tool is ineligible', () => {
+  it('resolves saved hidden or ineligible preferences to Video Editor without changing their IDs', () => {
     expect(
       resolveHomeToolPath({
         preferredToolId: TOOL_IDS.CHARACTER_ANIMATE,
@@ -37,7 +37,25 @@ describe('resolveHomeToolPath', () => {
         isCloudGenerationEnabled: false,
         isLoadingGenerationMethods: false,
       }),
-    ).toBe('/tools/travel-between-images');
+    ).toBe('/tools/video-editor');
+    expect(TOOL_IDS.CHARACTER_ANIMATE).toBe('character-animate');
+  });
+
+  it.each([
+    TOOL_IDS.IMAGE_GENERATION,
+    TOOL_IDS.CHARACTER_ANIMATE,
+    TOOL_IDS.EDIT_IMAGES,
+    TOOL_IDS.EDIT_VIDEO,
+    TOOL_IDS.TRAVEL_BETWEEN_IMAGES,
+    TOOL_IDS.JOIN_CLIPS,
+    TOOL_IDS.TRAINING_DATA_HELPER,
+  ])('does not launch hidden saved preference %s', (preferredToolId) => {
+    expect(resolveHomeToolPath({
+      preferredToolId,
+      currentEnv: AppEnv.WEB,
+      isCloudGenerationEnabled: true,
+      isLoadingGenerationMethods: false,
+    })).toBe('/tools/video-editor');
   });
 });
 

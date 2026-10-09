@@ -154,6 +154,22 @@ describe('AppRoutes', () => {
     expect(screen.getByTestId('video-editor-page')).toBeInTheDocument();
   });
 
+  it.each([
+    ['/tools/image-generation', 'image-generation-page'],
+    ['/tools/character-animate', 'character-animate-page'],
+    ['/tools/edit-images', 'edit-images-page'],
+    ['/tools/edit-video', 'edit-video-page'],
+    ['/tools/travel-between-images', 'video-travel-page'],
+    ['/tools/join-clips', 'join-clips-page'],
+    ['/tools/training-data-helper', 'training-data-helper-page'],
+  ])('guards legacy Tool route %s before mounting its hidden page', async (path, hiddenPageTestId) => {
+    const AppRoutes = await loadRoutes('local');
+    renderRoute(AppRoutes, path);
+
+    expect(await screen.findByTestId('video-editor-page')).toBeInTheDocument();
+    expect(screen.queryByTestId(hiddenPageTestId)).not.toBeInTheDocument();
+  });
+
   it('preserves WEB and non-WEB root mappings', async () => {
     const WebRoutes = await loadRoutes('web');
     const web = renderRoute(WebRoutes, '/');

@@ -35,7 +35,7 @@ import {
 } from '@/tools/video-editor/contexts/editorRuntimeAssembly.tsx';
 import type { DiagnosticCollection, ReighExtension } from '@reigh/editor-sdk';
 import { useAgentChatRegistry, type AgentChatEditorContext } from '@/shared/contexts/AgentChatContext.tsx';
-import { clearTimelineClipData, setTimelineClipData } from '@/shared/state/selectionStore.ts';
+import { setTimelineClipData, useTimelineClipDataActive } from '@/shared/state/selectionStore.ts';
 import { type VideoEditorEffectCatalog } from '@/tools/video-editor/hooks/useEffectResources.ts';
 import { type VideoEditorSequenceComponentCatalog } from '@/tools/video-editor/hooks/useSequenceResources.ts';
 import { INSTALLED_TIMELINE_SERVICE_HOOKS } from '@/tools/video-editor/runtime/installedTimelineHostServiceHooks.ts';
@@ -66,6 +66,8 @@ import {
 import { INSTALLED_ASTRID_ELEMENT_HOST } from '@/tools/video-editor/runtime/astrid-element-components.tsx';
 import {
   ADD_GENERATION_QUERY_PARAM,
+  ADD_GENERATION_PROJECT_PARAM,
+  ADD_GENERATION_TIMELINE_PARAM,
   readPendingAdds,
   writePendingAdds,
 } from '@/domains/media-lightbox/hooks/addToVideoEditorConstants.ts';
@@ -246,7 +248,7 @@ export function buildVideoEditorLightboxMedia(
 /** Registers video-editor state into the app-level AgentChatContext and keeps
  *  timeline attachment metadata synchronized in the selection store. */
 function AgentChatBridgeRegistration() {
-  const { timelineId, timelineName, project, provider, agentChat, liveSceneOperationPort } = useVideoEditorRuntime();
+  const { timelineId, timelineName, project, provider, agentChat, liveSceneOperationPort, agentSelectionOwner } = useVideoEditorRuntime();
   const { registerTimeline, unregisterTimeline } = agentChat;
   const allClips = useTimelineClipsForAttachments();
   const { data, resolvedConfig, selectedClipIds } = useTimelineEditorData();
@@ -304,14 +306,28 @@ function AgentChatBridgeRegistration() {
     );
   }, [elementContext, project.projectSlug, provider, timelineId]);
 
-  useEffect(() => {
-    setTimelineClipData(allClips);
-  }, [allClips]);
+  const clipRegistration = useRef<(() => void) | null>(null);
+  const chatRegistration = useRef<{
+    register: typeof registerTimeline; unregister: typeof unregisterTimeline; release: () => void;
+  } | null>(null);
 
-  useEffect(() => () => clearTimelineClipData(), []);
+  useEffect(() => {
+    clipRegistration.current = setTimelineClipData(allClips, agentSelectionOwner);
+  }, [allClips, agentSelectionOwner]);
+
+  useEffect(() => () => {
+    clipRegistration.current?.();
+    clipRegistration.current = null;
+    chatRegistration.current?.release();
+    chatRegistration.current = null;
+  }, []);
 
   useEffect(() => {
-    registerTimeline({
+    const previous = chatRegistration.current;
+    if (previous && (previous.register !== registerTimeline || previous.unregister !== unregisterTimeline)) {
+      previous.release();
+    }
+    const release = registerTimeline({
       timelineId,
       projectId: project.projectId,
       projectSlug: project.projectSlug,
@@ -321,7 +337,10 @@ function AgentChatBridgeRegistration() {
       elementOperationAdapter,
       liveSceneOperationPort,
     });
-    return unregisterTimeline;
+    chatRegistration.current = {
+      register: registerTimeline, unregister: unregisterTimeline,
+      release: typeof release === 'function' ? release : unregisterTimeline,
+    };
   }, [elementContext, elementOperationAdapter, liveSceneOperationPort, project.projectId, project.projectSlug, registerTimeline, timelineId, timelineName, timelineSummary, unregisterTimeline]);
 
   return null;
@@ -379,6 +398,25 @@ function InnerProvider({
     eagerProposalRetry: true,
     initialTimelineData,
   });
+  return (
+    <VideoEditorRuntimeContent assembly={assembly} sync={sync}
+      onSaveStatusChange={onSaveStatusChange} operationalEmitter={operationalEmitter}>
+      {children}
+    </VideoEditorRuntimeContent>
+  );
+}
+
+/** Shared routed/editor content; the caller owns the one runtime assembly and store. */
+export function VideoEditorRuntimeContent({
+  children, assembly, sync, onSaveStatusChange, operationalEmitter,
+}: {
+  children: React.ReactNode;
+  assembly: EditorRuntimeAssembly;
+  sync: ReturnType<typeof useEditorRuntimeSync>;
+  onSaveStatusChange?: (status: SaveStatus) => void;
+  operationalEmitter?: HostOwnedExtensionOperationalEmitter;
+}) {
+  const runtime = useVideoEditorRuntime();
   const { store, editor, chrome } = sync;
 
   useEffect(() => {
@@ -439,6 +477,12 @@ function InnerProvider({
 
   const [searchParams, setSearchParams] = useSearchParams();
   const pendingAddGenerationId = searchParams.get(ADD_GENERATION_QUERY_PARAM);
+  const isActiveInstance = useTimelineClipDataActive(runtime.agentSelectionOwner);
+  const mountedRef = useRef(false);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
   const consumedAddGenerationRef = useRef<string | null>(null);
 
   const drainedStagedRef = useRef(false);
@@ -448,6 +492,19 @@ function InnerProvider({
 
   useEffect(() => {
     if (editor.isLoading) return;
+    const targetProject = searchParams.get(ADD_GENERATION_PROJECT_PARAM);
+    const targetTimeline = searchParams.get(ADD_GENERATION_TIMELINE_PARAM);
+    const hasScopedIntent = Boolean(targetProject && targetTimeline);
+    // Explicit Gallery admission belongs to this editor even if focus changes
+    // before the effect or media request completes. Legacy intents still use
+    // active-owner + route-timeline fallback.
+    if (hasScopedIntent) {
+      if (targetProject !== runtime.project.projectId || targetTimeline !== runtime.timelineId) return;
+    } else {
+      if (!isActiveInstance) return;
+      const requestedTimeline = searchParams.get('timeline');
+      if (requestedTimeline && requestedTimeline !== runtime.timelineId) return;
+    }
     if (drainInFlightRef.current) return;
 
     const queue: string[] = [];
@@ -455,7 +512,7 @@ function InnerProvider({
       consumedAddGenerationRef.current = pendingAddGenerationId;
       queue.push(pendingAddGenerationId);
     }
-    if (!drainedStagedRef.current) {
+    if (isActiveInstance && !drainedStagedRef.current) {
       drainedStagedRef.current = true;
       for (const id of readPendingAdds()) {
         if (!queue.includes(id)) queue.push(id);
@@ -469,7 +526,9 @@ function InnerProvider({
       const processed: string[] = [];
       try {
         for (const generationId of queue) {
+          if (!mountedRef.current) break;
           const generation = await runtime.mediaLightbox.loadGenerationForLightbox(generationId);
+          if (!mountedRef.current) break;
           if (!generation) {
             runtime.toast.error('Could not load asset');
             processed.push(generationId);
@@ -537,17 +596,23 @@ function InnerProvider({
       } finally {
         const remaining = readPendingAdds().filter((id) => !processed.includes(id));
         writePendingAdds(remaining);
-        if (pendingAddGenerationId && processed.includes(pendingAddGenerationId)) {
+        if (mountedRef.current && pendingAddGenerationId && processed.includes(pendingAddGenerationId)) {
           setSearchParams((current) => {
             const next = new URLSearchParams(current);
+            // A newer Gallery click must retain its own captured intent.
+            if (next.get(ADD_GENERATION_QUERY_PARAM) !== pendingAddGenerationId
+              || next.get(ADD_GENERATION_PROJECT_PARAM) !== targetProject
+              || next.get(ADD_GENERATION_TIMELINE_PARAM) !== targetTimeline) return next;
             next.delete(ADD_GENERATION_QUERY_PARAM);
+            next.delete(ADD_GENERATION_PROJECT_PARAM);
+            next.delete(ADD_GENERATION_TIMELINE_PARAM);
             return next;
           }, { replace: true });
         }
         drainInFlightRef.current = false;
       }
     })();
-  }, [editor.isLoading, pendingAddGenerationId, runtime.mediaLightbox, runtime.toast, setSearchParams, store]);
+  }, [editor.isLoading, isActiveInstance, pendingAddGenerationId, runtime.mediaLightbox, runtime.toast, runtime.timelineId, runtime.project.projectId, searchParams, setSearchParams, store]);
 
   const [lightboxAssetKey, setLightboxAssetKey] = useState<string | null>(null);
   const [lightboxClipId, setLightboxClipId] = useState<string | null>(null);
@@ -759,7 +824,15 @@ export interface VideoEditorProviderProps {
   children: React.ReactNode;
 }
 
-export function VideoEditorProvider({
+export function VideoEditorProvider(props: VideoEditorProviderProps) {
+  const authority = useRef({ dataProvider: props.dataProvider, generation: 0 });
+  if (authority.current.dataProvider !== props.dataProvider) {
+    authority.current = { dataProvider: props.dataProvider, generation: authority.current.generation + 1 };
+  }
+  return <VideoEditorProviderInstance key={JSON.stringify([props.projectId, props.projectSlug, props.timelineId, props.userId, authority.current.generation])} {...props} />;
+}
+
+function VideoEditorProviderInstance({
   dataProvider,
   projectId,
   projectSlug,
@@ -786,40 +859,6 @@ export function VideoEditorProvider({
     [shotsHost.canonicalDraft, timelineEditability],
   );
   const agentChatRegistry = useAgentChatRegistry();
-  const registerAgentChatTimeline = useCallback((value: {
-    timelineId: string | null;
-    projectId: string | null;
-    projectSlug?: string | null;
-    timelineName?: string | null;
-    timelineSummary?: {
-      configVersion: number;
-      trackCount: number;
-      clipCount: number;
-      assetCount: number;
-      duration: number;
-    };
-    elementContext?: AgentChatEditorContext['elementContext'];
-    elementOperationAdapter?: AgentChatEditorContext['elementOperationAdapter'];
-    liveSceneOperationPort?: AgentChatEditorContext['liveSceneOperationPort'];
-  }) => {
-    agentChatRegistry.register({
-      timelineId: value.timelineId,
-      editorContext: value.timelineId
-        ? {
-            tool: 'video-editor',
-            projectId: value.projectId,
-            projectSlug: value.projectSlug ?? null,
-            timelineId: value.timelineId,
-            timelineName: value.timelineName ?? null,
-            timelineSummary: value.timelineSummary,
-            elementContext: value.elementContext,
-            elementOperationAdapter: value.elementOperationAdapter,
-            liveSceneOperationPort: value.liveSceneOperationPort,
-            deepLink: typeof globalThis.location?.href === 'string' ? globalThis.location.href : null,
-          }
-        : null,
-    });
-  }, [agentChatRegistry.register]);
   const telemetryHost = useMemo(() => createPrivacySafeExtensionTelemetryHost(), []);
   const knownExtensionVersionsRef = useRef(new Map<string, Set<string>>());
   const extensionVersions = useMemo(
@@ -912,6 +951,46 @@ export function VideoEditorProvider({
     },
   });
 
+  const registerAgentChatTimeline = useCallback((value: {
+    timelineId: string | null;
+    projectId: string | null;
+    projectSlug?: string | null;
+    timelineName?: string | null;
+    timelineSummary?: {
+      configVersion: number;
+      trackCount: number;
+      clipCount: number;
+      assetCount: number;
+      duration: number;
+    };
+    elementContext?: AgentChatEditorContext['elementContext'];
+    elementOperationAdapter?: AgentChatEditorContext['elementOperationAdapter'];
+    liveSceneOperationPort?: AgentChatEditorContext['liveSceneOperationPort'];
+  }) => {
+    return agentChatRegistry.register({
+      timelineId: value.timelineId,
+      editorContext: value.timelineId
+        ? {
+            tool: 'video-editor',
+            projectId: value.projectId,
+            projectSlug: value.projectSlug ?? null,
+            timelineId: value.timelineId,
+            timelineName: value.timelineName ?? null,
+            timelineSummary: value.timelineSummary,
+            elementContext: value.elementContext,
+            elementOperationAdapter: value.elementOperationAdapter,
+            liveSceneOperationPort: value.liveSceneOperationPort,
+            deepLink: typeof globalThis.location?.href === 'string' ? globalThis.location.href : null,
+          }
+        : null,
+    }, assembly.agentSelectionOwner);
+  }, [agentChatRegistry.register, assembly.agentSelectionOwner]);
+  const agentChatHost = useMemo(() => ({
+    registerTimeline: registerAgentChatTimeline,
+    unregisterTimeline: () => agentChatRegistry.unregister(assembly.agentSelectionOwner),
+    activateTimeline: () => agentChatRegistry.activate(assembly.agentSelectionOwner),
+  }), [registerAgentChatTimeline, agentChatRegistry.unregister, agentChatRegistry.activate, assembly.agentSelectionOwner]);
+
   useEffect(() => {
     const lifecycleHost = assembly.lifecycleHostRef.current;
     const current = (extensionHostEnabled ? assembly.extensionRuntime.extensions : []).map((extension) => {
@@ -945,6 +1024,8 @@ export function VideoEditorProvider({
   ]);
 
   const runtimeValue = useMemo(() => ({
+    shellRootRef: assembly.shellRootRef,
+    agentSelectionOwner: assembly.agentSelectionOwner,
     astridElementHost: INSTALLED_ASTRID_ELEMENT_HOST,
     provider: dataProvider,
     assetResolver: {
@@ -969,10 +1050,7 @@ export function VideoEditorProvider({
         ? dataProvider.loadGenerationForLightbox.bind(dataProvider)
         : loadGenerationForLightbox,
     },
-    agentChat: {
-      registerTimeline: registerAgentChatTimeline,
-      unregisterTimeline: agentChatRegistry.unregister,
-    },
+    agentChat: agentChatHost,
     toast: {
       error: toast.error,
       success: toast.success,
@@ -1001,7 +1079,7 @@ export function VideoEditorProvider({
     timelineOverlaysEnabled,
     timelineViewStore: assembly.timelineViewStoreRef.current ?? undefined,
     timelineEditability: effectiveTimelineEditability,
-  }), [agentChatRegistry.unregister, dataProvider, effectiveTimelineEditability, extensionHostEnabled, operationalEmitter, projectId, projectSlug, registerAgentChatTimeline, shotsHost, telemetryHost, timelineId, timelineName, userId, assembly.resolvedExtensionsConfig, assembly.extensionRuntime, assembly.processResultAttachRecords, assembly.processStatuses, assembly.recordProcessResultAttach, assembly.getRecoveryKey, assembly.incrementRecoveryKey, timelineOverlaysEnabled]);
+  }), [agentChatHost, assembly.agentSelectionOwner, assembly.shellRootRef, dataProvider, effectiveTimelineEditability, extensionHostEnabled, operationalEmitter, projectId, projectSlug, registerAgentChatTimeline, shotsHost, telemetryHost, timelineId, timelineName, userId, assembly.resolvedExtensionsConfig, assembly.extensionRuntime, assembly.processResultAttachRecords, assembly.processStatuses, assembly.recordProcessResultAttach, assembly.getRecoveryKey, assembly.incrementRecoveryKey, timelineOverlaysEnabled]);
 
   return (
     <VideoEditorRuntimeProvider value={runtimeValue}>

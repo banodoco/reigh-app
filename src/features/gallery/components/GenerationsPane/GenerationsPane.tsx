@@ -10,6 +10,8 @@ import { GenerationsDropChip } from './components/GenerationsDropChip';
 import { useGenerationsPaneController } from './hooks/useGenerationsPaneController';
 import { UI_Z_LAYERS } from '@/shared/lib/uiLayers';
 import { usePanesStore } from '@/shared/state/panesStore';
+import { isToolLaunchable } from '@/shared/lib/tooling/toolCatalog';
+import { TOOL_IDS } from '@/shared/lib/tooling/toolIds';
 
 type GenerationsPaneController = ReturnType<typeof useGenerationsPaneController>;
 
@@ -62,21 +64,21 @@ function GenerationsPaneTab({ controller }: { controller: GenerationsPaneControl
         openPane: pane.openPane,
         handlePaneEnter: pane.handlePaneEnter,
         handlePaneLeave: pane.handlePaneLeave,
-        customOpenAction: () => modal.setIsGenerationModalOpen(true),
+        customOpenAction: pane.openPane,
       }}
       display={{
-        customIcon: <Sparkles className="h-4 w-4" />,
-        paneTooltip: "Generate new image",
+        customIcon: <Images className="h-4 w-4" />,
+        paneTooltip: "Open Gallery",
         allowMobileLock: true,
         shortcutHint: '⌥S',
       }}
       actions={{
-        thirdButton: {
+        thirdButton: isToolLaunchable(TOOL_IDS.IMAGE_GENERATION) ? {
           onClick: navigation.handleNavigateToImageGeneration,
           ariaLabel: 'Go to Image Generation tool',
           tooltip: 'Go to Image Generation tool (⌥⇧S)',
           content: <Images className="h-4 w-4" />,
-        },
+        } : undefined,
         fourthButton: {
           onClick: () => modal.setIsGenerationModalOpen(true),
           ariaLabel: 'Generate new image',

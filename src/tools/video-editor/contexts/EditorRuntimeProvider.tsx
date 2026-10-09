@@ -5,10 +5,13 @@
  * Runtime assembly (registries, extension lifecycle, proposal runtime,
  * process manager, diagnostics) is shared with VideoEditorProvider via
  * contexts/editorRuntimeAssembly.tsx; this file owns only the embed
- * specifics: stub host ports, the live permission service, the settings
+ * specifics: injected or standalone host ports, the live permission service, the settings
  * notification registry and snapshot preload, and the fail-closed
  * extension-persistence initialization lifecycle.
  */
+import type { VideoEditorScopedServices } from '../browser/scopedServices.ts';
+import { VideoEditorRuntimeContent } from './VideoEditorProvider.tsx';
+import type { SaveStatus } from '../hooks/useTimelinePersistence.ts';
 import { useOwnedResourceDisposal } from '@/tools/video-editor/hooks/useOwnedResourceDisposal';
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
@@ -87,6 +90,9 @@ export interface EditorRuntimeProviderProps {
   enableLiveServices?: boolean;
   /** Whether render and compile-only export actions are available. */
   enableRenderExport?: boolean;
+  /** Explicit ports for an admitted, independently scoped editor instance. */
+  hostServices?: VideoEditorScopedServices;
+  onSaveStatusChange?: (status: SaveStatus) => void;
   children: ReactNode;
 }
 
@@ -104,6 +110,8 @@ function EditorRuntimeProviderInner({
   settingsNotificationRegistryRef,
   extensionStateRepository,
   projectObjects,
+  hostServices,
+  onSaveStatusChange,
 }: {
   children: ReactNode;
   timelineId: string;
@@ -118,11 +126,13 @@ function EditorRuntimeProviderInner({
   settingsNotificationRegistryRef: React.MutableRefObject<ExtensionSettingsNotificationRegistry | null>;
   extensionStateRepository: ExtensionStateRepository | null | undefined;
   projectObjects?: DataProvider['projectObjects'];
+  hostServices?: VideoEditorScopedServices;
+  onSaveStatusChange?: (status: SaveStatus) => void;
 }) {
   const sync = useEditorRuntimeSync({
     assembly,
     timelineServices,
-    projectId: null,
+    projectId: hostServices?.scope.projectId ?? null,
     timelineId,
     projectObjects,
     catalogUserId: userId,
@@ -155,6 +165,17 @@ function EditorRuntimeProviderInner({
     sync.store.getState().setMounted(true);
   }, [sync.store]);
 
+  const saveStatus = !hostServices && onSaveStatusChange ? sync.chrome.saveStatus : undefined;
+  useEffect(() => {
+    if (saveStatus) onSaveStatusChange?.(saveStatus);
+  }, [onSaveStatusChange, saveStatus]);
+
+  if (hostServices) {
+    return <VideoEditorRuntimeContent assembly={assembly} sync={sync} onSaveStatusChange={onSaveStatusChange}>
+      {children}
+    </VideoEditorRuntimeContent>;
+  }
+
   return (
     <EditorRuntimeScaffold assembly={assembly} sync={sync}>
       {children}
@@ -171,6 +192,8 @@ export function EditorRuntimeProvider({
   sequenceComponentCatalog,
   timelineServices = INSTALLED_TIMELINE_SERVICE_HOOKS,
   runtime,
+  hostServices,
+  onSaveStatusChange,
   extensions,
   packageStateEntries,
   extensionStateRepository,
@@ -400,17 +423,23 @@ export function EditorRuntimeProvider({
     resolveAssetUrl: async (file: string) => file,
   }), []);
 
+  const instanceScope = useMemo(() => hostServices ? Object.freeze({ ...hostServices.scope }) : undefined,
+    [hostServices?.scope.instanceId, hostServices?.scope.projectId, hostServices?.scope.projectSlug, hostServices?.scope.timelineId]);
+
   const contextValue = useMemo<VideoEditorRuntimeContextValue>(() => ({
+    shellRootRef: assembly.shellRootRef,
+    agentSelectionOwner: assembly.agentSelectionOwner,
+    instanceScope,
     astridElementHost,
     provider: dataProvider,
     assetResolver: runtime?.assetResolver ?? defaultAssetResolver,
     auth: { userId } satisfies VideoEditorAuthHost,
-    project: { projectId: null } satisfies VideoEditorProjectHost,
-    shots: stubShotsHost,
-    mediaLightbox: stubMediaLightboxHost,
-    agentChat: stubAgentChatHost,
-    toast: stubToastHost,
-    telemetry: stubTelemetryHost,
+    project: { projectId: hostServices?.scope.projectId ?? runtime?.hostContext?.projectId ?? null, projectSlug: hostServices?.scope.projectSlug } satisfies VideoEditorProjectHost,
+    shots: hostServices?.shots ?? stubShotsHost,
+    mediaLightbox: hostServices?.mediaLightbox ?? stubMediaLightboxHost,
+    agentChat: hostServices?.agentChat ?? stubAgentChatHost,
+    toast: hostServices?.toast ?? stubToastHost,
+    telemetry: hostServices?.telemetry ?? stubTelemetryHost,
     timelineId,
     timelineName,
     userId,
@@ -441,6 +470,10 @@ export function EditorRuntimeProvider({
     timelineViewStore: assembly.timelineViewStoreRef.current ?? undefined,
   }), [
     astridElementHost,
+    assembly.shellRootRef,
+    assembly.agentSelectionOwner,
+    instanceScope,
+    hostServices,
     dataProvider,
     runtime?.assetResolver,
     runtime?.exporter,
@@ -487,6 +520,8 @@ export function EditorRuntimeProvider({
         settingsNotificationRegistryRef={settingsNotificationRegistryRef}
         extensionStateRepository={activeExtensionStateRepository}
         projectObjects={dataProvider.projectObjects}
+        hostServices={hostServices}
+        onSaveStatusChange={onSaveStatusChange}
       >
         {children}
       </EditorRuntimeProviderInner>

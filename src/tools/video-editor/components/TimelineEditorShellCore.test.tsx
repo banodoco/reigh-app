@@ -249,6 +249,7 @@ vi.mock('@/shared/lib/typedEvents.ts', () => ({
 
 vi.mock('@/shared/state/selectionStore.ts', () => ({
   editorReplaceTimelineSelection: vi.fn(),
+  activateTimelineClipData: vi.fn(),
 }));
 
 

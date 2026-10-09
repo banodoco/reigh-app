@@ -16,7 +16,7 @@ import {
   resolveAstridBridgeProxyPolicy,
 } from "./astridBridgeProxy";
 import { createWorkspaceRuntimeProxyOptions, RUNTIME_TOKEN_FILE_ENV } from "./runtimeProxy";
-import { resolveAstridSource } from "./astridSource";
+import { resolveAstridSource, validateAstridToolCatalog } from "./astridSource";
 import {
   createAstridGenerationComposer,
   resolveAstridGenerationComposer,
@@ -56,6 +56,10 @@ export default defineConfig(() => {
   const astridBridgeProxyPolicy = resolveAstridBridgeProxyPolicy(process.env);
   const pairedRelay = createPairedRelayPlugin(resolvePairedRelayConfig(process.env));
   const astridSource = resolveAstridSource();
+  if (!astridSource) {
+    throw new Error('The Video Editor Tool build requires ASTRID_CHECKOUT or a bundled Astrid browser source.');
+  }
+  validateAstridToolCatalog(astridSource.sourceRoot);
   const astridPublicSource = resolveAstridSource(
     process.env.ASTRID_PUBLIC_CHECKOUT ?? '',
     'ASTRID_PUBLIC_CHECKOUT',

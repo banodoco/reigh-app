@@ -1,5 +1,6 @@
 import {
   useCallback,
+  useContext,
   useLayoutEffect,
   useRef,
   useState,
@@ -7,6 +8,7 @@ import {
   type MutableRefObject,
   type SetStateAction,
 } from 'react';
+import { VideoEditorRuntimeContext } from '@/tools/video-editor/contexts/VideoEditorRuntimeContext.tsx';
 import {
   editorClearTimelineSelection,
   editorSelectTimelineClip,
@@ -192,6 +194,7 @@ export function useTimelineCommit({
   editability,
   initialData,
 }: UseTimelineCommitOptions): UseTimelineCommitResult {
+  const selectionOwner = useContext(VideoEditorRuntimeContext)?.agentSelectionOwner;
   const editSeqRef = useRef(0);
   const pendingOpsRef = useRef(0);
   const dataRef = useRef<TimelineData | null>(initialData ?? null);
@@ -202,13 +205,13 @@ export function useTimelineCommit({
   const {
     selectedClipId,
     selectedTrackId,
-  } = useTimelineSelectionStore();
+  } = useTimelineSelectionStore(selectionOwner);
   const setSelectedTrackId = useCallback<Dispatch<SetStateAction<string | null>>>((updater) => {
     const nextTrackId = typeof updater === 'function'
       ? updater(selectedTrackIdRef.current)
       : updater;
-    editorSetSelectedTrackId(nextTrackId);
-  }, []);
+    editorSetSelectedTrackId(nextTrackId, selectionOwner);
+  }, [selectionOwner]);
 
   useLayoutEffect(() => {
     dataRef.current = data;
@@ -222,8 +225,8 @@ export function useTimelineCommit({
     eventBus.emit('pruneSelection', new Set(Object.keys(initialData.meta)));
     const firstTrackId = initialData.tracks[0]?.id ?? null;
     selectedTrackIdRef.current = firstTrackId;
-    editorSetSelectedTrackId(firstTrackId);
-  }, [eventBus, initialData]);
+    editorSetSelectedTrackId(firstTrackId, selectionOwner);
+  }, [eventBus, initialData, selectionOwner]);
 
   const withPinnedShotGroups = useCallback((
     config: TimelineData['config'],
@@ -299,27 +302,27 @@ export function useTimelineCommit({
     if (options?.selectedClipId !== undefined) {
       selectedClipIdRef.current = options.selectedClipId;
       if (options.selectedClipId === null) {
-        editorClearTimelineSelection();
+        editorClearTimelineSelection(selectionOwner);
       } else {
-        editorSelectTimelineClip(options.selectedClipId);
+        editorSelectTimelineClip(options.selectedClipId, selectionOwner);
       }
     } else if (selectedClipIdRef.current && !nextData.meta[selectedClipIdRef.current]) {
       selectedClipIdRef.current = null;
-      editorClearTimelineSelection();
+      editorClearTimelineSelection(selectionOwner);
     }
 
     eventBus.emit('pruneSelection', new Set(Object.keys(nextData.meta)));
 
     if (options?.selectedTrackId !== undefined) {
       selectedTrackIdRef.current = options.selectedTrackId;
-      editorSetSelectedTrackId(options.selectedTrackId);
+      editorSetSelectedTrackId(options.selectedTrackId, selectionOwner);
     } else {
       const fallbackTrackId = selectedTrackIdRef.current
         && nextData.tracks.some((track) => track.id === selectedTrackIdRef.current)
         ? selectedTrackIdRef.current
         : nextData.tracks[0]?.id ?? null;
       selectedTrackIdRef.current = fallbackTrackId;
-      editorSetSelectedTrackId(fallbackTrackId);
+      editorSetSelectedTrackId(fallbackTrackId, selectionOwner);
     }
 
     if (options?.updateLastSavedSignature) {
@@ -330,7 +333,7 @@ export function useTimelineCommit({
       editSeqRef.current += 1;
       eventBus.emit('scheduleSave', nextData);
     }
-  }, [eventBus, lastSavedSignatureRef]);
+  }, [eventBus, lastSavedSignatureRef, selectionOwner]);
 
   const applyEdit = useCallback((
     mutation: TimelineEditMutation,

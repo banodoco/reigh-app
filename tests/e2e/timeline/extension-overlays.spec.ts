@@ -138,6 +138,9 @@ async function seedSceneMarkers(markers: Array<{ id: string; time: number }> = M
 async function openCanaryEditor(page: Page): Promise<void> {
   await page.addInitScript(() => {
     try {
+      // This helper creates a fresh route visit independently of openEditor.
+      // Mark setup complete so first-run onboarding cannot cover the editor.
+      window.localStorage.setItem('astrid-setup-complete', 'true');
       const initializedKey = 'reigh.e2e.extension-overlays.initialized';
       if (window.sessionStorage.getItem(initializedKey) !== '1') {
         window.localStorage.removeItem('reigh.dev-extensions.disabled');
@@ -792,9 +795,19 @@ test.describe('timeline extension overlays (desktop)', () => {
     await expect(markerLayer).toBeVisible({ timeout: 20_000 });
     await expect(markerLayer).toHaveAttribute('data-marker-count', '0');
 
-    // Focus a non-editable timeline surface so the B keybinding is not
-    // swallowed by an editable target.
+    // Focus the owning editor shell explicitly. Clicking a non-focusable clip
+    // surface does not guarantee the key event target is inside the scoped
+    // shell, which is required for instance-owned shortcuts.
     await page.locator(`${EDIT_AREA_SELECTOR} ${CLIP_BODY_SELECTOR}`).first().click({ timeout: 8_000 });
+    await page.locator('[data-testid="timeline-ruler"]').evaluate((ruler) => {
+      ruler.closest<HTMLElement>('[tabindex="-1"]')?.focus({ preventScroll: true });
+    });
+    await expect.poll(() => page.evaluate(() => {
+      const active = document.activeElement;
+      const shell = document.querySelector('[data-testid="timeline-ruler"]')
+        ?.closest<HTMLElement>('[tabindex="-1"]');
+      return Boolean(active && shell?.contains(active));
+    })).toBe(true);
 
     // Scrub the ruler to a NONZERO playhead: the canvas publishes it into
     // the provider-owned timeline view store through handleSetTime. The B

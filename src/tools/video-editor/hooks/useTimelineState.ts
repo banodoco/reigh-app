@@ -83,6 +83,7 @@ function useTimelineEditorContextValue({
   interactionPolicy,
   selection,
   multiSelect,
+  selectionOwner,
   selectedTrackId,
   compositionSize,
   trackScaleMap,
@@ -121,6 +122,7 @@ function useTimelineEditorContextValue({
   interactionPolicy: ReturnType<typeof createMobileInteractionPolicy>;
   selection: SelectionHook;
   multiSelect: MultiSelectHook;
+  selectionOwner?: symbol;
   selectedTrackId: string | null;
   compositionSize: { width: number; height: number };
   trackScaleMap: Record<string, number>;
@@ -203,10 +205,10 @@ function useTimelineEditorContextValue({
     selectClip: (clipId, opts) => userSelectTimelineClip(clipId, {
       additive: Boolean(opts?.toggle),
       preserveIfSelected: opts?.preserveSelection,
-    }),
-    selectClips: (clipIds) => userSelectTimelineClips(clipIds, { additive: false }),
-    addToSelection: (clipIds) => userSelectTimelineClips(clipIds, { additive: true }),
-    clearSelection: editorClearTimelineSelection,
+    }, selectionOwner),
+    selectClips: (clipIds) => userSelectTimelineClips(clipIds, { additive: false }, selectionOwner),
+    addToSelection: (clipIds) => userSelectTimelineClips(clipIds, { additive: true }, selectionOwner),
+    clearSelection: () => editorClearTimelineSelection(selectionOwner),
     setSelectedTrackId,
     setActiveClipTab,
     setAssetPanelState,
@@ -281,6 +283,7 @@ function useTimelineEditorContextValue({
     interactionPolicy,
     interactionStateRef,
     isLoading,
+    selectionOwner,
     multiSelect.isClipSelected,
     onActionResizeStart,
     onClipEdgeResizeEnd,
@@ -646,8 +649,9 @@ export function useTimelineState(services: TimelineHostServiceHooks, initialTime
   const selection = useTimelineSelection({
     data,
     selectedTrackId,
+    owner: runtime.agentSelectionOwner,
   });
-  const multiSelect = useTimelineMultiSelect();
+  const multiSelect = useTimelineMultiSelect(runtime.agentSelectionOwner);
   // useTimelineMultiSelect exposes selection *state*; the select action lives on
   // the store module. Passing `multiSelect.selectClip` here left every consumer
   // with `undefined` and crashed the add-text flows after insert.
@@ -655,12 +659,12 @@ export function useTimelineState(services: TimelineHostServiceHooks, initialTime
     userSelectTimelineClip(clipId, {
       additive: Boolean(opts?.toggle),
       preserveIfSelected: opts?.preserveSelection,
-    });
-  }, []);
+    }, runtime.agentSelectionOwner);
+  }, [runtime.agentSelectionOwner]);
 
   useEffect(() => {
-    systemResetTimelineSelection();
-  }, [runtime.timelineId]);
+    systemResetTimelineSelection(runtime.agentSelectionOwner);
+  }, [runtime.timelineId, runtime.agentSelectionOwner]);
   const setInputModalityFromPointerType = useCallback((pointerType: string | null | undefined) => {
     const nextModality = resolveInputModalityFromPointerType(pointerType);
     setInputModality(nextModality);
@@ -880,6 +884,7 @@ export function useTimelineState(services: TimelineHostServiceHooks, initialTime
     interactionPolicy,
     selection,
     multiSelect,
+    selectionOwner: runtime.agentSelectionOwner,
     selectedTrackId,
     compositionSize,
     trackScaleMap,

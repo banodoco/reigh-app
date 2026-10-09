@@ -269,6 +269,8 @@ export interface UseEditorRuntimeAssemblyOptions {
 }
 
 export interface EditorRuntimeAssembly {
+  shellRootRef: MutableRefObject<HTMLElement | null>;
+  agentSelectionOwner: symbol;
   extensionRuntime: ExtensionRuntime;
   /** Extensions config with registered slot renderers resolved (reactive). */
   resolvedExtensionsConfig: VideoEditorExtensionRuntimeConfig;
@@ -310,6 +312,9 @@ export function useEditorRuntimeAssembly({
   enableShaderRegistry = false,
   onUnmount,
 }: UseEditorRuntimeAssemblyOptions): EditorRuntimeAssembly {
+  const shellRootRef = useRef<HTMLElement | null>(null);
+  const [agentSelectionOwner] = useState(() => Symbol('video-editor-instance'));
+
   // ---- extension normalization ---------------------------------------------
   const extensionRuntime = useMemo<ExtensionRuntime>(
     () => normalizeExtensionRuntime(
@@ -494,6 +499,8 @@ export function useEditorRuntimeAssembly({
   );
 
   return {
+    shellRootRef,
+    agentSelectionOwner,
     extensionRuntime,
     resolvedExtensionsConfig,
     lifecycleHostRef,
@@ -903,6 +910,7 @@ export function useEditorRuntimeSync({
           }),
           dataKindsService,
           assembly.liveSceneOperationPort.registration(extId),
+          () => assembly.shellRootRef.current,
         );
 
         // Register the settings service for explicit local-only listeners.
@@ -923,6 +931,7 @@ export function useEditorRuntimeSync({
   }, [
     activeExtensionIds,
     assembly.liveSceneOperationPort,
+    assembly.shellRootRef,
     agentToolRegistryRef,
     clipTypeRegistryRef,
     commandRegistryRef,

@@ -3,10 +3,11 @@ import { Navigate } from 'react-router-dom';
 import { ReighLoading } from '@/shared/components/ReighLoading';
 import { useUserUIState } from '@/shared/hooks/useUserUIState';
 import { isToolEligible } from '@/shared/lib/tooling/toolEligibility';
-import { toolRuntimeManifest } from '@/shared/lib/tooling/toolManifest';
+import { toolsUIManifest } from '@/shared/lib/tooling/toolManifest';
+import { TOOL_IDS } from '@/shared/lib/tooling/toolIds';
 import { AppEnv, type AppEnvValue } from '@/types/env';
 
-const FALLBACK_TOOL_ID = 'travel-between-images';
+const FALLBACK_TOOL_ID = TOOL_IDS.VIDEO_EDITOR;
 
 export function DefaultToolRedirect() {
   const { value: defaultTool, isLoading: isLoadingDefaultTool } = useUserUIState('defaultTool', {
@@ -21,7 +22,7 @@ export function DefaultToolRedirect() {
     return <ReighLoading />;
   }
 
-  const selectedTool = toolRuntimeManifest.find((tool) => tool.id === defaultTool.toolId);
+  const selectedTool = toolsUIManifest.find((tool) => tool.id === defaultTool.toolId);
   const resolvedToolId = selectedTool && isToolEligible(selectedTool, {
     currentEnv,
     isCloudGenerationEnabled: true,
@@ -30,5 +31,6 @@ export function DefaultToolRedirect() {
     ? selectedTool.id
     : FALLBACK_TOOL_ID;
 
-  return <Navigate to={`/tools/${resolvedToolId}`} replace />;
+  const resolvedTool = toolsUIManifest.find((tool) => tool.id === resolvedToolId);
+  return <Navigate to={resolvedTool?.path ?? '/tools/video-editor'} replace />;
 }

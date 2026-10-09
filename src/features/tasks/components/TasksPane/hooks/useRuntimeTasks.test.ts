@@ -372,4 +372,26 @@ describe('useRuntimeTasks shared-query polling', () => {
     unmount();
     queryClient.clear();
   });
+  it('retains mutation project and cache ownership when selection changes during getTask', async () => {
+    const queued = task('queued', 'pending-task');
+    let release!: (value: RuntimeTask) => void;
+    vi.spyOn(ReighRuntimeClient.prototype, 'getTask').mockImplementation(() => new Promise(resolve => { release = resolve; }));
+    const updated = { ...queued, state: 'cancelled' as const, version: 5 };
+    const cancel = vi.spyOn(ReighRuntimeClient.prototype, 'cancelTask').mockResolvedValue(updated);
+    vi.spyOn(ReighRuntimeClient.prototype, 'listProjectTasks').mockResolvedValue(taskPage([]));
+    const client = createRuntimeTaskQueryClient();
+    const foreign = { ...task('queued', 'foreign-task'), project_id: 'project-B' };
+    client.setQueryData(runtimeTaskQueryKey('runtime-project'), [queued]);
+    client.setQueryData(runtimeTaskQueryKey('project-B'), [foreign]);
+    const hook = renderHook(({ project }) => useRuntimeTasks(project), { initialProps: { project: 'runtime-project' }, wrapper: createRuntimeTaskQueryWrapper(client) });
+    await act(async () => { hook.result.current.cancelTask(queued.task_id); await Promise.resolve(); });
+    hook.rerender({ project: 'project-B' });
+    await act(async () => { release(queued); await Promise.resolve(); await Promise.resolve(); });
+    await flushRuntimeTaskQuery();
+    expect(cancel).toHaveBeenCalledWith('pending-task', expect.stringContaining('runtime-project'), 4);
+    expect(client.getQueryData(runtimeTaskQueryKey('runtime-project'))).toEqual([updated]);
+    expect(client.getQueryData(runtimeTaskQueryKey('project-B'))).toEqual([foreign]);
+    hook.unmount(); client.clear();
+  });
+
 });

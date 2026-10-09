@@ -23,8 +23,11 @@ const mocks = vi.hoisted(() => ({
   isSpecialFilter: vi.fn(),
   useAppEventListener: vi.fn(),
   useResolvedGalleryProject: vi.fn(),
+  selectedEditor: null as { projectId: string; timelineId: string } | null,
   eventHandlers: {} as Record<string, () => void>,
 }));
+
+vi.mock('@/shared/contexts/AgentChatContext', () => ({ useOptionalAgentChatBridge: () => ({ editorContext: mocks.selectedEditor }) }));
 
 vi.mock('@/shared/lib/debug/debugRendering', () => ({
   useRenderLogger: (...args: unknown[]) => mocks.useRenderLogger(...args),
@@ -175,6 +178,7 @@ function buildPanesState(overrides: Record<string, unknown> = {}) {
 
 describe('useGenerationsPaneController', () => {
   beforeEach(() => {
+    mocks.selectedEditor = null;
     vi.clearAllMocks();
     mocks.eventHandlers = {};
 
@@ -380,4 +384,18 @@ describe('useGenerationsPaneController', () => {
       runtimeAuthority: true,
     }));
   });
+  it('captures the selected dialog recipient without changing the primary route', () => {
+    mocks.selectedEditor = { projectId: 'project-B', timelineId: 'timeline-B' };
+    mocks.useLocation.mockReturnValue({ pathname: '/tools/video-editor', search: '?runtime=1&runtimeProject=project-A&runtimeTimeline=timeline-A&timeline=timeline-A' });
+    const navigate = vi.fn(); mocks.useNavigate.mockReturnValue(navigate);
+    const { result } = renderHook(() => useGenerationsPaneController());
+    act(() => result.current.navigation.handleAddGenerationToTimeline('generation-B'));
+    const target = navigate.mock.calls[0][0];
+    const params = new URLSearchParams(target.search);
+    expect(params.get('runtimeProject')).toBe('project-A');
+    expect(params.get('timeline')).toBe('timeline-A');
+    expect(params.get('addGenerationProject')).toBe('project-B');
+    expect(params.get('addGenerationTimeline')).toBe('timeline-B');
+  });
+
 });

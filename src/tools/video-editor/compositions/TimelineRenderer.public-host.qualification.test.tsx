@@ -387,7 +387,8 @@ describe('V009 public host behavior qualification', () => {
     expect(routes).toContain('path="/home"');
     expect(routes).toContain('path="/"');
     expect(routes).toContain("import VideoEditorPage from '@/tools/video-editor/pages/VideoEditorPage'");
-    expect(routes).toContain("import VideoTravelToolPage from '@/tools/travel-between-images/pages/VideoTravelToolPage'");
+    expect(routes).toContain('path="/tools/travel-between-images"');
+    expect(routes).not.toContain("import VideoTravelToolPage from '@/tools/travel-between-images/pages/VideoTravelToolPage'");
     expect(main).toContain("@/tools/video-editor/browser/initializeVideoEditorExtensionRuntime.ts");
     expect(main).not.toMatch(/from\s+['"]@\/tools\/video-editor\/browser(?:\/index(?:\.[cm]?[jt]sx?)?)?['"]/);
     expect(routes).toContain('<HomeDocumentHandoff replaceDocument={replaceDocument} />');

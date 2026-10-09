@@ -3,7 +3,7 @@
  * extension.
  *
  * Renders a compact strip under the timeline: a marker-count/playhead
- * summary, the Mark (B) action, and the Phase 2 controls that convert
+ * summary, the Mark scene phase (B) action, and the Phase 2 controls that convert
  * markers into shot positions. Two explicit actions: "Create shots from
  * markers" (a checkbox refines it to only markers not already covered by a
  * shot or generation) and "Move existing shots to markers" (align existing
@@ -189,7 +189,7 @@ export function ScenePhaseMarkersPanel({ ctx, playback, isConflictExhausted = fa
         data-testid="scene-markers-mark-button"
         title={isConflictExhausted ? 'Resolve the save conflict first.' : undefined}
       >
-        Mark (B)
+        Mark scene phase (B)
       </button>
 
       <span className="mx-1 h-4 w-px bg-border" aria-hidden="true" />

@@ -380,3 +380,32 @@ describe('useKeyboardShortcuts extension keybindings', () => {
     expect(handler).not.toHaveBeenCalled();
   });
 });
+
+describe('concurrent editor keyboard ownership', () => {
+  it('executes built-in and extension commands only in the event target instance', async () => {
+    const full = document.createElement('section');
+    const dialog = document.createElement('section');
+    const fullButton = document.createElement('button'); full.append(fullButton);
+    const dialogButton = document.createElement('button'); dialog.append(dialogButton);
+    document.body.append(full, dialog);
+    const fullOptions = makeOptions(); const dialogOptions = makeOptions();
+    const fullRegistry = createCommandRegistry(); const dialogRegistry = createCommandRegistry();
+    const fullCommand = vi.fn(); const dialogCommand = vi.fn();
+    registerShortcutCommand({ registry: fullRegistry, handler: fullCommand });
+    registerShortcutCommand({ registry: dialogRegistry, handler: dialogCommand });
+    const wrapper = (root: HTMLElement, registry: CommandRegistry) => ({ children }: { children: React.ReactNode }) => (
+      <VideoEditorRuntimeContext.Provider value={{ shellRootRef: { current: root }, commandRegistry: registry,
+        extensionRuntime: { extensions: [makeExtension()] } } as VideoEditorRuntimeContextValue}>{children}</VideoEditorRuntimeContext.Provider>
+    );
+    const fullView = renderHook(() => useKeyboardShortcuts(fullOptions), { wrapper: wrapper(full, fullRegistry) });
+    const dialogView = renderHook(() => useKeyboardShortcuts(dialogOptions), { wrapper: wrapper(dialog, dialogRegistry) });
+    dialogButton.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', ctrlKey: true, bubbles: true }));
+    expect(dialogOptions.undo).toHaveBeenCalledOnce(); expect(fullOptions.undo).not.toHaveBeenCalled();
+    fullButton.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true }));
+    await waitFor(() => expect(fullCommand).toHaveBeenCalledOnce()); expect(dialogCommand).not.toHaveBeenCalled();
+    dialogView.unmount();
+    fullButton.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', ctrlKey: true, bubbles: true }));
+    expect(fullOptions.undo).toHaveBeenCalledOnce();
+    fullView.unmount(); full.remove(); dialog.remove();
+  });
+});

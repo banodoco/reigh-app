@@ -2,6 +2,7 @@ import { useDerivedTimeline } from '@/tools/video-editor/hooks/useDerivedTimelin
 import {
   useTimelineMultiSelect,
   type UseTimelineMultiSelectResult,
+  type TimelineClipDataOwner,
 } from '@/shared/state/selectionStore.ts';
 import type {
   TimelineResolvedConfig,
@@ -12,6 +13,7 @@ import type { TimelineData } from '@/tools/video-editor/lib/timeline-data.ts';
 
 export interface UseTimelineSelectionArgs {
   data: TimelineData | null;
+  owner?: TimelineClipDataOwner;
   selectedTrackId: string | null;
 }
 
@@ -31,8 +33,9 @@ export interface UseTimelineSelectionResult {
 export function useTimelineSelection({
   data,
   selectedTrackId,
+  owner,
 }: UseTimelineSelectionArgs): UseTimelineSelectionResult {
-  const multiSelect = useTimelineMultiSelect();
+  const multiSelect = useTimelineMultiSelect(owner);
   const {
     isClipSelected,
     primaryClipId,

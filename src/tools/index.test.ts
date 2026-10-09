@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { AppEnv } from '@/types/env';
 import { toolsManifest, toolsUIManifest } from './index';
+import { TOOL_IDS } from '@/shared/lib/tooling/toolIds';
 
 describe('tools manifest contracts', () => {
   it('keeps tool ids unique in the core manifest', () => {
@@ -21,5 +22,10 @@ describe('tools manifest contracts', () => {
 
   it('declares local availability for every UI tool', () => {
     expect(toolsUIManifest.every((tool) => tool.environments.includes(AppEnv.LOCAL))).toBe(true);
+  });
+
+  it('exposes only the admitted Video Editor as a launchable Tool while retaining settings IDs', () => {
+    expect(toolsUIManifest.map((tool) => tool.id)).toEqual([TOOL_IDS.VIDEO_EDITOR]);
+    expect(toolsManifest.map((tool) => tool.id)).toEqual(expect.arrayContaining(Object.values(TOOL_IDS)));
   });
 });

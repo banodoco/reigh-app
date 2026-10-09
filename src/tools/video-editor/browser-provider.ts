@@ -51,3 +51,6 @@ export type {
   VideoEditorExportRequest,
   VideoEditorHostContext,
 } from './lib/browser-runtime.ts';
+
+export type { VideoEditorInstanceScope, VideoEditorScopedServices } from './browser/scopedServices.ts';
+export { VIDEO_EDITOR_SCOPED_SERVICES_CONTRACT } from './browser/scopedServices.ts';

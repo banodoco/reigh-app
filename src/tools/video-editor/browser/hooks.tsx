@@ -1,3 +1,4 @@
+import type { VideoEditorInstanceScope } from './scopedServices.ts';
 import { shallow } from 'zustand/shallow';
 import type { AssetRegistryEntry, AssetRegistry, TimelineConfig, ResolvedTimelineConfig } from '@/tools/video-editor/index.ts';
 import {
@@ -24,6 +25,7 @@ export type VideoEditorSaveStatus = 'saved' | 'saving' | 'dirty' | 'retrying' | 
 export type VideoEditorRenderStatus = 'idle' | 'rendering' | 'done' | 'error';
 
 export interface VideoEditorHost {
+  scope: Readonly<VideoEditorInstanceScope> | null;
   timelineId: string;
   timelineName: string | null;
   userId: string | null;
@@ -116,6 +118,7 @@ export function useVideoEditorHost(): VideoEditorHost {
   const runtime = useVideoEditorRuntime();
 
   return {
+    scope: runtime.instanceScope ?? null,
     timelineId: runtime.timelineId,
     timelineName: runtime.timelineName ?? null,
     userId: runtime.userId,

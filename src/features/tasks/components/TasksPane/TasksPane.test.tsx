@@ -7,6 +7,7 @@ import { TasksPane } from './TasksPane';
 const useLocationMock = vi.fn();
 const useTasksPaneControllerMock = vi.fn();
 const useAgentChatActionsMock = vi.fn();
+const useOptionalAgentChatBridgeMock = vi.fn();
 const usePanesStoreMock = vi.fn();
 const openPaneMock = vi.fn();
 const toggleLockMock = vi.fn();
@@ -90,6 +91,7 @@ vi.mock('@/shared/components/PaneControlTab', () => ({
 }));
 
 vi.mock('@/shared/contexts/AgentChatContext', () => ({
+  useOptionalAgentChatBridge: () => useOptionalAgentChatBridgeMock(),
   useAgentChatActions: (...args: unknown[]) => useAgentChatActionsMock(...args),
 }));
 
@@ -154,8 +156,8 @@ vi.mock('./TaskList', () => ({
 }));
 
 vi.mock('./RuntimeTaskList', () => ({
-  RuntimeTaskList: ({ tasks }: { tasks: Array<{ task_id: string }> }) => (
-    <div data-testid="runtime-task-list" data-runtime-task-id={tasks[0]?.task_id ?? ''} />
+  RuntimeTaskList: ({ tasks, timelineId }: { tasks: Array<{ task_id: string }>; timelineId: string | null }) => (
+    <div data-testid="runtime-task-list" data-runtime-task-id={tasks[0]?.task_id ?? ''} data-timeline-id={timelineId ?? ''} />
   ),
 }));
 
@@ -255,6 +257,7 @@ function renderTasksPane() {
 
 describe('TasksPane', () => {
   beforeEach(() => {
+    useOptionalAgentChatBridgeMock.mockReturnValue(null);
     paneControlProps = null;
     Object.defineProperty(window, 'localStorage', {
       configurable: true,
@@ -487,4 +490,14 @@ describe('TasksPane', () => {
     expect(screen.getByTestId('runtime-task-list')).toHaveAttribute('data-runtime-task-id', 'runtime-task-1');
     expect(screen.queryByTestId('task-list')).not.toBeInTheDocument();
   });
+  it('uses the selected dialog project while the primary route remains on A', () => {
+    useLocationMock.mockReturnValue({ pathname: '/tools/video-editor', search: '?runtime=1&runtimeProject=project-A&runtimeTimeline=timeline-A' });
+    useOptionalAgentChatBridgeMock.mockReturnValue({ editorContext: { projectId: 'project-B', timelineId: 'timeline-B' } });
+    useTasksPaneControllerMock.mockReturnValue({ ...legacyControllerState, isRuntimeMode: true, runtimeTaskData: { tasks: [], total: 0, totalPages: 0 } });
+    renderTasksPane();
+    expect(useTasksPaneControllerMock).toHaveBeenCalledWith(expect.objectContaining({ runtimeProjectId: 'project-B' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Show processing tasks (2)' }));
+    expect(screen.getByTestId('runtime-task-list')).toHaveAttribute('data-timeline-id', 'timeline-B');
+  });
+
 });

@@ -1,3 +1,4 @@
+import type { VideoEditorInstanceScope } from '../browser/scopedServices.ts';
 import { createContext, useContext } from 'react';
 import type { DataProvider } from '@/tools/video-editor/data/DataProvider.ts';
 import type {
@@ -34,6 +35,11 @@ import type { TimelineEditability } from '@/tools/video-editor/lib/timeline-edit
 import type { AstridElementHost } from '@/tools/video-editor/runtime/astrid-element-host.ts';
 
 export interface VideoEditorRuntimeContextValue {
+  /** Internal per-assembly chrome and host selection ownership. */
+  shellRootRef?: { current: HTMLElement | null };
+  agentSelectionOwner?: symbol;
+  /** Captured public Tool identity; independent full/dialog hosts supply it. */
+  instanceScope?: Readonly<VideoEditorInstanceScope>;
   astridElementHost: AstridElementHost;
   provider: DataProvider;
   assetResolver: VideoEditorAssetResolver;

@@ -16,7 +16,9 @@ export function mountVideoEditor(
 ): MountedVideoEditor {
   const root: Root = createRoot(container);
 
+  let unmounted = false;
   const render = (nextProps: BrowserVideoEditorProps) => {
+    if (unmounted) throw new Error('Cannot update an unmounted Video Editor.');
     root.render(<BrowserVideoEditor {...nextProps} />);
   };
 
@@ -27,6 +29,8 @@ export function mountVideoEditor(
       render(nextProps);
     },
     unmount() {
+      if (unmounted) return;
+      unmounted = true;
       root.unmount();
     },
   };

@@ -8,6 +8,8 @@ import { imageGenerationSettings } from '@/tools/image-generation/settings';
 import { trainingDataHelperSettings } from '@/tools/training-data-helper/settings';
 import { videoEditorSettings } from '@/tools/video-editor/settings/videoEditorDefaults';
 import { videoTravelSettings } from '@/tools/travel-between-images/settings';
+import { TOOL_IDS } from './toolIds';
+import { isToolLaunchable } from './toolCatalog';
 
 import { joinClipsSettings } from '@/shared/lib/joinClips/defaults';
 
@@ -40,7 +42,7 @@ export const toolRuntimeManifest: ToolUIDefinition[] = [
     ornament: '❋',
     badge: 'Featured',
     paneSection: 'main',
-    visibleInToolsPane: true,
+    visibleInToolsPane: false,
     darkIconColor: '#a67d2a',
   },
   {
@@ -55,7 +57,7 @@ export const toolRuntimeManifest: ToolUIDefinition[] = [
     ornament: '◆',
     badge: 'Popular',
     paneSection: 'main',
-    visibleInToolsPane: true,
+    visibleInToolsPane: false,
     darkIconColor: '#3d8a62',
   },
   {
@@ -70,7 +72,7 @@ export const toolRuntimeManifest: ToolUIDefinition[] = [
     ornament: '◉',
     badge: 'New',
     paneSection: 'assistant',
-    visibleInToolsPane: true,
+    visibleInToolsPane: false,
     darkIconColor: '#3d8a62',
   },
   {
@@ -85,7 +87,7 @@ export const toolRuntimeManifest: ToolUIDefinition[] = [
     ornament: '◆',
     badge: 'New',
     paneSection: 'assistant',
-    visibleInToolsPane: true,
+    visibleInToolsPane: false,
     darkIconColor: '#4a7099',
   },
   {
@@ -115,7 +117,7 @@ export const toolRuntimeManifest: ToolUIDefinition[] = [
     ornament: '✦',
     badge: 'New',
     paneSection: 'assistant',
-    visibleInToolsPane: true,
+    visibleInToolsPane: false,
     darkIconColor: '#a68018',
   },
   {
@@ -130,7 +132,7 @@ export const toolRuntimeManifest: ToolUIDefinition[] = [
     ornament: '◇',
     badge: 'New',
     paneSection: 'assistant',
-    visibleInToolsPane: true,
+    visibleInToolsPane: false,
     darkIconColor: '#e07070',
   },
   {
@@ -150,5 +152,9 @@ export const toolRuntimeManifest: ToolUIDefinition[] = [
 ];
 
 export const toolsUIManifest: ToolUIDefinition[] = toolRuntimeManifest.filter(
-  (tool) => tool.visibleInToolsPane !== false,
+  (tool) => tool.visibleInToolsPane !== false && isToolLaunchable(tool.id),
 );
+
+if (!toolRuntimeManifest.some((tool) => tool.id === TOOL_IDS.VIDEO_EDITOR && tool.visibleInToolsPane)) {
+  throw new Error('The admitted Video Editor Tool is missing its user-facing host declaration.');
+}
