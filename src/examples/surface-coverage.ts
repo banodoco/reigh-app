@@ -6,7 +6,7 @@
  * status, code-panel, writing-canary, stage-canary).
  *
  * This file is a governance fixture: it exists to prove that every
- * public type/interface/function in @reigh/editor-sdk is importable
+ * public type/interface/function in @astrid/editor-sdk is importable
  * by SDK-only extension code and has a documented usage pattern.
  *
  * @publicContract
@@ -61,9 +61,9 @@ import {
   projectMaturityCapabilities,
   readHostGenerationProvenance,
   shaderMissingMaterializerBlockerMessage,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import type {
-  ReighExtension,
+  AstridExtension,
   ExtensionContext,
   DisposeHandle,
   ExtensionId,
@@ -138,7 +138,7 @@ import type {
   TimelineVersionConflictError,
   TimelineViewSnapshot,
   TimelineViewStore,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 
 // ---------------------------------------------------------------------------
 // Type-level demonstrations (compile-time only, no runtime side effects)
@@ -232,7 +232,7 @@ export const exampleDataLaneAction: DataLaneActionDescriptor = {
 // Extension definition
 // ---------------------------------------------------------------------------
 
-export const surfaceCoverageExtension: ReighExtension = defineExtension(
+export const surfaceCoverageExtension: AstridExtension = defineExtension(
   exampleOptions,
 );
 

@@ -36,7 +36,7 @@ import type {
   AgentToolHandler,
   ToolUISummaryResult,
   ToolResult,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 
 // ---------------------------------------------------------------------------
 // Helpers

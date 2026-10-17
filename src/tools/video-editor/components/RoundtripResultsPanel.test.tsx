@@ -2,7 +2,7 @@
 
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import type { RenderMaterial } from '@reigh/editor-sdk';
+import type { RenderMaterial } from '@astrid/editor-sdk';
 import type { ProcessRoundtripResult } from '@/sdk/capabilities';
 import {
   createProcessResultAttachRecord,

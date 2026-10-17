@@ -21,7 +21,7 @@
  *   lazily from the shared storage area on the next `getSnapshot()` read,
  *   which always agrees with the event payload in real browsers.
  *
- * Storage key: `reigh.dev-extensions.disabled` — a JSON array of extension
+ * Storage key: `astrid.dev-extensions.disabled` — a JSON array of extension
  * IDs. Absent, malformed, or corrupt values read back as a valid empty
  * snapshot; the next real toggle write self-heals the stored value.
  *
@@ -29,7 +29,7 @@
  * empty, writes are no-ops, and subscribing never touches global listeners.
  */
 
-const DISABLED_KEY = 'reigh.dev-extensions.disabled';
+const DISABLED_KEY = 'astrid.dev-extensions.disabled';
 
 type Listener = () => void;
 

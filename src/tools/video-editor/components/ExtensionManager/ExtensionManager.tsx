@@ -21,7 +21,7 @@ import type {
   ExtensionRuntime,
   PackageStateInventoryEntry,
 } from '@/tools/video-editor/runtime/extensionSurface';
-import type { Diagnostic, ExtensionManifest } from '@reigh/editor-sdk';
+import type { Diagnostic, ExtensionManifest } from '@astrid/editor-sdk';
 import { deriveContributionSummary, type ContributionSummary } from './contributionSummary';
 import { ManagerSummaryBar } from './ManagerSummaryBar';
 import { PackageCard } from './PackageCard';

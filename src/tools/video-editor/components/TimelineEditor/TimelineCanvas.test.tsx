@@ -22,10 +22,10 @@ import type { TimelinePostprocessShaderMetadata, TrackDefinition } from '@/tools
 import type { CanonicalShotOccurrence } from '@/tools/video-editor/data/shotCompositionAdapter';
 import type { TimelineAction, TimelineRow } from '@/tools/video-editor/types/timeline-canvas';
 import type {
-  ReighExtension,
+  AstridExtension,
   ResolvedTimelineOverlayDescriptor,
   TimelineOverlayRenderProps,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 
 const useTimelineMutableAdaptersMock = vi.fn();
 let __rowPlacement: Record<string, unknown> | undefined;
@@ -104,7 +104,7 @@ function buildRuntime(
       version: '1.0.0',
       label: 'Timeline Extension',
     },
-  } as ReighExtension;
+  } as AstridExtension;
 
   return {
     provider: {} as VideoEditorRuntimeContextValue['provider'],
@@ -2021,7 +2021,7 @@ describe('TimelineCanvas resize pending ops', () => {
       expect(container.querySelector('[data-action-id="clip-1"]')).toBeTruthy();
     });
 
-    it('dispatches reigh:source-navigate-to-timeline-handled when SOURCE_NAVIGATE_TO_TIMELINE_EVENT fires', () => {
+    it('dispatches astrid:source-navigate-to-timeline-handled when SOURCE_NAVIGATE_TO_TIMELINE_EVENT fires', () => {
       const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
       renderCanvas();
 
@@ -2034,12 +2034,12 @@ describe('TimelineCanvas resize pending ops', () => {
       };
 
       window.dispatchEvent(
-        new CustomEvent('reigh:source-navigate-to-timeline', { detail }),
+        new CustomEvent('astrid:source-navigate-to-timeline', { detail }),
       );
 
       const handledEvent = dispatchSpy.mock.calls
         .map((call) => call[0] as CustomEvent)
-        .find((e) => e.type === 'reigh:source-navigate-to-timeline-handled');
+        .find((e) => e.type === 'astrid:source-navigate-to-timeline-handled');
       expect(handledEvent).toBeTruthy();
       expect((handledEvent!.detail as Record<string, unknown>).handled).toBe(true);
       expect((handledEvent!.detail as Record<string, unknown>).extensionId).toBe('ext.test');
@@ -2061,7 +2061,7 @@ describe('TimelineCanvas resize pending ops', () => {
       editArea.scrollTo = scrollTo;
 
       window.dispatchEvent(
-        new CustomEvent('reigh:source-navigate-to-timeline', {
+        new CustomEvent('astrid:source-navigate-to-timeline', {
           detail: {
             extensionId: 'ext.test',
             sourceUri: 'file:///test.ts',
@@ -2085,7 +2085,7 @@ describe('TimelineCanvas resize pending ops', () => {
       renderCanvas();
 
       window.dispatchEvent(
-        new CustomEvent('reigh:source-navigate-to-timeline', {
+        new CustomEvent('astrid:source-navigate-to-timeline', {
           detail: {
             extensionId: 'ext.test',
             sourceUri: 'file:///test.ts',
@@ -2097,7 +2097,7 @@ describe('TimelineCanvas resize pending ops', () => {
 
       const handledEvent = dispatchSpy.mock.calls
         .map((call) => call[0] as CustomEvent)
-        .find((e) => e.type === 'reigh:source-navigate-to-timeline-handled');
+        .find((e) => e.type === 'astrid:source-navigate-to-timeline-handled');
       expect(handledEvent).toBeTruthy();
       expect((handledEvent!.detail as Record<string, unknown>).handled).toBe(true);
       expect((handledEvent!.detail as Record<string, unknown>).targetId).toBeUndefined();
@@ -2109,7 +2109,7 @@ describe('TimelineCanvas resize pending ops', () => {
       renderCanvas();
 
       window.dispatchEvent(
-        new CustomEvent('reigh:source-navigate-to-timeline', {
+        new CustomEvent('astrid:source-navigate-to-timeline', {
           detail: {
             sourceUri: 'file:///test.ts',
             sourceStartLine: 10,
@@ -2120,7 +2120,7 @@ describe('TimelineCanvas resize pending ops', () => {
 
       const handledEvent = dispatchSpy.mock.calls
         .map((call) => call[0] as CustomEvent)
-        .find((e) => e.type === 'reigh:source-navigate-to-timeline-handled');
+        .find((e) => e.type === 'astrid:source-navigate-to-timeline-handled');
       expect(handledEvent).toBeFalsy();
       dispatchSpy.mockRestore();
     });
@@ -2133,7 +2133,7 @@ const laneFixture = (overrides: Record<string, unknown> = {}) => ({
   laneId: 'transcript',
   kindId: 'transcript',
   label: 'Transcript',
-  schemaRef: 'reigh.transcript_segment/v1',
+  schemaRef: 'astrid.transcript_segment/v1',
   shape: 'interval',
   domain: 'source_seconds',
   items: [],
@@ -2170,7 +2170,7 @@ describe('TimelineCanvas — dataKind V1 lane strip', () => {
 
   it('shows only transcript lanes when their independent preference is enabled', () => {
     __showDataLanes = false; __showTranscriptLane = true;
-    useDataLanesMock.mockReturnValue({ config: {}, dataLanes: [laneFixture({ kindId: 'reigh.transcript', heightOverride: null, label: 'Transcript only' }), laneFixture({ laneId: 'other', kindId: 'other', label: 'Unrelated data' })] });
+    useDataLanesMock.mockReturnValue({ config: {}, dataLanes: [laneFixture({ kindId: 'astrid.transcript', heightOverride: null, label: 'Transcript only' }), laneFixture({ laneId: 'other', kindId: 'other', label: 'Unrelated data' })] });
     renderCanvas({ rows: [row], tracks: [track] });
     expect(screen.getAllByTestId('data-lane-row')).toHaveLength(1);
     expect(screen.getByText('Transcript only')).toBeTruthy();
@@ -2178,7 +2178,7 @@ describe('TimelineCanvas — dataKind V1 lane strip', () => {
   });
   it('hides only transcript lanes while preserving other enabled data lanes', () => {
     __showDataLanes = true; __showTranscriptLane = false;
-    useDataLanesMock.mockReturnValue({ config: {}, dataLanes: [laneFixture({ kindId: 'reigh.transcript', heightOverride: null, label: 'Transcript only' }), laneFixture({ laneId: 'other', kindId: 'other', label: 'Unrelated data' })] });
+    useDataLanesMock.mockReturnValue({ config: {}, dataLanes: [laneFixture({ kindId: 'astrid.transcript', heightOverride: null, label: 'Transcript only' }), laneFixture({ laneId: 'other', kindId: 'other', label: 'Unrelated data' })] });
     renderCanvas({ rows: [row], tracks: [track] });
     expect(screen.getAllByTestId('data-lane-row')).toHaveLength(1);
     expect(screen.queryByText('Transcript only')).toBeNull();
@@ -2196,7 +2196,7 @@ describe('TimelineCanvas — dataKind V1 lane strip', () => {
   it('defaults only the transcript lane on when mounted editor data has no preferences', () => {
     __omitTimelinePreferences = true;
     useDataLanesMock.mockReturnValue({ config: {}, dataLanes: [
-      laneFixture({ laneId: 'transcript-default', kindId: 'reigh.transcript', heightOverride: null, label: 'Transcript default', height: 30 }),
+      laneFixture({ laneId: 'transcript-default', kindId: 'astrid.transcript', heightOverride: null, label: 'Transcript default', height: 30 }),
       laneFixture({ laneId: 'other', kindId: 'other', label: 'Other lane', height: 30 }),
     ] });
     renderCanvas({ rows: [row], tracks: [track] });
@@ -2214,13 +2214,13 @@ describe('TimelineCanvas — dataKind V1 lane strip', () => {
     useDataLanesMock.mockReturnValue({ config: {}, dataLanes: [
       laneFixture({
         laneId: 'transcript-single-row',
-        kindId: 'reigh.transcript', heightOverride: null,
+        kindId: 'astrid.transcript', heightOverride: null,
         height: 72,
         items: [item('a', 0, 1), item('b', 1, 2), item('c', 2, 3)],
       }),
       laneFixture({
         laneId: 'transcript-overlap',
-        kindId: 'reigh.transcript', heightOverride: null,
+        kindId: 'astrid.transcript', heightOverride: null,
         height: 72,
         items: [item('d', 0, 2), item('e', 1, 3)],
       }),
@@ -2410,8 +2410,8 @@ describe('TimelineCanvas — dataKind V1 lane strip', () => {
 describe('TimelineCanvas mixed row geometry', () => {
   afterEach(() => useDataLanesMock.mockImplementation((args?: { base?: unknown }) => args?.base ?? null));
   it('renders placement and centers a clip below an interleaved transcript using its resolved media-height row', async () => {
-    __rowPlacement = { version: 1, lanes: [{ laneId: 'reigh.transcript', beforeTrackId: 'V2' }] };
-    useDataLanesMock.mockReturnValue({ config: {}, dataLanes: [laneFixture({ laneId: 'reigh.transcript', kindId: 'reigh.transcript', heightOverride: null })] });
+    __rowPlacement = { version: 1, lanes: [{ laneId: 'astrid.transcript', beforeTrackId: 'V2' }] };
+    useDataLanesMock.mockReturnValue({ config: {}, dataLanes: [laneFixture({ laneId: 'astrid.transcript', kindId: 'astrid.transcript', heightOverride: null })] });
     const secondTrack: TrackDefinition = { id: 'V2', kind: 'visual', label: 'V2' };
     const lateRow: TimelineRow = { id: 'V2', actions: [{ id: 'clip-late', start: 6, end: 8, effectId: 'effect-clip-late' }] };
     const { container } = renderCanvas({ tracks: [track, secondTrack], rows: [row, lateRow], actionId: 'clip-late', scale: 1, scaleWidth: 100 });
@@ -2429,8 +2429,8 @@ describe('TimelineCanvas mixed row geometry', () => {
     expect(screen.getByTestId('timeline-playhead')).toHaveStyle({ height: '192px' });
   });
   it('offsets pinned shot outlines by the same leading transcript row', () => {
-    __rowPlacement = { version: 1, lanes: [{ laneId: 'reigh.transcript', beforeTrackId: 'V1' }] };
-    useDataLanesMock.mockReturnValue({ config: {}, dataLanes: [laneFixture({ laneId: 'reigh.transcript', kindId: 'reigh.transcript', heightOverride: null })] });
+    __rowPlacement = { version: 1, lanes: [{ laneId: 'astrid.transcript', beforeTrackId: 'V1' }] };
+    useDataLanesMock.mockReturnValue({ config: {}, dataLanes: [laneFixture({ laneId: 'astrid.transcript', kindId: 'astrid.transcript', heightOverride: null })] });
     const { container } = renderCanvas({ row: pinnedGroupRow, actionId: 'clip-2', shotGroups: [pinnedShotGroup], allowMissingHandles: true });
     const border = container.querySelector('.border-2.border-solid');
     expect(border).toBeTruthy();

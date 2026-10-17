@@ -7,24 +7,24 @@
  */
 
 import { createElement } from 'react';
-import { defineExtension } from '@reigh/editor-sdk';
+import { defineExtension } from '@astrid/editor-sdk';
 import type {
   CommandRunContext,
   ContributionId,
   DisposeHandle,
   ExtensionContext,
   ExtensionId,
-  ReighExtension,
+  AstridExtension,
   TimelineClipSummary,
   TimelineOverlayRenderProps,
   TimelinePatch,
   TimelineSnapshot,
   TimelineTrackSummary,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import { clusterTimelineMarkers } from '../timelineMarkerClusters';
 
 export const TIMELINE_FAULTLINE_EXTENSION_ID =
-  'com.reigh.creative-lab.timeline-faultline' as ExtensionId;
+  'haus.astrid.creative-lab.timeline-faultline' as ExtensionId;
 export const BUILD_TIMELINE_FAULTLINE_COMMAND =
   `${TIMELINE_FAULTLINE_EXTENSION_ID}.buildFaultline`;
 export const TIMELINE_FAULTLINE_DATA_KEY = 'faultlineFindings';
@@ -330,7 +330,7 @@ function disposeTogether(ctx: ExtensionContext, handles: readonly DisposeHandle[
   }
 }
 
-export const timelineFaultlineExtension: ReighExtension = defineExtension({
+export const timelineFaultlineExtension: AstridExtension = defineExtension({
   manifest: {
     id: TIMELINE_FAULTLINE_EXTENSION_ID,
     version: '1.0.0',

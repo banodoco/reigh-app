@@ -25,7 +25,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(projectRoot, 'src'),
-      '@reigh/editor-sdk': path.resolve(projectRoot, 'src/sdk'),
+      '@astrid/editor-sdk': path.resolve(projectRoot, 'src/sdk'),
       'fake-indexeddb': path.resolve(projectRoot, 'vendor/fake-indexeddb/index.js'),
       // Sprint 5: deduplicate react / remotion / @banodoco/* across linked
       // packages. The timeline-theme-2rp peer-dep package lives at a
@@ -43,7 +43,7 @@ export default defineConfig({
       '@banodoco/timeline-schema': path.resolve(projectRoot, 'node_modules/@banodoco/timeline-schema/typescript/dist/src/index.js'),
       // Sprint 5: workspace-primitive aliases for the linked packages.
       // The composition package's animations.generated / transitions.generated
-      // / effects.generated import via these aliases. Reigh's bundler needs
+      // / effects.generated import via these aliases. Astrid's bundler needs
       // them to resolve; Banodoco's webpack already does the same.
       '@workspace-effects': path.resolve(projectRoot, 'vendor/banodoco-effects'),
       '@workspace-animations': path.resolve(projectRoot, 'vendor/banodoco-animations'),

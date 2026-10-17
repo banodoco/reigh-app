@@ -108,7 +108,7 @@ supported.
 
 | Gate | Requirement |
 | --- | --- |
-| Manifest/schema | `config/contracts/reigh-extension.schema.json` accepts exactly the supported shape and rejects unknown or deferred fields. |
+| Manifest/schema | `config/contracts/astrid-extension.schema.json` accepts exactly the supported shape and rejects unknown or deferred fields. |
 | Public SDK | `src/sdk/index.ts` exports stable types and public helpers only; examples do not import internals. |
 | Runtime normalization | `extensionSurface.ts` or the owning runtime module converts manifest declarations into immutable provider-scoped descriptors with extension ID, contribution ID, order, disabled state, and diagnostics. |
 | Lifecycle cleanup | Disable/unload unregisters renderers, commands, keybindings, diagnostics, settings-derived UI state, live channels, process handles, or shader resources owned by the extension. |
@@ -138,8 +138,8 @@ Family-specific readiness:
 ## Roadmap And Ticket Reconciliation
 
 This table records what must be reconciled after review. It intentionally does
-not edit `docs/extensions/reigh-extension-layer-roadmap-v2.md` or
-`docs/extensions/reigh-extension-layer-tickets.md`.
+not edit `docs/extensions/astrid-extension-layer-roadmap-v2.md` or
+`docs/extensions/astrid-extension-layer-tickets.md`.
 
 | Source item | Current status | Reconciliation needed before Phase 4 |
 | --- | --- | --- |
@@ -238,7 +238,7 @@ command to fail.
 
 M4 closed the pristine SDK boundary:
 
-- `@reigh/editor-sdk` (`src/sdk/index.ts`) is the author-facing extension SDK. It exports portable contracts, types, and pure helpers only.
+- `@astrid/editor-sdk` (`src/sdk/index.ts`) is the author-facing extension SDK. It exports portable contracts, types, and pure helpers only.
 - Host-wired factories (`createExtensionContext`, `setEditorShellRoot`, `getEditorShellRoot`) were moved to `src/tools/video-editor/runtime/extensionContextFactory.ts`. Extension authors receive a ready-made `ExtensionContext` from the host; they never construct one themselves.
 - `createProposalRuntime()` remains host-owned in `src/tools/video-editor/lib/proposal-runtime.ts`. Portable proposal contracts (`ProposalRuntime`, `TimelineProposal`, `ProposalEnvelope`, etc.) remain in the SDK.
 - Every contribution family now has a declared maturity (`declarationMaturity`) and an execution posture (`executionMaturity`) recorded in `config/extensions/family-maturity.json`. Bridged families have a real host adapter under `src/tools/video-editor/runtime/families/*`. Delegated families use placeholder adapters and are not yet runtime-supported.

@@ -1,6 +1,6 @@
-# Reigh Structure
+# Astrid Structure
 
-**This doc has moved.** The system structure guide now lives at the Reigh-Collection level since it covers all three repos.
+**This doc has moved.** The system structure guide now lives at the Astrid-Collection level since it covers all three repos.
 
 See: [../structure.md](../structure.md)
 

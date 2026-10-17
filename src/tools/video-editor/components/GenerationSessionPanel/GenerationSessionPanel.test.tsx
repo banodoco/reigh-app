@@ -8,7 +8,7 @@ import type {
   LiveChannelDescriptor,
   LiveSourceDiagnostic,
   SteeringDecision,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 
 function makeSession(overrides?: Partial<GenerationSession>): GenerationSession {
   return {

@@ -302,7 +302,7 @@ export async function openEditor(page: Page): Promise<void> {
       // A fresh browser profile otherwise opens the first-run onboarding
       // dialog over the editor and intercepts the timeline interactions below.
       window.localStorage.setItem('astrid-setup-complete', 'true');
-      window.localStorage.setItem('reigh.lastSelectedProjectId', 'stale-project-from-earlier-session');
+      window.localStorage.setItem('astrid.lastSelectedProjectId', 'stale-project-from-earlier-session');
     } catch {
       // storage unavailable — the assertion below still covers the happy path
     }
@@ -311,20 +311,20 @@ export async function openEditor(page: Page): Promise<void> {
   // A cold Vite module graph can outlast the geometry-settle delay. Wait for
   // the actual bootstrap and editor before using that delay for layout.
   await page.waitForFunction(() => {
-    const runtime = window.__REIGH_LOCAL_TEST__;
+    const runtime = window.__ASTRID_APP_LOCAL_TEST__;
     return runtime?.enabled
       && Array.isArray(runtime.diagnostics.loader)
       && Array.isArray(runtime.diagnostics.runtime);
   }, undefined, { timeout: 45_000 });
   await page.getByRole('button', { name: 'Render', exact: true }).waitFor({ state: 'visible', timeout: 45_000 });
   await page.waitForTimeout(EDITOR_SETTLE_MS);
-  const localTestSnapshot = await page.evaluate(() => window.__REIGH_LOCAL_TEST__);
+  const localTestSnapshot = await page.evaluate(() => window.__ASTRID_APP_LOCAL_TEST__);
   if (
     !localTestSnapshot?.enabled
     || !Array.isArray(localTestSnapshot.diagnostics.loader)
     || !Array.isArray(localTestSnapshot.diagnostics.runtime)
   ) {
-    throw new Error('localTest=1 did not initialize structured window.__REIGH_LOCAL_TEST__ diagnostics');
+    throw new Error('localTest=1 did not initialize structured window.__ASTRID_APP_LOCAL_TEST__ diagnostics');
   }
   if (forbiddenRequests.length > 0) {
     throw new Error(`local-test editor made forbidden remote requests:\n${[...new Set(forbiddenRequests)].join('\n')}`);
@@ -342,7 +342,7 @@ export async function openEditor(page: Page): Promise<void> {
   // sentinel media row and receives 404. Keep that expected negative probe
   // visible in the network audit, while refusing every other missing asset.
   const unexpectedNotFound = notFoundResponses.filter(
-    (url) => !url.includes('/api/astrid/projects/demo-project/media/__reigh_capability_probe__/content'),
+    (url) => !url.includes('/api/astrid/projects/demo-project/media/__astrid_capability_probe__/content'),
   );
   if (unexpectedNotFound.length > 0) {
     throw new Error(`local-test editor made unexpected 404 request(s):\n${[...new Set(unexpectedNotFound)].join('\n')}`);

@@ -1,10 +1,10 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { ProcessLifecycleState, ProcessSpec } from '@reigh/editor-sdk/video/families/processes';
+import type { ProcessLifecycleState, ProcessSpec } from '@astrid/editor-sdk/video/families/processes';
 
 export const PROCESS_FIXTURE_PROCESS_ID = 'video-editor.process-fixture';
 export const PROCESS_FIXTURE_OPERATION_ID = 'fixture.execute';
-export const PROCESS_FIXTURE_MISSING_BINARY = '__reigh_process_fixture_missing_binary__';
+export const PROCESS_FIXTURE_MISSING_BINARY = '__astrid_process_fixture_missing_binary__';
 
 export interface ProcessFixtureHealthStateConfig {
   readonly state: ProcessLifecycleState;
@@ -51,10 +51,10 @@ export function createProcessFixtureDescriptor(
       args: ['--import', tsxLoaderPath, fixtureScriptPath],
       cwd: repoRoot,
       env: {
-        REIGH_PROCESS_FIXTURE_PROCESS_ID: processId,
-        REIGH_PROCESS_FIXTURE_OPERATION_IDS: JSON.stringify([operationId]),
-        REIGH_PROCESS_FIXTURE_VERSION_SEMVER: versionSemver,
-        REIGH_PROCESS_FIXTURE_HEALTH_SEQUENCE: JSON.stringify(healthSequence),
+        ASTRID_APP_PROCESS_FIXTURE_PROCESS_ID: processId,
+        ASTRID_APP_PROCESS_FIXTURE_OPERATION_IDS: JSON.stringify([operationId]),
+        ASTRID_APP_PROCESS_FIXTURE_VERSION_SEMVER: versionSemver,
+        ASTRID_APP_PROCESS_FIXTURE_HEALTH_SEQUENCE: JSON.stringify(healthSequence),
         ...options.spawnEnv,
       },
     },

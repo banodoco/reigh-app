@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Project-specific design patterns, animation timings, and interaction patterns for Reigh.
+Project-specific design patterns, animation timings, and interaction patterns for Astrid.
 For general Tailwind/shadcn/lucide usage, see their official docs.
 
 ## Core Building Blocks

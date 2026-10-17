@@ -2,7 +2,7 @@
  * TimelinePatch pure validation, compilation, and preview.
  *
  * Validates, compiles, and previews TimelinePatch batches against the M3
- * public contract types defined in @reigh/editor-sdk.  This module is
+ * public contract types defined in @astrid/editor-sdk.  This module is
  * intentionally pure — it does not import DataProvider, useTimelineCommit,
  * or any editor-internal mutation / store / provider machinery.
  *

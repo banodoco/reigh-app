@@ -140,7 +140,7 @@ export function assembleDataLanes(input: AssembleDataLanesInput): readonly DataL
   for (const item of transientItems) addSourceItem(item);
   for (const item of persistedItems) {
     if (item.schemaRef === TRANSCRIPT_SCHEMA_REF &&
-      ((item.provenance.adapterId === 'reigh.projectTranscript' && projectedTranscriptAssets.has(item.sourceArtifactRef.assetId)) || projectedTranscriptSources.has(JSON.stringify([
+      ((item.provenance.adapterId === 'astrid.projectTranscript' && projectedTranscriptAssets.has(item.sourceArtifactRef.assetId)) || projectedTranscriptSources.has(JSON.stringify([
         item.sourceArtifactRef.assetId, (item.payload as { sourceId?: string }).sourceId,
       ])))) continue;
     addSourceItem(item);

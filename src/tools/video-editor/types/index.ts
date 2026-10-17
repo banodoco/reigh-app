@@ -1,5 +1,5 @@
-// Sprint 2: re-export the canonical shared types so Reigh and Banodoco agree at
-// the boundary. Reigh keeps richer locally-typed shapes for editor-internal use
+// Sprint 2: re-export the canonical shared types so Astrid App and Banodoco agree at
+// the boundary. Astrid App keeps richer locally-typed shapes for editor-internal use
 // (ResolvedTimelineConfig, ClipMeta, etc.) — only the persisted on-disk shape
 // must match the shared schema.
 export type {

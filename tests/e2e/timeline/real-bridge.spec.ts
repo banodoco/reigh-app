@@ -46,7 +46,7 @@ async function timelineUrl(request: import('@playwright/test').APIRequestContext
 async function openEditorAt(page: import('@playwright/test').Page) {
   await page.addInitScript(() => {
     try {
-      window.localStorage.setItem('reigh.lastSelectedProjectId', 'stale-project-from-earlier-session');
+      window.localStorage.setItem('astrid.lastSelectedProjectId', 'stale-project-from-earlier-session');
     } catch {
       // storage unavailable
     }
@@ -627,7 +627,7 @@ test('concurrent write → 409 → diverged banner (B4/B5 live proof)', async ({
   audit.assertAllowed();
   audit.assertSingleTaskPollingOwner();
   audit.assertNoUnexpectedBrowserErrors([
-    /404.*\/media\/__reigh_capability_probe__\/content/i,
+    /404.*\/media\/__astrid_capability_probe__\/content/i,
     /409.*\/save/i,
   ]);
 });
@@ -648,7 +648,7 @@ test('B9 recovery Retry re-POSTs the draft at its base version and clears the sl
   await openEditorAt(page);
   await page.evaluate(async ({ timelineId: id, draftConfig: config, registry, baseVersion: version }) => {
     const database = await new Promise<IDBDatabase>((resolve, reject) => {
-      const open = indexedDB.open('reigh.timeline-drafts', 1);
+      const open = indexedDB.open('astrid.timeline-drafts', 1);
       open.addEventListener('upgradeneeded', () => {
         if (!open.result.objectStoreNames.contains('timeline-drafts')) {
           open.result.createObjectStore('timeline-drafts', { keyPath: 'key' });
@@ -686,7 +686,7 @@ test('B9 recovery Retry re-POSTs the draft at its base version and clears the sl
   await expect(page.getByText(/recovered unsaved changes/i)).not.toBeVisible({ timeout: 15_000 });
   const draftSlot = await page.evaluate(async (id) => {
     const database = await new Promise<IDBDatabase | null>((resolve) => {
-      const open = indexedDB.open('reigh.timeline-drafts', 1);
+      const open = indexedDB.open('astrid.timeline-drafts', 1);
       open.addEventListener('success', () => resolve(open.result));
       open.addEventListener('error', () => resolve(null));
     });
@@ -714,7 +714,7 @@ test('B9 recovery Retry re-POSTs the draft at its base version and clears the sl
  *                      from deriveTimelineShotGroupViews(config, registry);
  *                      relational shot actions stay dormant in document mode.
  *   2. Duplicate     — PROBED-BLOCKED: the pinned checkout's family registry
- *                      (astrid/core/integrations/reigh/capabilities.py
+ *                      (astrid/core/integrations/app/capabilities.py
  *                      FAMILY_DERIVATIONS) has no `duplicate` family, so the
  *                      admission must fail TYPED, mutate nothing, and never
  *                      fabricate success. Raw transcript is retained in the
@@ -765,7 +765,7 @@ test('document shot surface: render, duplicate, promote, reload over one bridge 
   // Direct admission probe against the live bridge for the raw transcript the
   // ledger records (same policy as T4c: probe evidence, no invented worker).
   const admitProbe = await request.post(`${BRIDGE_ORIGIN}/projects/demo-project/tasks`, {
-    headers: { ...bridgeHeaders(), 'Idempotency-Key': 'reigh:shot-pack:v1:t5-duplicate-probe' },
+    headers: { ...bridgeHeaders(), 'Idempotency-Key': 'astrid:shot-pack:v1:t5-duplicate-probe' },
     data: {
       family: 'duplicate',
       input: {
@@ -825,7 +825,7 @@ test('document shot surface: render, duplicate, promote, reload over one bridge 
   audit.assertAllowed();
   audit.assertSingleTaskPollingOwner();
   audit.assertNoUnexpectedBrowserErrors([
-    /404.*\/media\/__reigh_capability_probe__\/content/i,
+    /404.*\/media\/__astrid_capability_probe__\/content/i,
     // Known typed failure (see .oracle/BLOCKED-B8-T5-asset-media-id.md): any
     // editor-mediated CAS save strips the bridge-managed `media_id` from
     // registry entries (not in ASSET_REGISTRY_ENTRY_FIELDS), after which the
@@ -1038,7 +1038,7 @@ test('reload preserves timeline and placement', async ({ page, request }) => {
   audit.assertAllowed();
   audit.assertSingleTaskPollingOwner();
   audit.assertNoUnexpectedBrowserErrors([
-    /404.*\/media\/__reigh_capability_probe__\/content/i,
+    /404.*\/media\/__astrid_capability_probe__\/content/i,
     /404.*\/timelines\/[^/]+\/assets\//i,
   ]);
 });
@@ -1125,7 +1125,7 @@ test('bridge death during an edit → watchdog banner with retry', async ({ page
   audit.assertAllowed();
   audit.assertSingleTaskPollingOwner();
   audit.assertNoUnexpectedBrowserErrors([
-    /404.*\/media\/__reigh_capability_probe__\/content/i,
+    /404.*\/media\/__astrid_capability_probe__\/content/i,
     /failed to load resource.*\/api\/astrid\//i,
     /fetch.*astrid/i,
     /network.*astrid/i,

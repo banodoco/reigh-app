@@ -1,7 +1,7 @@
 import {describe,it,expect,vi} from 'vitest';
 import {runElementAcpRoundtrip} from './elementAcpRoundtrip';
 const scope={sessionId:'session',turnId:'turn',projectId:'project',timelineId:'timeline'};
-const block=(operation:unknown)=>`<reigh_element_operation>${JSON.stringify(operation)}</reigh_element_operation>`;
+const block=(operation:unknown)=>`<astrid_element_operation>${JSON.stringify(operation)}</astrid_element_operation>`;
 const options=()=>({scope,signal:new AbortController().signal,checkCurrent:vi.fn()});
 describe('ref-only Elements receipt acknowledgement',()=>{
  it('returns one bounded actual saved-head receipt before completion prose, without source/config feedback',async()=>{
@@ -24,7 +24,7 @@ describe('ref-only Elements receipt acknowledgement',()=>{
   const execute=vi.fn().mockRejectedValue(new Error('head CAS conflict'));const followup=vi.fn().mockResolvedValue('Done');
   const result=await runElementAcpRoundtrip({...options(),content:block({name:'first'})+block({name:'second'}),adapter:{execute},followup});
   expect(execute).toHaveBeenCalledOnce();expect(result).toContain('head CAS conflict');expect(result).not.toContain('Done');
-  execute.mockClear();await runElementAcpRoundtrip({...options(),content:block({name:'elements.list'})+'<reigh_live_scene_request>{}</reigh_live_scene_request>',adapter:{execute},followup});expect(execute).not.toHaveBeenCalled();
+  execute.mockClear();await runElementAcpRoundtrip({...options(),content:block({name:'elements.list'})+'<astrid_live_scene_request>{}</astrid_live_scene_request>',adapter:{execute},followup});expect(execute).not.toHaveBeenCalled();
  });
  it('preserves an acknowledged commit even if cancellation follows, without another prompt',async()=>{
   const controller=new AbortController();const execute=vi.fn(async()=>{controller.abort();return {operation:'timeline.update_element' as const,head:{projectId:'project',timelineId:'timeline',headRevisionId:'committed'}};});const followup=vi.fn();

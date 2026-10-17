@@ -112,7 +112,7 @@ BEGIN
         get_task_run_type(t.task_type) = p_run_type
       )
       AND (
-        -- Banodoco pool: only banodoco_* task types
+        -- Astrid Runtime pool: only banodoco_* task types
         (v_is_banodoco_pool AND t.task_type LIKE 'banodoco\_%' ESCAPE '\')
         OR
         -- Non-banodoco pool: exclude banodoco_* (they belong to dedicated workers)
@@ -160,7 +160,7 @@ BEGIN
         get_task_run_type(t.task_type) = p_run_type
       )
       AND (
-        -- Banodoco pool: only banodoco_* task types
+        -- Astrid Runtime pool: only banodoco_* task types
         (v_is_banodoco_pool AND t.task_type LIKE 'banodoco\_%' ESCAPE '\')
         OR
         -- Non-banodoco pool: exclude banodoco_* (dedicated workers handle these)

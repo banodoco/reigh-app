@@ -3,8 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { BrowserVideoEditorProvider } from '@/tools/video-editor/browser/BrowserVideoEditorProvider';
 import { INSTALLED_TIMELINE_SERVICE_HOOKS } from '@/tools/video-editor/runtime/installedTimelineHostServiceHooks.ts';
-import { defineExtension } from '@reigh/editor-sdk';
-import type { ExtensionContext, DisposeHandle } from '@reigh/editor-sdk';
+import { defineExtension } from '@astrid/editor-sdk';
+import type { ExtensionContext, DisposeHandle } from '@astrid/editor-sdk';
 import type { DataProvider, ExtensionPersistenceService } from '@/tools/video-editor/data/DataProvider';
 import {
   EXTENSION_SMOKE_CONTRIBUTION_ID,
@@ -290,7 +290,7 @@ describe('BrowserVideoEditorProvider', () => {
 
       const callArgs = runtimeProviderSpy.mock.calls[0]?.[0];
       expect(callArgs.extensions).toHaveLength(1);
-      expect(callArgs.extensions[0].manifest.id).toBe('com.reigh.smoke.extension-smoke');
+      expect(callArgs.extensions[0].manifest.id).toBe('haus.astrid.smoke.extension-smoke');
       // Verify the smoke extension carries its stable contribution
       const contrib = callArgs.extensions[0].manifest.contributions?.[0];
       expect(contrib).toBeDefined();
@@ -412,7 +412,7 @@ describe('BrowserVideoEditorProvider', () => {
       const callArgs = runtimeProviderSpy.mock.calls[0]?.[0];
       expect(callArgs.extensions).toHaveLength(2);
       // Smoke extension must be first (prepended)
-      expect(callArgs.extensions[0].manifest.id).toBe('com.reigh.smoke.extension-smoke');
+      expect(callArgs.extensions[0].manifest.id).toBe('haus.astrid.smoke.extension-smoke');
       // Direct extension must follow in original order
       expect(callArgs.extensions[1].manifest.id).toBe('com.test.direct-order');
     });
@@ -439,7 +439,7 @@ describe('BrowserVideoEditorProvider', () => {
 
       const callArgs = runtimeProviderSpy.mock.calls[0]?.[0];
       expect(callArgs.extensions).toHaveLength(1);
-      expect(callArgs.extensions[0].manifest.id).toBe('com.reigh.smoke.extension-smoke');
+      expect(callArgs.extensions[0].manifest.id).toBe('haus.astrid.smoke.extension-smoke');
     });
 
     it('smoke extension has an activate function and no permissions', () => {

@@ -8,7 +8,7 @@ import {
 } from './tests/e2e/timeline/isolated-port.mjs';
 
 const allocatedPorts = new Set<number>();
-const inheritedRunPorts = process.env.REIGH_EXTENSION_PORTS_ALLOCATED === '1';
+const inheritedRunPorts = process.env.ASTRID_APP_EXTENSION_PORTS_ALLOCATED === '1';
 const configuredBaseURL = readCanonicalBaseUrl();
 if (configuredBaseURL && !process.env.PLAYWRIGHT_PORT) process.env.PLAYWRIGHT_PORT = String(configuredBaseURL.port);
 const port = inheritedRunPorts
@@ -22,7 +22,7 @@ const baseURL = resolveCanonicalBaseUrl(port);
 process.env.BASE_URL = baseURL;
 process.env.PLAYWRIGHT_BASE_URL = baseURL;
 process.env.ASTRID_BRIDGE_PORT = String(bridgePort);
-process.env.REIGH_EXTENSION_PORTS_ALLOCATED = '1';
+process.env.ASTRID_APP_EXTENSION_PORTS_ALLOCATED = '1';
 
 /**
  * Deterministic Chromium pixel gate for the extension-composed timeline.

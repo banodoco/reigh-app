@@ -15,7 +15,7 @@ import type { CollectedContribution } from '../FamilyContributionSequence';
 import type {
   TransitionContribution,
   TransitionMaterialSlotDeclaration,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import type { VideoEditorTransitionDescriptor } from '../../extensionSurface';
 
 // ---------------------------------------------------------------------------
@@ -70,7 +70,7 @@ describe('buildTransitionDescriptors', () => {
     const result = buildTransitionDescriptors([
       collectedTransition({
         id: 'wipe' as any,
-        transitionId: 'com.reigh.flagship.transition.wipe',
+        transitionId: 'haus.astrid.flagship.transition.wipe',
         label: 'Flagship Wipe',
         order: 10,
       }),
@@ -79,7 +79,7 @@ describe('buildTransitionDescriptors', () => {
     expect(result).toHaveLength(1);
     const d = singleDescriptor(result);
     expect(d.id).toBe('wipe');
-    expect(d.transitionId).toBe('com.reigh.flagship.transition.wipe');
+    expect(d.transitionId).toBe('haus.astrid.flagship.transition.wipe');
     expect(d.label).toBe('Flagship Wipe');
     expect(d.order).toBe(10);
     expect(d.allowBrowserExport).toBe(false);
@@ -92,7 +92,7 @@ describe('buildTransitionDescriptors', () => {
     const result = buildTransitionDescriptors([
       collectedTransition({
         id: 'minimal' as any,
-        transitionId: 'com.reigh.minimal',
+        transitionId: 'haus.astrid.minimal',
       }),
     ]);
 
@@ -105,7 +105,7 @@ describe('buildTransitionDescriptors', () => {
     const result = buildTransitionDescriptors([
       collectedTransition({
         id: 'exportable' as any,
-        transitionId: 'com.reigh.exportable',
+        transitionId: 'haus.astrid.exportable',
         allowBrowserExport: true,
         allowWorkerExport: true,
       }),
@@ -120,12 +120,12 @@ describe('buildTransitionDescriptors', () => {
     const result = buildTransitionDescriptors([
       collectedTransition({
         id: 'nolabel' as any,
-        transitionId: 'com.reigh.nolabel',
+        transitionId: 'haus.astrid.nolabel',
       }),
     ]);
 
     const d = singleDescriptor(result);
-    expect(d.label).toBe('com.reigh.nolabel');
+    expect(d.label).toBe('haus.astrid.nolabel');
   });
 
   // ---- Skipping contributions without transitionId ------------------------
@@ -172,7 +172,7 @@ describe('buildTransitionDescriptors', () => {
       const result = buildTransitionDescriptors([
         collectedTransition({
           id: 'wipe' as any,
-          transitionId: 'com.reigh.flagship.transition.wipe',
+          transitionId: 'haus.astrid.flagship.transition.wipe',
           label: 'Flagship Wipe',
           materialSlots,
         }),
@@ -195,7 +195,7 @@ describe('buildTransitionDescriptors', () => {
       const result = buildTransitionDescriptors([
         collectedTransition({
           id: 'multi-slot' as any,
-          transitionId: 'com.reigh.multi-slot',
+          transitionId: 'haus.astrid.multi-slot',
           materialSlots,
         }),
       ]);
@@ -217,7 +217,7 @@ describe('buildTransitionDescriptors', () => {
       const result = buildTransitionDescriptors([
         collectedTransition({
           id: 'no-slots' as any,
-          transitionId: 'com.reigh.no-slots',
+          transitionId: 'haus.astrid.no-slots',
         }),
       ]);
 
@@ -229,7 +229,7 @@ describe('buildTransitionDescriptors', () => {
       const result = buildTransitionDescriptors([
         collectedTransition({
           id: 'empty-slots' as any,
-          transitionId: 'com.reigh.empty-slots',
+          transitionId: 'haus.astrid.empty-slots',
           materialSlots: [],
         }),
       ]);
@@ -242,7 +242,7 @@ describe('buildTransitionDescriptors', () => {
       const result = buildTransitionDescriptors([
         collectedTransition({
           id: 'undefined-slots' as any,
-          transitionId: 'com.reigh.undefined-slots',
+          transitionId: 'haus.astrid.undefined-slots',
           materialSlots: undefined,
         }),
       ]);
@@ -259,7 +259,7 @@ describe('buildTransitionDescriptors', () => {
       const result = buildTransitionDescriptors([
         collectedTransition({
           id: 'frozen' as any,
-          transitionId: 'com.reigh.frozen',
+          transitionId: 'haus.astrid.frozen',
           materialSlots,
         }),
       ]);
@@ -287,7 +287,7 @@ describe('buildTransitionDescriptors', () => {
       const result = buildTransitionDescriptors([
         collectedTransition({
           id: 'wipe' as any,
-          transitionId: 'com.reigh.flagship.transition.wipe',
+          transitionId: 'haus.astrid.flagship.transition.wipe',
           label: 'Flagship Wipe',
           materialSlots,
         }),
@@ -316,12 +316,12 @@ describe('buildTransitionDescriptors', () => {
     const result = buildTransitionDescriptors([
       collectedTransition({
         id: 'first' as any,
-        transitionId: 'com.reigh.first',
+        transitionId: 'haus.astrid.first',
         order: 1,
       }),
       collectedTransition({
         id: 'second' as any,
-        transitionId: 'com.reigh.second',
+        transitionId: 'haus.astrid.second',
         order: 2,
       }),
     ]);
@@ -335,7 +335,7 @@ describe('buildTransitionDescriptors', () => {
     const result = buildTransitionDescriptors([
       collectedTransition({
         id: 't' as any,
-        transitionId: 'com.reigh.t',
+        transitionId: 'haus.astrid.t',
       }),
     ]);
 
@@ -352,12 +352,12 @@ describe('buildTransitionDescriptors', () => {
     const result = buildTransitionDescriptors([
       collectedTransition({
         id: 'with-slots' as any,
-        transitionId: 'com.reigh.with-slots',
+        transitionId: 'haus.astrid.with-slots',
         materialSlots,
       }),
       collectedTransition({
         id: 'without-slots' as any,
-        transitionId: 'com.reigh.without-slots',
+        transitionId: 'haus.astrid.without-slots',
       }),
     ]);
 

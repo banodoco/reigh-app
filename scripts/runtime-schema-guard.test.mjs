@@ -7,7 +7,7 @@ import { readGeneratedSchemaDigest, schemaDigestMismatch } from './runtime-schem
 
 describe('Runtime schema guard', () => {
   it('reads the generated digest and accepts a matching health response', () => {
-    const dir = mkdtempSync(join(os.tmpdir(), 'reigh-runtime-schema-'));
+    const dir = mkdtempSync(join(os.tmpdir(), 'astrid-runtime-schema-'));
     try {
       const metadataPath = join(dir, 'generated-contract-metadata.ts');
       writeFileSync(metadataPath, 'export const SCHEMA_DIGEST = "sha256:latest";\n');
@@ -22,7 +22,7 @@ describe('Runtime schema guard', () => {
   it('rejects a Runtime health response from a different contract', () => {
     assert.match(
       schemaDigestMismatch('sha256:stale', 'sha256:latest'),
-      /does not match Reigh generated contract sha256:latest/,
+      /does not match Astrid generated contract sha256:latest/,
     );
   });
 });

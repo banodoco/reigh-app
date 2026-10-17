@@ -1,14 +1,14 @@
 # Stage 3 — Exhaustive Hardening and Production Readiness
 
-**Status:** deliberately deferred until Astrid and REIGH are working on the shared runtime
+**Status:** deliberately deferred until Astrid and Astrid App are working on the shared runtime
 **Scope revision:** 2026-08-29
-**Entry condition:** Stage 2 R7 is complete: fuller local REIGH, the accepted `GenericPackHost` plus Worker-substrate profile, any selected one-time REIGH-only import, remaining legacy-authority deletion, full-stack composition, and backup/restore fixtures are all accepted
+**Entry condition:** Stage 2 R7 is complete: fuller local Astrid App, the accepted `GenericPackHost` plus Worker-substrate profile, any selected one-time ASTRID-only import, remaining legacy-authority deletion, full-stack composition, and backup/restore fixtures are all accepted
 
 ## 1. Purpose
 
 Stage 3 converts the single-user beta into a production-quality local release. It does not redesign the neutral authority. It attacks the working system at transaction, process, disk, credential, network, packaging, and lifecycle boundaries and fixes every issue found at the owning layer.
 
-R4 closes the combined single-user beta but does not start Stage 3. Stage 2 continues through R5–R7; only the integrated fuller REIGH + accepted Reigh Worker result enters hardening.
+R4 closes the combined single-user beta but does not start Stage 3. Stage 2 continues through R5–R7; only the integrated fuller Astrid App + accepted Astrid App Worker result enters hardening.
 
 The stage is deferred to protect delivery focus, not because its concerns are unimportant. Any severe data-loss or security bug found before Stage 3 is fixed immediately.
 
@@ -17,12 +17,12 @@ The stage is deferred to protect delivery focus, not because its concerns are un
 - frozen runtime protocol/schema and generated clients;
 - complete Astrid legacy-authority deletion proof and capability census;
 - the one-time local migration report, immutable backup, activation manifest, and rollback archive;
-- fuller local REIGH and the accepted `GenericPackHost`/Worker-substrate profile sharing the same realm with zero Supabase/direct-database/worker-owned authority;
-- Stage 2 R7 composition and deletion proof, including Astrid-first and REIGH-first activation/composition orders and any selected REIGH-only migration/rollback evidence;
+- fuller local Astrid App and the accepted `GenericPackHost`/Worker-substrate profile sharing the same realm with zero Supabase/direct-database/worker-owned authority;
+- Stage 2 R7 composition and deletion proof, including Astrid-first and ASTRID-first activation/composition orders and any selected ASTRID-only migration/rollback evidence;
 - an append-only CAS with reachability/accounting reports but no automatic byte collection;
 - one generic Astrid pack host, immutable typed worker outputs, declared settlement effects, and the minimal lease-bound resource-reservation contract. The GPU substrate is tested as host infrastructure, never as a second claimant or scheduler;
 - the accepted current-Mac, one-selected-realm bootstrap/restart path; and
-- runtime/REIGH build-artifact smokes where applicable plus Astrid editable-checkout composition smokes, doctor/integrity checks, bounded redacted logs, and reproducible beta manifests.
+- runtime/ASTRID build-artifact smokes where applicable plus Astrid editable-checkout composition smokes, doctor/integrity checks, bounded redacted logs, and reproducible beta manifests.
 
 ## 3. Concurrency-first hardening model
 
@@ -68,7 +68,7 @@ Inject termination or concurrency at every meaningful boundary:
 - SQLite transaction begin/write/commit and WAL checkpoint;
 - CAS upload, hash verification, publication, relation write, reachability marking, and garbage collection;
 - task admission, resource reservation, claim, start, heartbeat, expiry, cancel, child admission, declared-effect settlement, retry, and duplicate settlement;
-- executor/runtime/REIGH/Astrid shutdown, kill, restart, and reboot loops;
+- executor/runtime/ASTRID/Astrid shutdown, kill, restart, and reboot loops;
 - backup, restore, migration, update staging, health check, and activation.
 
 Required outcome: deterministic retry or fail-closed behavior, no split authority, no reachable-object loss, no stale writer resurrection, and correct epoch/version/lease fencing.
@@ -87,7 +87,7 @@ Required outcome: no corrupt activation, no deletion of reachable data, verified
 
 ## 6. H3 — Credential and security matrix
 
-- least-privilege scopes for Astrid, REIGH, executors, bootstrap, and diagnostic actors;
+- least-privilege scopes for Astrid, Astrid App, executors, bootstrap, and diagnostic actors;
 - credential creation, file permissions, precedence, expiry, rotation, revocation, replay, theft simulation, and log/redaction scans;
 - loopback binding, browser session origin/CSRF controls, route authorization, and profile isolation;
 - path traversal, symlink races, malformed/oversized payloads, decompression bombs, object poisoning, request flooding, and resource bounds;
@@ -99,7 +99,7 @@ Required outcome: reproducible security evidence, documented threat model, zero 
 
 ## 7. H4 — Broader platform, realm, and component lifecycle
 
-- where later chosen for the runtime, REIGH, or other packaged components: signed/notarized macOS and supported Linux artifacts with pinned digests and reproducible manifests;
+- where later chosen for the runtime, Astrid App, or other packaged components: signed/notarized macOS and supported Linux artifacts with pinned digests and reproducible manifests;
 - for packaged components: clean install, update, interrupted update, rollback-by-restoring the matching release/backup, uninstall/reinstall, multi-profile reuse, and explicit purge;
 - for Astrid: clean checkout configuration, editable install, dependency sync, dirty-tree change, executor restart/re-advertisement, Git rollback, checkout move/relink/removal, and recovery without touching the realm;
 - preservation and hardening of Astrid's explicit editable-checkout contract while removing ambient, unrecorded environment and import-path assumptions;
@@ -116,7 +116,7 @@ Extend the Stage 1 reservation seam only as observed workloads justify it. Candi
 
 Only after the concrete owner migration is proven should the team decide whether to productize:
 
-- a supported historical Astrid/REIGH migration matrix and friendly migration UI;
+- a supported historical Astrid/ASTRID migration matrix and friendly migration UI;
 - automatic update channels and rollback policy;
 - multi-user/collaborative authority;
 - remote/cloud placements, hosted relay, Turso synchronization, or cloud GPU scheduling;

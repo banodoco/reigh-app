@@ -251,10 +251,10 @@ test.describe.serial('real caption render/export release matrix', () => {
 
     for (const fps of MATRIX_CASES) {
       await installMatrixConfig(fps);
-      await page.addInitScript(() => localStorage.removeItem('reigh.dev-extensions.disabled'));
+      await page.addInitScript(() => localStorage.removeItem('astrid.dev-extensions.disabled'));
       await page.goto(EDITOR_URL, { waitUntil: 'domcontentloaded', timeout: 45_000 });
 
-      const transcriptRow = page.locator('[data-lane-kind="reigh.transcript"]');
+      const transcriptRow = page.locator('[data-lane-kind="astrid.transcript"]');
       const actions = transcriptRow.getByRole('button', { name: 'Transcript actions' });
       await expect(actions).toBeVisible({ timeout: 30_000 });
 

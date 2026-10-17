@@ -21,7 +21,7 @@ import type {
 } from '@/tools/video-editor/runtime/extensionSurface.ts';
 import type { CommandRegistry } from '@/tools/video-editor/runtime/commandRegistry.ts';
 import type { AgentToolRegistry } from '@/tools/video-editor/runtime/agentToolRegistry.ts';
-import type { DiagnosticCollection } from '@reigh/editor-sdk';
+import type { DiagnosticCollection } from '@astrid/editor-sdk';
 import type { TimelineViewStoreApi } from '@/tools/video-editor/lib/timeline-view-store.ts';
 import type { LiveDataRegistry } from '@/tools/video-editor/runtime/liveDataRegistry.ts';
 import type { LivePermissionService } from '@/tools/video-editor/runtime/livePermissions.ts';

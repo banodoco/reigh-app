@@ -5,7 +5,7 @@
  * repeat/batch syntax, find-issues command, and large property values.
  *
  * Run:
- *   cd reigh-app && npx tsx supabase/functions/_tests/harness/edge-cases-test.ts
+ *   cd astrid-app && npx tsx supabase/functions/_tests/harness/edge-cases-test.ts
  */
 
 import { writeFileSync, mkdirSync } from "node:fs";

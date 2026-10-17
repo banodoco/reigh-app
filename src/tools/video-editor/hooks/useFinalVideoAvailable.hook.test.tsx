@@ -18,7 +18,7 @@ vi.mock('@/integrations/runtime/client.ts', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/integrations/runtime/client.ts')>();
   return {
     ...actual,
-    ReighRuntimeClient: class {
+    AstridRuntimeClient: class {
       getTask = mocks.getTask;
       listManagedOutputs = mocks.listManagedOutputs;
       objectContentUrl = (id: string) => `/objects/${id}`;

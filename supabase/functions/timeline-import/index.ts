@@ -8,7 +8,7 @@ import type { TimelineImportBody } from "./types.ts";
 
 /**
  * Sprint 6 (Phase 6): import a Banodoco-authored timeline + asset registry
- * into a Reigh project.
+ * into a Astrid project.
  *
  * Auth: reuses `_shared/auth.ts:authenticateRequest()` via withEdgeRequest;
  * `allowJwtUserAuth: true` so Supabase user JWTs from the publish CLI are

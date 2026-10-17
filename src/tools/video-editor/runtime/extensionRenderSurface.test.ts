@@ -3,7 +3,7 @@
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createElement } from 'react';
-import { defineExtension, type ContributionId, type ExtensionId } from '@reigh/editor-sdk';
+import { defineExtension, type ContributionId, type ExtensionId } from '@astrid/editor-sdk';
 import {
   getExtensionSmokeExtension,
   EXTENSION_SMOKE_ACTIVE_VALUE,
@@ -13,7 +13,7 @@ import {
 import { getInternalExtensionRenderSurface } from '@/sdk/internalExtensionRenderSurface';
 import { normalizeExtensionRuntime } from '@/tools/video-editor/runtime/extensionSurface';
 import { createRendererRegistry } from '@/tools/video-editor/runtime/extensionRendererRegistry';
-import type { ResolvedTimelineOverlayDescriptor } from '@reigh/editor-sdk';
+import type { ResolvedTimelineOverlayDescriptor } from '@astrid/editor-sdk';
 import {
   createExtensionUiService,
   createInternalExtensionRenderSurface,

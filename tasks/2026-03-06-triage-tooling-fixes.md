@@ -263,7 +263,7 @@ for name, c in clusters.items():
 
 ## Implementation Notes
 
-- All changes are in `desloppify/` (not reigh)
+- All changes are in `desloppify/` (not astrid)
 - Run tests: `cd /Users/peteromalley/Documents/desloppify && python -m pytest desloppify/tests/ -x`
 - Items 1-2 are the highest value. Item 1 alone would have prevented the majority of failures.
 - All new checks start as warnings (not blockers) to avoid breaking existing workflows, except path validation at `_confirm_enrich` time which should block.

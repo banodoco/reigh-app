@@ -43,7 +43,7 @@ import {
 // Constants
 // ---------------------------------------------------------------------------
 
-const SCENE_PHASE_EXTENSION_ID = 'com.reigh.scene-phase-markers';
+const SCENE_PHASE_EXTENSION_ID = 'haus.astrid.scene-phase-markers';
 const CANARY_PARAM = 'timelineOverlayCanary=1';
 const CANARY_URL = `${BASE_URL}/tools/video-editor?localProject=${PROJECT_SLUG}&localTimeline=${TIMELINE_SLUG}&${CANARY_PARAM}`;
 const BRIDGE_TIMELINE = `${BRIDGE_ORIGIN}/projects/${PROJECT_SLUG}/timelines/${TIMELINE_SLUG}`;
@@ -141,9 +141,9 @@ async function openCanaryEditor(page: Page): Promise<void> {
       // This helper creates a fresh route visit independently of openEditor.
       // Mark setup complete so first-run onboarding cannot cover the editor.
       window.localStorage.setItem('astrid-setup-complete', 'true');
-      const initializedKey = 'reigh.e2e.extension-overlays.initialized';
+      const initializedKey = 'astrid.e2e.extension-overlays.initialized';
       if (window.sessionStorage.getItem(initializedKey) !== '1') {
-        window.localStorage.removeItem('reigh.dev-extensions.disabled');
+        window.localStorage.removeItem('astrid.dev-extensions.disabled');
         window.localStorage.removeItem('video-editor:preferences:demo-timeline');
         window.sessionStorage.setItem(initializedKey, '1');
       }

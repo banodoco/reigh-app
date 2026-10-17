@@ -1,4 +1,4 @@
-import type { RenderBlocker, RenderRoute } from '@reigh/editor-sdk';
+import type { RenderBlocker, RenderRoute } from '@astrid/editor-sdk';
 import type { ProcessStatus } from '@/sdk/video/families/processes';
 import {
   BlockerActionCard,

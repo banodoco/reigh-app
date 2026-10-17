@@ -20,12 +20,12 @@ The original v8 architecture brief for the composition spine is absent from the
 repository. The expected path is:
 
 ```
-.megaplan/briefs/reigh-extension-composition-spine-plan-elegant-v8.md
+.megaplan/briefs/astrid-extension-composition-spine-plan-elegant-v8.md
 ```
 
 The downstream `v8-architecture-baseline.md` artifact reconstructs the baseline
 from surviving sources: `prep.md` (at
-`.megaplan/initiatives/reigh-extension-composition-spine-epic/prep.md`), North
+`.megaplan/initiatives/astrid-extension-composition-spine-epic/prep.md`), North
 Star constraints, milestone briefs,
 `config/extensions/family-maturity.json`, SDK contract files, supported/deferred
 behavior matrices, and cited source paths. All claims in the reconstruction cite

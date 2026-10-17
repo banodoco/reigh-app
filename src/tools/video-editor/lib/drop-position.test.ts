@@ -15,8 +15,8 @@ function setup(height = 24) {
   wrapper.append(edit); document.body.append(wrapper);
   wrapper.getBoundingClientRect = edit.getBoundingClientRect = () => rect;
   const current = data();
-  const layout = buildTimelineRowLayout({ tracks, lanes: [{ laneId: 'reigh.transcript', height, opaque: true } as DataLaneView], mediaRowHeight: 48,
-    placement: { version: 1, lanes: [{ laneId: 'reigh.transcript', beforeTrackId: 'a' }] } });
+  const layout = buildTimelineRowLayout({ tracks, lanes: [{ laneId: 'astrid.transcript', height, opaque: true } as DataLaneView], mediaRowHeight: 48,
+    placement: { version: 1, lanes: [{ laneId: 'astrid.transcript', beforeTrackId: 'a' }] } });
   const dispose = publishTimelineRowLayout(edit, layout, current);
   const dataRef = { current };
   const drop = (y: number, sourceKind: 'visual' | 'audio' = 'audio') => computeDropPosition({ wrapper, dataRef, clientX: 200, clientY: y,

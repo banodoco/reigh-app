@@ -7,23 +7,23 @@
  */
 
 import { createElement } from 'react';
-import { combineDisposeHandles, defineExtension } from '@reigh/editor-sdk';
+import { combineDisposeHandles, defineExtension } from '@astrid/editor-sdk';
 import type {
   CommandRunContext,
   ContributionId,
   ExtensionContext,
   ExtensionId,
-  ReighExtension,
+  AstridExtension,
   TimelineClipSummary,
   TimelineOverlayRenderProps,
   TimelinePatch,
   TimelineSnapshot,
   TimelineTrackSummary,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import { clusterTimelineMarkers } from '../timelineMarkerClusters';
 
 export const CHROMATIC_CONSTELLATION_EXTENSION_ID =
-  'com.reigh.creative-lab.chromatic-constellation' as ExtensionId;
+  'haus.astrid.creative-lab.chromatic-constellation' as ExtensionId;
 export const BUILD_CHROMATIC_CONSTELLATION_COMMAND =
   `${CHROMATIC_CONSTELLATION_EXTENSION_ID}.buildConstellation`;
 export const CHROMATIC_CONSTELLATION_DATA_KEY = 'constellation';
@@ -381,7 +381,7 @@ function renderChromaticConstellation(
   });
 }
 
-export const chromaticConstellationExtension: ReighExtension = defineExtension({
+export const chromaticConstellationExtension: AstridExtension = defineExtension({
   manifest: {
     id: CHROMATIC_CONSTELLATION_EXTENSION_ID,
     version: '1.0.0',

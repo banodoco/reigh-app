@@ -1,5 +1,5 @@
 import { AbsoluteFill } from 'remotion';
-import type { CapabilityFinding, RenderMaterialRef } from '@reigh/editor-sdk';
+import type { CapabilityFinding, RenderMaterialRef } from '@astrid/editor-sdk';
 import type { RenderPlannerMaterialStatus } from '@/tools/video-editor/runtime/renderPlanner.ts';
 
 export interface PendingMaterialPlaceholderProps {

@@ -15,7 +15,7 @@ import { createElement, type KeyboardEvent, type MouseEvent } from 'react';
 import type {
   DataItemInspectorProps,
   DataLaneRendererProps,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 
 /** Longest text snippet painted per segment chip (kept small on purpose). */
 const MAX_CHIP_CHARS = 48;
@@ -104,7 +104,7 @@ function truncate(text: string): string {
 }
 
 /**
- * Lane renderer for the `reigh.transcript` data kind: one labeled chip per
+ * Lane renderer for the `astrid.transcript` data kind: one labeled chip per
  * interval item, painted on the shared host scale — each chip sits at
  * `timelineStart * pixelsPerSecond` with width
  * `(timelineEnd - timelineStart) * pixelsPerSecond`, the exact mapping the
@@ -214,7 +214,7 @@ export function renderTranscriptLane(
   );
 }
 
-/** Item inspector for the `reigh.transcript` data kind: the six facts plus text. */
+/** Item inspector for the `astrid.transcript` data kind: the six facts plus text. */
 export function renderTranscriptItemInspector(props: DataItemInspectorProps): unknown {
   const { item } = props;
   return createElement(

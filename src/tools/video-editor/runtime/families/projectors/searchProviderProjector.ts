@@ -7,7 +7,7 @@
  * @module families/projectors/searchProviderProjector
  */
 
-import type { SearchProviderContribution } from '@reigh/editor-sdk';
+import type { SearchProviderContribution } from '@astrid/editor-sdk';
 import type { VideoEditorSearchProviderDescriptor } from '../../extensionSurface';
 import type { CollectedContribution } from '../FamilyContributionSequence';
 import { sortFamilyContributions, freezeDescriptor } from '../familyAdapterUtils';

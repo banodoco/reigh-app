@@ -1,6 +1,6 @@
 /**
  * Shared runtime assembly for the video editor's two host providers:
- * `VideoEditorProvider` (Reigh app shell) and `EditorRuntimeProvider`
+ * `VideoEditorProvider` (Astrid app shell) and `EditorRuntimeProvider`
  * (embed/browser host). Internal host-only wiring — not part of the
  * supported public SDK surface.
  *
@@ -75,7 +75,7 @@ import {
 } from '@/tools/video-editor/runtime/extensionLifecycle.ts';
 import {
   createDiagnosticCollection,
-  type ReighExtension,
+  type AstridExtension,
   type CommandContribution,
   type KeybindingContribution,
   type ContextMenuItemContribution,
@@ -91,7 +91,7 @@ import {
   type SettingsPersistenceError,
   type ProcessSpawnConfig,
   type ProjectObjectStorage,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import { createExtensionContext } from '@/tools/video-editor/runtime/extensionContextFactory';
 import { LiveSceneOperationPort } from '@/tools/video-editor/runtime/liveSceneOperationPort';
 import { createRendererRegistry } from '@/tools/video-editor/runtime/extensionRendererRegistry';
@@ -246,7 +246,7 @@ function publishSettingsPersistenceDiagnostic(
 // ---------------------------------------------------------------------------
 
 export interface UseEditorRuntimeAssemblyOptions {
-  extensions?: readonly ReighExtension[];
+  extensions?: readonly AstridExtension[];
   documents?: import('@/sdk/context.ts').ProjectDocumentSurface;
   loadAssetProfile?: (assetKey: string) => Promise<import('@/tools/video-editor/data/AssetResolver.ts').AssetProfile | null>;
   /** Package-state inventory entries propagated from the loader (M5). */

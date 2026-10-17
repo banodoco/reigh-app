@@ -38,13 +38,13 @@ afterEach(() => {
 
 describe('workspace Runtime launch binding', () => {
   it('loads runtime config before the first Runtime call and prefers it over baked ids', async () => {
-    const { ReighRuntimeClient } = await import('./client.ts');
+    const { AstridRuntimeClient } = await import('./client.ts');
     vi.stubEnv('VITE_WORKSPACE_RUNTIME_EXPECTED_ACTOR_ID', baked.actorId);
     vi.stubEnv('VITE_WORKSPACE_RUNTIME_EXPECTED_REALM_ID', baked.realmId);
     vi.stubEnv('VITE_WORKSPACE_RUNTIME_EXPECTED_INSTANCE_ID', baked.runtimeInstanceId);
     const calls = runtimeFetch({ schemaVersion: 1, endpoint: 'http://127.0.0.1:17890', ...live });
-    const first = new ReighRuntimeClient();
-    const second = new ReighRuntimeClient();
+    const first = new AstridRuntimeClient();
+    const second = new AstridRuntimeClient();
     await expect(first.ensureSession()).resolves.toBeTruthy();
     await expect(second.updateProject('project', 'test-key', 1, undefined, {})).resolves.toBeTruthy();
     expect(calls[0]).toBe('/runtime-config/v1/workspace.json');
@@ -53,39 +53,39 @@ describe('workspace Runtime launch binding', () => {
 
     const restarted = { ...live, runtimeInstanceId: 'restarted-instance' };
     const restartCalls = runtimeFetch({ schemaVersion: 1, endpoint: 'http://127.0.0.1:17891', ...restarted }, restarted);
-    await expect(new ReighRuntimeClient().ensureSession())
+    await expect(new AstridRuntimeClient().ensureSession())
       .rejects.toMatchObject({ code: 'runtime_incompatible' });
     expect(restartCalls).not.toContain('/runtime-config/v1/workspace.json');
 
     vi.resetModules(); // A new module instance models a full page reload.
-    const { ReighRuntimeClient: ReloadedClient } = await import('./client.ts');
+    const { AstridRuntimeClient: ReloadedClient } = await import('./client.ts');
     await expect(new ReloadedClient().ensureSession()).resolves.toBeTruthy();
     expect(restartCalls.filter((path) => path === '/runtime-config/v1/workspace.json')).toHaveLength(1);
   });
 
   it('still refuses a handshake or instance that disagrees with runtime config', async () => {
-    const { ReighRuntimeClient } = await import('./client.ts');
+    const { AstridRuntimeClient } = await import('./client.ts');
     vi.stubEnv('VITE_WORKSPACE_RUNTIME_EXPECTED_ACTOR_ID', baked.actorId);
     vi.stubEnv('VITE_WORKSPACE_RUNTIME_EXPECTED_REALM_ID', baked.realmId);
     vi.stubEnv('VITE_WORKSPACE_RUNTIME_EXPECTED_INSTANCE_ID', baked.runtimeInstanceId);
     runtimeFetch({ schemaVersion: 1, endpoint: 'http://127.0.0.1:17890', ...live }, { ...live, runtimeInstanceId: 'other-instance' });
-    await expect(new ReighRuntimeClient({ identityStore: new Map() }).ensureSession())
+    await expect(new AstridRuntimeClient({ identityStore: new Map() }).ensureSession())
       .rejects.toMatchObject({ code: 'runtime_incompatible' });
   });
 
   it('uses baked ids when the runtime config is absent', async () => {
-    const { ReighRuntimeClient } = await import('./client.ts');
+    const { AstridRuntimeClient } = await import('./client.ts');
     vi.stubEnv('VITE_WORKSPACE_RUNTIME_EXPECTED_ACTOR_ID', baked.actorId);
     vi.stubEnv('VITE_WORKSPACE_RUNTIME_EXPECTED_REALM_ID', baked.realmId);
     vi.stubEnv('VITE_WORKSPACE_RUNTIME_EXPECTED_INSTANCE_ID', baked.runtimeInstanceId);
     const calls = runtimeFetch(null, baked);
-    await expect(new ReighRuntimeClient({ identityStore: new Map() }).ensureSession()).resolves.toBeTruthy();
+    await expect(new AstridRuntimeClient({ identityStore: new Map() }).ensureSession()).resolves.toBeTruthy();
     expect(calls[0]).toBe('/runtime-config/v1/workspace.json');
   });
 });
 
 it('serves only non-secret identity and rereads discovery after a restart', () => {
-  const directory = mkdtempSync(join(tmpdir(), 'reigh-workspace-config-'));
+  const directory = mkdtempSync(join(tmpdir(), 'astrid-app-workspace-config-'));
   try {
     const root = join(directory, 'realm');
     mkdirSync(root);

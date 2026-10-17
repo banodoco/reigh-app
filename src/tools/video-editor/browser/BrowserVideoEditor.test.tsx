@@ -21,7 +21,7 @@ vi.mock('@/tools/video-editor/runtime/useExtensionLoaderWiring', () => ({
 
 function scopedServices(timelineId: string): VideoEditorScopedServices {
   return {
-    contract: 'reigh.video-editor.scoped-services.v1',
+    contract: 'astrid.video-editor.scoped-services.v1',
     scope: { instanceId: 'editor-full', projectId: 'project-1', timelineId },
     shots: { shots: [], isLoading: false, error: null, refetchShots: vi.fn(), finalVideoMap: new Map(), dismissFinalVideo: vi.fn() },
     mediaLightbox: { Lightbox: () => null, loadGenerationForLightbox: vi.fn(async () => null) },

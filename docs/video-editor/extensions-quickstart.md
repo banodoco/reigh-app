@@ -1,17 +1,17 @@
-# Extension Quickstart — Reigh Video Editor V1
+# Extension Quickstart — Astrid App Video Editor V1
 
 **Status:** Active (M15)
 **Last updated:** 2026-06-20
-**Audience:** Extension authors beginning their first Reigh extension.
+**Audience:** Extension authors beginning their first Astrid App extension.
 **Prerequisite gate:** [Example readiness](./extension-platform-supported-deferred.md) (M15 pre-doc gate, passed 2026-06-20).
 
 ---
 
-## 1. What is a Reigh extension?
+## 1. What is a Astrid App extension?
 
-A Reigh extension is a TypeScript module that uses **only** the public `@reigh/editor-sdk` entrypoint. Extensions declare their identity, contributions, and lifecycle in a single frozen manifest, then register behaviour imperatively during `activate()`.
+A Astrid App extension is a TypeScript module that uses **only** the public `@astrid/editor-sdk` entrypoint. Extensions declare their identity, contributions, and lifecycle in a single frozen manifest, then register behaviour imperatively during `activate()`.
 
-In V1, every extension is a **trusted-local extension**: it runs in the same browser JavaScript context as the Reigh editor with full renderer privileges. There is no sandbox, no process isolation, and no capability enforcement. **Review extension source before enabling it in a shared project.** See the [Trust Envelope](./extensions-trust-envelope.md) for full details.
+In V1, every extension is a **trusted-local extension**: it runs in the same browser JavaScript context as the Astrid App editor with full renderer privileges. There is no sandbox, no process isolation, and no capability enforcement. **Review extension source before enabling it in a shared project.** See the [Trust Envelope](./extensions-trust-envelope.md) for full details.
 
 For the admitted Astrid Video Editor Tool, its existing host route, scoped
 provider services, catalog binding, and source/reopen workflow, see
@@ -22,13 +22,13 @@ separate from the extension APIs described below.
 
 ## 2. Your first extension
 
-Every extension starts with `defineExtension()` from `@reigh/editor-sdk`. The minimal valid extension is a manifest-only declaration:
+Every extension starts with `defineExtension()` from `@astrid/editor-sdk`. The minimal valid extension is a manifest-only declaration:
 
 ```typescript
-import { defineExtension } from '@reigh/editor-sdk';
-import type { ReighExtension } from '@reigh/editor-sdk';
+import { defineExtension } from '@astrid/editor-sdk';
+import type { AstridExtension } from '@astrid/editor-sdk';
 
-export const myExtension: ReighExtension = defineExtension({
+export const myExtension: AstridExtension = defineExtension({
   manifest: {
     id: 'com.example.my-extension',
     version: '1.0.0',
@@ -50,10 +50,10 @@ Extension IDs must match `/^[a-z][a-z0-9_-]*(\.[a-z][a-z0-9_-]*)*$/i` — lowerc
 Extensions that need to do work at activation supply an `activate(ctx)` function:
 
 ```typescript
-import { defineExtension } from '@reigh/editor-sdk';
-import type { ReighExtension, ExtensionContext, DisposeHandle } from '@reigh/editor-sdk';
+import { defineExtension } from '@astrid/editor-sdk';
+import type { AstridExtension, ExtensionContext, DisposeHandle } from '@astrid/editor-sdk';
 
-export const myExtension: ReighExtension = defineExtension({
+export const myExtension: AstridExtension = defineExtension({
   manifest: {
     id: 'com.example.my-extension',
     version: '1.0.0',
@@ -86,9 +86,9 @@ src/tools/video-editor/dev/localExtensions.ts
 
 ```typescript
 import { myExtension } from '../../../path/to/my-extension';
-import type { ReighExtension } from '@reigh/editor-sdk';
+import type { AstridExtension } from '@astrid/editor-sdk';
 
-export const devLocalExtensions: ReighExtension[] = [myExtension];
+export const devLocalExtensions: AstridExtension[] = [myExtension];
 ```
 
 `VideoEditorPage` concatenates that array into the editor's direct extensions
@@ -189,7 +189,7 @@ import type {
   CommandContribution,
   KeybindingContribution,
   ContextMenuItemContribution,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 
 const contributions: readonly [
   CommandContribution,
@@ -302,7 +302,7 @@ sub.dispose(); // Clean up in your dispose function
 
 ### 4.2 Settings (`ctx.services.settings`)
 
-Settings are localStorage-backed, scoped per extension with the `reigh.ext.<id>.` key prefix, and cleaned up on dispose:
+Settings are localStorage-backed, scoped per extension with the `astrid.ext.<id>.` key prefix, and cleaned up on dispose:
 
 ```typescript
 const enabled = ctx.services.settings.get<boolean>('myFeature.enabled');
@@ -359,7 +359,7 @@ Example reference: [code-panel-diagnostics-example.ts](../../src/examples/code-p
 Render-backed contributions (today: `timelineOverlay`) declare a required `render` id in the manifest and bind the matching renderer imperatively during activation:
 
 ```typescript
-import type { TimelineOverlayRenderProps } from '@reigh/editor-sdk';
+import type { TimelineOverlayRenderProps } from '@astrid/editor-sdk';
 
 // In activate():
 const handle = ctx.ui.registerRenderer<TimelineOverlayRenderProps>(
@@ -449,7 +449,7 @@ See the [supported/deferred matrix](./extension-platform-supported-deferred.md) 
 
 ### 6.1 Trusted-local execution
 
-In V1, extensions run **same-thread, same-origin** as the Reigh editor. This means:
+In V1, extensions run **same-thread, same-origin** as the Astrid App editor. This means:
 
 - No sandbox, no process isolation, no CSP subdivision
 - Full access to `fetch`, `localStorage`, DOM, and all browser APIs
@@ -483,7 +483,7 @@ node scripts/quality/check-extension-example-readiness.mjs --audit
 This gate verifies that:
 1. Every `EX:` and `EXT:` evidence reference in a **supported** row resolves to an existing file
 2. Example files that demonstrate deferred/unsupported behaviour are flagged
-3. Every example file imports exclusively from `@reigh/editor-sdk`
+3. Every example file imports exclusively from `@astrid/editor-sdk`
 4. On-disk examples have a corresponding supported matrix row
 
 The gate outputs a JSON record of docs-safe example IDs as its final line. The documents in this directory were written after the gate passed (22 docs-safe examples, 0 failures, 8 unclassified warnings).

@@ -23,7 +23,7 @@ function makeRecord(overrides?: Partial<DataKindRegistryRecord>): DataKindRegist
   return {
     kindId: 'transcript_segment',
     contributionId: 'contrib.transcript',
-    schemaRef: 'reigh.transcript_segment/v1',
+    schemaRef: 'astrid.transcript_segment/v1',
     shape: 'interval',
     domain: 'source_seconds',
     laneRenderer: () => null,
@@ -65,7 +65,7 @@ describe('createDataKindRegistry', () => {
 
   it('resolve() returns the registered record and undefined for unknown kinds', () => {
     registry.register(makeRecord());
-    expect(registry.resolve('transcript_segment')?.schemaRef).toBe('reigh.transcript_segment/v1');
+    expect(registry.resolve('transcript_segment')?.schemaRef).toBe('astrid.transcript_segment/v1');
     expect(registry.resolve('missing')).toBeUndefined();
   });
 
@@ -82,7 +82,7 @@ describe('createDataKindRegistry', () => {
     const held = registry.getSnapshot();
     expect(held.get('transcript_segment')).toBeDefined();
 
-    registry.register(makeRecord({ kindId: 'later_kind', schemaRef: 'reigh.later/v1' }));
+    registry.register(makeRecord({ kindId: 'later_kind', schemaRef: 'astrid.later/v1' }));
 
     // The held snapshot predates the second registration: its records array
     // AND its get/has view are frozen at the same instant (rework R6).

@@ -23,7 +23,7 @@ class OpaqueAppBagsTest(unittest.TestCase):
             "clips": [],
             "tracks": [{"id": "V1", "kind": "visual", "label": "V1"}],
             "app": {
-                "com.reigh.scene-phase-markers": {
+                "haus.astrid.scene-phase-markers": {
                     "sceneMarkers": [{"id": "m1", "time": 1.5}],
                 },
                 "com.example.extension": {"nested": {"any": [1, 2, 3]}},
@@ -40,7 +40,7 @@ class OpaqueAppBagsTest(unittest.TestCase):
                 "clipType": "hold",
                 "hold": 1,
                 "app": {
-                    "reigh": {
+                    "astrid": {
                         "shader": {"shaderId": "chroma", "uniforms": {"hue": 0.3}},
                     },
                 },
@@ -85,9 +85,9 @@ class OpaqueAppBagsTest(unittest.TestCase):
 class RealProjectReplayTest(unittest.TestCase):
     """The real desert-plant-growth event log must replay cleanly under v2."""
 
-    # Workspace layout: banodoco-workspace is a sibling of reigh-workspace.
+    # Workspace layout: banodoco-workspace is a sibling of astrid-app-workspace.
     _workspace = Path(__file__).resolve().parents[3]
-    LOG = _workspace.parent / "reigh-workspace" / "Astrid" / "projects" / \
+    LOG = _workspace.parent / "astrid-app-workspace" / "Astrid" / "projects" / \
         "desert-plant-growth" / "timelines" / \
         "01KYPVKMW5STB4W6FE05ED8242" / "assembly.jsonl"
 

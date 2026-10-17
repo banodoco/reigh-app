@@ -20,8 +20,8 @@ import type {
   DisposeHandle,
   ExtensionDiagnostic,
   ExtensionDiagnosticsService,
-  ReighExtension,
-} from '@reigh/editor-sdk';
+  AstridExtension,
+} from '@astrid/editor-sdk';
 import type { ClipTypeRegistry } from '@/tools/video-editor/clip-types/ClipTypeRegistry.ts';
 import type {
   ClipTypeRegistryRecord,
@@ -40,7 +40,7 @@ import { validateClipTypeParameterSchema } from '@/tools/video-editor/clip-types
 
 /** Extract `ClipTypeContribution` entries from a frozen manifest. */
 function getClipTypeContributions(
-  manifest: ReighExtension['manifest'],
+  manifest: AstridExtension['manifest'],
 ): readonly ClipTypeContribution[] {
   return (manifest.contributions?.filter(
     (c): c is ClipTypeContribution => c.kind === 'clipType',
@@ -132,7 +132,7 @@ function noopDisposeHandle(): DisposeHandle {
 
 export interface CreateClipTypeRegistrationServiceParams {
   /** The extension whose manifest declares ClipTypeContributions. */
-  readonly extension: ReighExtension;
+  readonly extension: AstridExtension;
   /** The provider-scoped ClipTypeRegistry. */
   readonly clipTypeRegistry: ClipTypeRegistry;
   /** Diagnostics service scoped to this extension's lifecycle. */

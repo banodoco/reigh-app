@@ -6,7 +6,7 @@ import type {
   OutputFormatContext,
   TimelineSnapshot,
   AssetMetadata,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import {
   createCompileOnlyArtifact,
   COMPILE_ONLY_ARTIFACT_ROUTE,
@@ -664,7 +664,7 @@ describe('compile-only output execution isolation', () => {
     expect(result!.artifact.route).toBe(COMPILE_ONLY_ARTIFACT_ROUTE);
     // The fact that no render providers, render planner, or media render routes
     // are imported or invoked is proven by the module's own import graph
-    // (outputFormatRegistry.ts imports only from @reigh/editor-sdk and renderability.ts)
+    // (outputFormatRegistry.ts imports only from @astrid/editor-sdk and renderability.ts)
   });
 
   it('handler never receives render planner or render provider references', () => {

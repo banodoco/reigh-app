@@ -45,7 +45,7 @@ import type {
   BindingResolutionStatus,
   LiveBindingResolution,
   LiveBindingMetadata,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 
 // ---------------------------------------------------------------------------
 // Helpers

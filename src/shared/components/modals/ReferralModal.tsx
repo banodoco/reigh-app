@@ -122,7 +122,7 @@ export const ReferralModal: React.FC<ReferralModalProps> = ({ isOpen, onOpenChan
         <div className={modal.headerClass}>
           <DialogHeader className={`${modal.isMobile ? 'px-4 pt-2 pb-2' : 'px-6 pt-2 pb-2'} flex-shrink-0`}>
             <DialogTitle className="text-xl font-cocogoose text-primary">
-              Refer artists to create with Reigh
+              Refer artists to create with Astrid
             </DialogTitle>
           </DialogHeader>
         </div>
@@ -135,7 +135,7 @@ export const ReferralModal: React.FC<ReferralModalProps> = ({ isOpen, onOpenChan
             {/* Main Description */}
             <div className="space-y-3 text-sm leading-relaxed text-muted-foreground">
               <p>
-                Artists can run Reigh for free on their computers.
+                Artists can run Astrid for free on their computers.
               </p>
               <p>
                 However, for those who prefer the convenience of running on the cloud, we charge twice compute costs. Because we run on consumer GPUs, this is still significantly cheaper than other providers.
@@ -201,7 +201,7 @@ export const ReferralModal: React.FC<ReferralModalProps> = ({ isOpen, onOpenChan
                   We hope that this motivates artists to create beautiful work, which in turn inspire others to create with AI.
                 </p>
                 <p className="text-sm text-muted-foreground leading-relaxed text-left mt-2">
-                  Additionally, artists who create with Reigh will share{' '}
+                  Additionally, artists who create with Astrid will share{' '}
                   <a 
                     href="https://banodoco.ai/pages/ownership.html" 
                     target="_blank" 

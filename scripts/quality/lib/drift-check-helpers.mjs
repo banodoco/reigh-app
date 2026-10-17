@@ -382,7 +382,7 @@ export function parseExtensionManifests(extensionsDir, knownKinds) {
   for (const entry of readdirSync(extensionsDir, { withFileTypes: true })) {
     if (!entry.isDirectory() || entry.name.startsWith('.') || entry.name === '__tests__') continue;
 
-    const manifestPath = resolve(extensionsDir, entry.name, 'reigh-extension.json');
+    const manifestPath = resolve(extensionsDir, entry.name, 'astrid-extension.json');
     if (!existsSync(manifestPath)) continue;
 
     /** @type {any} */

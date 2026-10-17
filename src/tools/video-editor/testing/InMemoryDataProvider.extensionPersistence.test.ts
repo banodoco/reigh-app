@@ -5,7 +5,7 @@ import {
   defineExtensionPersistenceConformanceSuite,
 } from '@/tools/video-editor/data/conformance/extensionPersistenceConformance';
 import type { ExtensionPersistenceScope } from '@/tools/video-editor/data/DataProvider';
-import type { ExtensionDiagnostic } from '@reigh/editor-sdk';
+import type { ExtensionDiagnostic } from '@astrid/editor-sdk';
 
 const scope: ExtensionPersistenceScope = {
   userId: 'memory-user',

@@ -56,7 +56,7 @@ import type {
   ToolMutationProposalResult,
   DisposeHandle,
   ExtensionDiagnostic,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import type {
   AgentToolRegistry,
   AgentToolEntry,

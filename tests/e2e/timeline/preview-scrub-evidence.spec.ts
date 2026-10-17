@@ -253,7 +253,7 @@ test.describe('preview scrubbing pixel evidence', () => {
     await page.addInitScript(() => {
       const state: EvidenceState = { currentTimeSets: 0, playCalls: 0, autoResumeCalls: 0, inputStartedAt: null, dispatches: [] };
       Object.defineProperty(window, '__SCRUB_EVIDENCE__', { value: state, configurable: true });
-      Object.defineProperty(window, '__REIGH_TEST_PLAYER_SEEK__', {
+      Object.defineProperty(window, '__ASTRID_APP_TEST_PLAYER_SEEK__', {
         value: {
           onDispatch: (event: Omit<PlayerSeekDispatch, 'at'>) => state.dispatches.push({ ...event, at: performance.now() }),
           onAutoResume: () => { state.autoResumeCalls += 1; },
@@ -283,7 +283,7 @@ test.describe('preview scrubbing pixel evidence', () => {
     // preview; this keeps the evidence test deterministic without changing
     // production or shared harness timing.
     await page.goto(EDITOR_URL, { waitUntil: 'domcontentloaded', timeout: 45_000 });
-    await page.waitForFunction(() => Boolean(window.__REIGH_LOCAL_TEST__?.enabled), undefined, { timeout: 60_000 });
+    await page.waitForFunction(() => Boolean(window.__ASTRID_APP_LOCAL_TEST__?.enabled), undefined, { timeout: 60_000 });
     await page.waitForTimeout(EDITOR_SETTLE_MS);
     await expect(page.locator(PREVIEW)).toBeVisible({ timeout: 30_000 });
     await expect(page.locator(RULER)).toBeVisible({ timeout: 30_000 });

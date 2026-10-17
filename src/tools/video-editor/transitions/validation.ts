@@ -9,7 +9,7 @@
  * side effects.
  */
 
-import type { ExtensionDiagnostic } from '@reigh/editor-sdk';
+import type { ExtensionDiagnostic } from '@astrid/editor-sdk';
 import type { ClipTransition } from '@/tools/video-editor/types/index.ts';
 import type { TransitionRegistrySnapshot } from '@/tools/video-editor/transitions/registry/types.ts';
 import {

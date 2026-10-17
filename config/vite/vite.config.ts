@@ -17,7 +17,7 @@ import {
   resolveAstridBridgeProxyPolicy,
 } from "./astridBridgeProxy";
 import { createWorkspaceRuntimeProxyOptions, RUNTIME_TOKEN_FILE_ENV } from "./runtimeProxy";
-import {ReighRuntimeClient} from '../../src/integrations/runtime/client';
+import {AstridRuntimeClient} from '../../src/integrations/runtime/client';
 import { createElementAdmissionsPlugin } from "./astridElementAdmissions";
 import { resolveAstridSource, validateAstridToolCatalog } from "./astridSource";
 import {
@@ -93,7 +93,7 @@ export default defineConfig(() => {
       "/runtime-config/v1/workspace.json": { target: runtimeTarget, changeOrigin: true },
     }
     : {};
-  const elementRuntime = runtimeTarget && runtimeToken ? new ReighRuntimeClient({baseUrl:runtimeTarget,token:runtimeToken,
+  const elementRuntime = runtimeTarget && runtimeToken ? new AstridRuntimeClient({baseUrl:runtimeTarget,token:runtimeToken,
     expectedIdentity:{actorId:process.env.VITE_WORKSPACE_RUNTIME_EXPECTED_ACTOR_ID??'',realmId:process.env.VITE_WORKSPACE_RUNTIME_EXPECTED_REALM_ID??'',runtimeInstanceId:process.env.VITE_WORKSPACE_RUNTIME_EXPECTED_INSTANCE_ID??''}}):null;
   const elementAdmissions = elementRuntime && process.env.ASTRID_ELEMENT_ARTIFACT_ROOT && process.env.ASTRID_PROJECT_PACKS_ROOT ? {
     realmId:process.env.VITE_WORKSPACE_RUNTIME_EXPECTED_REALM_ID??'',artifactRoot:process.env.ASTRID_ELEMENT_ARTIFACT_ROOT,sourceRoot:process.env.ASTRID_PROJECT_PACKS_ROOT,
@@ -167,7 +167,7 @@ export default defineConfig(() => {
     resolve: {
       alias: {
         "@": path.resolve(__dirname, "../../src"),
-        "@reigh/editor-sdk": path.resolve(__dirname, "../../src/sdk/index.ts"),
+        "@astrid/editor-sdk": path.resolve(__dirname, "../../src/sdk/index.ts"),
         ...(astridSource ? { "@astrid": astridSource.sourceRoot } : {}),
         ...(astridPublicSource ? { "@astrid-public": astridPublicSource.sourceRoot } : {}),
         // Sprint 5: deduplicate React / Remotion / @banodoco/* across the
@@ -189,7 +189,7 @@ export default defineConfig(() => {
           : timelineSchemaFallbackPath,
         "@banodoco/timeline-composition": path.resolve(__dirname, "../../node_modules/@banodoco/timeline-composition"),
         // Workspace-primitive aliases (mirrors banodoco shell webpack-alias.mjs).
-        // Vendored into reigh-app/vendor/ so the Docker build context can resolve them
+        // Vendored into astrid-app/vendor/ so the Docker build context can resolve them
         // — the original ../../../../banodoco-workspace paths sit outside the build context.
         "@workspace-effects": path.resolve(__dirname, "../../vendor/banodoco-effects"),
         "@workspace-animations": path.resolve(__dirname, "../../vendor/banodoco-animations"),

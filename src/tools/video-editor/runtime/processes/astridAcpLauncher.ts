@@ -12,11 +12,11 @@ export const ASTRID_ACP_PROFILE_FILE_ARG = '--agent-profile-file';
 export const ASTRID_ACP_AGENT_IDENTITY = 'astrid';
 /** Stable integration rules; the selected project itself is supplied per turn. */
 export const ASTRID_ACP_CONTEXT_SYSTEM_PROMPT = [
-  'When a Reigh editor prompt contains <reigh_editor_context>, treat that structured block as the authoritative editor context for that turn.',
+  'When a Astrid App editor prompt contains <astrid_editor_context>, treat that structured block as the authoritative editor context for that turn.',
   'Use the Astrid runtime tools available in the session; do not infer project, timeline, or asset state from the filesystem. The context block is a compact scoped read, not a full asset registry.',
   'The context IDs are resource references, not authorization. Preserve the selected project/timeline scope and use the document version returned by the runtime when saving.',
   'The context can change between turns, so never assume a prior project or timeline remains selected.',
-  'For a scoped Reigh timeline request, do not repeat startup maintenance, skill discovery, ls/grep workspace scans, import-location checks, or exploratory one-off Python probes. The Astrid session preflight is already complete; only do those checks when a runtime command fails and diagnosis requires them.',
+  'For a scoped Astrid App timeline request, do not repeat startup maintenance, skill discovery, ls/grep workspace scans, import-location checks, or exploratory one-off Python probes. The Astrid session preflight is already complete; only do those checks when a runtime command fails and diagnosis requires them.',
   'Use the compact runtime read first: astrid-tools timelines show --summary --project <project-slug> <timeline-ref>. It returns the timeline version, tracks, clip ids, start/duration/end timing, and counts without dumping prompts, effect parameters, media URLs, or the full asset registry.',
   'Every runtime command must include explicit --project <project-slug> and the timeline reference; do not rely on implicit current-project selection for an edit.',
   'For a single clip timing change, use the working-copy route: astrid-tools timelines checkout --project <project-slug> <timeline-ref>, then astrid-tools timelines edit --project <project-slug> <timeline-ref> --clip <clip-id> --at <seconds>, then astrid-tools timelines publish --project <project-slug> <timeline-ref> -m "<what changed>".',
@@ -141,7 +141,7 @@ export type AstridAcpLauncherOptions = {
  * Build the one canonical Astrid ACP host. This is intentionally a host-only
  * factory: browser code cannot resolve the prompt or spawn a process. Astrid
  * owns named-agent discovery, its system prompt, branded OMP selection, and
- * identity; Reigh only asks that launcher to expose ACP over stdio. The
+ * identity; Astrid App only asks that launcher to expose ACP over stdio. The
  * optional sessionDir/profile are forwarded as explicit OMP launch flags.
  */
 export function createAstridAcpProcessHost(options: AstridAcpLauncherOptions): AcpProcessHost {

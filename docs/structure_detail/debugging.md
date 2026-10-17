@@ -1,6 +1,6 @@
 # Debugging
 
-**This doc has moved.** The debugging guide now lives at the Reigh-Collection level since it spans all three repos.
+**This doc has moved.** The debugging guide now lives at the Astrid-Collection level since it spans all three repos.
 
 See: [../../debugging.md](../../../debugging.md)
 

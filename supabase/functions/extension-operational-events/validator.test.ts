@@ -9,7 +9,7 @@ const valid = {
   event: 'bridge.request',
   outcome: 'failure',
   releaseRevision: 'rc1',
-  extensionId: 'com.reigh.astrid-runaway-timeline',
+  extensionId: 'haus.astrid-runaway-timeline',
   extensionVersion: '1.0.0',
   errorClass: 'bridge.timeout',
   durationMs: 250,
@@ -22,7 +22,7 @@ describe('extension operational telemetry server validator', () => {
       event: 'bridge.request',
       outcome: 'failure',
       release_revision: 'rc1',
-      extension_id: 'com.reigh.astrid-runaway-timeline',
+      extension_id: 'haus.astrid-runaway-timeline',
       extension_version: '1.0.0',
       error_class: 'bridge.timeout',
       duration_ms: 250,
@@ -35,13 +35,13 @@ describe('extension operational telemetry server validator', () => {
       event: 'extension.activation',
       outcome: 'success',
       releaseRevision: 'rc1',
-      extensionId: 'com.reigh.astrid.live-scenes',
+      extensionId: 'haus.astrid.live-scenes',
       extensionVersion: '1.0.0',
     })).toEqual({
       event: 'extension.activation',
       outcome: 'success',
       release_revision: 'rc1',
-      extension_id: 'com.reigh.astrid.live-scenes',
+      extension_id: 'haus.astrid.live-scenes',
       extension_version: '1.0.0',
     });
   });

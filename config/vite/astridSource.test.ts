@@ -27,7 +27,7 @@ afterEach(() => {
 describe('Astrid source binding', () => {
   it('requires an absolute checkout and preserves its canonical source root', () => {
     expect(() => resolveAstridSource('relative-checkout')).toThrow(/absolute path/);
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'reigh-astrid-source-'));
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'astrid-app-source-'));
     temporaryRoots.push(root);
     fs.mkdirSync(path.join(root, 'astrid'), { recursive: true });
     expect(resolveAstridSource(root)).toEqual({
@@ -37,7 +37,7 @@ describe('Astrid source binding', () => {
   });
 
   it('validates a Unicode UTF-8 resource and its canonical release digest without generating production output', () => {
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'reigh-astrid-catalog-'));
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'astrid-app-catalog-'));
     temporaryRoots.push(root);
     const sourceRoot = path.join(root, 'astrid');
     const packRoot = path.join(sourceRoot, 'packs', 'video_editing');
@@ -56,7 +56,7 @@ describe('Astrid source binding', () => {
       canonical_id: 'video_editing.video-editor',
       pack_id: 'video_editing',
       pack_version: '1.0.0',
-      target: 'reigh',
+      target: 'astrid',
       compatibility: { host: '1' },
       manifest: { path: 'pack.yaml', sha256: digest(manifest) },
       entry: { path: 'ui/video-editor/entry.json', sha256: digest(entry), size: Buffer.byteLength(entry), host_entry: 'video-editor' },

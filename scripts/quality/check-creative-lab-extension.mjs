@@ -32,7 +32,7 @@ const slugs = requestedSlug === '--all'
       .filter((entry) => entry.isDirectory())
       .map((entry) => entry.name)
       .filter((name) => /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(name))
-      .filter((name) => existsSync(resolve(creativeLabDirectory, name, 'reigh-extension.json')))
+      .filter((name) => existsSync(resolve(creativeLabDirectory, name, 'astrid-extension.json')))
       .sort()
   : [requestedSlug];
 
@@ -46,14 +46,14 @@ const extensions = slugs.map((slug) => {
     testPath: ['index.test.ts', 'index.test.tsx']
       .map((name) => resolve(extensionDirectory, name))
       .find(existsSync),
-    manifestPath: resolve(extensionDirectory, 'reigh-extension.json'),
+    manifestPath: resolve(extensionDirectory, 'astrid-extension.json'),
   };
 });
 
 for (const extension of extensions) {
   if (!extension.sourcePath || !extension.testPath || !existsSync(extension.manifestPath)) {
     console.error(
-      `[creative-extension] ${extension.slug} must contain index.ts(x), index.test.ts(x), and reigh-extension.json.`,
+      `[creative-extension] ${extension.slug} must contain index.ts(x), index.test.ts(x), and astrid-extension.json.`,
     );
     process.exit(2);
   }

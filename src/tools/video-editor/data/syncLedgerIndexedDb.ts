@@ -1,4 +1,4 @@
-const DATABASE_NAME = 'reigh.sync-ledger';
+const DATABASE_NAME = 'astrid.sync-ledger';
 const DATABASE_VERSION = 1;
 const BOOKMARK_STORE_NAME = 'sync-bookmarks';
 const KEEP_BOTH_STORE_NAME = 'sync-keep-both-artifacts';

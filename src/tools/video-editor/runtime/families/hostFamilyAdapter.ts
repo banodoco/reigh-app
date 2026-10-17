@@ -17,6 +17,6 @@ export type {
   NormalizeFamilyInput,
   FamilyNormalizeResult,
   FamilyCapabilityInput,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 
-export { FamilyAdapterRegistryImpl } from '@reigh/editor-sdk';
+export { FamilyAdapterRegistryImpl } from '@astrid/editor-sdk';

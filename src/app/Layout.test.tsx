@@ -56,8 +56,8 @@ vi.mock('@/shared/components/modals/OnboardingModal', () => ({
   OnboardingModal: () => null,
 }));
 vi.mock('@/shared/components/ProductTour', () => ({ ProductTour: () => null }));
-vi.mock('@/shared/components/ReighLoading', () => ({
-  ReighLoading: () => <div data-testid="reigh-loading" />,
+vi.mock('@/shared/components/AstridLoading', () => ({
+  AstridLoading: () => <div data-testid="astrid-loading" />,
 }));
 vi.mock('@/shared/runtime/ChunkLoadErrorBoundary', () => ({
   ChunkLoadErrorBoundary: ({ children }: { children: React.ReactNode }) => <>{children}</>,
@@ -145,7 +145,7 @@ describe('Layout route access', () => {
     renderLayout();
 
     // Loading state renders the spinner — never a <Navigate> hop.
-    expect(screen.getByTestId('reigh-loading')).toBeInTheDocument();
+    expect(screen.getByTestId('astrid-loading')).toBeInTheDocument();
     expect(screen.queryByTestId('tools-pane')).not.toBeInTheDocument();
   });
 

@@ -11,7 +11,7 @@ import {
   type TimelineBundleEnvelope,
 } from '@/tools/video-editor/data/typed/timelineBundle.ts';
 import { TimelineVersionConflictError } from '@/sdk/video/timeline/errors.ts';
-import type { ExtensionDiagnostic } from '@reigh/editor-sdk';
+import type { ExtensionDiagnostic } from '@astrid/editor-sdk';
 import {
   createCachedExtensionPersistenceService,
   type FullSnapshotStore,

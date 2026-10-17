@@ -20,7 +20,7 @@ import {
   inspectCandidateController,
   releaseEvidenceDirectory,
   resolveAnnotatedCandidateTag,
-} from '../release/reigh-release-provenance.mjs';
+} from '../release/astrid-release-provenance.mjs';
 import {
   EXTERNAL_EVIDENCE_TYPE_BY_WORKSTREAM,
   REQUIRED_RECOVERY_DRILLS,
@@ -64,7 +64,7 @@ export const ATTESTATION_TRUST_PATH = resolve(
   REPO_ROOT,
   'config/releases/extension-ship-attestation-trust.json',
 );
-export const ATTESTATION_NAMESPACE = 'reigh-extension-ship-evidence-v1';
+export const ATTESTATION_NAMESPACE = 'astrid-extension-ship-evidence-v1';
 
 const ALLOWED_STATUSES = new Set(['pending', 'in_progress', 'blocked', 'pass']);
 const ALLOWED_KINDS = new Set([
@@ -157,7 +157,7 @@ export function canonicalReceiptPayload({ release, candidate, workstream, receip
   if (!isPlainObject(receipt)) throw new TypeError('receipt must be an object');
   const { attestation: _attestation, ...unsignedReceipt } = receipt;
   return `${canonicalizeJson({
-    schema: 'reigh-extension-ship-receipt-attestation/v1',
+    schema: 'astrid-extension-ship-receipt-attestation/v1',
     release,
     candidate,
     workstream: {
@@ -263,7 +263,7 @@ export function verifyReceiptAttestation({
     return 'attestation.signature must be an armored SSH signature';
   }
 
-  const directory = mkdtempSync(resolve(tmpdir(), 'reigh-extension-attestation-'));
+  const directory = mkdtempSync(resolve(tmpdir(), 'astrid-extension-attestation-'));
   const allowedSignersPath = resolve(directory, 'allowed_signers');
   const signaturePath = resolve(directory, 'receipt.sig');
   try {
@@ -479,7 +479,7 @@ function validateExternalArtifact({
   const validation = validateExternalEvidence(document, {
     evidenceType: expectedType,
     release: ledger.release,
-    reighCommit: ledger.candidate?.reighCommit,
+    appCommit: ledger.candidate?.appCommit,
     astridCommit: ledger.candidate?.astridCommit,
   });
   for (const error of validation.errors) errors.push(`${prefix}.artifact: ${error}`);
@@ -543,8 +543,8 @@ function validateReceipt({
   if (!ALLOWED_KINDS.has(receipt.kind)) {
     errors.push(`${prefix}.kind must be one of ${[...ALLOWED_KINDS].join(', ')}`);
   }
-  if (receipt.repository !== 'reigh' && receipt.repository !== 'astrid') {
-    errors.push(`${prefix}.repository must be reigh or astrid`);
+  if (receipt.repository !== 'app' && receipt.repository !== 'astrid') {
+    errors.push(`${prefix}.repository must be astrid or astrid`);
   }
   if (!/^[0-9a-f]{40}$/.test(receipt.commit ?? '')) {
     errors.push(`${prefix}.commit must be a full 40-character lowercase commit`);
@@ -602,8 +602,8 @@ function validateReceipt({
     errors.push(`${prefix}.exitCode must be 0`);
   }
 
-  if (releaseMode && receipt.repository === 'reigh' && receipt.commit !== candidate.reighCommit) {
-    errors.push(`${prefix}.commit does not match the frozen Reigh candidate`);
+  if (releaseMode && receipt.repository === 'app' && receipt.commit !== candidate.appCommit) {
+    errors.push(`${prefix}.commit does not match the frozen Astrid App candidate`);
   }
   if (releaseMode && receipt.repository === 'astrid' && receipt.commit !== candidate.astridCommit) {
     errors.push(`${prefix}.commit does not match the frozen Astrid candidate`);
@@ -823,20 +823,20 @@ export function validateLedger({
     if (releaseManifest?.status !== 'frozen') {
       errors.push('release mode requires release manifest status frozen');
     }
-    if (!/^[0-9a-f]{40}$/.test(candidate.reighCommit ?? '')) {
-      errors.push('candidate.reighCommit must be a full 40-character commit');
+    if (!/^[0-9a-f]{40}$/.test(candidate.appCommit ?? '')) {
+      errors.push('candidate.appCommit must be a full 40-character commit');
     }
     if (!/^[0-9a-f]{40}$/.test(candidate.astridCommit ?? '')) {
       errors.push('candidate.astridCommit must be a full 40-character commit');
     }
     if (!/^[0-9a-f]{40}$/.test(candidateCommit ?? '')) {
-      errors.push('release mode requires a resolved annotated Reigh candidate commit');
+      errors.push('release mode requires a resolved annotated Astrid App candidate commit');
     }
     if (!/^[0-9a-f]{40}$/.test(headCommit ?? '')) {
       errors.push('release mode requires the full controller HEAD commit');
     }
-    if (candidateCommit && candidate.reighCommit !== candidateCommit) {
-      errors.push(`candidate.reighCommit does not match annotated candidate ${candidateCommit}`);
+    if (candidateCommit && candidate.appCommit !== candidateCommit) {
+      errors.push(`candidate.appCommit does not match annotated candidate ${candidateCommit}`);
     }
     if (candidateCommit && headCommit && candidateCommit === headCommit) {
       errors.push('controller HEAD must be a strict evidence-only descendant of the candidate');
@@ -877,7 +877,7 @@ export function runCli(argv = process.argv.slice(2)) {
 
   if (mode === 'release') {
     try {
-      assertCleanReleaseCheckout(REPO_ROOT, 'Reigh evidence controller');
+      assertCleanReleaseCheckout(REPO_ROOT, 'Astrid App evidence controller');
     } catch (error) {
       console.error(`${LABEL} failed:\n- ${error.message}`);
       return 1;
@@ -895,7 +895,7 @@ export function runCli(argv = process.argv.slice(2)) {
     try {
       const tag = resolveAnnotatedCandidateTag({
         repoRoot: REPO_ROOT,
-        releaseTag: releaseManifest.reigh.releaseTag,
+        releaseTag: releaseManifest.app.releaseTag,
       });
       candidateCommit = tag.candidateCommit;
       const provenance = inspectCandidateController({
@@ -906,7 +906,7 @@ export function runCli(argv = process.argv.slice(2)) {
       });
       provenanceChangedPaths = provenance.changedPaths;
     } catch (error) {
-      provenanceErrors.push(`Reigh release provenance is invalid: ${error.message}`);
+      provenanceErrors.push(`Astrid App release provenance is invalid: ${error.message}`);
     }
   }
 

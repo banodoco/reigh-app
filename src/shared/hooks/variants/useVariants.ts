@@ -18,7 +18,7 @@ import { useRuntimeAuthority } from '@/app/runtime/runtimeAuthority';
 import {
   fetchRuntimeGenerationSnapshot,
 } from '@/integrations/runtime/generationAccess';
-import { ReighRuntimeClient } from '@/integrations/runtime/client';
+import { AstridRuntimeClient } from '@/integrations/runtime/client';
 import { coerceVariantType, type VariantType } from '@/shared/constants/variantTypes';
 import { generationQueryKeys } from '@/shared/lib/queryKeys/generations';
 import { useAppEventListener } from '@/shared/lib/typedEvents';
@@ -87,7 +87,7 @@ export const useVariants = ({
 
       if (runtimeAuthority) {
         if (!runtimeProjectId) return [];
-        const runtimeClient = new ReighRuntimeClient();
+        const runtimeClient = new AstridRuntimeClient();
         const snapshot = await fetchRuntimeGenerationSnapshot(generationId, runtimeClient);
         if (!snapshot || snapshot.generation.project_id !== runtimeProjectId) return [];
         const primary = snapshot.variants.find((variant) => variant.metadata.is_primary === true)

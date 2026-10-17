@@ -1,4 +1,4 @@
-import { isValidReighElementOperation } from './element-contract';
+import { isValidAstridElementOperation } from './element-contract';
 import type { ConversationToolCallPair } from '@/shared/components/conversation/contracts';
 
 export type RecordedEditorResult = { key: string; ok: boolean; details: string };
@@ -16,13 +16,13 @@ export function recordedEditorResults(messages: Iterable<string>, projectId: str
   const results: RecordedEditorResult[] = [];
   for (const content of messages) {
     if (content.length > 2_000_000) continue;
-    const match = /^\s*<reigh_live_scene_result>([\s\S]*)<\/reigh_live_scene_result>\s*$/.exec(content);
+    const match = /^\s*<astrid_live_scene_result>([\s\S]*)<\/astrid_live_scene_result>\s*$/.exec(content);
     if (!match) continue;
     try {
       const feedback = JSON.parse(match[1]);
       const scope = record(feedback.scope);
       const key = scopeKey(scope);
-      if (feedback.schema !== 'reigh.live-scene-result/v1' || !key || scope?.projectId !== projectId || scope.sessionId !== sessionId || !Array.isArray(feedback.results)) continue;
+      if (feedback.schema !== 'astrid.live-scene-result/v1' || !key || scope?.projectId !== projectId || scope.sessionId !== sessionId || !Array.isArray(feedback.results)) continue;
       for (const result of feedback.results) {
         if (typeof result?.requestId !== 'string' || typeof result.ok !== 'boolean') continue;
         results.push({ key: JSON.stringify([key, result.requestId]), ok: result.ok, details: JSON.stringify(result, null, 2) });
@@ -33,12 +33,12 @@ export function recordedEditorResults(messages: Iterable<string>, projectId: str
 }
 export function presentEditorRequests(content: string, timestamp: string, results: readonly RecordedEditorResult[] = []): { prose: string; pairs: ConversationToolCallPair[] } {
   const pairs: ConversationToolCallPair[] = [];
-  let prose = content.replace(/<reigh_live_scene_request>([\s\S]*?)<\/reigh_live_scene_request>/g, (whole, payload: string) => {
+  let prose = content.replace(/<astrid_live_scene_request>([\s\S]*?)<\/astrid_live_scene_request>/g, (whole, payload: string) => {
     if (payload.length > 32768) return whole;
     try {
       const request = JSON.parse(payload);
       const scope = scopeKey(request.scope);
-      if (request.schema !== 'reigh.live-scene-request/v1' || typeof request.requestId !== 'string' || !request.requestId || !scope || !['read', 'publish'].includes(request.action)) return whole;
+      if (request.schema !== 'astrid.live-scene-request/v1' || typeof request.requestId !== 'string' || !request.requestId || !scope || !['read', 'publish'].includes(request.action)) return whole;
       const key = JSON.stringify([scope, request.requestId]);
       const matched = results.filter(result => result.key === key);
       const unique = new Map(matched.map(result => [result.details, result]));
@@ -49,11 +49,11 @@ export function presentEditorRequests(content: string, timestamp: string, result
       return '';
     } catch { return whole; }
   }).trim();
-  prose = prose.replace(/<reigh_element_operation>([\s\S]*?)<\/reigh_element_operation>/g, (whole, payload: string) => {
+  prose = prose.replace(/<astrid_element_operation>([\s\S]*?)<\/astrid_element_operation>/g, (whole, payload: string) => {
     if (payload.length > 256_000) return whole;
     try {
       const operation: unknown = JSON.parse(payload);
-      if (!isValidReighElementOperation(operation)) return whole;
+      if (!isValidAstridElementOperation(operation)) return whole;
       pairs.push({ call: { role: 'tool_call', content: '', tool_name: `Editor request · ${operation.name}`, tool_args: operation, timestamp },
         result: { role: 'tool_result', timestamp, tool_status: 'unconfirmed',
           content: 'Execution is unconfirmed: this saved operation has no matching recorded host result. Opening these details does not execute it.' } });

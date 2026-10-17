@@ -389,7 +389,7 @@ export interface PreviewArtifactManifestProfile extends ArtifactManifestProfileB
  * Machine-path artifact manifest profile.
  *
  * A machine-path profile describes a verified artifact record that
- * points at an on-disk path on a machine that Reigh does not control,
+ * points at an on-disk path on a machine that Astrid does not control,
  * certify, sandbox, execute, or preview. This profile exists for type
  * coverage, validation, and governance completeness, not for runtime
  * capability claims.
@@ -408,7 +408,7 @@ export interface MachinePathArtifactManifestProfile extends ArtifactManifestProf
  * Executable-package artifact manifest profile.
  *
  * An executable-package profile describes a verified artifact record
- * that points at an executable package/script/binary that Reigh does
+ * that points at an executable package/script/binary that Astrid does
  * not control, certify, sandbox, execute, or preview. This profile
  * exists for type coverage, validation, and governance completeness,
  * not for runtime capability claims.

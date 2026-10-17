@@ -5,7 +5,7 @@ import {
   useEffect,
   useRef,
 } from 'react';
-import type { DataItemInspectorProps, DataLaneRendererProps } from '@reigh/editor-sdk';
+import type { DataItemInspectorProps, DataLaneRendererProps } from '@astrid/editor-sdk';
 import {
   retryRunawayTimeline,
   type RunawayLoadStatusPayload,

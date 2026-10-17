@@ -10,9 +10,9 @@ import { useHeroAnimation } from '../../hooks/useHeroAnimation';
 import type { Session } from '@supabase/supabase-js';
 
 // External links
-const GITHUB_REPO_URL = 'https://github.com/banodoco/Reigh';
+const GITHUB_REPO_URL = 'https://github.com/banodoco/astrid-app';
 const DISCORD_INVITE_URL = 'https://discord.gg/D5K2c6kfhy';
-const BANODOCO_URL = 'http://banodoco.ai/';
+const COMMUNITY_SITE_URL = 'http://banodoco.ai/';
 
 // Retro theme color tokens (inline for hydration safety - see comment on retroButtonInlineStyles)
 const RETRO_THEME = {
@@ -341,7 +341,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
 
               <div className="flex justify-center mt-4">
                   <a
-                    href={BANODOCO_URL}
+                    href={COMMUNITY_SITE_URL}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="block opacity-60 hover:opacity-100 transition-opacity duration-300"

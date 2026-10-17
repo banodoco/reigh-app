@@ -33,7 +33,7 @@
  * (same contract as the SDK settings service).
  */
 
-import type { DisposeHandle, ExtensionSettingsService } from '@reigh/editor-sdk';
+import type { DisposeHandle, ExtensionSettingsService } from '@astrid/editor-sdk';
 
 // ---------------------------------------------------------------------------
 // Registry

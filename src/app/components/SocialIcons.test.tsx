@@ -8,7 +8,7 @@ describe('SocialIcons', () => {
 
     const links = screen.getAllByRole('link');
     expect(links).toHaveLength(2);
-    expect(links[0]).toHaveAttribute('href', 'https://github.com/peteromallet/reigh');
+    expect(links[0]).toHaveAttribute('href', 'https://github.com/banodoco/astrid-app');
     expect(links[1]).toHaveAttribute('href', 'https://discord.gg/D5K2c6kfhy');
     expect(links[0]).toHaveAttribute('target', '_blank');
     expect(links[1]).toHaveAttribute('target', '_blank');

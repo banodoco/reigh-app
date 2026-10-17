@@ -1,4 +1,4 @@
-import { contributionRefKey, type CompositionGraph, type ContributionRef } from '@reigh/editor-sdk';
+import { contributionRefKey, type CompositionGraph, type ContributionRef } from '@astrid/editor-sdk';
 import { describe, expect, it } from 'vitest';
 import {
   createShaderScopeOccupied,

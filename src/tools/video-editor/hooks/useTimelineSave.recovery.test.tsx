@@ -50,11 +50,11 @@ describe('useTimelineSave stable occurrence recovery', () => {
   it.each([true, false])('compares source-inclusive recovery with its server snapshot (same source: %s)', async (sameSource) => {
     const items = [{
       id: 'source:segment', shape: 'interval' as const, domain: 'source_seconds' as const,
-      extent: { start: 0, end: 1 }, schemaRef: 'reigh.transcript_segment/v1',
+      extent: { start: 0, end: 1 }, schemaRef: 'astrid.transcript_segment/v1',
       sourceArtifactRef: { assetId: 'asset-1' }, provenance: { adapterId: 'test', adapterVersion: '1' },
       payload: { sourceId: 'source', segmentId: 'segment', text: 'Saved source' },
     }];
-    const sourceItemsBySchemaRef = { 'reigh.transcript_segment/v1': items };
+    const sourceItemsBySchemaRef = { 'astrid.transcript_segment/v1': items };
     const loaded = await buildTimelineData(config, registry, undefined, 1, sourceItemsBySchemaRef);
     recovery.data = {
       data: loaded, dataRef: { current: loaded }, selectedClipId: null, selectedTrackId: null,
@@ -70,7 +70,7 @@ describe('useTimelineSave stable occurrence recovery', () => {
       retryWatchdog: vi.fn(), loadedBundleRef: { current: null },
     };
     const draftItems = sameSource ? items : items.map((item) => ({ ...item, payload: { ...item.payload, text: 'Unsaved correction' } }));
-    const bundle = { schema_version: 1, itemsBySchemaRef: { 'reigh.transcript_segment/v1': draftItems } };
+    const bundle = { schema_version: 1, itemsBySchemaRef: { 'astrid.transcript_segment/v1': draftItems } };
     await saveTimelineDraft('session-new', { config: loaded.config, registry, bundle }, 1);
     const provider = { resolveAssetUrl: async (file: string) => file } as unknown as DataProvider;
     const hook = renderHook(() => useTimelineSave({ timelineQuery: { isLoading: false } } as never,

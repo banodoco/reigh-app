@@ -15,7 +15,7 @@ import {
 import type { TrackDefinition } from '@/tools/video-editor/types';
 import type { TimelineRow } from '@/tools/video-editor/types/timeline-canvas';
 import type { TimelineRowLayout } from '@/tools/video-editor/lib/timeline-row-layout.ts';
-import type { ReighExtension } from '@reigh/editor-sdk';
+import type { AstridExtension } from '@astrid/editor-sdk';
 
 const tracks: TrackDefinition[] = [
   { id: 'V1', kind: 'visual', label: 'V1' },
@@ -40,7 +40,7 @@ function buildRuntime(commandRegistry: CommandRegistry): VideoEditorRuntimeConte
       version: '1.0.0',
       label: 'Track Extension',
     },
-  } as ReighExtension;
+  } as AstridExtension;
 
   return {
     provider: {} as VideoEditorRuntimeContextValue['provider'],

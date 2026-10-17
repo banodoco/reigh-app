@@ -12,7 +12,7 @@ import {
 } from '@/tools/video-editor/transitions/registry/index.ts';
 import { VisualClip } from '@/tools/video-editor/compositions/VisualClip.tsx';
 import type { ResolvedTimelineClip, TrackDefinition } from '@/tools/video-editor/types/index.ts';
-import type { RenderMaterialRef } from '@reigh/editor-sdk';
+import type { RenderMaterialRef } from '@astrid/editor-sdk';
 import type { ShaderEffectRegistryRecord, ShaderEffectRegistrySnapshot } from '@/tools/video-editor/shaders/registry/types.ts';
 
 // ---------------------------------------------------------------------------

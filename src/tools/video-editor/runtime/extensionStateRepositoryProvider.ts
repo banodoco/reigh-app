@@ -7,12 +7,12 @@
  * state per SD2 — they remain in browser-local IndexedDB.
  *
  * Reserved keys:
- *   reigh.ext.state.enablement  — Record<string, ExtensionEnablementState>
- *   reigh.ext.state.overrides   — Record<string, DevOverrideState>
- *   reigh.ext.state.settings   — Record<string, ExtensionSettingsSnapshot>
- *   reigh.ext.state.events     — ExtensionLifecycleEvent[] (append-only)
- *   reigh.ext.state.lock       — ExtensionLock
- *   reigh.ext.state.packs      — Record<string, ExtensionPackRecord>
+ *   astrid.ext.state.enablement  — Record<string, ExtensionEnablementState>
+ *   astrid.ext.state.overrides   — Record<string, DevOverrideState>
+ *   astrid.ext.state.settings   — Record<string, ExtensionSettingsSnapshot>
+ *   astrid.ext.state.events     — ExtensionLifecycleEvent[] (append-only)
+ *   astrid.ext.state.lock       — ExtensionLock
+ *   astrid.ext.state.packs      — Record<string, ExtensionPackRecord>
  *
  * This adapter uses a simple provider interface that supports get/set/delete
  * for string-keyed JSON state. It is designed to work with any provider that
@@ -55,12 +55,12 @@ export interface ProviderBackedStore {
 // Reserved key constants
 // ---------------------------------------------------------------------------
 
-const KEY_ENABLEMENT = 'reigh.ext.state.enablement';
-const KEY_OVERRIDES = 'reigh.ext.state.overrides';
-const KEY_SETTINGS = 'reigh.ext.state.settings';
-const KEY_EVENTS = 'reigh.ext.state.events';
-const KEY_LOCK = 'reigh.ext.state.lock';
-const KEY_PACKS = 'reigh.ext.state.packs';
+const KEY_ENABLEMENT = 'astrid.ext.state.enablement';
+const KEY_OVERRIDES = 'astrid.ext.state.overrides';
+const KEY_SETTINGS = 'astrid.ext.state.settings';
+const KEY_EVENTS = 'astrid.ext.state.events';
+const KEY_LOCK = 'astrid.ext.state.lock';
+const KEY_PACKS = 'astrid.ext.state.packs';
 
 // ---------------------------------------------------------------------------
 // In-memory fallback store (for testing / no-provider scenarios)

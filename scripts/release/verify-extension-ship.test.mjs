@@ -9,7 +9,7 @@ import {
   EXPECTED_REQUIRED_GATES,
   HEAVY_STEP_MIN_FREE_BYTES,
   MANIFEST_PATH,
-  REIGH_GATE_PROFILE,
+  ASTRID_APP_GATE_PROFILE,
   REPO_ROOT,
   assertDiskRequirements,
   assertCaptionSemanticsToolchain,
@@ -108,45 +108,45 @@ describe('extension ship verifier', () => {
       'node scripts/runtime/write-extension-release-config.mjs && npm run serve',
     );
     assert.doesNotMatch(packageJson.scripts['start:railway'], /npm run build/);
-    assert.deepEqual(REIGH_GATE_PROFILE[0].args, [
+    assert.deepEqual(ASTRID_APP_GATE_PROFILE[0].args, [
       'ci', '--no-audit', '--no-fund',
     ]);
-    assert.ok(REIGH_GATE_PROFILE.some((gate) => (
+    assert.ok(ASTRID_APP_GATE_PROFILE.some((gate) => (
       gate.id === 'runtime-rollout'
       && gate.command === 'npm'
       && gate.args.join(' ') === 'run test:extensions:runtime-rollout'
     )));
-    assert.ok(REIGH_GATE_PROFILE.some((gate) => (
+    assert.ok(ASTRID_APP_GATE_PROFILE.some((gate) => (
       gate.id === 'container-runtime'
       && gate.command === 'npm'
       && gate.args.join(' ') === 'run verify:extension-container'
     )));
-    assert.ok(REIGH_GATE_PROFILE.some((gate) => (
+    assert.ok(ASTRID_APP_GATE_PROFILE.some((gate) => (
       gate.id === 'paired-release-e2e'
       && gate.command === 'npm'
       && gate.args.join(' ') === 'run verify:paired-release-e2e'
     )));
-    assert.ok(REIGH_GATE_PROFILE.some((gate) => (
+    assert.ok(ASTRID_APP_GATE_PROFILE.some((gate) => (
       gate.id === 'cross-browser-e2e'
       && gate.command === 'npm'
       && gate.args.join(' ') === 'run test:e2e:extension-cross-browser'
     )));
-    assert.ok(REIGH_GATE_PROFILE.some((gate) => (
+    assert.ok(ASTRID_APP_GATE_PROFILE.some((gate) => (
       gate.id === 'accessibility-e2e'
       && gate.command === 'npm'
       && gate.args.join(' ') === 'run test:e2e:extension-accessibility'
     )));
-    assert.ok(REIGH_GATE_PROFILE.some((gate) => (
+    assert.ok(ASTRID_APP_GATE_PROFILE.some((gate) => (
       gate.id === 'ship-evidence'
       && gate.command === 'npm'
       && gate.args.join(' ') === 'run check:extension-ship-evidence:release'
     )));
-    const visualGateIndex = REIGH_GATE_PROFILE.findIndex((gate) => gate.id === 'visual-e2e');
+    const visualGateIndex = ASTRID_APP_GATE_PROFILE.findIndex((gate) => gate.id === 'visual-e2e');
     assert.ok(visualGateIndex >= 0);
-    assert.deepEqual(REIGH_GATE_PROFILE[visualGateIndex].args, [
+    assert.deepEqual(ASTRID_APP_GATE_PROFILE[visualGateIndex].args, [
       'run', 'test:e2e:extension-visual',
     ]);
-    assert.ok(!REIGH_GATE_PROFILE[visualGateIndex].args.includes('--update-snapshots'));
+    assert.ok(!ASTRID_APP_GATE_PROFILE[visualGateIndex].args.includes('--update-snapshots'));
     assert.equal(manifest.verification.tesseract.executable, 'tesseract');
     assert.equal(manifest.verification.imageMagick.executable, 'magick');
     for (const toolName of ['ffmpeg', 'ffprobe', 'tesseract', 'imageMagick']) {
@@ -226,28 +226,28 @@ describe('extension ship verifier', () => {
     );
 
     const unsafeTag = structuredClone(manifest);
-    unsafeTag.reigh.releaseTag = '../mutable';
+    unsafeTag.astrid.releaseTag = '../mutable';
     assert.throws(
       () => validateReleaseManifest(unsafeTag),
-      /reigh\.releaseTag must be a safe annotated-tag name/,
+      /astrid\.releaseTag must be a safe annotated-tag name/,
     );
   });
 
   it('builds only fixed argument-vector commands with Astrid last', () => {
-    const reighExecutionCheckout = '/tmp/reigh-detached-controller';
+    const astridExecutionCheckout = '/tmp/astrid-detached-controller';
     const astridCheckout = '/tmp/astrid-pinned-fixture';
     const plan = buildExecutionPlan({
-      repoRoot: reighExecutionCheckout,
+      repoRoot: astridExecutionCheckout,
       astridCheckout,
       nodeExecutable: '/tmp/pinned-node',
       astridPython: '/tmp/astrid-python',
       astridRef: 'a'.repeat(40),
-      reighRef: 'b'.repeat(40),
+      appRef: 'b'.repeat(40),
     });
 
     assert.equal(
       plan.length,
-      REIGH_GATE_PROFILE.length + ASTRID_GATE_PROFILE.length,
+      ASTRID_APP_GATE_PROFILE.length + ASTRID_GATE_PROFILE.length,
     );
     assert.equal(plan.at(-2).cwd, `${astridCheckout}/remotion`);
     assert.equal(plan.at(-2).command, 'npm');
@@ -256,10 +256,10 @@ describe('extension ship verifier', () => {
     assert.deepEqual(plan.at(-1).args, ['ci']);
     assert.deepEqual(plan.at(-1).env, {
       ASTRID_NODE_EXECUTABLE: '/tmp/pinned-node',
-      ASTRID_REIGH_CHECKOUT: reighExecutionCheckout,
+      ASTRID_APP_RELEASE_CHECKOUT: astridExecutionCheckout,
       PY: '/tmp/astrid-python',
       PYTHON_BIN: '/tmp/astrid-python',
-      PYTHONPATH: `${reighExecutionCheckout}/vendor/timeline-schema/python`,
+      PYTHONPATH: `${astridExecutionCheckout}/vendor/timeline-schema/python`,
     });
     assert.ok(plan.every((step) => Array.isArray(step.args)));
     assert.ok(plan.every((step) => step.command === 'npm' || step.command === 'make'));
@@ -268,9 +268,9 @@ describe('extension ship verifier', () => {
       ASTRID_CHECKOUT: astridCheckout,
       ASTRID_PYTHON: '/tmp/astrid-python',
       ASTRID_REF: 'a'.repeat(40),
-      REIGH_REF: 'b'.repeat(40),
+      ASTRID_APP_REF: 'b'.repeat(40),
     });
-    assert.notEqual(plan.at(-1).env.ASTRID_REIGH_CHECKOUT, REPO_ROOT);
+    assert.notEqual(plan.at(-1).env.ASTRID_APP_RELEASE_CHECKOUT, REPO_ROOT);
 
     const rendered = plan.map(formatCommand).join('\n');
     assert.doesNotMatch(
@@ -326,12 +326,12 @@ describe('extension ship verifier', () => {
 
     const gib = 1024n ** 3n;
     assert.equal(calculateReleaseRequiredBytes({
-      reighTreeBytes: gib,
+      appTreeBytes: gib,
       astridTreeBytes: gib / 4n,
     }), 11n * gib);
     assert.throws(
-      () => calculateReleaseRequiredBytes({ reighTreeBytes: 1, astridTreeBytes: 1n }),
-      /reighTreeBytes must be a non-negative bigint/,
+      () => calculateReleaseRequiredBytes({ appTreeBytes: 1, astridTreeBytes: 1n }),
+      /appTreeBytes must be a non-negative bigint/,
     );
   });
 
@@ -434,7 +434,7 @@ describe('extension ship verifier', () => {
       statfs: () => ({ bavail: 100n * gib, bsize: 1n }),
     };
     const base = assertReleaseDiskCapacity({
-      reighTreeBytes: 1n,
+      appTreeBytes: 1n,
       astridTreeBytes: 1n,
       astridCheckout: '/astrid',
       tempPath: '/tmp',
@@ -443,7 +443,7 @@ describe('extension ship verifier', () => {
     assert.equal(base.requiredBytes, base.calculatedBytes);
 
     const raised = assertReleaseDiskCapacity({
-      reighTreeBytes: 1n,
+      appTreeBytes: 1n,
       astridTreeBytes: 1n,
       astridCheckout: '/astrid',
       tempPath: '/tmp',
@@ -493,7 +493,7 @@ describe('extension ship verifier', () => {
       ASTRID_CI_SKIP_COVERAGE: '1',
       ASTRID_NODE_EXECUTABLE: '/tmp/attacker-node',
       PYTHONPATH: '/tmp/attacker',
-      ASTRID_REIGH_CHECKOUT: '/tmp/operator-supplied-reigh',
+      ASTRID_APP_RELEASE_CHECKOUT: '/tmp/operator-supplied-astrid',
       PYTEST_ADDOPTS: '-m not_release',
       NODE_OPTIONS: '--require=/tmp/attacker.cjs',
       NPM_CONFIG_SCRIPT_SHELL: '/usr/bin/true',
@@ -561,25 +561,25 @@ describe('extension ship verifier', () => {
       /environment key is not allowed/,
     );
     assert.equal(
-      buildSanitizedEnvironment({ ASTRID_REIGH_CHECKOUT: '/tmp/reigh-detached' }).ASTRID_REIGH_CHECKOUT,
-      '/tmp/reigh-detached',
+      buildSanitizedEnvironment({ ASTRID_APP_RELEASE_CHECKOUT: '/tmp/astrid-detached' }).ASTRID_APP_RELEASE_CHECKOUT,
+      '/tmp/astrid-detached',
     );
   });
 
-  it('executes Astrid CI with the detached Reigh checkout, never an ambient path', () => {
-    const reighExecutionCheckout = '/tmp/reigh-detached-controller';
-    const operatorPath = '/tmp/operator-supplied-reigh';
-    const previous = process.env.ASTRID_REIGH_CHECKOUT;
-    process.env.ASTRID_REIGH_CHECKOUT = operatorPath;
+  it('executes Astrid CI with the detached Astrid App checkout, never an ambient path', () => {
+    const astridExecutionCheckout = '/tmp/astrid-detached-controller';
+    const operatorPath = '/tmp/operator-supplied-astrid';
+    const previous = process.env.ASTRID_APP_RELEASE_CHECKOUT;
+    process.env.ASTRID_APP_RELEASE_CHECKOUT = operatorPath;
 
     try {
       const astridCi = buildExecutionPlan({
-        repoRoot: reighExecutionCheckout,
+        repoRoot: astridExecutionCheckout,
         astridCheckout: '/tmp/astrid-pinned-fixture',
         nodeExecutable: '/tmp/pinned-node',
         astridPython: '/tmp/astrid-python',
         astridRef: 'a'.repeat(40),
-        reighRef: 'b'.repeat(40),
+        appRef: 'b'.repeat(40),
       }).at(-1);
       let captured;
       executeSteps([astridCi], (_command, _args, options) => {
@@ -587,13 +587,13 @@ describe('extension ship verifier', () => {
         return { status: 0 };
       });
 
-      assert.equal(captured.ASTRID_REIGH_CHECKOUT, reighExecutionCheckout);
+      assert.equal(captured.ASTRID_APP_RELEASE_CHECKOUT, astridExecutionCheckout);
       assert.equal(captured.ASTRID_NODE_EXECUTABLE, '/tmp/pinned-node');
-      assert.notEqual(captured.ASTRID_REIGH_CHECKOUT, operatorPath);
-      assert.equal(captured.PYTHONPATH, `${reighExecutionCheckout}/vendor/timeline-schema/python`);
+      assert.notEqual(captured.ASTRID_APP_RELEASE_CHECKOUT, operatorPath);
+      assert.equal(captured.PYTHONPATH, `${astridExecutionCheckout}/vendor/timeline-schema/python`);
     } finally {
-      if (previous === undefined) delete process.env.ASTRID_REIGH_CHECKOUT;
-      else process.env.ASTRID_REIGH_CHECKOUT = previous;
+      if (previous === undefined) delete process.env.ASTRID_APP_RELEASE_CHECKOUT;
+      else process.env.ASTRID_APP_RELEASE_CHECKOUT = previous;
     }
   });
 
@@ -638,7 +638,7 @@ describe('extension ship verifier', () => {
       encoding: 'utf8',
       env: {
         ...process.env,
-        REIGH_REF: '',
+        ASTRID_APP_REF: '',
         ASTRID_CHECKOUT: '',
         ASTRID_REF: '',
         ASTRID_PYTHON: '',

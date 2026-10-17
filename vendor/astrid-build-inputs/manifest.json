@@ -166,8 +166,8 @@
         },
         {
           "path": "astrid/packs/rendering/editor/catalog.ts",
-          "sha256": "a984bf25641548e66d1c52d459871418aed65ad1783bbe8ffdc0214524066062",
-          "size_bytes": 868,
+          "sha256": "c318f47782c50bfae560c08ac247a6cdc22761ecf8706252cd0fff434b454ba9",
+          "size_bytes": 873,
           "git_blob_sha1": "948a4c38918bd7d1c298a1708d84421a1c68aedf"
         },
         {
@@ -178,8 +178,8 @@
         },
         {
           "path": "astrid/packs/rendering/editor/live-scenes/authoring.ts",
-          "sha256": "1f5242296ddab3497eaac437244541e0e762f84d6cac1803b9c0d86a2f206a85",
-          "size_bytes": 41301,
+          "sha256": "0a555b38ad93727e87f0dc08ed958a90412511be94a8bb632830c234f233d276",
+          "size_bytes": 41302,
           "git_blob_sha1": "65d5ccca1b87e8f4b5db6ee21727a35ce9f0d562"
         },
         {
@@ -190,14 +190,14 @@
         },
         {
           "path": "astrid/packs/rendering/editor/live-scenes/extension.tsx",
-          "sha256": "c287116043bb3a194b9d18f00aaed59b9d0ebc21ccc599de607c6ec641b152db",
-          "size_bytes": 8709,
+          "sha256": "4a77f276c6f1ac2725441bb93ade19bf51032c38cc8f95a76642eeeacb7c9f83",
+          "size_bytes": 8716,
           "git_blob_sha1": "1444f5e396622ca9f29dc7070094b364d841df97"
         },
         {
           "path": "astrid/packs/rendering/editor/live-scenes/identity.ts",
-          "sha256": "bfa5549c606c95c3ed56f190114c07eedb15d24545992443c4d623f520d1a62f",
-          "size_bytes": 219,
+          "sha256": "ab1fa9c6972518d85dd39f5f1fdeee983a2754b6ad04a738d3e4dff13ed2b3b9",
+          "size_bytes": 209,
           "git_blob_sha1": "ccc2f27c3e8b7670bae6ff799c58d6d3f7bffa98"
         },
         {
@@ -256,8 +256,8 @@
         },
         {
           "path": "astrid/packs/rendering/elements/catalog.ts",
-          "sha256": "86f34f2f641ae037ab3fb845a6f7b0cdc6e4ff3b4032ad67676181f884da8366",
-          "size_bytes": 46261,
+          "sha256": "7b99d24837a33f0d5312989d69cbeede2421f4fcee37b43b99531c9b06a96225",
+          "size_bytes": 46266,
           "git_blob_sha1": "8e2978aac5edb100a234d39a6dccbb6a8b27990e"
         },
         {
@@ -383,8 +383,8 @@
         },
         {
           "path": "astrid/packs/rendering/elements/public-catalog.ts",
-          "sha256": "658636aeb365524876775d022846850c58e0b7ba3e5ae5822402c161fc910dc1",
-          "size_bytes": 22072
+          "sha256": "3da288bf92df4727fa27e6aa73b2695edfed8577e0913ddd0e790830a3e09bee",
+          "size_bytes": 22077
         },
         {
           "path": "astrid/packs/rendering/elements/transitions/cross-fade/component.tsx",

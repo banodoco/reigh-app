@@ -185,7 +185,7 @@ The big one. Touch every file that reads/writes `state["findings"]`.
   ```
 - [ ] Call migration on state load (before any processing)
 - [ ] On state save, write only new keys
-- [ ] Test with existing state files from reigh and other projects
+- [ ] Test with existing state files from astrid and other projects
 
 ## Execution strategy
 
@@ -206,7 +206,7 @@ The big one. Touch every file that reads/writes `state["findings"]`.
 
 After all phases:
 1. `pytest` — full suite green
-2. `desloppify scan --path .` on reigh — produces state with `"issues"` key, no `"findings"`
+2. `desloppify scan --path .` on astrid — produces state with `"issues"` key, no `"findings"`
 3. `desloppify next` — output says "issues" not "findings"
 4. `desloppify status` — dimension scores show `"failing"` not `"issues"`
 5. `grep -r '"findings"' desloppify/` — only hits migration shim and deprecated aliases

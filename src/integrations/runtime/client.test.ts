@@ -1,7 +1,7 @@
 import { types } from 'node:util';
 import { describe, expect, it } from 'vitest';
 import type { Transport } from './generated.ts';
-import { ReighRuntimeClient, RuntimeCompatibilityError, isRuntimeCanonicalPayloadConflict, isRuntimeConflict, type ObservedRuntimeIdentities } from './client.ts';
+import { AstridRuntimeClient, RuntimeCompatibilityError, isRuntimeCanonicalPayloadConflict, isRuntimeConflict, type ObservedRuntimeIdentities } from './client.ts';
 import { ApiError } from './generated.ts';
 import {
   RUNTIME_SCHEMA_DIGEST,
@@ -111,7 +111,7 @@ function createTransport(options: {
     version: 1,
     capability_id: CAPABILITY_ID,
     capability_digest: CAPABILITY_DIGEST,
-    idempotency_key: 'reigh.admit:r3',
+    idempotency_key: 'astrid.admit:r3',
     created_at: '2026-09-11T00:00:00Z',
     updated_at: '2026-09-11T00:00:00Z',
     attempt_id: null,
@@ -181,9 +181,9 @@ function createTransport(options: {
       };
     }
     if (method === 'POST' && path === '/v1/tasks') {
-      expect(headers['Idempotency-Key']).toBe('reigh.admit:r3');
+      expect(headers['Idempotency-Key']).toBe('astrid.admit:r3');
       expect(parsedBody).toEqual(exactGenTaskInput);
-      return { status: 201, headers: {}, body: json({ data: task, receipt: receipt('task.create', 'reigh.admit:r3') }) };
+      return { status: 201, headers: {}, body: json({ data: task, receipt: receipt('task.create', 'astrid.admit:r3') }) };
     }
     if (method === 'GET' && path === '/v1/tasks/task-r3') {
       return { status: 200, headers: {}, body: json(task) };
@@ -247,18 +247,18 @@ function createTransport(options: {
       };
     }
     if (method === 'POST' && path === '/v1/tasks/task-r3/cancel') {
-      expect(headers['Idempotency-Key']).toBe('reigh.cancel:r3');
+      expect(headers['Idempotency-Key']).toBe('astrid.cancel:r3');
       expect(parsedBody).toEqual({ expected_version: 1 });
       task.state = 'cancelled';
       task.version = 2;
-      return { status: 200, headers: {}, body: json({ data: task, receipt: receipt('task.cancel', 'reigh.cancel:r3') }) };
+      return { status: 200, headers: {}, body: json({ data: task, receipt: receipt('task.cancel', 'astrid.cancel:r3') }) };
     }
     if (method === 'POST' && path === '/v1/tasks/task-r3/retry') {
-      expect(headers['Idempotency-Key']).toBe('reigh.retry:r3');
+      expect(headers['Idempotency-Key']).toBe('astrid.retry:r3');
       expect(parsedBody).toEqual({ expected_version: 2 });
       task.state = 'retrying';
       task.version = 3;
-      return { status: 200, headers: {}, body: json({ data: task, receipt: receipt('task.retry', 'reigh.retry:r3') }) };
+      return { status: 200, headers: {}, body: json({ data: task, receipt: receipt('task.retry', 'astrid.retry:r3') }) };
     }
     throw new Error(`unexpected ${method} ${path}`);
   };
@@ -267,7 +267,7 @@ function createTransport(options: {
 }
 
 function clientFor(fixture: ReturnType<typeof createTransport>, options: { token?: boolean; expectedIdentity?: typeof EXPECTED_IDENTITY } = {}) {
-  return new ReighRuntimeClient({
+  return new AstridRuntimeClient({
     baseUrl: 'http://runtime.test',
     ...(options.token ? { token: 'fixture-token' } : {}),
     expectedIdentity: options.expectedIdentity ?? EXPECTED_IDENTITY,
@@ -275,10 +275,10 @@ function clientFor(fixture: ReturnType<typeof createTransport>, options: { token
   });
 }
 
-describe('ReighRuntimeClient paired restart detection without build-time ids', () => {
+describe('AstridRuntimeClient paired restart detection without build-time ids', () => {
   // No expectedIdentity: the paired path has no VITE_WORKSPACE_RUNTIME_EXPECTED_* ids.
   const store: ObservedRuntimeIdentities = new Map();
-  const unbound = (fixture: ReturnType<typeof createTransport>, baseUrl: string) => new ReighRuntimeClient({ baseUrl, transport: fixture.transport, identityStore: store });
+  const unbound = (fixture: ReturnType<typeof createTransport>, baseUrl: string) => new AstridRuntimeClient({ baseUrl, transport: fixture.transport, identityStore: store });
 
   it('binds the first observed Runtime instance and flags a replacement from any client', async () => {
     const options = { runtimeInstanceId: 'instance-a' };
@@ -362,7 +362,7 @@ describe('ReighRuntimeClient paired restart detection without build-time ids', (
   });
 });
 
-describe('ReighRuntimeClient canonical Runtime reads and browser task seam', () => {
+describe('AstridRuntimeClient canonical Runtime reads and browser task seam', () => {
   it('rejects a replacement Runtime instance on reconnect without rebinding or writing', async () => {
     const options = { runtimeInstanceId: EXPECTED_IDENTITY.runtimeInstanceId };
     const fixture = createTransport(options);
@@ -381,7 +381,7 @@ describe('ReighRuntimeClient canonical Runtime reads and browser task seam', () 
   });
 
   it('accepts the selected Runtime contract digest during handshake', async () => {
-    const selectedRuntimeDigest = 'sha256:16bb1265d39d8bf82959c65ede08628e9c832832f21d785acaca64256aa3463e';
+    const selectedRuntimeDigest = 'sha256:200c2553f54a7e41a6405518912dc6ee9577de25292afd46fc1fcccf68be0770';
     expect(RUNTIME_SCHEMA_DIGEST).toBe(selectedRuntimeDigest);
     const fixture = createTransport();
     const client = clientFor(fixture);
@@ -584,7 +584,7 @@ describe('ReighRuntimeClient canonical Runtime reads and browser task seam', () 
     });
     expect(exactGenTaskInput.capability_digest).toBe(capabilities.items[0]?.definition_digest);
 
-    const admitted = await client.admitTask(exactGenTaskInput, 'reigh.admit:r3');
+    const admitted = await client.admitTask(exactGenTaskInput, 'astrid.admit:r3');
     expect(admitted).toMatchObject({
       task_id: 'task-r3',
       project_id: PROJECT_ID,
@@ -600,9 +600,9 @@ describe('ReighRuntimeClient canonical Runtime reads and browser task seam', () 
     await expect(client.getTask('task-r3')).resolves.toMatchObject({ task_id: 'task-r3', state: 'queued' });
     await expect(client.listProjectTasks(PROJECT_ID, 'tasks-2', 1)).resolves.toEqual({ items: [fixture.task], next_cursor: 'tasks-3' });
 
-    const cancelled = await client.cancelTask('task-r3', 'reigh.cancel:r3', 1);
+    const cancelled = await client.cancelTask('task-r3', 'astrid.cancel:r3', 1);
     expect(cancelled).toMatchObject({ task_id: 'task-r3', state: 'cancelled', version: 2 });
-    const retried = await client.retryTask('task-r3', 'reigh.retry:r3', 2);
+    const retried = await client.retryTask('task-r3', 'astrid.retry:r3', 2);
     expect(retried).toMatchObject({ task_id: 'task-r3', state: 'retrying', version: 3 });
     expect(retried.receipt.command_kind).toBe('task.retry');
 

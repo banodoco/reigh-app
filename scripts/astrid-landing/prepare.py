@@ -245,8 +245,8 @@ def main() -> int:
     product_repo = args.product_baseline_repo.resolve()
     destination = args.destination.resolve()
     evidence = args.evidence.resolve()
-    require_repository(astrid_repo, "https://github.com/peteromallet/Astrid.git", ASTRID_COMMIT)
-    require_repository(app_repo, "https://github.com/banodoco/reigh-app", APP_COMMIT)
+    require_repository(astrid_repo, "https://github.com/peteromallet/astrid-agent.git", ASTRID_COMMIT)
+    require_repository(app_repo, "https://github.com/banodoco/astrid-app", APP_COMMIT)
 
     preserved_before = {
         "astrid_source": snapshot_repository(astrid_repo),
@@ -302,8 +302,8 @@ def main() -> int:
     identity = {
         "schema_version": 1,
         "name": "astrid-landing-source-v1",
-        "astrid": {"remote": "https://github.com/peteromallet/Astrid.git", "commit": ASTRID_COMMIT, "tree": ASTRID_TREE},
-        "overlay_source": {"remote": "https://github.com/banodoco/reigh-app", "commit": APP_COMMIT},
+        "astrid": {"remote": "https://github.com/peteromallet/astrid-agent.git", "commit": ASTRID_COMMIT, "tree": ASTRID_TREE},
+        "overlay_source": {"remote": "https://github.com/banodoco/astrid-app", "commit": APP_COMMIT},
         "destination": str(destination),
         "package_sha256": published_hash,
         "file_count": len(published_manifest),

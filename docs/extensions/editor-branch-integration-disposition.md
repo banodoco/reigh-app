@@ -36,7 +36,7 @@ merge them automatically.
    local-mode realtime gating. Exclude `.oracle` history and obsolete generated
    distributions.
 6. Split and forward-port the live timeline WIP last.
-7. Run the full Reigh/Astrid/schema, browser, persistence, render/export,
+7. Run the full Astrid/Astrid/schema, browser, persistence, render/export,
    recovery, rollback, and release gates on the combined line.
 
 ## Merge gate

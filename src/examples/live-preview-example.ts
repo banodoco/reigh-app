@@ -16,14 +16,14 @@
  * declarative registration shape that extensions use.
  *
  * This file must NOT import from editor internals (src/tools/video-editor/*).
- * It imports exclusively from @reigh/editor-sdk, the public SDK entrypoint.
+ * It imports exclusively from @astrid/editor-sdk, the public SDK entrypoint.
  *
  * @publicContract
  */
 
-import { defineExtension } from '@reigh/editor-sdk';
+import { defineExtension } from '@astrid/editor-sdk';
 import type {
-  ReighExtension,
+  AstridExtension,
   ExtensionContext,
   DisposeHandle,
   LiveSource,
@@ -33,7 +33,7 @@ import type {
   LiveSourcePermission,
   LiveSessionsService,
   DiagnosticSeverity,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 
 // ---------------------------------------------------------------------------
 // Live source descriptor
@@ -44,7 +44,7 @@ import type {
  * Omits `status` and `diagnostics` — those are managed by the host runtime.
  */
 const EXAMPLE_LIVE_SOURCE: Omit<LiveSource, 'status' | 'diagnostics'> = {
-  id: 'com.reigh.examples.livePreview.webcam-feed',
+  id: 'haus.astrid.examples.livePreview.webcam-feed',
   kind: 'webcam' as LiveSourceKind,
   label: 'Example Webcam Feed',
   metadata: {
@@ -63,9 +63,9 @@ const EXAMPLE_LIVE_SOURCE: Omit<LiveSource, 'status' | 'diagnostics'> = {
 // Extension
 // ---------------------------------------------------------------------------
 
-export const livePreviewExample: ReighExtension = defineExtension({
+export const livePreviewExample: AstridExtension = defineExtension({
   manifest: {
-    id: 'com.reigh.examples.live-preview' as any,
+    id: 'haus.astrid.examples.live-preview' as any,
     version: '1.0.0',
     label: 'Live Preview Example',
     description:

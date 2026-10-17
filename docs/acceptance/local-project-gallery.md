@@ -1,14 +1,14 @@
 # Local project gallery acceptance
 
 `npm run test:acceptance:local-project` runs the original single-project journey
-(the `REIGH_LOCAL_PROJECT`, `REIGH_LOCAL_TIMELINE`, `REIGH_EXPECTED_SHOTS`, and
-`REIGH_EXPECTED_GENERATIONS` overrides are still supported).
+(the `ASTRID_APP_LOCAL_PROJECT`, `ASTRID_APP_LOCAL_TIMELINE`, `ASTRID_APP_EXPECTED_SHOTS`, and
+`ASTRID_APP_EXPECTED_GENERATIONS` overrides are still supported).
 
 The matrix runner exercises the same journey for every configured row and
 requires at least three rows:
 
 ```sh
-REIGH_LOCAL_PROJECT_MATRIX='[
+ASTRID_APP_LOCAL_PROJECT_MATRIX='[
   {"project":"desert-plant-growth","timeline":"01KYPVKMW5STB4W6FE05ED8242"},
   {"project":"project-b","timeline":"timeline-b"},
   {"project":"project-c","timeline":"timeline-c"}
@@ -31,4 +31,4 @@ Each row verifies:
   network requests (apart from the bounded capability sentinel probes).
 
 Screenshots and the JSON summary are written below
-`REIGH_ACCEPTANCE_EVIDENCE` (or `/tmp/reigh-local-project-<pid>`).
+`ASTRID_APP_ACCEPTANCE_EVIDENCE` (or `/tmp/astrid-local-project-<pid>`).

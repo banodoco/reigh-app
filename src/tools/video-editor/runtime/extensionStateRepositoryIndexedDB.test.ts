@@ -41,7 +41,7 @@ import type {
   InstalledExtensionMetadata,
   ExtensionManifest,
   IntegrityHash,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 
 // ---------------------------------------------------------------------------
 // Fixtures

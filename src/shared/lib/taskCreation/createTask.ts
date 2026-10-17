@@ -175,7 +175,7 @@ export async function ingestProjectInput(
     new TextEncoder().encode(JSON.stringify([project, mediaType, originalName ?? ''])),
   );
   const key = [
-    'reigh.cas',
+    'astrid.cas',
     contentFingerprint,
     metadataFingerprint,
   ].join('.');

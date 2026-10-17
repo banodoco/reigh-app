@@ -3,7 +3,7 @@ import type {
   TimelineOverlayRenderProps,
   TimelinePatch,
   TimelineSnapshot,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import {
   BUILD_EMOTIONAL_WEATHER_MAP_COMMAND,
   EMOTIONAL_WEATHER_MAP_DATA_KEY,
@@ -24,7 +24,7 @@ import {
 
 describe('Emotional Weather Map extension', () => {
   it('keeps the JSON manifest aligned with the public extension manifest', async () => {
-    const manifestModule = await import('./reigh-extension.json');
+    const manifestModule = await import('./astrid-extension.json');
     const jsonManifest = manifestModule.default.manifest;
     expect(jsonManifest).toEqual(emotionalWeatherMapExtension.manifest);
   });

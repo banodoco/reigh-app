@@ -7,7 +7,7 @@ import {
   buildRenderTimelinePayload,
   cancelAstridRenderTask,
   decideRenderRoute,
-  enqueueBanodocoRenderTimeline,
+  enqueueAstridRuntimeRenderTimeline,
 } from '@/tools/video-editor/lib/renderRouter';
 import { executeRenderPipeline } from '@/tools/video-editor/render/renderPipeline';
 import { AstridLocalClient } from '@/integrations/astrid/client.ts';
@@ -32,7 +32,7 @@ const renderCapabilityPage = () => ({
 function renderTaskMutationResponse(
   taskId: string,
   body: Record<string, unknown>,
-  idempotencyKey = 'reigh.render:test',
+  idempotencyKey = 'astrid.render:test',
 ) {
   const now = '2026-09-12T00:00:00Z';
   const data = {
@@ -110,7 +110,7 @@ describe('Sprint 8 render-button router (decideRenderRoute)', () => {
     const decision = decideRenderRoute({
       clips: [{ clipType: 'image-jump' }],
     });
-    expect(decision.route).toBe('worker-banodoco');
+    expect(decision.route).toBe('worker-astrid-runtime');
     expect(decision.hasThemedClip).toBe(true);
     expect(decision.hasMediaClip).toBe(false);
     expect(decision.reason).toBe('themed_only');
@@ -124,7 +124,7 @@ describe('Sprint 8 render-button router (decideRenderRoute)', () => {
       clips: [{ clipType: 'shot' }],
     });
 
-    expect(decision.route).toBe('worker-banodoco');
+    expect(decision.route).toBe('worker-astrid-runtime');
     expect(decision.hasThemedClip).toBe(true);
     expect(decision.hasMediaClip).toBe(false);
     expect(decision.reason).toBe('themed_only');
@@ -138,7 +138,7 @@ describe('Sprint 8 render-button router (decideRenderRoute)', () => {
       clips: [{ clipType: 'scrolling-guide' }],
     });
 
-    expect(decision.route).toBe('worker-banodoco');
+    expect(decision.route).toBe('worker-astrid-runtime');
     expect(decision.hasThemedClip).toBe(true);
     expect(decision.hasMediaClip).toBe(false);
     expect(decision.reason).toBe('themed_only');
@@ -151,7 +151,7 @@ describe('Sprint 8 render-button router (decideRenderRoute)', () => {
     const decision = decideRenderRoute({
       clips: [{ clipType: 'title-card' }],
     });
-    expect(decision.route).toBe('worker-banodoco');
+    expect(decision.route).toBe('worker-astrid-runtime');
     expect(decision.hasThemedClip).toBe(true);
     expect(decision.hasMediaClip).toBe(false);
     expect(decision.reason).toBe('themed_only');
@@ -164,7 +164,7 @@ describe('Sprint 8 render-button router (decideRenderRoute)', () => {
         { clipType: 'image-jump' },
       ],
     });
-    expect(decision.route).toBe('worker-banodoco');
+    expect(decision.route).toBe('worker-astrid-runtime');
     expect(decision.hasThemedClip).toBe(true);
     expect(decision.hasMediaClip).toBe(true);
     expect(decision.reason).toBe('mixed_themed_and_media');
@@ -177,7 +177,7 @@ describe('Sprint 8 render-button router (decideRenderRoute)', () => {
         { clipType: 'title-card' },
       ],
     });
-    expect(decision.route).toBe('worker-banodoco');
+    expect(decision.route).toBe('worker-astrid-runtime');
     expect(decision.hasThemedClip).toBe(true);
     expect(decision.hasMediaClip).toBe(true);
     expect(decision.reason).toBe('mixed_themed_and_media');
@@ -223,7 +223,7 @@ describe('Sprint 8 render-button router (decideRenderRoute)', () => {
       }],
     });
 
-    expect(decision.route).toBe('worker-banodoco');
+    expect(decision.route).toBe('worker-astrid-runtime');
     expect(decision.reason).toBe('generated_remotion_module');
   });
 
@@ -238,7 +238,7 @@ describe('Sprint 8 render-button router (decideRenderRoute)', () => {
       }],
     });
 
-    expect(decision.route).toBe('worker-banodoco');
+    expect(decision.route).toBe('worker-astrid-runtime');
     expect(decision.reason).toBe('generated_remotion_module');
   });
 
@@ -256,7 +256,7 @@ describe('Sprint 8 render-button router (decideRenderRoute)', () => {
       ],
     });
 
-    expect(decision.route).toBe('worker-banodoco');
+    expect(decision.route).toBe('worker-astrid-runtime');
     expect(decision.reason).toBe('mixed_generated_module_and_other');
     expect(decision.hasMediaClip).toBe(true);
   });
@@ -792,7 +792,7 @@ describe('M9 T11 contributed clip routing (decideRenderRoute)', () => {
       { clips: [{ clipType: 'image-jump' }] },
       [],
     );
-    expect(decision.route).toBe('worker-banodoco');
+    expect(decision.route).toBe('worker-astrid-runtime');
     expect(decision.hasThemedClip).toBe(true);
     expect(decision.hasContributedClip).toBe(false);
     expect(decision.reason).toBe('themed_only');
@@ -823,7 +823,7 @@ describe('M9 T11 contributed clip routing (decideRenderRoute)', () => {
       { clips: [{ clipType: 'title-card' }] },
       [browserCapableRecord], // ext-glow record, not title-card
     );
-    expect(decision.route).toBe('worker-banodoco');
+    expect(decision.route).toBe('worker-astrid-runtime');
     expect(decision.hasContributedClip).toBe(false);
     expect(decision.hasThemedClip).toBe(true);
     expect(decision.reason).toBe('themed_only');
@@ -1217,7 +1217,7 @@ describe('Sprint 8 buildRenderTimelinePayload', () => {
   });
 });
 
-describe('Sprint 8 enqueueBanodocoRenderTimeline', () => {
+describe('Sprint 8 enqueueAstridRuntimeRenderTimeline', () => {
   const payload = {
     timeline_id: 't',
     timeline: { clips: [] },
@@ -1231,8 +1231,8 @@ describe('Sprint 8 enqueueBanodocoRenderTimeline', () => {
   it('selects the existing Three.js route for saved scenes with ordinary audio', async () => {
     const fetchImpl = canonicalRenderFetch();
     vi.stubGlobal('fetch', fetchImpl);
-    const scenePayload = { ...payload, timeline: { tracks: [{ id: 'v', kind: 'visual' }, { id: 'a', kind: 'audio' }], clips: [{ clipType: 'com.reigh.astrid.liveScene', track: 'v' }, { clipType: 'media', track: 'a' }] } };
-    const result = await enqueueBanodocoRenderTimeline(scenePayload, { client: new AstridLocalClient({ projectSlug: 'p', baseUrl: 'http://bridge.fake' }), expectedVersion: 12 });
+    const scenePayload = { ...payload, timeline: { tracks: [{ id: 'v', kind: 'visual' }, { id: 'a', kind: 'audio' }], clips: [{ clipType: 'haus.astrid.liveScene', track: 'v' }, { clipType: 'media', track: 'a' }] } };
+    const result = await enqueueAstridRuntimeRenderTimeline(scenePayload, { client: new AstridLocalClient({ projectSlug: 'p', baseUrl: 'http://bridge.fake' }), expectedVersion: 12 });
     expect(result.status).toBe('queued');
     const body = JSON.parse((fetchImpl.mock.calls[1][1] as RequestInit).body as string);
     expect(body.spec.params).toMatchObject({ selector: 'rendering.threejs', timeline_ref: 't', expected_version: 12 });
@@ -1243,7 +1243,7 @@ describe('Sprint 8 enqueueBanodocoRenderTimeline', () => {
   it('rejects unsupported mixed scene clips before task admission', async () => {
     const fetchImpl = canonicalRenderFetch();
     vi.stubGlobal('fetch', fetchImpl);
-    const result = await enqueueBanodocoRenderTimeline({ ...payload, timeline: { clips: [{ clipType: 'com.reigh.astrid.liveScene' }, { clipType: 'media' }] } }, { client: new AstridLocalClient({ projectSlug: 'p', baseUrl: 'http://bridge.fake' }) });
+    const result = await enqueueAstridRuntimeRenderTimeline({ ...payload, timeline: { clips: [{ clipType: 'haus.astrid.liveScene' }, { clipType: 'media' }] } }, { client: new AstridLocalClient({ projectSlug: 'p', baseUrl: 'http://bridge.fake' }) });
     expect(result.status).toBe('error');
     expect(result.message).toContain('mixed or unsupported');
     expect(fetchImpl).toHaveBeenCalledTimes(1);
@@ -1270,7 +1270,7 @@ describe('Sprint 8 enqueueBanodocoRenderTimeline', () => {
       throw new Error(`unexpected request: ${url.pathname}`);
     });
     vi.stubGlobal('fetch', fetchImpl);
-    const result = await enqueueBanodocoRenderTimeline(payload, {
+    const result = await enqueueAstridRuntimeRenderTimeline(payload, {
       client: new AstridLocalClient({ projectSlug: 'p', baseUrl: 'http://bridge.fake' }),
       expectedVersion: 3,
     });
@@ -1285,7 +1285,7 @@ describe('Sprint 8 enqueueBanodocoRenderTimeline', () => {
   it('POSTs the canonical rendering.render envelope through the Runtime task route', async () => {
     const fetchImpl = canonicalRenderFetch();
     vi.stubGlobal('fetch', fetchImpl);
-    const result = await enqueueBanodocoRenderTimeline(payload, {
+    const result = await enqueueAstridRuntimeRenderTimeline(payload, {
       client: new AstridLocalClient({ projectSlug: 'p', baseUrl: 'http://bridge.fake' }),
       expectedVersion: 12,
       destination: 'project-media',
@@ -1301,7 +1301,7 @@ describe('Sprint 8 enqueueBanodocoRenderTimeline', () => {
     expect(url).toBe('http://bridge.fake/v1/tasks');
     expect((init as RequestInit).method).toBe('POST');
     const headers = (init as RequestInit).headers as Record<string, string>;
-    expect(headers['Idempotency-Key']).toBe('reigh.render:v1:t:12:project-media:render.mp4');
+    expect(headers['Idempotency-Key']).toBe('astrid.render:v1:t:12:project-media:render.mp4');
     const body = JSON.parse((init as RequestInit).body as string);
     expect(body).toMatchObject({
       project: 'p',
@@ -1339,7 +1339,7 @@ describe('Sprint 8 enqueueBanodocoRenderTimeline', () => {
     const submit = async (operationId: string, taskId: string) => {
       const fetchImpl = canonicalRenderFetch(taskId);
       vi.stubGlobal('fetch', fetchImpl);
-      await expect(enqueueBanodocoRenderTimeline(payload, {
+      await expect(enqueueAstridRuntimeRenderTimeline(payload, {
         client: new AstridLocalClient({ projectSlug: 'p', baseUrl: 'http://bridge.fake' }),
         expectedVersion: 3,
         operationId,
@@ -1352,9 +1352,9 @@ describe('Sprint 8 enqueueBanodocoRenderTimeline', () => {
     await submit('intent-a', 'task-a-replay');
     await submit('intent-b', 'task-b');
 
-    expect(keys[0]).toBe('reigh.render:v2:intent-a:t:3:download:render.mp4');
+    expect(keys[0]).toBe('astrid.render:v2:intent-a:t:3:download:render.mp4');
     expect(keys[1]).toBe(keys[0]);
-    expect(keys[2]).toBe('reigh.render:v2:intent-b:t:3:download:render.mp4');
+    expect(keys[2]).toBe('astrid.render:v2:intent-b:t:3:download:render.mp4');
     expect(keys[2]).not.toBe(keys[0]);
   });
 
@@ -1363,7 +1363,7 @@ describe('Sprint 8 enqueueBanodocoRenderTimeline', () => {
       new Response(JSON.stringify({ error: 'invalid_body', detail: 'bad payload' }), { status: 400 }),
     );
     vi.stubGlobal('fetch', fetchImpl);
-    const result = await enqueueBanodocoRenderTimeline(payload, {
+    const result = await enqueueAstridRuntimeRenderTimeline(payload, {
       client: new AstridLocalClient({ projectSlug: 'p', baseUrl: 'http://bridge.fake' }),
     });
     expect(result.status).toBe('error');
@@ -1374,7 +1374,7 @@ describe('Sprint 8 enqueueBanodocoRenderTimeline', () => {
   it('surfaces a network failure as an error result', async () => {
     const fetchImpl = vi.fn().mockRejectedValue(new Error('connection refused'));
     vi.stubGlobal('fetch', fetchImpl);
-    const result = await enqueueBanodocoRenderTimeline(payload, {
+    const result = await enqueueAstridRuntimeRenderTimeline(payload, {
       client: new AstridLocalClient({ projectSlug: 'p', baseUrl: 'http://bridge.fake' }),
     });
     expect(result.status).toBe('error');
@@ -1423,7 +1423,7 @@ describe('cancelAstridRenderTask rides the common fenced task route', () => {
   it('cancels a queued render directly through POST /tasks/:id/cancel', async () => {
     const router = stubFakeBridge();
     const client = new AstridLocalClient({ projectSlug: 'demo-project', baseUrl: 'http://bridge.fake' });
-    const { task } = await client.tasks.admit(admission, 'reigh.render:cancel-queued');
+    const { task } = await client.tasks.admit(admission, 'astrid.render:cancel-queued');
 
     await expect(cancelAstridRenderTask(client, task.id)).resolves.toBeUndefined();
     expect(await client.tasks.get(task.id)).toMatchObject({ status: 'cancelled' });
@@ -1432,7 +1432,7 @@ describe('cancelAstridRenderTask rides the common fenced task route', () => {
   it('retries a running render cancel with the neutral Runtime version fence', async () => {
     const router = stubFakeBridge();
     const client = new AstridLocalClient({ projectSlug: 'demo-project', baseUrl: 'http://bridge.fake' });
-    const { task } = await client.tasks.admit(admission, 'reigh.render:cancel-running');
+    const { task } = await client.tasks.admit(admission, 'astrid.render:cancel-running');
     const summary = router.state.tasks.get(task.id);
     if (!summary) throw new Error('fixture missing');
     summary.status = 'running';
@@ -1473,7 +1473,7 @@ describe('render-as-task journey against the binding stub (B6 smoke)', () => {
     const client = new AstridLocalClient({ projectSlug: 'demo-project', baseUrl: 'http://bridge.fake' });
 
     // R1 admission through the common task route.
-    const result = await enqueueBanodocoRenderTimeline({
+    const result = await enqueueAstridRuntimeRenderTimeline({
       timeline_id: 't',
       timeline: { clips: [] },
       assets: { assets: {} },
@@ -1537,9 +1537,9 @@ describe('Sprint 8 router → enqueue integration', () => {
       clips: [{ clipType: 'image-jump' }, { clipType: 'media' }],
     };
 
-    // Step 1: router decides banodoco.
+    // Step 1: router decides Astrid Runtime.
     const decision = decideRenderRoute(config);
-    expect(decision.route).toBe('worker-banodoco');
+    expect(decision.route).toBe('worker-astrid-runtime');
 
     // Step 2: build payload + enqueue.
     const { payload } = buildRenderTimelinePayload({
@@ -1558,7 +1558,7 @@ describe('Sprint 8 router → enqueue integration', () => {
 
     const fetchImpl = canonicalRenderFetch('task-1');
     vi.stubGlobal('fetch', fetchImpl);
-    const result = await enqueueBanodocoRenderTimeline(payload!, {
+    const result = await enqueueAstridRuntimeRenderTimeline(payload!, {
       client: new AstridLocalClient({ projectSlug: 'p', baseUrl: 'http://bridge.fake' }),
     });
     expect(result.status).toBe('queued');
@@ -1804,7 +1804,7 @@ describe('Sprint 8 render pipeline middleware', () => {
 
     expect(workerResult).toMatchObject({
       status: 'queued',
-      providerId: 'worker-banodoco',
+      providerId: 'worker-astrid-runtime',
       taskId: 'task-1',
       correlationId: expect.any(String),
     });
@@ -1859,7 +1859,7 @@ describe('Sprint 8 render pipeline middleware', () => {
 
     expect(workerResult).toMatchObject({
       status: 'error',
-      providerId: 'worker-banodoco',
+      providerId: 'worker-astrid-runtime',
     });
     expect(workerResult.message).toContain('Remotion is not installed');
     expect(startBrowserRender).not.toHaveBeenCalled();

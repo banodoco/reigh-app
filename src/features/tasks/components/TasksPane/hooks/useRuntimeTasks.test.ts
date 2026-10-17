@@ -2,7 +2,7 @@ import { act, renderHook } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ReighRuntimeClient } from '@/integrations/runtime/client.ts';
+import { AstridRuntimeClient } from '@/integrations/runtime/client.ts';
 import type {
   ManagedOutput,
   Task as RuntimeTask,
@@ -155,7 +155,7 @@ describe('Runtime TasksPane adapter', () => {
     expect(client.getTask).toHaveBeenCalledWith('task-canonical');
     expect(client.cancelTask).toHaveBeenCalledWith(
       'task-canonical',
-      'reigh.runtime.task.cancel.runtime-project.task-canonical.v9.2026-09-11T00-01-00Z',
+      'astrid.runtime.task.cancel.runtime-project.task-canonical.v9.2026-09-11T00-01-00Z',
       9,
     );
 
@@ -165,7 +165,7 @@ describe('Runtime TasksPane adapter', () => {
     });
     expect(client.retryTask).toHaveBeenCalledWith(
       'task-canonical',
-      'reigh.runtime.task.retry.runtime-project.task-canonical.v9.2026-09-11T00-01-00Z',
+      'astrid.runtime.task.retry.runtime-project.task-canonical.v9.2026-09-11T00-01-00Z',
       9,
     );
   });
@@ -220,7 +220,7 @@ async function advanceRuntimeTaskTime(ms: number) {
 describe('useRuntimeTasks safety refresh', () => {
   beforeEach(() => {
     vi.useFakeTimers();
-    vi.spyOn(ReighRuntimeClient.prototype, 'listEvents').mockResolvedValue({
+    vi.spyOn(AstridRuntimeClient.prototype, 'listEvents').mockResolvedValue({
       items: [], next_cursor: 'event-cursor',
     });
   });
@@ -231,9 +231,9 @@ describe('useRuntimeTasks safety refresh', () => {
   });
 
   it('reads the full list initially and once per five minutes across consumers', async () => {
-    const listProjectTasks = vi.spyOn(ReighRuntimeClient.prototype, 'listProjectTasks')
+    const listProjectTasks = vi.spyOn(AstridRuntimeClient.prototype, 'listProjectTasks')
       .mockResolvedValue(taskPage([task('running')]));
-    const getTask = vi.spyOn(ReighRuntimeClient.prototype, 'getTask');
+    const getTask = vi.spyOn(AstridRuntimeClient.prototype, 'getTask');
     const queryClient = createRuntimeTaskQueryClient();
     const wrapper = createRuntimeTaskQueryWrapper(queryClient);
     const first = renderHook(() => useRuntimeTasks('runtime-project'), { wrapper });
@@ -256,7 +256,7 @@ describe('useRuntimeTasks safety refresh', () => {
   it('refreshes the full list when a long-hidden tab returns', async () => {
     let visibility: DocumentVisibilityState = 'visible';
     vi.spyOn(document, 'visibilityState', 'get').mockImplementation(() => visibility);
-    const listProjectTasks = vi.spyOn(ReighRuntimeClient.prototype, 'listProjectTasks')
+    const listProjectTasks = vi.spyOn(AstridRuntimeClient.prototype, 'listProjectTasks')
       .mockResolvedValue(taskPage([]));
     const queryClient = createRuntimeTaskQueryClient();
     const hook = renderHook(() => useRuntimeTasks('runtime-project'), {
@@ -281,13 +281,13 @@ describe('useRuntimeTasks safety refresh', () => {
   it('retains mutation project and cache ownership when selection changes during getTask', async () => {
     const queued = task('queued', 'pending-task');
     let release!: (value: RuntimeTask) => void;
-    vi.spyOn(ReighRuntimeClient.prototype, 'getTask').mockImplementation(
+    vi.spyOn(AstridRuntimeClient.prototype, 'getTask').mockImplementation(
       () => new Promise((resolve) => { release = resolve; }),
     );
     const updated = { ...queued, state: 'cancelled' as const, version: 5 };
-    const cancel = vi.spyOn(ReighRuntimeClient.prototype, 'cancelTask').mockResolvedValue(updated);
+    const cancel = vi.spyOn(AstridRuntimeClient.prototype, 'cancelTask').mockResolvedValue(updated);
     const foreign = { ...task('queued', 'foreign-task'), project_id: 'project-B' };
-    vi.spyOn(ReighRuntimeClient.prototype, 'listProjectTasks')
+    vi.spyOn(AstridRuntimeClient.prototype, 'listProjectTasks')
       .mockImplementation(async (projectId) => taskPage(projectId === 'project-B' ? [foreign] : []));
     const queryClient = createRuntimeTaskQueryClient();
     queryClient.setQueryData(runtimeTaskQueryKey('runtime-project'), [queued]);

@@ -15,7 +15,7 @@ import {
 } from '@/sdk/index';
 import { createExtensionContext } from '@/tools/video-editor/runtime/extensionContextFactory';
 import type {
-  ReighExtension,
+  AstridExtension,
   ExtensionContext,
   DisposeHandle,
   TransitionContribution,
@@ -30,7 +30,7 @@ import type {
 
 /** Extract TransitionContribution entries from a manifest. */
 function getTransitionContribs(
-  manifest: ReighExtension['manifest'],
+  manifest: AstridExtension['manifest'],
 ): readonly TransitionContribution[] {
   return (manifest.contributions?.filter(
     (c): c is TransitionContribution => c.kind === 'transition',
@@ -66,7 +66,7 @@ function createTestContext(
 ): ExtensionContext {
   const ext = defineExtension({
     manifest: {
-      id: 'com.reigh.examples.flagship-local' as any,
+      id: 'haus.astrid.examples.flagship-local' as any,
       version: '1.0.0',
       label: 'Flagship Local Extension',
       contributions: [
@@ -74,13 +74,13 @@ function createTestContext(
           id: 'flagship-transition-wipe' as any,
           kind: 'transition',
           label: 'Flagship Wipe',
-          transitionId: 'com.reigh.flagship.transition.wipe',
+          transitionId: 'haus.astrid.flagship.transition.wipe',
           allowBrowserExport: false,
           allowWorkerExport: false,
           order: 10,
         },
       ],
-    } satisfies ReighExtension['manifest'],
+    } satisfies AstridExtension['manifest'],
   });
 
   const ctx = createExtensionContext(ext, undefined, undefined, undefined, transitionsService);
@@ -98,7 +98,7 @@ describe('Flagship local extension — M8 transition contribution', () => {
     it('declares an active transition contribution with transitionId', () => {
       const ext = defineExtension({
         manifest: {
-          id: 'com.reigh.examples.flagship-local' as any,
+          id: 'haus.astrid.examples.flagship-local' as any,
           version: '1.0.0',
           label: 'Flagship Local Extension',
           contributions: [
@@ -106,7 +106,7 @@ describe('Flagship local extension — M8 transition contribution', () => {
               id: 'flagship-transition-wipe' as any,
               kind: 'transition',
               label: 'Flagship Wipe',
-              transitionId: 'com.reigh.flagship.transition.wipe',
+              transitionId: 'haus.astrid.flagship.transition.wipe',
               allowBrowserExport: false,
               allowWorkerExport: false,
               order: 10,
@@ -121,7 +121,7 @@ describe('Flagship local extension — M8 transition contribution', () => {
       const contrib = transitionContribs[0];
       expect(contrib.id).toBe('flagship-transition-wipe');
       expect(contrib.kind).toBe('transition');
-      expect(contrib.transitionId).toBe('com.reigh.flagship.transition.wipe');
+      expect(contrib.transitionId).toBe('haus.astrid.flagship.transition.wipe');
       expect(contrib.allowBrowserExport).toBe(false);
       expect(contrib.allowWorkerExport).toBe(false);
       expect(contrib.order).toBe(10);
@@ -130,7 +130,7 @@ describe('Flagship local extension — M8 transition contribution', () => {
     it('has label for display in UI/catalog', () => {
       const ext = defineExtension({
         manifest: {
-          id: 'com.reigh.examples.flagship-local' as any,
+          id: 'haus.astrid.examples.flagship-local' as any,
           version: '1.0.0',
           label: 'Flagship Local Extension',
           contributions: [
@@ -138,7 +138,7 @@ describe('Flagship local extension — M8 transition contribution', () => {
               id: 'flagship-transition-wipe' as any,
               kind: 'transition',
               label: 'Flagship Wipe',
-              transitionId: 'com.reigh.flagship.transition.wipe',
+              transitionId: 'haus.astrid.flagship.transition.wipe',
               allowBrowserExport: false,
               allowWorkerExport: false,
               order: 10,
@@ -163,7 +163,7 @@ describe('Flagship local extension — M8 transition contribution', () => {
       // The flagship extension defines activate() on the extension object.
       // For this test we directly call registerRenderer as the flagship would.
       const handle = ctx.transitions.registerRenderer(
-        'com.reigh.flagship.transition.wipe',
+        'haus.astrid.flagship.transition.wipe',
         // A simple pure renderer matching the flagship's pattern
         ((progress: number, params?: Record<string, unknown>) => {
           const direction = (params?.direction as string) ?? 'right';
@@ -204,7 +204,7 @@ describe('Flagship local extension — M8 transition contribution', () => {
       );
 
       expect(calls).toHaveLength(1);
-      expect(calls[0].transitionId).toBe('com.reigh.flagship.transition.wipe');
+      expect(calls[0].transitionId).toBe('haus.astrid.flagship.transition.wipe');
       expect(calls[0].options?.label).toBe('Flagship Wipe');
       expect(calls[0].options?.parameterSchema).toHaveLength(2);
       expect(typeof handle.dispose).toBe('function');
@@ -215,7 +215,7 @@ describe('Flagship local extension — M8 transition contribution', () => {
       const ctx = createTestContext(spy.service);
 
       const handle = ctx.transitions.registerRenderer(
-        'com.reigh.flagship.transition.wipe',
+        'haus.astrid.flagship.transition.wipe',
         {} as TransitionRenderer,
       );
 
@@ -377,7 +377,7 @@ describe('Flagship local extension — M8 transition contribution', () => {
       ];
 
       ctx.transitions.registerRenderer(
-        'com.reigh.flagship.transition.wipe',
+        'haus.astrid.flagship.transition.wipe',
         {} as TransitionRenderer,
         { label: 'Flagship Wipe', parameterSchema: schema },
       );
@@ -398,7 +398,7 @@ describe('Flagship local extension — M8 transition contribution', () => {
     it('transition contribution appears in extension manifest contributions', () => {
       const ext = defineExtension({
         manifest: {
-          id: 'com.reigh.examples.flagship-local' as any,
+          id: 'haus.astrid.examples.flagship-local' as any,
           version: '1.0.0',
           label: 'Flagship Local Extension',
           contributions: [
@@ -406,7 +406,7 @@ describe('Flagship local extension — M8 transition contribution', () => {
               id: 'flagship-transition-wipe' as any,
               kind: 'transition',
               label: 'Flagship Wipe',
-              transitionId: 'com.reigh.flagship.transition.wipe',
+              transitionId: 'haus.astrid.flagship.transition.wipe',
               allowBrowserExport: false,
               allowWorkerExport: false,
               order: 10,
@@ -415,7 +415,7 @@ describe('Flagship local extension — M8 transition contribution', () => {
               id: 'flagship-effect-glow' as any,
               kind: 'effect',
               label: 'Flagship Glow',
-              effectId: 'com.reigh.flagship.effect.glow',
+              effectId: 'haus.astrid.flagship.effect.glow',
               allowBrowserExport: false,
               allowWorkerExport: false,
               order: 10,
@@ -426,7 +426,7 @@ describe('Flagship local extension — M8 transition contribution', () => {
 
       const transitionContribs = getTransitionContribs(ext.manifest);
       expect(transitionContribs).toHaveLength(1);
-      expect(transitionContribs[0].transitionId).toBe('com.reigh.flagship.transition.wipe');
+      expect(transitionContribs[0].transitionId).toBe('haus.astrid.flagship.transition.wipe');
 
       // Verify it can be found in the full contributions list by ID
       const allContribs = ext.manifest.contributions ?? [];

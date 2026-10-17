@@ -22,7 +22,7 @@ import type { OnboardingStepProps } from '@/shared/components/OnboardingModal/ty
 
 const POLL_MS = 4000;
 const NO_PROJECT_REASON = /no project exists yet/i;
-const REPORT_ISSUE_URL = 'https://github.com/peteromallet/Astrid/issues';
+const REPORT_ISSUE_URL = 'https://github.com/peteromallet/astrid-agent/issues';
 
 type CheckState = 'checking' | 'pass' | 'fail' | 'later';
 

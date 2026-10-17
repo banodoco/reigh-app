@@ -213,12 +213,12 @@ function validateEnvelope(document, errors, expected = {}) {
   if (object(
     document.candidate,
     'document.candidate',
-    ['reighCommit', 'astridCommit'],
-    ['reighCommit', 'astridCommit'],
+    ['appCommit', 'astridCommit'],
+    ['appCommit', 'astridCommit'],
     errors,
   )) {
-    if (!COMMIT.test(document.candidate.reighCommit ?? '')) {
-      errors.push('document.candidate.reighCommit must be a lowercase 40-character commit');
+    if (!COMMIT.test(document.candidate.appCommit ?? '')) {
+      errors.push('document.candidate.appCommit must be a lowercase 40-character commit');
     }
     if (!COMMIT.test(document.candidate.astridCommit ?? '')) {
       errors.push('document.candidate.astridCommit must be a lowercase 40-character commit');
@@ -247,9 +247,9 @@ function validateEnvelope(document, errors, expected = {}) {
   if (expected.release !== undefined && document.release !== expected.release) {
     errors.push('document.release does not match the evidence ledger');
   }
-  if (expected.reighCommit !== undefined
-      && document.candidate?.reighCommit !== expected.reighCommit) {
-    errors.push('document.candidate.reighCommit does not match the evidence ledger candidate');
+  if (expected.appCommit !== undefined
+      && document.candidate?.appCommit !== expected.appCommit) {
+    errors.push('document.candidate.appCommit does not match the evidence ledger candidate');
   }
   if (expected.astridCommit !== undefined
       && document.candidate?.astridCommit !== expected.astridCommit) {
@@ -391,7 +391,7 @@ function validateObservability(record, errors, document) {
   if (!object(record, 'document.record', fields, fields, errors)) return;
   exact(record.deployment, 'production', 'document.record.deployment', errors);
   string(record.releaseRevision, 'document.record.releaseRevision', errors);
-  exact(record.releaseRevision, document.candidate?.reighCommit, 'document.record.releaseRevision', errors);
+  exact(record.releaseRevision, document.candidate?.appCommit, 'document.record.releaseRevision', errors);
   const probeFields = ['id', 'capturedAt', 'eventFamilies', 'outcome', 'evidence'];
   if (object(record.syntheticProbe, 'document.record.syntheticProbe', probeFields, probeFields, errors)) {
     string(record.syntheticProbe.id, 'document.record.syntheticProbe.id', errors);

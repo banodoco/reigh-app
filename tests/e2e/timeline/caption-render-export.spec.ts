@@ -90,11 +90,11 @@ test.describe('caption materialization render and export', () => {
     });
 
     await page.addInitScript(() => {
-      localStorage.removeItem('reigh.dev-extensions.disabled');
+      localStorage.removeItem('astrid.dev-extensions.disabled');
     });
     await page.goto(EDITOR_URL, { waitUntil: 'domcontentloaded', timeout: 45_000 });
 
-    const transcriptRow = page.locator('[data-lane-kind="reigh.transcript"]');
+    const transcriptRow = page.locator('[data-lane-kind="astrid.transcript"]');
     const actions = transcriptRow.getByRole('button', { name: 'Transcript actions' });
     await expect(actions).toBeVisible({ timeout: 20_000 });
     await page.locator('.timeline-canvas-edit-area').evaluate((scroller) => {

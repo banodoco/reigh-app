@@ -3,7 +3,7 @@
 /**
  * External SDK consumer validator.
  *
- * M0 boundary proof: an out-of-repo package that imports @reigh/editor-sdk
+ * M0 boundary proof: an out-of-repo package that imports @astrid/editor-sdk
  * must type-check with zero diagnostics from SDK files, must not resolve any
  * dependency into src/tools/video-editor, and must be able to evaluate the SDK
  * value exports in a plain Node context.
@@ -43,7 +43,7 @@ if (!fs.existsSync(tscPath)) {
 // 1. Build a package-like copy of the SDK with internal aliases rewritten.
 // ---------------------------------------------------------------------------
 
-const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'reigh-sdk-consumer-'));
+const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'astrid-sdk-consumer-'));
 const packageDir = path.join(tmpDir, 'sdk-package');
 const consumerDir = path.join(tmpDir, 'consumer');
 const consumerNodeModules = path.join(consumerDir, 'node_modules');
@@ -102,7 +102,7 @@ fs.writeFileSync(
   path.join(packageDir, 'package.json'),
   JSON.stringify(
     {
-      name: '@reigh/editor-sdk',
+      name: '@astrid/editor-sdk',
       version: '0.0.0-smoke',
       type: 'module',
       main: 'index.ts',
@@ -125,7 +125,7 @@ const consumerFixture = `/**
  * External SDK consumer smoke fixture.
  * Imports the public package surface only — no repo aliases, no Vite context.
  */
-import * as sdk from '@reigh/editor-sdk';
+import * as sdk from '@astrid/editor-sdk';
 
 // Reference the namespace so the import is not tree-shaken away.
 const keys: string[] = Object.keys(sdk);
@@ -137,11 +137,11 @@ const directFixture = `/**
  * Pulls representative direct modules from core and video families to prove
  * they are individually importable outside the repo.
  */
-import { FamilyAdapterRegistryImpl } from '@reigh/editor-sdk/core/families/familyAdapter';
-import { normalizeAdapters } from '@reigh/editor-sdk/core/families/familyAdapterCoordinator';
-import { createDiagnosticCollection } from '@reigh/editor-sdk';
-import type { EffectContribution } from '@reigh/editor-sdk/video/families/effects';
-import { KNOWN_CONTRIBUTION_KINDS } from '@reigh/editor-sdk';
+import { FamilyAdapterRegistryImpl } from '@astrid/editor-sdk/core/families/familyAdapter';
+import { normalizeAdapters } from '@astrid/editor-sdk/core/families/familyAdapterCoordinator';
+import { createDiagnosticCollection } from '@astrid/editor-sdk';
+import type { EffectContribution } from '@astrid/editor-sdk/video/families/effects';
+import { KNOWN_CONTRIBUTION_KINDS } from '@astrid/editor-sdk';
 
 const registry = new FamilyAdapterRegistryImpl();
 void normalizeAdapters;
@@ -158,11 +158,11 @@ fs.writeFileSync(
   path.join(consumerDir, 'package.json'),
   JSON.stringify(
     {
-      name: 'reigh-sdk-external-consumer',
+      name: 'astrid-sdk-external-consumer',
       version: '0.0.0',
       type: 'module',
       dependencies: {
-        '@reigh/editor-sdk': 'file:../sdk-package',
+        '@astrid/editor-sdk': 'file:../sdk-package',
       },
     },
     null,
@@ -181,8 +181,8 @@ fs.writeFileSync(
         moduleResolution: 'bundler',
         baseUrl: '.',
         paths: {
-          '@reigh/editor-sdk': ['../sdk-package/index.ts'],
-          '@reigh/editor-sdk/*': ['../sdk-package/*.ts'],
+          '@astrid/editor-sdk': ['../sdk-package/index.ts'],
+          '@astrid/editor-sdk/*': ['../sdk-package/*.ts'],
         },
         strict: true,
         noEmit: true,

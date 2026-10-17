@@ -24,8 +24,8 @@ import type {
   ExtensionDiagnostic,
   ExtensionDiagnosticsService,
   ExtensionUiService,
-  ReighExtension,
-} from '@reigh/editor-sdk';
+  AstridExtension,
+} from '@astrid/editor-sdk';
 import type { InternalExtensionRenderSurface } from '@/sdk/internalExtensionRenderSurface';
 import type {
   ExtensionRuntime,
@@ -38,7 +38,7 @@ import type {
   RendererRegistry,
   RendererRegistrySnapshot,
 } from '@/tools/video-editor/runtime/extensionRendererRegistry';
-import type { ResolvedTimelineOverlayDescriptor } from '@reigh/editor-sdk';
+import type { ResolvedTimelineOverlayDescriptor } from '@astrid/editor-sdk';
 
 /** Manifest kinds whose declarations are render-backed (a required `render` id). */
 const RENDER_BACKED_KINDS: ReadonlySet<string> = new Set([
@@ -72,7 +72,7 @@ function makeDiagnostic(
 }
 
 export function createExtensionUiService(args: {
-  extension: ReighExtension;
+  extension: AstridExtension;
   diagnosticsService: ExtensionDiagnosticsService;
   rendererRegistry: RendererRegistry;
 }): ExtensionUiService {
@@ -128,7 +128,7 @@ export function createExtensionUiService(args: {
  *   constructing the same render-backed surface.
  */
 export function createInternalExtensionRenderSurface(args: {
-  extension: ReighExtension;
+  extension: AstridExtension;
   diagnosticsService: ExtensionDiagnosticsService;
   rendererRegistry: RendererRegistry;
 }): InternalExtensionRenderSurface {

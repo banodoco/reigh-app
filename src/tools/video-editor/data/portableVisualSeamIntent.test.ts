@@ -11,7 +11,7 @@ import fixture from './shotComposition.fixture.json';
 import {createShotCompositionAdapter} from './shotCompositionAdapter.ts';
 import {projectCanonicalComposition} from './shotCompositionProjection.ts';
 
-const runtime = process.env.VISUAL_SEAM_RUNTIME_CHECKOUT ?? resolve(process.cwd(), '../../../../banodoco-workspace-runtime/.otto/worktrees/visual-seam-contract-20261008');
+const runtime = process.env.VISUAL_SEAM_RUNTIME_CHECKOUT ?? resolve(process.cwd(), '../../../../astrid-runtime/.otto/worktrees/visual-seam-contract-20261008');
 function report(config: ResolvedTimelineConfig, closure?: Record<string, unknown>, admit = false) {
   const python = spawnSync('python3', ['-c', `import json,sys
 from runtime_protocol.visual_seam import evaluate_closure, admit_closure
@@ -40,7 +40,7 @@ function config(): ResolvedTimelineConfig {
       {id: 'b', clipType: 'media', track: 'v', at: 1, hold: 1, entrance: {type: 'fade', duration: 0.5}},
     ]};
 }
-describe('portable Reigh intent admitted by authoritative Runtime', () => {
+describe('portable Astrid intent admitted by authoritative Runtime', () => {
   it('acknowledges only the same context and named cues', () => {
     const base = config();
     expect(report(base).blocked).toBe(true);
@@ -377,7 +377,7 @@ describe('Astra round-two cross-consumer regressions', () => {
   it('keeps primary live-scene cuts separate from auxiliary opaque activations', () => {
     const base = config();
     delete base.clips[1]!.entrance;
-    base.clips.forEach(c => { c.clipType = 'com.reigh.astrid.liveScene'; });
+    base.clips.forEach(c => { c.clipType = 'haus.astrid.liveScene'; });
     const editor = analyzeVisualSeams(base, {enforceIntent: true});
     const authoritative = report(base);
     expect(editor.blocked).toBe(false);

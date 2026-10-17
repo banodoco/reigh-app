@@ -1,4 +1,4 @@
-import type { RenderArtifactSidecarDescriptor } from '@reigh/editor-sdk';
+import type { RenderArtifactSidecarDescriptor } from '@astrid/editor-sdk';
 
 export const SIDECAR_PREVIEW_LIMIT_BYTES = 64 * 1024;
 

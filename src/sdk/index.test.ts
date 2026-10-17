@@ -40,7 +40,7 @@ import {
 } from '@/sdk/index';
 import { createExtensionContext, setEditorShellRoot, getEditorShellRoot } from '@/tools/video-editor/runtime/extensionContextFactory';
 import type {
-  ReighExtension,
+  AstridExtension,
   ExtensionManifest,
   ExtensionContribution,
   ExtensionContext,
@@ -873,8 +873,8 @@ describe('M6: defineExtension accepts M6 contribution types', () => {
 // ---------------------------------------------------------------------------
 
 describe('SDK type exports are complete', () => {
-  it('ReighExtension has manifest and optional activate', () => {
-    const ext: ReighExtension = defineExtension({ manifest: validManifest() });
+  it('AstridExtension has manifest and optional activate', () => {
+    const ext: AstridExtension = defineExtension({ manifest: validManifest() });
     expect(ext.manifest.id).toBe('com.example.test');
     expect(typeof ext.activate).toBe('undefined');
   });
@@ -921,7 +921,7 @@ describe('SDK type exports are complete', () => {
 // ---------------------------------------------------------------------------
 
 describe('createExtensionContext', () => {
-  let extension: ReighExtension;
+  let extension: AstridExtension;
   let ctx: ExtensionContext;
 
   beforeEach(() => {
@@ -2012,7 +2012,7 @@ describe('M11: Steering resolver contract types', () => {
     const policies: SteeringPriorSamplePolicy[] = ['replace', 'fork', 'retain', 'discard'];
     const provenance: SteeringProvenance = {
       prompt: 'A slow pan across clouds',
-      model: 'reigh-gen-v1',
+      model: 'astrid-gen-v1',
       seed: 42,
       producerExtensionId: 'ext.generator',
       tags: ['user-approved'],
@@ -2026,7 +2026,7 @@ describe('M11: Steering resolver contract types', () => {
 
     expect(hotness).toHaveLength(2);
     expect(policies).toHaveLength(4);
-    expect(provenance.model).toBe('reigh-gen-v1');
+    expect(provenance.model).toBe('astrid-gen-v1');
     expect(change.hotness).toBe('hot');
   });
 });
@@ -2040,7 +2040,7 @@ describe('M11: SteeringLineage', () => {
       producerVersion: '1.2.0',
       provenance: {
         prompt: 'A slow pan across clouds',
-        model: 'reigh-gen-v1',
+        model: 'astrid-gen-v1',
         seed: 42,
         producerExtensionId: 'ext.generator',
       },
@@ -4870,12 +4870,12 @@ describe('T1.1: timeline overlay public contract', () => {
 
   it('TimelineOverlayDescriptor carries extensionId, id, renderId, and optional order', () => {
     const descriptor: TimelineOverlayDescriptor = {
-      extensionId: 'com.reigh.scene-phase-markers',
+      extensionId: 'haus.astrid.scene-phase-markers',
       id: 'phase-markers' as any,
       renderId: 'render/phase-markers',
       order: 5,
     };
-    expect(descriptor.extensionId).toBe('com.reigh.scene-phase-markers');
+    expect(descriptor.extensionId).toBe('haus.astrid.scene-phase-markers');
     expect(descriptor.id).toBe('phase-markers');
     expect(descriptor.renderId).toBe('render/phase-markers');
     expect(descriptor.order).toBe(5);
@@ -4885,7 +4885,7 @@ describe('T1.1: timeline overlay public contract', () => {
     const renderer: ExtensionRenderer<TimelineOverlayRenderProps> = (props) =>
       props.geometry.timeToPixel(0);
     const resolved: ResolvedTimelineOverlayDescriptor = {
-      extensionId: 'com.reigh.scene-phase-markers',
+      extensionId: 'haus.astrid.scene-phase-markers',
       id: 'phase-markers' as any,
       renderId: 'render/phase-markers',
       render: renderer,

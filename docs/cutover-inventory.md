@@ -829,23 +829,23 @@ Legend: **Line** = source line (`-` = module-level types/import or test-double r
 
 | File | Line | Kind | Surface | Disp | J | Bridge target / reason |
 |---|---|---|---|---|---|---|
-| `tools/video-editor/adapters/reigh/generationLookup.ts` | 35 | from | table `generations` | bridge-client | J1-J6 | GET /projects/:slug/generations[/:generation_id] (R12/R13) |
+| `tools/video-editor/adapters/astrid/generationLookup.ts` | 35 | from | table `generations` | bridge-client | J1-J6 | GET /projects/:slug/generations[/:generation_id] (R12/R13) |
 |  | 71 | from | table `generations` | bridge-client | J1-J6 | GET /projects/:slug/generations[/:generation_id] (R12/R13) |
 |  | 88 | from | table `generation_variants` | bridge-client | J1-J6 | generation detail variants + pack commands (doc 27 §2.3) |
 |  | 117 | from | table `generations` | bridge-client | J1-J6 | GET /projects/:slug/generations[/:generation_id] (R12/R13) |
 |  | 143 | from | table `generation_variants` | bridge-client | J1-J6 | generation detail variants + pack commands (doc 27 §2.3) |
-| `tools/video-editor/adapters/reigh/staleVariantRepository.ts` | 14 | from | table `generations` | bridge-client | J1-J6 | GET /projects/:slug/generations[/:generation_id] (R12/R13) |
+| `tools/video-editor/adapters/astrid/staleVariantRepository.ts` | 14 | from | table `generations` | bridge-client | J1-J6 | GET /projects/:slug/generations[/:generation_id] (R12/R13) |
 |  | 39 | from | table `generations` | bridge-client | J1-J6 | GET /projects/:slug/generations[/:generation_id] (R12/R13) |
-| `tools/video-editor/adapters/reigh/useReighEffectsCatalog.ts` | 18 | from | table `effects` | bridge-client | J1-J6 | AstridLocalClient equivalent read/command |
+| `tools/video-editor/adapters/astrid/useAstridEffectsCatalog.ts` | 18 | from | table `effects` | bridge-client | J1-J6 | AstridLocalClient equivalent read/command |
 |  | 44 | from | table `effects` | bridge-client | J1-J6 | AstridLocalClient equivalent read/command |
 |  | 53 | from | table `effects` | bridge-client | J1-J6 | AstridLocalClient equivalent read/command |
 |  | 65 | from | table `effects` | bridge-client | J1-J6 | AstridLocalClient equivalent read/command |
-| `tools/video-editor/adapters/reigh/useReighTimelinesList.test.ts` | 9 | from | table `timelines` | bridge-client | J1-J6 | unchanged timeline load/save CAS routes |
-| `tools/video-editor/adapters/reigh/useReighTimelinesList.ts` | 17 | from | table `timelines` | bridge-client | J1-J6 | unchanged timeline load/save CAS routes |
+| `tools/video-editor/adapters/astrid/useAstridTimelinesList.test.ts` | 9 | from | table `timelines` | bridge-client | J1-J6 | unchanged timeline load/save CAS routes |
+| `tools/video-editor/adapters/astrid/useAstridTimelinesList.ts` | 17 | from | table `timelines` | bridge-client | J1-J6 | unchanged timeline load/save CAS routes |
 |  | 36 | from | table `timelines` | bridge-client | J1-J6 | unchanged timeline load/save CAS routes |
 |  | 62 | from | table `timelines` | bridge-client | J1-J6 | unchanged timeline load/save CAS routes |
 |  | 79 | from | table `timelines` | bridge-client | J1-J6 | unchanged timeline load/save CAS routes |
-| `tools/video-editor/adapters/reigh/variantPromotionLookup.ts` | 5 | from | table `generation_variants` | bridge-client | J1-J6 | generation detail variants + pack commands (doc 27 §2.3) |
+| `tools/video-editor/adapters/astrid/variantPromotionLookup.ts` | 5 | from | table `generation_variants` | bridge-client | J1-J6 | generation detail variants + pack commands (doc 27 §2.3) |
 | `tools/video-editor/components/EffectCreatorPanel.test.tsx` | 19 | invoke | edge-fn `?` | cut | — | ai-generate-effect LLM edge fn cut (ratified list) |
 |  | 23 | invoke | edge-fn `?` | cut | — | ai-generate-effect LLM edge fn cut (ratified list) |
 |  | 24 | invoke | edge-fn `?` | cut | — | ai-generate-effect LLM edge fn cut (ratified list) |

@@ -10,14 +10,14 @@
  *      would render in the browser preview.
  *
  * This file must NOT import from editor internals (src/tools/video-editor/*).
- * It imports exclusively from @reigh/editor-sdk, the public SDK entrypoint.
+ * It imports exclusively from @astrid/editor-sdk, the public SDK entrypoint.
  *
  * @publicContract
  */
 
-import { defineExtension } from '@reigh/editor-sdk';
+import { defineExtension } from '@astrid/editor-sdk';
 import type {
-  ReighExtension,
+  AstridExtension,
   ExtensionContext,
   DisposeHandle,
   EffectContribution,
@@ -26,7 +26,7 @@ import type {
   EffectParameterSchema,
   EffectRegistrationOptions,
   EffectRegistrationService,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 
 // ---------------------------------------------------------------------------
 // Parameter schema — these params are surfaced in the effect inspector
@@ -90,9 +90,9 @@ const exampleEffectComponent: EffectComponent = {
 // Extension
 // ---------------------------------------------------------------------------
 
-export const effectExample: ReighExtension = defineExtension({
+export const effectExample: AstridExtension = defineExtension({
   manifest: {
-    id: 'com.reigh.examples.effect' as any,
+    id: 'haus.astrid.examples.effect' as any,
     version: '1.0.0',
     label: 'Effect Example',
     description:
@@ -102,7 +102,7 @@ export const effectExample: ReighExtension = defineExtension({
       {
         id: 'example-effect' as any,
         kind: 'effect',
-        effectId: 'com.reigh.examples.effect.exampleEffect',
+        effectId: 'haus.astrid.examples.effect.exampleEffect',
         label: 'Example Effect',
         allowBrowserExport: false,
         allowWorkerExport: false,
@@ -124,7 +124,7 @@ export const effectExample: ReighExtension = defineExtension({
     };
 
     const handle = effects.registerComponent(
-      'com.reigh.examples.effect.exampleEffect',
+      'haus.astrid.examples.effect.exampleEffect',
       exampleEffectComponent,
       options,
     );

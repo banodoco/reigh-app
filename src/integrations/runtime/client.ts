@@ -32,7 +32,7 @@ import { loadWorkspaceRuntimeConfig } from './workspaceRuntimeConfig.ts';
 // product credential without exposing it to the page. The endpoint env var is a
 // Vite-server setting for the proxy, not a browser destination.
 export const RUNTIME_BASE_URL = '/api/runtime';
-export const RUNTIME_CLIENT_VERSION = 'reigh-r1-consumer-20260911';
+export const RUNTIME_CLIENT_VERSION = 'astrid-r1-consumer-20260911';
 export const RUNTIME_CLIENT_SCOPES = [
   'handshake',
   'projects:read',
@@ -86,7 +86,7 @@ export function initializeWorkspaceRuntimeIdentity(): Promise<RuntimeIdentityBin
 type RuntimeSession = { health: Health; handshake: Handshake; realm: Realm };
 /** A negotiated session, held by reference so every client that shares it also shares its invalidation. */
 type SessionSlot = { current: Promise<RuntimeSession> | null; inflight: Map<string, Promise<unknown>> };
-// The App constructs clients ad hoc (a dozen hooks each call `new ReighRuntimeClient()`),
+// The App constructs clients ad hoc (a dozen hooks each call `new AstridRuntimeClient()`),
 // and every instance used to run its own health + handshake + realm round trips: four
 // handshakes on a cold load. Clients on the default browser transport with no private
 // credentials share one slot per base URL and launch binding, so a page negotiates once.
@@ -207,7 +207,7 @@ export function isRuntimeCanonicalPayloadConflict(error: unknown): error is ApiE
     && error.details?.reason === 'canonical_payload_mismatch';
 }
 
-export class ReighRuntimeClient {
+export class AstridRuntimeClient {
   readonly baseUrl: string;
   private readonly client: WorkspaceClient;
   private expectedIdentity: RuntimeIdentityBinding | undefined;
@@ -255,7 +255,7 @@ export class ReighRuntimeClient {
   /** Compare against the binding without committing it. */
   private checkObservedIdentity(health: Health, handshake: Handshake): void {
     this.assertNotFenced();
-    const instanceId = ReighRuntimeClient.instanceIdOf(health);
+    const instanceId = AstridRuntimeClient.instanceIdOf(health);
     if (!instanceId) {
       throw new RuntimeCompatibilityError('Runtime health did not report an instance id, so restarts cannot be detected', this.baseUrl);
     }
@@ -267,7 +267,7 @@ export class ReighRuntimeClient {
 
   private commitObservedIdentity(health: Health, handshake: Handshake): void {
     if (!this.identityStore.has(this.baseUrl)) {
-      this.identityStore.set(this.baseUrl, { realmId: handshake.realm_id, runtimeInstanceId: ReighRuntimeClient.instanceIdOf(health) });
+      this.identityStore.set(this.baseUrl, { realmId: handshake.realm_id, runtimeInstanceId: AstridRuntimeClient.instanceIdOf(health) });
     }
   }
 
@@ -282,7 +282,7 @@ export class ReighRuntimeClient {
       if (error instanceof ApiError && error.status === 401) throw error;
       throw new RuntimeUnavailableError(error, this.baseUrl);
     }
-    if (ReighRuntimeClient.instanceIdOf(health) !== expected) {
+    if (AstridRuntimeClient.instanceIdOf(health) !== expected) {
       this.slot.current = null;
       if (this.expectedIdentity) throw new RuntimeCompatibilityError(RESTART_INSTANCE, this.baseUrl);
       this.fence(RESTART_INSTANCE);
@@ -346,7 +346,7 @@ export class ReighRuntimeClient {
       // the race is observed here so it never surfaces as unhandled. The realm read
       // stays after validation: an incompatible Runtime is never asked for more.
       const healthRead = this.client.health();
-      const handshakeRead = this.client.handshake('reigh-browser', RUNTIME_CLIENT_VERSION, RUNTIME_CLIENT_SCOPES);
+      const handshakeRead = this.client.handshake('astrid-browser', RUNTIME_CLIENT_VERSION, RUNTIME_CLIENT_SCOPES);
       for (const pending of [healthRead, handshakeRead]) pending.catch(() => undefined);
       const health = await healthRead;
       if (health.status !== 'ok') {
@@ -368,7 +368,7 @@ export class ReighRuntimeClient {
       }
       if (FORBIDDEN_RUNTIME_ACTORS.has(handshake.actor_id) || !hasExactScopes(handshake.scopes)) {
         throw new RuntimeCompatibilityError(
-          'authenticated actor or granted scopes do not match the Reigh product connector role',
+          'authenticated actor or granted scopes do not match the Astrid App product connector role',
           this.baseUrl,
         );
       }
@@ -738,7 +738,7 @@ export class ReighRuntimeClient {
 }
 
 function idempotencyKey(): string {
-  return globalThis.crypto?.randomUUID?.() ?? `reigh-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  return globalThis.crypto?.randomUUID?.() ?? `astrid-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
 export { PROTOCOL };

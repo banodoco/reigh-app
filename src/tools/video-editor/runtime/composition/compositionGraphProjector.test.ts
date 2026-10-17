@@ -4,7 +4,7 @@ import type {
   TimelineShaderSummary,
   TimelineSnapshot,
   TimelineTransitionSummary,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import {
   projectCompositionGraph,
   resolveEffectContributionEntry,

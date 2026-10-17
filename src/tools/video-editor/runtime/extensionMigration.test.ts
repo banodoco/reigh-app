@@ -50,7 +50,7 @@ import type {
   InstalledExtensionMetadata,
   IntegrityHash,
   ExtensionContribution,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -735,7 +735,7 @@ describe('checkMigrationPreconditions', () => {
 // ---------------------------------------------------------------------------
 
 describe('executeLocalToInstalledMigration', () => {
-  const operationalExtensionId = 'com.reigh.transcript-lane';
+  const operationalExtensionId = 'haus.astrid.transcript-lane';
 
   function makeOperationalEmitter(sink: ReturnType<typeof vi.fn>) {
     return createHostOwnedExtensionOperationalEmitter({
@@ -857,7 +857,7 @@ describe('executeLocalToInstalledMigration', () => {
     const result = await executeLocalToInstalledMigration({
       localManifest: makeLocalManifest({ id: operationalExtensionId as never }),
       installedPack: makeInstalledPack({
-        manifest: { id: 'com.reigh.astrid-runaway-timeline' as never },
+        manifest: { id: 'haus.astrid-runaway-timeline' as never },
       }),
       repository: makeMockRepository(),
       localSettings: {},
@@ -1540,7 +1540,7 @@ describe('readLocalSettings', () => {
 
   it('reads settings from localStorage for an extension', () => {
     const extensionId = 'com.test.migration';
-    const prefix = 'reigh.ext.com.test.migration.';
+    const prefix = 'astrid.ext.com.test.migration.';
 
     localStorage.setItem(`${prefix}theme`, JSON.stringify('dark'));
     localStorage.setItem(`${prefix}fontSize`, JSON.stringify(14));
@@ -1561,8 +1561,8 @@ describe('readLocalSettings', () => {
   });
 
   it('ignores keys for other extensions', () => {
-    localStorage.setItem('reigh.ext.com.test.other.theme', JSON.stringify('light'));
-    localStorage.setItem('reigh.ext.com.test.migration.theme', JSON.stringify('dark'));
+    localStorage.setItem('astrid.ext.com.test.other.theme', JSON.stringify('light'));
+    localStorage.setItem('astrid.ext.com.test.migration.theme', JSON.stringify('dark'));
 
     const settings = readLocalSettings('com.test.migration');
 
@@ -1571,7 +1571,7 @@ describe('readLocalSettings', () => {
 
   it('skips unparseable values gracefully', () => {
     const extensionId = 'com.test.migration';
-    const prefix = 'reigh.ext.com.test.migration.';
+    const prefix = 'astrid.ext.com.test.migration.';
 
     localStorage.setItem(`${prefix}valid`, JSON.stringify('good'));
     localStorage.setItem(`${prefix}corrupt`, '{not-valid-json');
@@ -1584,7 +1584,7 @@ describe('readLocalSettings', () => {
 
   it('handles non-prefixed keys correctly', () => {
     localStorage.setItem('some-other-key', 'value');
-    localStorage.setItem('reigh.ext.com.test.migration.myKey', JSON.stringify('myValue'));
+    localStorage.setItem('astrid.ext.com.test.migration.myKey', JSON.stringify('myValue'));
 
     const settings = readLocalSettings('com.test.migration');
 

@@ -23,7 +23,7 @@ import type {
   InstalledExtensionPackage,
   InstalledExtensionMetadata,
   IntegrityHash,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import type {
   ExtensionStateRepository,
   ExtensionPackRecord,
@@ -501,7 +501,7 @@ function buildMetadataGapResult(
 
 /**
  * Read local extension settings from localStorage using the standard
- * reigh.ext.* prefix.
+ * astrid.ext.* prefix.
  *
  * Returns all key-value pairs currently stored for the extension.
  */

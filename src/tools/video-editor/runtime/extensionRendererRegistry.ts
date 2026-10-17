@@ -10,7 +10,7 @@
  * is mirrored here at activation time.
  */
 
-import type { DisposeHandle, ExtensionDiagnostic, DiagnosticSeverity } from '@reigh/editor-sdk';
+import type { DisposeHandle, ExtensionDiagnostic, DiagnosticSeverity } from '@astrid/editor-sdk';
 
 // ---------------------------------------------------------------------------
 // Public registry shapes

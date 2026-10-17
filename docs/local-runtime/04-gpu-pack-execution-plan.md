@@ -1,14 +1,14 @@
 # Astrid GPU Pack Execution Plan
 
-**Status:** implementation-ready proposal grounded in the current runtime, Astrid, Reigh Worker, Wan2GP, and VibeComfy code; adversarial Sol corrections incorporated
-**Scope:** get Astrid-created tasks executing through a neutral GPU Worker; do not expand the REIGH UI or migration boundary
+**Status:** implementation-ready proposal grounded in the current runtime, Astrid, Astrid App Worker, Wan2GP, and VibeComfy code; adversarial Sol corrections incorporated
+**Scope:** get Astrid-created tasks executing through a neutral GPU Worker; do not expand the Astrid App UI or migration boundary
 **Depends on:** the promoted Stage 1 runtime and Astrid pack-host foundations
 
 ## 1. Target outcome
 
-An Astrid capability invocation admits one durable Banodoco runtime task. Astrid's `GenericPackHost`, running on the Reigh Worker GPU substrate, claims that task, materializes its authorized inputs, executes the matching Astrid pack adapter against Wan2GP or VibeComfy, publishes immutable outputs, and settles the fenced attempt. The same task remains correct after a cold start, while the GPU substrate may optionally keep compatible models warm between attempts.
+An Astrid capability invocation admits one durable Astrid Runtime task. Astrid's `GenericPackHost`, running on the Astrid App Worker GPU substrate, claims that task, materializes its authorized inputs, executes the matching Astrid pack adapter against Wan2GP or VibeComfy, publishes immutable outputs, and settles the fenced attempt. The same task remains correct after a cold start, while the GPU substrate may optionally keep compatible models warm between attempts.
 
-Implementation starts from clean immutable worktrees, not the currently dirty default checkouts: Astrid's promoted Stage 1 composition is `132b846b`, its runtime composition is `7618aebb`, and Reigh Worker main is `68b70149`. M0 must select exactly one runtime base—`7618aebb` or one reviewed Stage 2 successor—before any implementation lane writes code. Every lane then branches from or rebases once onto that same snapshot; there is no later baseline switch or implementation against the present unresolved runtime working tree.
+Implementation starts from clean immutable worktrees, not the currently dirty default checkouts: Astrid's promoted Stage 1 composition is `132b846b`, its runtime composition is `7618aebb`, and Astrid App Worker main is `68b70149`. M0 must select exactly one runtime base—`7618aebb` or one reviewed Stage 2 successor—before any implementation lane writes code. Every lane then branches from or rebases once onto that same snapshot; there is no later baseline switch or implementation against the present unresolved runtime working tree.
 
 There is one task authority and one extension system:
 
@@ -19,10 +19,10 @@ Astrid capability / orchestrator
 Astrid pack manifest + typed adapter
             |
             v
-Banodoco runtime task, lease, events, CAS, settlement
+Astrid Runtime task, lease, events, CAS, settlement
             |
             v
-Astrid GenericPackHost on the Reigh Worker GPU substrate
+Astrid GenericPackHost on the Astrid App Worker GPU substrate
             |
       +-----+------+
       |            |
@@ -76,7 +76,7 @@ An Astrid pack owns:
 
 Wan2GP and VibeComfy own model loading, inference, workflow execution, and their native APIs. Their source code and model implementations do not move into Astrid.
 
-Astrid's existing `GenericPackHost` remains the only pack host and owns runtime claims, process supervision, cancellation, attempt directories, input materialization, output validation/upload, heartbeat, and settlement. Reigh Worker supplies the GPU environment, pinned engines, resource telemetry/admission, reusable compute utilities, and—if needed—a thin launcher for `GenericPackHost`. It does not implement a second generated-client claim loop, capability registry, or settlement path.
+Astrid's existing `GenericPackHost` remains the only pack host and owns runtime claims, process supervision, cancellation, attempt directories, input materialization, output validation/upload, heartbeat, and settlement. Astrid App Worker supplies the GPU environment, pinned engines, resource telemetry/admission, reusable compute utilities, and—if needed—a thin launcher for `GenericPackHost`. It does not implement a second generated-client claim loop, capability registry, or settlement path.
 
 ### 2.4 Warmth is optional policy, never task meaning
 
@@ -111,7 +111,7 @@ A persistent runner is keyed by the exact capability, pack source, dependency en
 | Astrid host | pack discovery, definition/source/dependency digests, authorized materialization, attempt directories, subprocess groups, heartbeat/cancel, output collection and settlement | composite execution digest, optional persistent runner protocol, and explicit engine-environment selection |
 | Wan2GP | reusable `WanGPSession`, structured events, cancellation, result objects, model release | pack adapter; replace direct Worker imports/calls; reviewed exact upstream pin when useful |
 | VibeComfy | ready templates, source digests, compile/run APIs, embedded/server sessions, warm policy, memory profiles | typed production pack capabilities; move Worker routing/mutation logic into packs |
-| Reigh Worker | GPU lifecycle, existing Wan2GP execution, VibeComfy bridge, task-family knowledge | become the GPU substrate/thin host launcher; delete its duplicate claim/settlement, Supabase/queue/storage authority, and engine-specific routing from the supported entrypoint |
+| Astrid App Worker | GPU lifecycle, existing Wan2GP execution, VibeComfy bridge, task-family knowledge | become the GPU substrate/thin host launcher; delete its duplicate claim/settlement, Supabase/queue/storage authority, and engine-specific routing from the supported entrypoint |
 
 Large-output staging is required before a real video acceptance run. Parent/child admission is not required for the first atomic generation vertical and remains deferred until a concrete travel/join orchestration capability needs it.
 
@@ -157,7 +157,7 @@ Exit: one deterministic engine-level fixture proves the native API is viable on 
 - compute and register the composite execution digest;
 - execute it one-shot through the existing `GenericPackHost` command ABI and current runtime claim/fence/inline-settlement path;
 - choose a tiny output below the current inline limit;
-- add a `reigh-worker` bootstrap/source profile that launches the Astrid host against the pinned GPU environment, using a least-privilege Worker identity;
+- add a `astrid-worker` bootstrap/source profile that launches the Astrid host against the pinned GPU environment, using a least-privilege Worker identity;
 - do not add a Worker-owned runtime client loop.
 
 Exit: Astrid directly invokes the concrete capability, the existing host executes it on the Worker GPU substrate, CAS owns the output, and settlement is fenced exactly once.
@@ -199,17 +199,17 @@ Exit: Astrid creates a real VibeComfy task with identical cold/warm semantics; d
 ### Phase F — Converge Worker and prove the Astrid journey
 
 - migrate remaining accepted capability families in independent pack-owned lanes;
-- delete `REIGH_BACKEND`, Worker template/route selectors, Supabase polling/status/storage calls, Worker-created child records, and direct task-table mutations from the supported entrypoint as each vertical replaces them;
+- delete `ASTRID_APP_BACKEND`, Worker template/route selectors, Supabase polling/status/storage calls, Worker-created child records, and direct task-table mutations from the supported entrypoint as each vertical replaces them;
 - retain only reusable media/GPU/process utilities in Worker core;
 - classify non-migrated routes as explicitly unsupported or retired rather than silently falling back;
 - run one immutable-SHA integrated acceptance.
 
-This phase's first supported producer is Astrid. Before deleting a legacy consumer for any route also exposed by REIGH, integration must consume the matching [REIGH plan](./02-reigh-plan.md) R3/R5 producer receipt proving that the route now admits runtime tasks, or classify it explicitly unsupported/retired. Existing Supabase producers are never a supported parallel profile in this composition, and no capability/task type may be reachable through both authorities.
+This phase's first supported producer is Astrid. Before deleting a legacy consumer for any route also exposed by Astrid App, integration must consume the matching [Astrid App plan](./02-astrid-plan.md) R3/R5 producer receipt proving that the route now admits runtime tasks, or classify it explicitly unsupported/retired. Existing Supabase producers are never a supported parallel profile in this composition, and no capability/task type may be reachable through both authorities.
 
 The canonical journey is:
 
 1. cold launch Astrid;
-2. bootstrap/reuse the Banodoco realm and launch the Worker profile;
+2. bootstrap/reuse the Astrid Runtime realm and launch the Worker profile;
 3. admit one Wan2GP capability through Astrid;
 4. observe claim, progress/heartbeat, CAS output, and exact settlement;
 5. admit a second compatible task and prove warm reuse;
@@ -229,7 +229,7 @@ The detailed lane documents are the executable decomposition of this plan. Their
 | B — Astrid host | [04b-astrid-host-lane.md](./04b-astrid-host-lane.md) | 2.5–4 weeks | composite execution digest, environment-profile consumption, one-shot and persistent runner lifecycle |
 | C — Wan2GP pack | [04c-wan2gp-pack-lane.md](./04c-wan2gp-pack-lane.md) | 2.5–4 weeks | typed Wan pack, native session driver, spool, engine fingerprint/lifecycle hooks, replacement receipt |
 | D — VibeComfy pack | [04d-vibecomfy-pack-lane.md](./04d-vibecomfy-pack-lane.md) | rounded 3–5 weeks | typed VibeComfy packs, pinned discovery, pip/check-out runners, engine session hooks, replacement receipt |
-| E — Reigh Worker cutover | [04e-reigh-worker-cutover-lane.md](./04e-reigh-worker-cutover-lane.md) | 3.5–6 weeks | GPU environments/telemetry/thin launcher, utility isolation, legacy route/authority deletion |
+| E — Astrid App Worker cutover | [04e-astrid-worker-cutover-lane.md](./04e-astrid-worker-cutover-lane.md) | 3.5–6 weeks | GPU environments/telemetry/thin launcher, utility isolation, legacy route/authority deletion |
 | F — Integration and acceptance | [04f-integration-acceptance-lane.md](./04f-integration-acceptance-lane.md) | 2–3 weeks | merge trains, immutable composition, cross-repository evidence and promotion |
 
 The ownership rule is strict: lanes may consume another lane's frozen fixture or reviewed artifact, but they do not edit another lane's source surface. Integration returns a failing reproducer to the owner instead of becoming a shadow implementation lane.
@@ -311,7 +311,7 @@ The work is complete only when all rows pass on one immutable composition:
 | Isolation | incompatible model/environment fingerprints never share a session |
 | Simplicity | Astrid launch starts/reuses runtime and configured Worker profile without manual queue/backend setup |
 | Operator visibility | existing Astrid task/run list, show, and event reads plus host readiness identify queued/running/terminal state and current warm fingerprint without a second status store |
-| Producer/consumer cutover | every accepted REIGH route has an R3/R5 runtime-admission receipt or is unsupported/retired before its legacy consumer is deleted; no supported parallel authority exists |
+| Producer/consumer cutover | every accepted Astrid App route has an R3/R5 runtime-admission receipt or is unsupported/retired before its legacy consumer is deleted; no supported parallel authority exists |
 | Wan2GP cutover | native Python API is the only reachable Wan2GP engine seam |
 | VibeComfy cutover | Worker core imports no VibeComfy code and owns no template/node routing |
 
@@ -324,18 +324,18 @@ The work is complete only when all rows pass on one immutable composition:
 - parent/child task admission until a real multi-attempt orchestration vertical requires it;
 - general third-party plugin distribution, signing, or marketplace behavior;
 - moving Wan2GP or VibeComfy engine source into Astrid;
-- REIGH UI expansion unrelated to observing or creating the accepted Astrid generation tasks.
+- Astrid App UI expansion unrelated to observing or creating the accepted Astrid generation tasks.
 
 ## 12. Sources examined
 
 - Wan2GP native API: <https://github.com/deepbeepmeep/Wan2GP/blob/main/docs/API.md>
 - Wan2GP settings: <https://github.com/deepbeepmeep/Wan2GP/blob/main/docs/SETTINGS.md>
 - Wan2GP agent surface: <https://github.com/deepbeepmeep/Wan2GP/blob/main/wangp-agent/SKILL.md>
-- current Worker Wan2GP seam: `reigh-worker/source/models/wgp/orchestrator.py`, `source/runtime/wgp_bridge.py`, and `source/task_handlers/tasks/task_execution.py`
-- current Worker VibeComfy seam: `reigh-worker/source/models/comfy/vibecomfy_adapter.py` and `source/task_handlers/tasks/template_routing.py`
+- current Worker Wan2GP seam: `astrid-worker/source/models/wgp/orchestrator.py`, `source/runtime/wgp_bridge.py`, and `source/task_handlers/tasks/task_execution.py`
+- current Worker VibeComfy seam: `astrid-worker/source/models/comfy/vibecomfy_adapter.py` and `source/task_handlers/tasks/template_routing.py`
 - VibeComfy native surfaces: `vibecomfy/docs/api/m6-public-api.md`, `docs/runtime/lifecycle.md`, and `vibecomfy/runtime/session.py`
 - Astrid pack/host surfaces: `Astrid/astrid/packs/vibecomfy/` and `Astrid/astrid/core/execution/generic_host.py`
-- runtime control plane: `banodoco-workspace-runtime/contract/openapi/workspace-v1.yaml` and `runtime_protocol/store.py`
+- runtime control plane: `astrid-runtime/contract/openapi/workspace-v1.yaml` and `runtime_protocol/store.py`
 
 ## 13. Bounded planning closure
 
@@ -363,10 +363,10 @@ Accepted into the plan:
 - split portable capability identity from task-selected resource identity and machine-local host/reuse identity before M0 freezes fixtures;
 - select the runtime baseline once at M0, before implementation, rather than planning a later rebase;
 - roll out `never`/`auto`/`always` in order through one host lifecycle supervisor without pretending their eviction semantics are identical;
-- make the Astrid-first producer boundary and the existing REIGH R3/R5 producer-cutover dependency explicit;
+- make the Astrid-first producer boundary and the existing Astrid App R3/R5 producer-cutover dependency explicit;
 - verify required model bytes by immutable identity while deferring automatic distribution/fleet scheduling;
 - narrow Worker utility extraction to utilities actually consumed by accepted verticals;
-- decide progress at M0 from existing Astrid events/heartbeats and REIGH R3 needs, adding a bounded neutral field only if required;
+- decide progress at M0 from existing Astrid events/heartbeats and Astrid App R3 needs, adding a bounded neutral field only if required;
 - clarify that CPU capabilities reuse this architecture later rather than forming another system.
 
 Not accepted as plan changes:

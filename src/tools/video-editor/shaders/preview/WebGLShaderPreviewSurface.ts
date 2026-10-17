@@ -7,7 +7,7 @@ import type {
   ShaderTextureSourceKind,
   ShaderUniformDefinition,
   ShaderUniformSchema,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import {
   compileWebGLShaderProgram,
   type WebGLCanvasFactory,

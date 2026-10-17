@@ -244,7 +244,7 @@ const AndroidInstallPrompt = () => (
     <div className="flex items-center gap-2 px-3 py-2 bg-white border-t border-gray-200 animate-pulse ring-2 ring-wes-vintage-gold ring-inset">
       <img src="/favicon-32x32.png" alt="" className="w-8 h-8 rounded-lg" />
       <div className="flex-1">
-        <div className="text-xs font-medium">Reigh</div>
+        <div className="text-xs font-medium">Astrid</div>
         <div className="text-[10px] text-gray-500">astrid.haus</div>
       </div>
       <div className="px-3 py-1 bg-blue-500 text-white text-xs font-medium rounded">
@@ -264,9 +264,9 @@ const OpenInAppBadge = () => (
 const MobileHomeScreenIcon = () => (
   <div className="relative w-full max-w-[140px] flex flex-col items-center gap-2">
     <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-gray-100 to-gray-200 border border-gray-300 shadow-lg flex items-center justify-center animate-pulse ring-2 ring-wes-vintage-gold ring-offset-2">
-      <img src="/favicon-192x192.png" alt="Reigh" className="w-12 h-12 rounded-xl" />
+      <img src="/favicon-192x192.png" alt="Astrid" className="w-12 h-12 rounded-xl" />
     </div>
-    <span className="text-xs text-gray-600 font-medium">Reigh</span>
+    <span className="text-xs text-gray-600 font-medium">Astrid</span>
   </div>
 );
 

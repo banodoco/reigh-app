@@ -32,7 +32,7 @@ import type {
   TargetContext,
   ExtensionDiagnostic,
   DiagnosticSeverity,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 
 // ---------------------------------------------------------------------------
 // Public types

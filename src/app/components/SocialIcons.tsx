@@ -1,7 +1,7 @@
 import React from 'react';
 import { Github, MessageCircle } from 'lucide-react';
 
-const GITHUB_REPO_PATH = 'peteromallet/reigh';
+const GITHUB_REPO_PATH = 'banodoco/astrid-app';
 const DISCORD_INVITE_CODE = 'D5K2c6kfhy';
 
 export const SocialIcons: React.FC = () => {

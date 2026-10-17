@@ -159,7 +159,7 @@ function clipType(clip: ResolvedTimelineClip): string {
 
 function isPrimaryVisualClip(clip: ResolvedTimelineClip, track: TrackDefinition | undefined): boolean {
   if (track?.kind !== 'visual' || AUXILIARY_CLIP_TYPES.has(clipType(clip))) return false;
-  if (!['media', 'hold', 'video', 'image', 'animated-media-transform', 'com.reigh.astrid.liveScene'].includes(clipType(clip))) return false;
+  if (!['media', 'hold', 'video', 'image', 'animated-media-transform', 'haus.astrid.liveScene'].includes(clipType(clip))) return false;
   const elementKind = record(clip.elementRef)?.kind;
   return !['effect', 'animation', 'transition'].includes(String(elementKind));
 }

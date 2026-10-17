@@ -1,29 +1,29 @@
-import type { ReighExtension } from '@reigh/editor-sdk';
+import type { AstridExtension } from '@astrid/editor-sdk';
 import type { VideoEditorTelemetryHost } from './ports';
 
 export const EXTENSION_RELEASE_RUNTIME_CONFIG_PATH = '/runtime-config/v1/extensions.json';
 export const EXTENSION_RELEASE_RUNTIME_CONFIG_SCHEMA_VERSION = 1;
 export const EXTENSION_RELEASE_RUNTIME_CONFIG_TIMEOUT_MS = 4_000;
 
-export const TRANSCRIPT_RELEASE_EXTENSION_ID = 'com.reigh.transcript-lane';
-export const RUNAWAY_RELEASE_EXTENSION_ID = 'com.reigh.astrid-runaway-timeline';
+export const TRANSCRIPT_RELEASE_EXTENSION_ID = 'haus.astrid.transcript-lane';
+export const RUNAWAY_RELEASE_EXTENSION_ID = 'haus.astrid-runaway-timeline';
 
 /** Frozen production admission allowlist; unreviewed extension IDs fail closed. */
 export const REVIEWED_PRODUCTION_EXTENSION_IDS = Object.freeze([
-  'com.reigh.astrid.live-scenes',
-  'com.reigh.scene-phase-markers',
+  'haus.astrid.live-scenes',
+  'haus.astrid.scene-phase-markers',
   TRANSCRIPT_RELEASE_EXTENSION_ID,
   RUNAWAY_RELEASE_EXTENSION_ID,
-  'com.reigh.creative-lab.pulse-map',
-  'com.reigh.creative-lab.soundtrack-cartographer',
-  'com.reigh.creative-lab.caption-safe-zone-orchestra',
-  'com.reigh.creative-lab.emotional-weather-map',
-  'com.reigh.creative-lab.timeline-faultline',
-  'com.reigh.creative-lab.foley-constellation',
-  'com.reigh.creative-lab.branching-cut',
-  'com.reigh.creative-lab.chromatic-constellation',
-  'com.reigh.creative-lab.recall-pulse',
-  'com.reigh.creative-lab.lockline-inspector',
+  'haus.astrid.creative-lab.pulse-map',
+  'haus.astrid.creative-lab.soundtrack-cartographer',
+  'haus.astrid.creative-lab.caption-safe-zone-orchestra',
+  'haus.astrid.creative-lab.emotional-weather-map',
+  'haus.astrid.creative-lab.timeline-faultline',
+  'haus.astrid.creative-lab.foley-constellation',
+  'haus.astrid.creative-lab.branching-cut',
+  'haus.astrid.creative-lab.chromatic-constellation',
+  'haus.astrid.creative-lab.recall-pulse',
+  'haus.astrid.creative-lab.lockline-inspector',
 ] as const);
 const REVIEWED_PRODUCTION_EXTENSION_ID_SET = new Set<string>(REVIEWED_PRODUCTION_EXTENSION_IDS);
 
@@ -181,9 +181,9 @@ export async function initializeExtensionReleaseFlags(
 
 /** Apply parent/child rollout gates to the reviewed bundled extension set. */
 export function selectReleaseEnabledExtensions(
-  extensions: readonly ReighExtension[],
+  extensions: readonly AstridExtension[],
   flags: ExtensionReleaseFlags,
-): readonly ReighExtension[] {
+): readonly AstridExtension[] {
   if (!flags.extensionHostEnabled) return Object.freeze([]);
   return Object.freeze(extensions.filter((extension) => {
     const id = extension.manifest.id as string;
@@ -273,7 +273,7 @@ export interface ExtensionOperationalValidationPolicy {
   readonly extensionVersions: ReadonlyMap<string, ReadonlySet<string>>;
 }
 
-export const EXTENSION_OPERATIONAL_EVENT_DOM_NAME = 'reigh:extension-operational-event';
+export const EXTENSION_OPERATIONAL_EVENT_DOM_NAME = 'astrid:extension-operational-event';
 
 /** Validate a host-constructed event against the active release and manifests. */
 export function sanitizeExtensionOperationalEvent(

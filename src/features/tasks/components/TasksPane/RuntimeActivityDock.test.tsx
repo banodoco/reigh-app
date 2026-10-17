@@ -8,7 +8,7 @@ import { RuntimeActivityDock } from './RuntimeActivityDock';
 
 const runtimeClientMock = vi.hoisted(() => ({ listTaskEvents: vi.fn(), listManagedOutputs: vi.fn() }));
 vi.mock('@/integrations/runtime/client.ts', () => ({
-  ReighRuntimeClient: class {
+  AstridRuntimeClient: class {
     listTaskEvents = runtimeClientMock.listTaskEvents;
     listManagedOutputs = runtimeClientMock.listManagedOutputs;
   },

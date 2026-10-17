@@ -17,7 +17,7 @@ if (!baseAliases || Array.isArray(baseAliases)) {
 /**
  * The Astrid composition test imports Astrid's real Remotion composition.
  * Resolve linked workspace packages to the same rendering-pack elements that
- * Astrid's Remotion build uses, without changing Reigh's normal test aliases.
+ * Astrid's Remotion build uses, without changing Astrid App's normal test aliases.
  */
 export default defineConfig({
   ...baseConfig,

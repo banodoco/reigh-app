@@ -1,4 +1,4 @@
-# Reigh
+# Astrid App
 
 AI-powered image and video generation studio. **For usage, go to [astrid.haus](https://astrid.haus/)** — this repo is for development only.
 
@@ -13,8 +13,8 @@ React + Vite + TypeScript · TailwindCSS + shadcn-ui · Supabase (Postgres, Auth
 **Prerequisites:** Node.js 18+, Docker, [Supabase CLI v1+](https://supabase.com/docs/guides/cli)
 
 ```bash
-git clone https://github.com/peteromallet/reigh
-cd reigh && npm install
+git clone https://github.com/banodoco/astrid-app
+cd astrid && npm install
 
 cp .env.example .env.local    # required VITE_* vars, each commented
 supabase start                # launches Postgres, Auth, Storage, Realtime

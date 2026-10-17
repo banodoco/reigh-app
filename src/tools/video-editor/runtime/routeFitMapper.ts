@@ -3,7 +3,7 @@ import type {
   RenderRoute,
   RenderBlockerReason,
   CapabilityFinding,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import type {
   ContributionIndex,
   ContributionIndexEntry,

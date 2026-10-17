@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import type { TimelineSnapshot } from '@reigh/editor-sdk';
+import type { TimelineSnapshot } from '@astrid/editor-sdk';
 import type {
   LiveBakeSelection,
   LiveChannelDescriptor,
   LiveSample,
   LiveSource,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import type { ContributionIndex, ContributionIndexEntry } from '@/tools/video-editor/runtime/extensionSurface.ts';
 import type {
   ClipKeyframe,

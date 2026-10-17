@@ -62,7 +62,7 @@ import type {
   DisposeHandle,
   AgentToolInputSchema,
   AgentToolInputProperty,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import type {
   AgentToolRegistry,
   AgentToolEntry,

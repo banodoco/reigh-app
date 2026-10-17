@@ -5,7 +5,7 @@ import type { SourceFrozenDataItem } from './envelope.ts';
 
 // Compatibility for the persisted DEV transcript-lane format only. This is
 // deliberately not a general extension-data migration or a persistence owner.
-const EXTENSION_ID = 'com.reigh.transcript-lane';
+const EXTENSION_ID = 'haus.astrid.transcript-lane';
 const CONTRIBUTION_ID = 'transcript-caption-foundry';
 const REVIEW_PREFIX = 'transcript-source-review:';
 const CAPTION_TRACK_ID = 'transcript-caption-foundry-track';

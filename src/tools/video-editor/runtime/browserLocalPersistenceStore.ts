@@ -6,7 +6,7 @@
  *
  * - **localStorage** — carries the small parts of the snapshot (meta,
  *   packs, enablement, overrides, settings, events, lock).  Keyed by
- *   `reigh.ext-state.{userId}.{timelineId}`.
+ *   `astrid.ext-state.{userId}.{timelineId}`.
  * - **IndexedDB** — carries one authoritative full-snapshot record per scope.
  *   The legacy proposal-per-record store remains readable for v1 migration.
  *
@@ -33,7 +33,7 @@ import type {
   ExtensionPersistenceService,
   ExtensionProposal,
 } from '../data/DataProvider';
-import type { ExtensionDiagnostic } from '@reigh/editor-sdk';
+import type { ExtensionDiagnostic } from '@astrid/editor-sdk';
 import { createCachedExtensionPersistenceService } from './extensionPersistenceCache';
 import {
   extensionPersistenceWriteError,
@@ -47,17 +47,17 @@ import {
 /**
  * Namespaced localStorage key scoped by userId and timelineId.
  *
- * Example: `reigh.ext-state.alice.timeline-001`
+ * Example: `astrid.ext-state.alice.timeline-001`
  */
 function localStorageKey(scope: ExtensionPersistenceScope): string {
-  return `reigh.ext-state.${scope.userId}.${scope.timelineId}`;
+  return `astrid.ext-state.${scope.userId}.${scope.timelineId}`;
 }
 
 // ---------------------------------------------------------------------------
 // IndexedDB helpers (follows extensionStateRepositoryIndexedDB.ts exactly)
 // ---------------------------------------------------------------------------
 
-const PROPOSAL_DB_NAME = 'reigh.ext-proposals';
+const PROPOSAL_DB_NAME = 'astrid.ext-proposals';
 const PROPOSAL_DB_VERSION = 2;
 const PROPOSAL_STORE = 'proposals';
 const SNAPSHOT_STORE = 'snapshots';

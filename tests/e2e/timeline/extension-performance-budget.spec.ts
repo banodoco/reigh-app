@@ -11,7 +11,7 @@ const PROJECT_DATA_PATH = /\/api\/astrid(?:\/v1)?\/projects\/demo-project\/timel
 const BRIDGE_DATA_PATH = new RegExp(
   `${PROJECT_DATA_PATH.source}|/api/astrid/v1/projects/[^/]+/runaway-transitions$`,
 );
-const CAPABILITY_PROBE_PATH = /^\/api\/astrid\/projects\/[^/]+\/media\/__reigh_capability_probe__\/content$/;
+const CAPABILITY_PROBE_PATH = /^\/api\/astrid\/projects\/[^/]+\/media\/__astrid_capability_probe__\/content$/;
 const ABORTED_RUNAWAY_PATH = /^\/api\/astrid\/v1\/projects\/runaway-8085\/runaway-transitions$/;
 
 function collectIssues(page: import('@playwright/test').Page, options: { allowRunawayAbort?: boolean } = {}): string[] {
@@ -85,7 +85,7 @@ test.describe('extension performance and resource budgets', () => {
   test('bounds startup, activation, command search, virtualization, DOM, and heap', async ({ context, page }, testInfo) => {
     test.setTimeout(120_000);
     expect(await resetBridgeBaseline()).toBeNull();
-    await page.addInitScript(() => localStorage.removeItem('reigh.dev-extensions.disabled'));
+    await page.addInitScript(() => localStorage.removeItem('astrid.dev-extensions.disabled'));
 
     const issues = collectIssues(page);
     const bridgeDataRequests: string[] = [];
@@ -105,8 +105,8 @@ test.describe('extension performance and resource budgets', () => {
     const readyStartedAt = Date.now();
     const response = await page.goto(EDITOR_URL, { waitUntil: 'domcontentloaded', timeout: 45_000 });
     expect(response?.ok()).toBe(true);
-    await expect(page.locator('[data-lane-kind="reigh.transcript"]')).toBeVisible({ timeout: 20_000 });
-    await expect(page.locator('[data-lane-kind="reigh.runaway.transitions"]')).toBeVisible();
+    await expect(page.locator('[data-lane-kind="astrid.transcript"]')).toBeVisible({ timeout: 20_000 });
+    await expect(page.locator('[data-lane-kind="astrid.runaway.transitions"]')).toBeVisible();
     // The lane announces its total through the accessible group name; the
     // visible chip list is virtualized, so there is no standalone text node
     // containing the total for `getByText` to match reliably.
@@ -143,7 +143,7 @@ test.describe('extension performance and resource budgets', () => {
 
     const managerStartedAt = Date.now();
     await page.getByRole('tab', { name: 'Extensions' }).click();
-    await expect(page.getByRole('button', { name: /^(Disable|Enable) com\.reigh\./ })).toHaveCount(13);
+    await expect(page.getByRole('button', { name: /^(Disable|Enable) haus\.astrid\./ })).toHaveCount(13);
     const managerMs = Date.now() - managerStartedAt;
 
     const commandStartedAt = Date.now();
@@ -243,7 +243,7 @@ test.describe('extension performance and resource budgets', () => {
       requests += 1;
       await route.abort('internetdisconnected');
     });
-    await page.addInitScript(() => localStorage.removeItem('reigh.dev-extensions.disabled'));
+    await page.addInitScript(() => localStorage.removeItem('astrid.dev-extensions.disabled'));
     await page.goto(EDITOR_URL, { waitUntil: 'domcontentloaded', timeout: 45_000 });
 
     const state = page.getByTestId('runaway-load-state');

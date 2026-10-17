@@ -11,7 +11,7 @@ def materialize_output(
     *,
     file: str = OUTPUT_FILE_DEFAULT,
 ) -> dict[str, Any]:
-    """Build a Reigh-compatible `output` block from a Banodoco timeline + theme.
+    """Build a Astrid-compatible `output` block from a Banodoco timeline + theme.
 
     SD-009: `output.fps` sources from `theme.visual.canvas.fps`, NOT
     `theme.pacing.fps`. The 2rp theme's pacing block has no fps field; the

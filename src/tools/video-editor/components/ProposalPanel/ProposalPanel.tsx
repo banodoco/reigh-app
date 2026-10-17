@@ -43,7 +43,7 @@ import type {
   TimelinePatchDiagnostic,
   DisposeHandle,
   ProposalImportDiagnostic,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import type { ProposalImportDiagnosticsState } from '@/tools/video-editor/hooks/timelineStore';
 
 // ---------------------------------------------------------------------------

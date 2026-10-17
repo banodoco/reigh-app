@@ -7,7 +7,7 @@ const object = (shape) => z.strictObject(shape);
 const no = z.literal(false);
 const yes = z.literal(true);
 const owner = z.enum(['CF', 'SL', 'EW', 'B']);
-const repository = z.enum(['reigh-app', 'Astrid', 'workspace-runtime']);
+const repository = z.enum(['astrid-app', 'astrid-agent', 'astrid-runtime']);
 const revision = z.string().regex(/^[0-9a-f]{40}$/);
 const digest = z.string().regex(/^sha256:[0-9a-f]{64}$/);
 const relativePath = text.refine((value) => !value.startsWith('/') && !value.includes('\\')

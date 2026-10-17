@@ -1,4 +1,4 @@
-import type { ReighExtension } from '@reigh/editor-sdk';
+import type { AstridExtension } from '@astrid/editor-sdk';
 import { branchingCutExtension } from './branching-cut';
 import { captionSafeZoneOrchestraExtension } from './caption-safe-zone-orchestra';
 import { chromaticConstellationExtension } from './chromatic-constellation';
@@ -11,7 +11,7 @@ import { soundtrackCartographerExtension } from './soundtrack-cartographer';
 import { timelineFaultlineExtension } from './timeline-faultline';
 
 /** The ten reviewed bundled extensions selected from the Luna persona ideation pass. */
-export const creativeLabExtensions: readonly ReighExtension[] = Object.freeze([
+export const creativeLabExtensions: readonly AstridExtension[] = Object.freeze([
   pulseMapExtension,
   soundtrackCartographerExtension,
   captionSafeZoneOrchestraExtension,

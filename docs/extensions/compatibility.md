@@ -3,11 +3,11 @@
 This page is the compatibility and release-gate reference for video editor
 extensions. It mirrors the contribution-kind authority in
 `src/sdk/video/families/contributionKinds.ts`, the manifest contract in
-`config/contracts/reigh-extension.schema.json` plus `validateManifest`
-(`src/sdk/manifest.ts`), and the public SDK entrypoint `@reigh/editor-sdk`.
+`config/contracts/astrid-extension.schema.json` plus `validateManifest`
+(`src/sdk/manifest.ts`), and the public SDK entrypoint `@astrid/editor-sdk`.
 
-Extension authors import types and helpers only from `@reigh/editor-sdk`.
-Source files named below are contract sources for Reigh maintainers, not
+Extension authors import types and helpers only from `@astrid/editor-sdk`.
+Source files named below are contract sources for Astrid App maintainers, not
 import paths for extensions.
 
 ## API Version

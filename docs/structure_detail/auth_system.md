@@ -34,7 +34,7 @@ On unmount, any pending debounced event is flushed synchronously to avoid lost s
 ## Route protection
 
 - **`Layout` component** is the auth guard. It calls `getSession()` on mount and subscribes to auth changes. Three states:
-  - `session === undefined` -- loading spinner (`ReighLoading`)
+  - `session === undefined` -- loading spinner (`AstridLoading`)
   - `session === null` -- `<Navigate to="/home" replace state={{ fromProtected: true }} />`
   - `session` exists -- render children via `<Outlet />`
 - **`/home` and `/`** are outside `Layout`, so they are public.

@@ -23,7 +23,7 @@ afterEach(async () => {
 });
 
 async function emittedDirectory({ entry = true } = {}) {
-  const directory = await mkdtemp(join(tmpdir(), 'reigh-dev-local-preview-test-'));
+  const directory = await mkdtemp(join(tmpdir(), 'astrid-dev-local-preview-test-'));
   temporaryDirectories.push(directory);
   await mkdir(join(directory, 'assets'));
   await writeFile(join(directory, 'index.html'), '<!doctype html>');
@@ -57,7 +57,7 @@ describe('dev-local preview options', () => {
       /must be an absolute path/,
     );
     assert.throws(
-      () => validatePreviewOutputDirectory('/tmp/reigh-no-such-preview-output'),
+      () => validatePreviewOutputDirectory('/tmp/astrid-no-such-preview-output'),
       /does not exist/,
     );
     const missingEntry = await emittedDirectory({ entry: false });
@@ -89,7 +89,7 @@ const run = (args, env) => new Promise((resolve, reject) => {
 });
 
 async function launchFixture(overrides = {}) {
-  const fixture = mkdtempSync(join(tmpdir(), 'reigh-local-launch-check-'));
+  const fixture = mkdtempSync(join(tmpdir(), 'astrid-local-launch-check-'));
   const token = 'synthetic-runtime-test-token';
   const actorId = 'astrid-product-r3';
   const realmId = 'realm-r3';
@@ -155,7 +155,7 @@ async function launchFixture(overrides = {}) {
   }
   const env = {
     ASTRID_WORKSPACE_DISCOVERY: discovery,
-    REIGH_LOOPBACK_ORIGIN: '',
+    ASTRID_APP_LOOPBACK_ORIGIN: '',
     PATH: noSpawnBin,
   };
   return {
@@ -218,7 +218,7 @@ test('local launcher rejects credential, profile, and Runtime identity substitut
 
 test('Runtime discovery selection ignores source checkout and rejects ambiguous roots', () => {
   const home = '/home/fixture';
-  assert.equal(resolveWorkspaceDiscoveryPath({ home }), '/home/fixture/Library/Application Support/Banodoco/runtime/discovery.json');
+  assert.equal(resolveWorkspaceDiscoveryPath({ home }), '/home/fixture/Library/Application Support/Astrid Runtime/runtime/discovery.json');
   assert.equal(resolveWorkspaceDiscoveryPath({ home, supportRoot: '/selected/root', dataRoot: '/selected/root' }), '/selected/root/runtime/discovery.json');
   assert.equal(resolveWorkspaceDiscoveryPath({ home, discovery: '/selected/discovery.json', supportRoot: '/unused/root' }), '/selected/discovery.json');
   assert.throws(() => resolveWorkspaceDiscoveryPath({ home, supportRoot: '/one', dataRoot: '/two' }), /different roots/);

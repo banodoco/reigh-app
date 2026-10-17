@@ -12,7 +12,7 @@ export const stripRemoteFontLinks = (html: string): string => html.replace(
 );
 
 export const createRemoteFontModePlugin = (disableRemoteFonts: boolean) => ({
-  name: "reigh-remote-font-mode",
+  name: "astrid-remote-font-mode",
   transformIndexHtml(html: string) {
     return disableRemoteFonts ? stripRemoteFontLinks(html) : html;
   },

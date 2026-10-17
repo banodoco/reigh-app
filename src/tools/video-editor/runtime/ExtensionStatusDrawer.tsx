@@ -36,7 +36,7 @@ import { useVideoEditorRuntime } from '@/tools/video-editor/contexts/VideoEditor
 import type {
   Diagnostic,
   ContributionKind,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import {
   BlockerActionCard,
   normalizeBlockerActionCardNextAction,

@@ -59,8 +59,8 @@ import {
 import type {
   CompileOnlyOutputFormatEntry,
 } from '@/tools/video-editor/runtime/outputFormatRegistry';
-import type { OutputFormatContribution, OutputFormatHandler, OutputFormatContext, CompileOnlyOutputResult, TimelineSnapshot, AssetMetadata } from '@reigh/editor-sdk';
-import type { ExtensionDiagnostic } from '@reigh/editor-sdk';
+import type { OutputFormatContribution, OutputFormatHandler, OutputFormatContext, CompileOnlyOutputResult, TimelineSnapshot, AssetMetadata } from '@astrid/editor-sdk';
+import type { ExtensionDiagnostic } from '@astrid/editor-sdk';
 
 
 const makePayload = () => ({
@@ -2093,15 +2093,15 @@ describe('AstridBridgeDataProvider', () => {
     const makeBundle = (overrides: Record<string, unknown> = {}) => ({
       schema_version: TIMELINE_BUNDLE_SCHEMA_VERSION,
       itemsBySchemaRef: {
-        'reigh.transcript_segment/v1': [{
+        'astrid.transcript_segment/v1': [{
           id: 'assetA:src:9a03b4c1d2e4',
           shape: 'interval',
           domain: 'source_seconds',
           extent: { start: 0, end: 1.5 },
-          schemaRef: 'reigh.transcript_segment/v1',
+          schemaRef: 'astrid.transcript_segment/v1',
           payload: { text: 'hello' },
           sourceArtifactRef: { assetId: 'assetA' },
-          provenance: { adapterId: 'reigh.adaptTranscript', adapterVersion: '1' },
+          provenance: { adapterId: 'astrid.adaptTranscript', adapterVersion: '1' },
         }],
       },
       ...overrides,

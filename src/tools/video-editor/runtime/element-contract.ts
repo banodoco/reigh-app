@@ -1,67 +1,67 @@
 import type { ContributionRenderability } from '@/tools/video-editor/runtime/renderability.ts';
 import type { ParameterSchema, TimelineConfig } from '@/tools/video-editor/types/index.ts';
 
-export const REIGH_ELEMENT_KINDS = ['effect', 'animation', 'transition'] as const;
-export type ReighElementKind = (typeof REIGH_ELEMENT_KINDS)[number];
+export const ASTRID_APP_ELEMENT_KINDS = ['effect', 'animation', 'transition'] as const;
+export type AppElementKind = (typeof ASTRID_APP_ELEMENT_KINDS)[number];
 
-export const REIGH_ELEMENT_PLACEMENTS = ['overlay', 'clip', 'between-clips'] as const;
-export type ReighElementPlacement = (typeof REIGH_ELEMENT_PLACEMENTS)[number];
+export const ASTRID_APP_ELEMENT_PLACEMENTS = ['overlay', 'clip', 'between-clips'] as const;
+export type AstridElementPlacement = (typeof ASTRID_APP_ELEMENT_PLACEMENTS)[number];
 
-export const REIGH_ELEMENT_PUBLICATION_STATES = [
+export const ASTRID_APP_ELEMENT_PUBLICATION_STATES = [
   'draft',
   'published',
   'hidden',
   'archived',
 ] as const;
-export type ReighElementPublicationState = (typeof REIGH_ELEMENT_PUBLICATION_STATES)[number];
+export type AstridElementPublicationState = (typeof ASTRID_APP_ELEMENT_PUBLICATION_STATES)[number];
 
-export type ReighElementCapabilityStatus = 'supported' | 'blocked' | 'unknown';
+export type AstridElementCapabilityStatus = 'supported' | 'blocked' | 'unknown';
 
-export type ReighElementCapabilities = {
-  browserPreview: ReighElementCapabilityStatus;
-  astridExport: ReighElementCapabilityStatus;
-  workerExport: ReighElementCapabilityStatus;
+export type AstridElementCapabilities = {
+  browserPreview: AstridElementCapabilityStatus;
+  astridExport: AstridElementCapabilityStatus;
+  workerExport: AstridElementCapabilityStatus;
 };
 
-export type ReighElementCatalogEntry = {
+export type AstridElementCatalogEntry = {
   packId?: string;
   id: string;
   label: string;
-  kind: ReighElementKind;
-  placement: ReighElementPlacement;
+  kind: AppElementKind;
+  placement: AstridElementPlacement;
   description?: string;
   revision: string;
   schema?: ParameterSchema;
   defaults?: Record<string, unknown>;
-  capabilities: ReighElementCapabilities;
-  publication: ReighElementPublicationState;
-  /** True when this is a compatibility projection of an old Reigh resource. */
+  capabilities: AstridElementCapabilities;
+  publication: AstridElementPublicationState;
+  /** True when this is a compatibility projection of an old Astrid App resource. */
   legacy?: boolean;
   admitted?: boolean;
   authoring?: {packRoot: string; descriptorPath: string; componentPath: string; status: string};
   aliases?: readonly string[];
 };
 
-export type ReighLegacySequenceResource = {
+export type AstridLegacySequenceResource = {
   id: string;
   clipType: string;
   label: string;
   revision: string;
-  publication: ReighElementPublicationState;
+  publication: AstridElementPublicationState;
 };
 
-export type ReighSelectedClipContext = {
+export type AstridSelectedClipContext = {
   id: string;
   trackId: string;
   at: number;
   duration: number;
   clipType?: string;
-  elementRef?: ReighElementRef;
+  elementRef?: AstridElementRef;
   params?: Record<string, unknown>;
   scope: 'parent-timeline' | 'child-shot';
 };
 
-export type ReighTransitionCandidate = {
+export type AstridTransitionCandidate = {
   fromClipId: string;
   toClipId: string;
   trackId: string;
@@ -70,29 +70,29 @@ export type ReighTransitionCandidate = {
   toDuration: number;
 };
 
-export type ReighAgentElementContext = {
-  catalog: readonly ReighElementCatalogEntry[];
+export type AstridAgentElementContext = {
+  catalog: readonly AstridElementCatalogEntry[];
   /** Compatibility-only resources; not a second user-facing catalog. */
-  legacySequenceResources: readonly ReighLegacySequenceResource[];
-  selectedClips: readonly ReighSelectedClipContext[];
-  transitionCandidates: readonly ReighTransitionCandidate[];
-  operations: readonly ReighElementOperationDescriptor[];
+  legacySequenceResources: readonly AstridLegacySequenceResource[];
+  selectedClips: readonly AstridSelectedClipContext[];
+  transitionCandidates: readonly AstridTransitionCandidate[];
+  operations: readonly AstridElementOperationDescriptor[];
 };
 
-export type ReighElementMutationScope = {
+export type AstridElementMutationScope = {
   project: string;
   timeline: string;
   expected_version: number;
 };
 
-export type ReighElementOperationDescriptor = {
-  name: ReighElementOperationName;
+export type AstridElementOperationDescriptor = {
+  name: AstridElementOperationName;
   kind: 'read' | 'mutation';
   cas: boolean;
   summary: string;
 };
 
-export const REIGH_ELEMENT_OPERATION_NAMES = [
+export const ASTRID_APP_ELEMENT_OPERATION_NAMES = [
   'elements.list',
   'elements.describe',
   'elements.create_draft',
@@ -106,9 +106,9 @@ export const REIGH_ELEMENT_OPERATION_NAMES = [
   'timeline.update_transition',
   'timeline.remove_transition',
 ] as const;
-export type ReighElementOperationName = (typeof REIGH_ELEMENT_OPERATION_NAMES)[number];
+export type AstridElementOperationName = (typeof ASTRID_APP_ELEMENT_OPERATION_NAMES)[number];
 
-export const REIGH_ELEMENT_OPERATIONS: readonly ReighElementOperationDescriptor[] = Object.freeze([
+export const ASTRID_APP_ELEMENT_OPERATIONS: readonly AstridElementOperationDescriptor[] = Object.freeze([
   { name: 'elements.list', kind: 'read', cas: false, summary: 'List available effects, animations, and transitions.' },
   { name: 'elements.describe', kind: 'read', cas: false, summary: 'Read one element schema, revision, and capabilities.' },
   { name: 'timeline.apply_element', kind: 'mutation', cas: true, summary: 'Place an element using one expected-version timeline save.' },
@@ -120,20 +120,20 @@ export const REIGH_ELEMENT_OPERATIONS: readonly ReighElementOperationDescriptor[
   { name: 'timeline.remove_transition', kind: 'mutation', cas: true, summary: 'Remove a transition and restore a hard cut.' },
 ]);
 
-export type ReighElementRef = {
+export type AstridElementRef = {
   packId?: string;
   id: string;
-  kind: ReighElementKind;
+  kind: AppElementKind;
   revision: string;
 };
 
-export type ReighElementOperation =
+export type AstridElementOperation =
   | { name: 'elements.list' }
-  | { name: 'elements.describe'; element_id: string; element?: ReighElementRef; offset?: number; length?: number }
+  | { name: 'elements.describe'; element_id: string; element?: AstridElementRef; offset?: number; length?: number }
   | {
       name: 'elements.create_draft';
       id: string;
-      kind: ReighElementKind;
+      kind: AppElementKind;
       label: string;
       description?: string;
       source: string;
@@ -143,56 +143,56 @@ export type ReighElementOperation =
     }
   | { name: 'elements.validate'; draft_id: string; target?: readonly ('browser_preview' | 'astrid_export' | 'worker_export')[] }
   | { name: 'elements.publish'; element_id: string; revision: string }
-  | (ReighElementMutationScope & {
+  | (AstridElementMutationScope & {
       name: 'timeline.apply_element';
-      element: ReighElementRef;
+      element: AstridElementRef;
       clip_id?: string;
       at?: number;
       duration?: number;
       params?: Record<string, unknown>;
-      placement: ReighElementPlacement;
+      placement: AstridElementPlacement;
     })
-  | (ReighElementMutationScope & {
+  | (AstridElementMutationScope & {
       name: 'timeline.update_element';
       clip_id: string;
-      element?: ReighElementRef;
+      element?: AstridElementRef;
       /** Explicit span change for an existing generated hold effect only. */
       duration?: number;
       params?: Record<string, unknown>;
     })
-  | (ReighElementMutationScope & { name: 'timeline.remove_element'; clip_id: string })
-  | (ReighElementMutationScope & {
+  | (AstridElementMutationScope & { name: 'timeline.remove_element'; clip_id: string })
+  | (AstridElementMutationScope & {
       name: 'timeline.set_clip_fade';
       clip_id: string;
       fade_in?: number;
       fade_out?: number;
     })
-  | (ReighElementMutationScope & {
+  | (AstridElementMutationScope & {
       name: 'timeline.apply_transition';
       from_clip: string;
       to_clip: string;
-      transition: ReighElementRef;
+      transition: AstridElementRef;
       duration_frames?: number;
       params?: Record<string, unknown>;
     })
-  | (ReighElementMutationScope & {
+  | (AstridElementMutationScope & {
       name: 'timeline.update_transition';
       from_clip: string;
       to_clip?: string;
-      transition?: ReighElementRef;
+      transition?: AstridElementRef;
       duration_frames?: number;
       params?: Record<string, unknown>;
     })
-  | (ReighElementMutationScope & { name: 'timeline.remove_transition'; from_clip: string });
+  | (AstridElementMutationScope & { name: 'timeline.remove_transition'; from_clip: string });
 
-export type ReighElementOperationDiagnostic = {
+export type AstridElementOperationDiagnostic = {
   path: string;
   message: string;
 };
 
-const OPERATION_NAMES = new Set<string>(REIGH_ELEMENT_OPERATION_NAMES);
-const ELEMENT_KINDS = new Set<string>(REIGH_ELEMENT_KINDS);
-const ELEMENT_PLACEMENTS = new Set<string>(REIGH_ELEMENT_PLACEMENTS);
+const OPERATION_NAMES = new Set<string>(ASTRID_APP_ELEMENT_OPERATION_NAMES);
+const ELEMENT_KINDS = new Set<string>(ASTRID_APP_ELEMENT_KINDS);
+const ELEMENT_PLACEMENTS = new Set<string>(ASTRID_APP_ELEMENT_PLACEMENTS);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -201,7 +201,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function requireString(
   value: unknown,
   path: string,
-  diagnostics: ReighElementOperationDiagnostic[],
+  diagnostics: AstridElementOperationDiagnostic[],
 ): value is string {
   if (typeof value !== 'string' || value.trim() === '') {
     diagnostics.push({ path, message: 'must be a non-empty string' });
@@ -212,7 +212,7 @@ function requireString(
 
 function requireMutationScope(
   operation: Record<string, unknown>,
-  diagnostics: ReighElementOperationDiagnostic[],
+  diagnostics: AstridElementOperationDiagnostic[],
 ): void {
   requireString(operation.project, 'project', diagnostics);
   requireString(operation.timeline, 'timeline', diagnostics);
@@ -224,7 +224,7 @@ function requireMutationScope(
 function requireElementRef(
   value: unknown,
   path: string,
-  diagnostics: ReighElementOperationDiagnostic[],
+  diagnostics: AstridElementOperationDiagnostic[],
 ): void {
   if (!isRecord(value)) {
     diagnostics.push({ path, message: 'must be an element reference' });
@@ -243,10 +243,10 @@ function requireElementRef(
  * it to Astrid. This is deliberately structural: Astrid remains authoritative
  * for catalog membership, schema validation, and the actual CAS save.
  */
-export function validateReighElementOperation(
+export function validateAstridElementOperation(
   operation: unknown,
-): readonly ReighElementOperationDiagnostic[] {
-  const diagnostics: ReighElementOperationDiagnostic[] = [];
+): readonly AstridElementOperationDiagnostic[] {
+  const diagnostics: AstridElementOperationDiagnostic[] = [];
   if (!isRecord(operation)) {
     return [{ path: '', message: 'operation must be an object' }];
   }
@@ -256,7 +256,7 @@ export function validateReighElementOperation(
     return diagnostics;
   }
 
-  const name = operation.name as ReighElementOperationName;
+  const name = operation.name as AstridElementOperationName;
   if (name.startsWith('timeline.')) {
     requireMutationScope(operation, diagnostics);
   }
@@ -341,13 +341,13 @@ export function validateReighElementOperation(
   return diagnostics;
 }
 
-export function isValidReighElementOperation(operation: unknown): operation is ReighElementOperation {
-  return validateReighElementOperation(operation).length === 0;
+export function isValidAstridElementOperation(operation: unknown): operation is AstridElementOperation {
+  return validateAstridElementOperation(operation).length === 0;
 }
 
 /** Ensure an operation is safe to hand to a runtime adapter. */
-export function assertValidReighElementOperation(operation: unknown): asserts operation is ReighElementOperation {
-  const diagnostics = validateReighElementOperation(operation);
+export function assertValidAstridElementOperation(operation: unknown): asserts operation is AstridElementOperation {
+  const diagnostics = validateAstridElementOperation(operation);
   if (diagnostics.length > 0) {
     throw new Error(`Invalid element operation: ${diagnostics.map((item) => `${item.path || 'operation'} ${item.message}`).join('; ')}`);
   }
@@ -361,7 +361,7 @@ export function assertValidReighElementOperation(operation: unknown): asserts op
 export function pinElementRevision(
   config: TimelineConfig,
   clipId: string,
-  element: ReighElementRef,
+  element: AstridElementRef,
 ): TimelineConfig {
   return {
     ...config,
@@ -423,31 +423,31 @@ type CatalogTransitionSource = {
   renderability?: ContributionRenderability;
 };
 
-export type ReighAgentCatalogClip = {
+export type AstridAgentCatalogClip = {
   id: string;
   trackId: string;
   at: number;
   duration: number;
   clipType?: string;
-  elementRef?: ReighElementRef;
+  elementRef?: AstridElementRef;
   params?: Record<string, unknown>;
   scope?: 'parent-timeline' | 'child-shot';
 };
 
-export type ReighAgentElementCatalogSources = {
-  admittedElements?: readonly ReighElementCatalogEntry[];
+export type AstridAgentElementCatalogSources = {
+  admittedElements?: readonly AstridElementCatalogEntry[];
   effects?: readonly CatalogEffectSource[];
   /** The runtime-owned Astrid effect catalog projection. */
   astridEffects?: readonly CatalogEffectSource[];
   /** The runtime-owned Astrid animation catalog projection. */
   astridAnimations?: readonly CatalogAnimationSource[];
   sequences?: readonly CatalogSequenceSource[];
-  /** Reigh's compatibility registry; never treated as Astrid authority. */
+  /** Astrid App's compatibility registry; never treated as Astrid authority. */
   transitions?: readonly CatalogTransitionSource[];
   /** The runtime-owned Astrid element catalog projection. */
   astridTransitions?: readonly CatalogTransitionSource[];
-  clips?: readonly ReighAgentCatalogClip[];
-  savedElements?: readonly ReighElementCatalogEntry[];
+  clips?: readonly AstridAgentCatalogClip[];
+  savedElements?: readonly AstridElementCatalogEntry[];
 };
 
 function sourceRevision(value: unknown): string {
@@ -463,8 +463,8 @@ function sourceRevision(value: unknown): string {
 function routeStatus(
   renderability: ContributionRenderability | undefined,
   route: 'preview' | 'browser-export' | 'worker-export',
-  fallback: ReighElementCapabilityStatus,
-): ReighElementCapabilityStatus {
+  fallback: AstridElementCapabilityStatus,
+): AstridElementCapabilityStatus {
   const capability = renderability?.capabilities.find((entry) => entry.route === route);
   return capability?.status ?? fallback;
 }
@@ -472,7 +472,7 @@ function routeStatus(
 function publicationForSource(
   isPublic: boolean | undefined,
   provenance: string | undefined,
-): ReighElementPublicationState {
+): AstridElementPublicationState {
   if (provenance === 'local-storage-draft' || provenance === 'ai-generated') return 'draft';
   if (provenance === 'built-in' || provenance === 'astrid-catalog' || isPublic === true) {
     return 'published';
@@ -480,7 +480,7 @@ function publicationForSource(
   return 'draft';
 }
 
-function effectEntry(effect: CatalogEffectSource): ReighElementCatalogEntry {
+function effectEntry(effect: CatalogEffectSource): AstridElementCatalogEntry {
   return {
     id: effect.id,
     ...(effect.packId !== undefined ? { packId: effect.packId } : {}),
@@ -502,7 +502,7 @@ function effectEntry(effect: CatalogEffectSource): ReighElementCatalogEntry {
   };
 }
 
-function animationEntry(animation: CatalogAnimationSource): ReighElementCatalogEntry {
+function animationEntry(animation: CatalogAnimationSource): AstridElementCatalogEntry {
   return {
     id: animation.id,
     ...(animation.packId !== undefined ? { packId: animation.packId } : {}),
@@ -529,7 +529,7 @@ function animationEntry(animation: CatalogAnimationSource): ReighElementCatalogE
   };
 }
 
-function sequenceEntry(sequence: CatalogSequenceSource): ReighLegacySequenceResource {
+function sequenceEntry(sequence: CatalogSequenceSource): AstridLegacySequenceResource {
   return {
     id: sequence.id,
     clipType: sequence.clipType,
@@ -545,7 +545,7 @@ function sequenceEntry(sequence: CatalogSequenceSource): ReighLegacySequenceReso
   };
 }
 
-function transitionEntry(transition: CatalogTransitionSource): ReighElementCatalogEntry {
+function transitionEntry(transition: CatalogTransitionSource): AstridElementCatalogEntry {
   return {
     id: transition.transitionId,
     ...(transition.packId !== undefined ? { packId: transition.packId } : {}),
@@ -575,9 +575,9 @@ function transitionEntry(transition: CatalogTransitionSource): ReighElementCatal
 }
 
 /** Build the compact, model-visible catalog from the existing provider catalogs. */
-export function buildReighAgentElementContext(
-  sources: ReighAgentElementCatalogSources = {},
-): ReighAgentElementContext {
+export function buildAstridAgentElementContext(
+  sources: AstridAgentElementCatalogSources = {},
+): AstridAgentElementContext {
   const catalog = [
     ...(sources.admittedElements ?? []),
     ...(sources.savedElements ?? []),
@@ -600,7 +600,7 @@ export function buildReighAgentElementContext(
     ...(clip.params && JSON.stringify(clip.params).length <= 4096 ? {params:clip.params}:{}),
     scope: clip.scope ?? 'parent-timeline',
   }));
-  const transitionCandidates: ReighTransitionCandidate[] = [];
+  const transitionCandidates: AstridTransitionCandidate[] = [];
   for (let index = 0; index < clips.length - 1; index += 1) {
     const from = clips[index];
     const to = clips[index + 1];
@@ -620,6 +620,6 @@ export function buildReighAgentElementContext(
     legacySequenceResources,
     selectedClips,
     transitionCandidates,
-    operations: REIGH_ELEMENT_OPERATIONS,
+    operations: ASTRID_APP_ELEMENT_OPERATIONS,
   };
 }

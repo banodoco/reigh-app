@@ -287,7 +287,7 @@ describe('paired response ownership', () => {
 
 // Compile only the script's actual internal pure predicate. Importing its entry
 // point would start credential/discovery reads and a Runtime handshake.
-const connectorSource = ts.createSourceFile('reigh-local-connector.ts', readFileSync(resolve(process.cwd(), 'scripts/reigh-local-connector.ts'), 'utf8'), ts.ScriptTarget.Latest, true);
+const connectorSource = ts.createSourceFile('astrid-local-connector.ts', readFileSync(resolve(process.cwd(), 'scripts/astrid-local-connector.ts'), 'utf8'), ts.ScriptTarget.Latest, true);
 const urlPredicate = connectorSource.statements.find((node) => ts.isFunctionDeclaration(node) && node.name?.text === 'connectorWebSocketUrl');
 if (!urlPredicate) throw new Error('connector URL predicate is missing');
 const connectorWebSocketUrl = new Function(`${ts.transpileModule(urlPredicate.getText(connectorSource), { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText}; return connectorWebSocketUrl;`)() as (origin: string) => URL;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { TimelineOverlayRenderProps, TimelinePatch } from '@reigh/editor-sdk';
+import type { TimelineOverlayRenderProps, TimelinePatch } from '@astrid/editor-sdk';
 import {
   BUILD_LOCKLINE_REPORT_COMMAND,
   LOCKLINE_INSPECTOR_EXTENSION_ID,
@@ -29,7 +29,7 @@ const tracks = [
 
 describe('Lockline Inspector extension', () => {
   it('keeps the JSON manifest aligned with the public extension manifest', async () => {
-    const manifestModule = await import('./reigh-extension.json');
+    const manifestModule = await import('./astrid-extension.json');
     expect(manifestModule.default.manifest).toEqual(locklineInspectorExtension.manifest);
   });
 
@@ -241,7 +241,7 @@ describe('Lockline Inspector extension', () => {
       assetKeys: [],
     });
     const analysis = deriveLocklineAnalysis(source);
-    expect(analysis.sourceSignature).toMatch(/^reigh-fnv1a64-v1:[0-9a-f]{16}$/);
+    expect(analysis.sourceSignature).toMatch(/^astrid-fnv1a64-v1:[0-9a-f]{16}$/);
     const patch = buildLocklinePatch(LOCKLINE_INSPECTOR_EXTENSION_ID, source, analysis);
     const envelope = (patch.operations[0] as any).payload.value;
     expect(patch).toMatchObject({

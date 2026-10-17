@@ -68,7 +68,7 @@ const sameSequence = (a, b) => a.length === b.length && a.every((item, index) =>
 
 function verifyEvidence(contract, repoRoots) {
   const result = { errors: [], verified: [], unverified: [] };
-  const roots = { 'reigh-app': REPO_ROOT, ...repoRoots };
+  const roots = { 'astrid-app': REPO_ROOT, ...repoRoots };
   for (const evidence of contract.sourceEvidence) {
     const root = roots[evidence.repository];
     if (!root) { result.unverified.push(evidence.id); continue; }
@@ -93,7 +93,7 @@ export function validateContract(contract, { repoRoots = {} } = {}) {
   const set = (actual, expected, label) => require(sameSet(actual, expected), `${label}: expected exact distinct values ${expected.join(', ')}`);
   const sequence = (actual, expected, label) => require(sameSequence(actual, expected), `${label}: expected exact ordered values ${expected.join(', ')}`);
   require(contract.digest === computeContractDigest(contract), 'digest: canonical SHA-256 mismatch');
-  for (const key of Object.keys(repoRoots)) require(['reigh-app', 'Astrid', 'workspace-runtime'].includes(key), `repoRoots: unknown repository ${key}`);
+  for (const key of Object.keys(repoRoots)) require(['astrid-app', 'astrid-agent', 'astrid-runtime'].includes(key), `repoRoots: unknown repository ${key}`);
   for (const [name, entries] of Object.entries({ commands: contract.commands, migrations: contract.migrations,
     sourceEvidence: contract.sourceEvidence, unresolved: contract.unresolved, proofRequirements: contract.proofRequirements,
     authContexts: contract.auth.contexts, shippedPacks: contract.composition.shippedPacks,
@@ -173,7 +173,7 @@ export function validateContract(contract, { repoRoots = {} } = {}) {
     require(pack.stability === (['comfy_wrap', 'stream_content', 'wan2gp'].includes(pack.id) ? 'experimental' : 'stable'), `composition.shippedPacks.${pack.id}: incorrect stability`);
     require(pack.evidenceRef === `pack-${pack.id}` && pack.skillPath === `astrid/packs/${pack.id}/skill/SKILL.md`, `composition.shippedPacks.${pack.id}: incorrect source association`);
     const source = evidence.get(pack.evidenceRef);
-    require(source?.repository === 'Astrid' && source?.path === `astrid/packs/${pack.id}/pack.yaml`, `composition.shippedPacks.${pack.id}: expected pack manifest evidence`);
+    require(source?.repository === 'astrid-agent' && source?.path === `astrid/packs/${pack.id}/pack.yaml`, `composition.shippedPacks.${pack.id}: expected pack manifest evidence`);
   }
   set(contract.composition.defaultSkills, ['_core', 'hivemind', 'vibecomfy', 'rendering', 'typed_timeline', 'video_editing'], 'composition.defaultSkills');
   require(contract.composition.declaredEngineRevision.revision === 'a6a0cdb493c2f8bea4115740b96ec4c118af7ad1', 'composition.declaredEngineRevision: changed declared VibeComfy pin requires successor');
@@ -215,7 +215,7 @@ function main(argv) {
     for (let index = 0; index < argv.length; index += 1) {
       const flag = argv[index];
       if (flag === '--json') continue;
-      const repository = { '--astrid-root': 'Astrid', '--runtime-root': 'workspace-runtime' }[flag];
+      const repository = { '--astrid-root': 'astrid-agent', '--runtime-root': 'astrid-runtime' }[flag];
       if (!repository) throw new Error(`unknown argument: ${flag}`);
       const value = argv[++index];
       if (!value || value.startsWith('--')) throw new Error(`${flag} requires a path`);

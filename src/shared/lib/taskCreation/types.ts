@@ -113,7 +113,7 @@ export interface TaskCreationRequest {
   input_object_ids: string[];
   spec: RuntimeTaskSpec;
   storage_estimate: RuntimeStorageEstimate;
-  /** Composed and validated by the GEN/UE producer; Reigh does not rebuild it. */
+  /** Composed and validated by the GEN/UE producer; Astrid App does not rebuild it. */
   generation_intent?: RuntimeGenerationIntent;
   settlement_effect: RuntimeSettlementEffect;
 }

@@ -4,7 +4,7 @@ import type {
   Task as RuntimeTask,
   Transport,
 } from '@/integrations/runtime/generated.ts';
-import { ReighRuntimeClient } from '@/integrations/runtime/client.ts';
+import { AstridRuntimeClient } from '@/integrations/runtime/client.ts';
 import {
   RUNTIME_SCHEMA_DIGEST,
   RUNTIME_TARGETED_EXECUTION_CAPABILITY,
@@ -36,7 +36,7 @@ function task(): RuntimeTask {
     version: 2,
     capability_id: 'rendering.render',
     capability_digest: `sha256:${'b'.repeat(64)}`,
-    idempotency_key: 'reigh.render:retained-output',
+    idempotency_key: 'astrid.render:retained-output',
     created_at: '2026-09-13T00:00:00Z',
     updated_at: '2026-09-13T00:01:00Z',
     attempt_id: 'attempt-retained-output',
@@ -122,7 +122,7 @@ describe('Runtime final-video hydration boundary', () => {
       throw new Error(`unexpected ${method} ${path}`);
     };
 
-    const client = new ReighRuntimeClient({ baseUrl: '/api/runtime', token: 'fixture-token', transport });
+    const client = new AstridRuntimeClient({ baseUrl: '/api/runtime', token: 'fixture-token', transport });
     const videos = await readRuntimeFinalVideos(client, PROJECT_ID);
 
     expect(videos.get(TIMELINE_ID)).toEqual({

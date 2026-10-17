@@ -16,7 +16,7 @@ contents of an Ed25519 `.pub` file:
 {
   "schemaVersion": 1,
   "release": "<manifest.release>",
-  "namespace": "reigh-extension-ship-evidence-v1",
+  "namespace": "astrid-extension-ship-evidence-v1",
   "identities": [
     {
       "principal": "alice-video-editor",
@@ -85,7 +85,7 @@ node scripts/quality/sign-extension-ship-receipt.mjs \
 
 The helper refuses to overwrite an existing attestation, verifies that the
 principal is authorized for that receipt and persona, signs with the fixed
-`reigh-extension-ship-evidence-v1` SSH namespace, verifies the signature against
+`astrid-extension-ship-evidence-v1` SSH namespace, verifies the signature against
 the checked-in public key, and then atomically updates the ledger. Review the
 ledger diff and commit it with its evidence artifact.
 

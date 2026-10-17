@@ -4,21 +4,21 @@
   "revision": "C2",
   "issuedOn": "2026-09-24",
   "status": "frozen-local-contract",
-  "digest": "sha256:ca251dfbcadc6fbc68a5404495f2f0fd42128c821ce47a3560d2952399278d37",
+  "digest": "sha256:04b31b6478c0cdee8b34d72a2b75f034bfd0e29e026964310d2294bd22b06466",
   "predecessor": {
     "path": "config/contracts/astrid-plan-a-c1.json",
     "revision": "C1",
-    "canonicalDigest": "sha256:658c18bbdeb4f950806dc05ef265c0ffab422cbfd5ce17293fec6145e2f72515",
-    "rawFileSha256": "b5036e16eab503afd15a4ec5b11cb178a01c6e895016b0545493e93314404783",
+    "canonicalDigest": "sha256:3319e76d69cd00141f62a314619ab713d6b5eeea80bc7d8e4fa30955087fd8bb",
+    "rawFileSha256": "a4d0b272e8535fd0d2f29e5d8cf2a666e011731006847a0285dbc634bea045d6",
     "immutable": true
   },
   "authority": {
     "contractOwner": "CF",
     "runtimeWire": "workspace.v1",
-    "runtimeWireOwner": "banodoco-workspace-runtime",
-    "publicProjectionOwner": "Astrid",
-    "appConsumerOwner": "reigh-app",
-    "workerPlacementOwner": "reigh-worker",
+    "runtimeWireOwner": "astrid-runtime",
+    "publicProjectionOwner": "astrid-agent",
+    "appConsumerOwner": "astrid-app",
+    "workerPlacementOwner": "astrid-worker",
     "rules": [
       "C2 is a projection contract and never a Runtime wire schema, task store, binding store, queue, or supervisor.",
       "Runtime remains sole workspace, admission, attempt, fence, event, cancellation, retry, and settlement authority.",
@@ -28,7 +28,7 @@
   },
   "diagnostic": {
     "schemaPath": "config/contracts/astrid-plan-a-diagnostic-c2.schema.json",
-    "schemaSha256": "4ab2701ae518be8e068f8143b7d389f1115313aac60daff0057911aeebbc84ef",
+    "schemaSha256": "0aa8f9b9329935641d977d3af5f5304d315e9065527f4c97654340ae44a70809",
     "totalObservationDeadlineMs": 5000,
     "deadlineScope": "total-including-all-helpers",
     "collectionEffects": [
@@ -129,55 +129,55 @@
   },
   "sourceApplicability": [
     {
-      "repository": "reigh-app",
-      "head": "c9cc077c96390bd482c5ec954057237dd3f79cdc",
+      "repository": "astrid-app",
+      "head": "a062e825ed3b335a6eb4175c0bf2a020e036120c",
       "path": "config/contracts/astrid-plan-a-c1.json",
-      "sha256": "b5036e16eab503afd15a4ec5b11cb178a01c6e895016b0545493e93314404783",
+      "sha256": "a4d0b272e8535fd0d2f29e5d8cf2a666e011731006847a0285dbc634bea045d6",
       "role": "immutable-predecessor",
       "status": "applicable"
     },
     {
-      "repository": "reigh-app",
-      "head": "c9cc077c96390bd482c5ec954057237dd3f79cdc",
+      "repository": "astrid-app",
+      "head": "a062e825ed3b335a6eb4175c0bf2a020e036120c",
       "path": "scripts/quality/check-astrid-contract-freeze.mjs",
-      "sha256": "16409a746ffc84c4b1a06571dba1af4da04d31524cbb289a14f1313046f17f1e",
+      "sha256": "e0bb65543bcd1f42de0c18dd63089d374ec9394b670b74cfaffd299bd7f5ffbd",
       "role": "C1-validator-and-C2-gap-source",
       "status": "applicable-with-C2-successor"
     },
     {
-      "repository": "Astrid",
-      "head": "6227cdd05cb8d971fe7a05385676e6ebeed432b9",
+      "repository": "astrid-agent",
+      "head": "b887b4cbcb8b19d4389a77d78e7ef42c42dd7a1a",
       "path": "astrid/core/gateway/dispatch.py",
-      "sha256": "329caff2fe2b5ceeb1c08031a79874eafc6743ddc28e291e247ced5a271a04ac",
+      "sha256": "3ce0eb8fbc14712c5402493ebe8aa7998f2f4e64d33defa54bc7703b34074f11",
       "role": "public-doctor-consumer",
       "status": "downstream-I-07-I-08-conformance-required"
     },
     {
-      "repository": "Astrid",
-      "head": "6227cdd05cb8d971fe7a05385676e6ebeed432b9",
+      "repository": "astrid-agent",
+      "head": "b887b4cbcb8b19d4389a77d78e7ef42c42dd7a1a",
       "path": "astrid/sdk/workspace_client.py",
-      "sha256": "05b37afe89191bf3b723be45d1b55dc9449bed2bbdfa1a05d90e32ea6a48373c",
+      "sha256": "d088d220ec239f545bba5403321093b74e840f6cfe873779f53fcbb429e08a08",
       "role": "Runtime-client-consumer",
       "status": "applicable-runtime-authority-preserved"
     },
     {
-      "repository": "banodoco-workspace-runtime",
-      "head": "60e3efdbb9591c25c113402136bfb31b7dfcc4c4",
+      "repository": "astrid-runtime",
+      "head": "f7ed05a0507c314b59f53136ca325a296709aff5",
       "path": "contract/schemas/doctor.json",
       "sha256": "d0caac9e7bf6a81d68abb52e757b321f7a45d4f2afff43bd4880089ea8dcc243",
       "role": "Runtime-doctor-wire",
       "status": "input-only-not-replaced-by-C2"
     },
     {
-      "repository": "banodoco-workspace-runtime",
-      "head": "60e3efdbb9591c25c113402136bfb31b7dfcc4c4",
+      "repository": "astrid-runtime",
+      "head": "f7ed05a0507c314b59f53136ca325a296709aff5",
       "path": "runtime_protocol/service.py",
-      "sha256": "c35416a7457cc7826ffe35632d08442eb91068c2c5a6201be35d88ed2343f85e",
+      "sha256": "ea323e1f1c24323f9b28e8609108cb7e265e5fa3d54675f503b1c5d3642521a3",
       "role": "Runtime-execution-authority",
       "status": "held-primary-overlay-pending-I-04-I-05"
     },
     {
-      "repository": "reigh-worker",
+      "repository": "astrid-worker",
       "head": "c2c6eca79f474033bfaedc6a8fa80f70940b057f",
       "path": "source/runtime/entrypoints/worker.py",
       "sha256": "1de77313553fb338e4044eae265ec26a067912c52a92c7f6ce56b764f586cf59",
@@ -186,44 +186,44 @@
     }
   ],
   "generatedClientCompatibility": {
-    "runtimeSchemaDigest": "sha256:904574dd9f347e335d3658d05bd2f788995cbcdd385a7b627dd9227d7479e4f8",
+    "runtimeSchemaDigest": "sha256:200c2553f54a7e41a6405518912dc6ee9577de25292afd46fc1fcccf68be0770",
     "authorityStatus": "held-primary-overlay-pending-I-04-I-05",
     "clients": [
       {
-        "repository": "banodoco-workspace-runtime",
+        "repository": "astrid-runtime",
         "language": "python",
-        "generatedPath": "packages/python/banodoco_workspace_client/generated.py",
-        "generatedSha256": "02703613029ab7940bd9fba238f19b8425ff92b098c115bb0fdc082cd5022469",
-        "metadataPath": "packages/python/banodoco_workspace_client/contract_metadata.py",
-        "metadataSha256": "5ef4fc368cea2037c1942ec8c1097b159dd0aecefafb566d4fc123fd3ade5a5d",
+        "generatedPath": "packages/python/astrid_runtime_client/generated.py",
+        "generatedSha256": "0ae65e07e918f018e521bc9563f904b462645681e41e5a0b90255ad619a2c2e3",
+        "metadataPath": "packages/python/astrid_runtime_client/contract_metadata.py",
+        "metadataSha256": "80fc75fd5bb5f8215624306f11b94893321b7d3d5725d9a647b7f13fc6abe3ef",
         "status": "canonical-candidate-input"
       },
       {
-        "repository": "banodoco-workspace-runtime",
+        "repository": "astrid-runtime",
         "language": "typescript",
         "generatedPath": "packages/typescript/src/generated.ts",
-        "generatedSha256": "3b9a6e003b7297204176431b69447aad18a383e2ddfae08a18e9b548d91ce742",
+        "generatedSha256": "82f1b330a257a8414f49f852a8604ed2692ee70c3482a9a45ff51df18bd77325",
         "metadataPath": "packages/typescript/src/contract-metadata.ts",
-        "metadataSha256": "68772f3a867c1d5357ef451206a5830650968bf2f28356e43882c65ccdc5fb2e",
+        "metadataSha256": "dd5f9c081b17c6e071d40658e114638e44d7320a2bb6ce2bcdde2ddb5386a692",
         "status": "canonical-candidate-input"
       },
       {
-        "repository": "Astrid",
+        "repository": "astrid-agent",
         "language": "python-vendored",
-        "generatedPath": "banodoco_workspace_client/generated.py",
-        "generatedSha256": "02703613029ab7940bd9fba238f19b8425ff92b098c115bb0fdc082cd5022469",
-        "metadataPath": "banodoco_workspace_client/contract_metadata.py",
-        "metadataSha256": "c10367d5d44999857bfbebd6d9078433f2d3b2f5a2e6859952f36a0c633018f6",
+        "generatedPath": "astrid_runtime_client/generated.py",
+        "generatedSha256": "0ae65e07e918f018e521bc9563f904b462645681e41e5a0b90255ad619a2c2e3",
+        "metadataPath": "astrid_runtime_client/contract_metadata.py",
+        "metadataSha256": "80fc75fd5bb5f8215624306f11b94893321b7d3d5725d9a647b7f13fc6abe3ef",
         "status": "generated-byte-parity-metadata-adds-provenance-only"
       }
     ],
     "nonClientConsumers": [
       {
-        "repository": "reigh-app",
+        "repository": "astrid-app",
         "status": "typed-task-route-adapter-is-lane-input-not-generated-authority"
       },
       {
-        "repository": "reigh-worker",
+        "repository": "astrid-worker",
         "status": "wire-producer-consumer-not-generated-client-owner"
       }
     ]

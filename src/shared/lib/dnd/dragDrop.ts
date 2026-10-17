@@ -12,11 +12,11 @@ import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeErro
 
 // MIME type for generation drag data
 const GENERATION_MIME_TYPE = 'application/x-generation';
-const GENERATION_TEXT_PREFIX = '__reigh_generation__:';
+const GENERATION_TEXT_PREFIX = '__astrid_generation__:';
 export const GENERATION_MULTI_DRAG_TYPE = 'application/x-generation-multi';
-const GENERATION_MULTI_TEXT_PREFIX = '__reigh_generation_multi__:';
+const GENERATION_MULTI_TEXT_PREFIX = '__astrid_generation_multi__:';
 const SHOT_MIME_TYPE = 'application/x-shot';
-const SHOT_TEXT_PREFIX = '__reigh_shot__:';
+const SHOT_TEXT_PREFIX = '__astrid_shot__:';
 
 // Droppable ID for creating a new shot from a dropped generation
 export const NEW_GROUP_DROPPABLE_ID = 'new-shot-group-dropzone';
@@ -312,7 +312,7 @@ export function getShotDropData(e: React.DragEvent): ShotDropData | null {
  * state. This avoids stopPropagation which would prevent the parent from
  * cleaning up stale drag indicators.
  */
-const VARIANT_HANDLED_KEY = '__reigh_variant_drop_handled__';
+const VARIANT_HANDLED_KEY = '__astrid_variant_drop_handled__';
 
 export function markDropHandledByVariant(e: React.DragEvent): void {
   (e.nativeEvent as unknown as Record<string, boolean>)[VARIANT_HANDLED_KEY] = true;

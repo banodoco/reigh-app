@@ -10,13 +10,13 @@ import type {
   DisposeHandle,
   ExtensionDiagnostic,
   ExtensionDiagnosticsService,
-  ReighExtension,
+  AstridExtension,
   ShaderContribution,
   ShaderMaterializerDescriptor,
   ShaderRegistrationOptions,
   ShaderRegistrationService,
   ShaderSourceDescriptor,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import { validateShaderSchemas } from '@/tools/video-editor/shaders/compile/diagnostics.ts';
 import type { ShaderEffectRegistry } from '@/tools/video-editor/shaders/registry/types.ts';
 import type {
@@ -30,7 +30,7 @@ import type {
 } from '@/tools/video-editor/runtime/renderability.ts';
 
 function getShaderContributions(
-  manifest: ReighExtension['manifest'],
+  manifest: AstridExtension['manifest'],
 ): readonly ShaderContribution[] {
   return (manifest.contributions?.filter(
     (contribution): contribution is ShaderContribution => contribution.kind === 'shader',
@@ -86,7 +86,7 @@ function buildShaderRenderability(
 }
 
 export interface CreateShaderRegistrationServiceParams {
-  readonly extension: ReighExtension;
+  readonly extension: AstridExtension;
   readonly shaderRegistry: ShaderEffectRegistry;
   readonly diagnosticsService: ExtensionDiagnosticsService;
 }

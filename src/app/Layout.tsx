@@ -4,7 +4,7 @@ import { TasksPane } from '@/features/tasks/components/TasksPane/TasksPane';
 import { GenerationsPane } from '@/features/gallery/components/GenerationsPane/GenerationsPane';
 import { EditorPane } from '@/features/editor/components/EditorPaneTab';
 import { ToolsPane } from '@/shared/components/ToolsPane/ToolsPane';
-import { ReighLoading } from '@/shared/components/ReighLoading';
+import { AstridLoading } from '@/shared/components/AstridLoading';
 import { SettingsModal } from '@/shared/components/SettingsModal/SettingsModal';
 import { OnboardingModal } from '@/shared/components/modals/OnboardingModal';
 import { ChunkLoadErrorBoundary } from '@/shared/runtime/ChunkLoadErrorBoundary';
@@ -99,7 +99,7 @@ export const Layout: React.FC = () => {
   // (isLoading is always false here because AuthGate gates on it, but kept for safety)
   if (isLoading) {
     return (
-      <ReighLoading />
+      <AstridLoading />
     );
   }
 

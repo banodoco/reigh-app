@@ -20,7 +20,7 @@ import type {
   ToolProcessResult,
   ToolResultDiagnostic,
   ProcessSpawnConfig,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import type { AgentToolRegistry } from '@/tools/video-editor/runtime/agentToolRegistry';
 import type { AgentToolInvocationService } from '@/tools/video-editor/runtime/agentToolInvocationService';
 

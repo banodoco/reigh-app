@@ -1,5 +1,5 @@
 /**
- * Capability, sampling, and process-roundtrip contracts for the Reigh Editor SDK.
+ * Capability, sampling, and process-roundtrip contracts for the Astrid Editor SDK.
  *
  * M12 core contracts: capability requirements, source references, route-fit
  * metadata, versioning, integration capabilities, sampling descriptors,

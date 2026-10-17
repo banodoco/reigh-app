@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import { BASE_URL, PROJECT_SLUG, TIMELINE_SLUG, browserEvidencePath } from './support';
 
 const EDITOR_URL = `${BASE_URL}/tools/video-editor?localProject=${PROJECT_SLUG}&localTimeline=${TIMELINE_SLUG}&localTest=1&transcriptLaneFixture=1`;
-const CAPABILITY_PROBE_PATH = `/api/astrid/projects/${PROJECT_SLUG}/media/__reigh_capability_probe__/content`;
+const CAPABILITY_PROBE_PATH = `/api/astrid/projects/${PROJECT_SLUG}/media/__astrid_capability_probe__/content`;
 
 const EXPECTED_TRANSCRIPT_ACTION_LABELS = [
   'Render transcript as editable video text',
@@ -52,10 +52,10 @@ for (const viewport of viewports) {
         issues.push(`[requestfailed] ${request.url()} — ${failure}`);
       }
     });
-    await page.addInitScript(() => localStorage.removeItem('reigh.dev-extensions.disabled'));
+    await page.addInitScript(() => localStorage.removeItem('astrid.dev-extensions.disabled'));
     await page.goto(EDITOR_URL, { waitUntil: 'domcontentloaded', timeout: 45_000 });
 
-    const row = page.locator('[data-lane-kind="reigh.transcript"]');
+    const row = page.locator('[data-lane-kind="astrid.transcript"]');
     const trigger = row.getByRole('button', { name: 'Transcript actions' });
     await expect(trigger).toBeVisible({ timeout: 20_000 });
     await page.locator('.timeline-canvas-edit-area').evaluate((scroller) => {

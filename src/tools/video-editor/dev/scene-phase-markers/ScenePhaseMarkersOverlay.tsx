@@ -21,7 +21,7 @@ import type {
   TimelineMarkerChange,
   TimelineOverlayRenderProps,
   TimelinePointMarker,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import {
   getMarkersRevision,
   moveMarkerToTime,

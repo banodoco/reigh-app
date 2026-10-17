@@ -13,8 +13,8 @@ import {
   getVideoFamilyLegacyBridgeStatus,
   FamilyAdapterRegistryImpl,
   findAdapter,
-} from '@reigh/editor-sdk';
-import type { ReighExtension, ExtensionDiagnostic } from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
+import type { AstridExtension, ExtensionDiagnostic } from '@astrid/editor-sdk';
 import { assembleExtensionRuntime } from '@/tools/video-editor/runtime/families/FamilyRuntimeAssembly';
 import { buildFamilyContributionSequence } from '@/tools/video-editor/runtime/families/FamilyContributionSequence';
 import { metadataFacetAdapter } from '@/tools/video-editor/runtime/families/metadataFacetAdapter';
@@ -28,7 +28,7 @@ import { VIDEO_EDITOR_FAMILY_ADAPTER_REGISTRY } from '@/tools/video-editor/runti
 function ext(
   id: string,
   overrides?: Partial<Parameters<typeof defineExtension>[0]>,
-): ReighExtension {
+): AstridExtension {
   const { manifest: manifestOverrides, ...restOverrides } = overrides ?? {};
   return defineExtension({
     manifest: {
@@ -45,7 +45,7 @@ function ext(
 function unsafeExt(
   id: string,
   contributions: readonly Record<string, unknown>[],
-): ReighExtension {
+): AstridExtension {
   return Object.freeze({
     manifest: Object.freeze({
       id,
@@ -55,7 +55,7 @@ function unsafeExt(
         contributions.map((contribution) => Object.freeze({ ...contribution })),
       ),
     }),
-  }) as ReighExtension;
+  }) as AstridExtension;
 }
 
 /** Find diagnostics matching a code. */

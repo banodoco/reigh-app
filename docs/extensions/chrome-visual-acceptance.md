@@ -61,7 +61,7 @@ reproducible headless matrix.
 
 | Area | Result | Evidence and exact observation |
 | --- | --- | --- |
-| Deterministic local-test bootstrap | PASS | `window.__REIGH_LOCAL_TEST__` reported enabled loader/runtime diagnostics. The strict Playwright gate made zero Supabase requests and emitted no console or page errors after the `useApiTokens`/`useOnboarding` fixes. |
+| Deterministic local-test bootstrap | PASS | `window.__ASTRID_APP_LOCAL_TEST__` reported enabled loader/runtime diagnostics. The strict Playwright gate made zero Supabase requests and emitted no console or page errors after the `useApiTokens`/`useOnboarding` fixes. |
 | Extension inventory | PASS | Extension Manager listed 13 extensions: Scene Phase Markers, Transcript Caption Foundry, Astrid Runaway Timeline, and all ten Creative Lab extensions. |
 | Enable/disable lifecycle | PASS | Each of the 13 toggles was disabled and enabled in Chrome. Its extension-specific surfaces disappeared while disabled and returned after re-enable. |
 | Ordering | N/A | The current Extension Manager exposes enable/disable controls but no user reordering control. No unsupported ordering behavior was claimed or simulated. |
@@ -168,7 +168,7 @@ The container writes these values to the same-origin runtime JSON and must be re
 
 ### Superseded compile-time kill-switch bundle matrix
 
-All four builds were made from Reigh `2fd5dcc4ea0e39fd3f224a92365cb91054b59221`. They are retained only as reproducible evidence that the resolver handled each raw flag combination. They **do not** prove a shippable rollback mechanism: changing an embedded Vite value requires a new build/deploy, and the reviewed Docker path did not supply these values. The same-origin runtime-config matrix must replace this evidence for the release gate.
+All four builds were made from Astrid App `2fd5dcc4ea0e39fd3f224a92365cb91054b59221`. They are retained only as reproducible evidence that the resolver handled each raw flag combination. They **do not** prove a shippable rollback mechanism: changing an embedded Vite value requires a new build/deploy, and the reviewed Docker path did not supply these values. The same-origin runtime-config matrix must replace this evidence for the release gate.
 
 | Variant | Compiled effective inputs | Result | Entry bundle SHA-256 |
 | --- | --- | --- | --- |

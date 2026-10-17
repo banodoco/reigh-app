@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { Layers, Loader2, Puzzle, ToggleLeft, ToggleRight, Zap } from 'lucide-react';
 import type { PackageStateInventoryEntry } from '@/tools/video-editor/runtime/extensionSurface';
-import type { ExtensionManifest } from '@reigh/editor-sdk';
+import type { ExtensionManifest } from '@astrid/editor-sdk';
 import type {
   ExtensionEnablementState,
   ExtensionStateRepository,

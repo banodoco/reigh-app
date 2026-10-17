@@ -8,16 +8,16 @@ import { defaultPreferences, type EditorPreferences } from '../../hooks/useEdito
 import { VideoEditorRightPanelDock } from './VideoEditorRightPanelDock';
 import { VideoEditorPanelDisplayControl } from './VideoEditorPanelDisplayControl';
 const state = vi.hoisted(() => ({ timelineData: {} as object | null, preferences: {} as EditorPreferences, selection: {} as {selectedClipIds?:Set<string>;selectedTrackId?:string|null;inspectorTarget?:{kind:string}|null}, update: (_next: EditorPreferences | ((current: EditorPreferences) => EditorPreferences)) => {}, inventory: null as null | Array<{extensionId:string; packageSource:string; packageState:string; packageMetadata?:{label:string}}>, extensions: [] as Array<{manifest:{id:string;label?:string}}>, toggle: vi.fn(async () => {}), refresh: vi.fn() }));
-const panelKey = 'com.reigh.transcript-lane:transcript-lane-panel';
+const panelKey = 'haus.astrid.transcript-lane:transcript-lane-panel';
 vi.mock('./PropertiesPanel', () => ({ PropertiesPanel: () => <div>Inspector content</div> }));
 vi.mock('./VideoEditorAssetPanelSurface', () => ({ VideoEditorAssetPanelSurface: (props: {activePanelKey: string | null; settingsByPanelKey: Record<string,{open:boolean;onOpenChange:(value:boolean)=>void}>}) => {
   const [draft, setDraft] = useState('');
   return <div hidden={!props.activePanelKey}><textarea aria-label="Retained draft" value={draft} onChange={(event) => setDraft(event.target.value)} /><button aria-label="Transcript settings" onClick={() => props.settingsByPanelKey[panelKey].onOpenChange(true)}>Settings</button><span>{props.settingsByPanelKey[panelKey]?.open ? 'Tool settings open' : 'Tool reading view'}</span></div>;
 } }));
 vi.mock('../../components/ExtensionManager', () => ({ ExtensionManager: () => <div>Manager inventory</div> }));
-vi.mock('../../runtime/useVideoEditorRenderContext', () => ({ useVideoEditorAssetPanels: () => [{ extensionId: 'com.reigh.transcript-lane', id: 'transcript-lane-panel', label: 'Transcript' }, { extensionId: 'example', id: 'beat', label: 'Beat Cue' }] }));
+vi.mock('../../runtime/useVideoEditorRenderContext', () => ({ useVideoEditorAssetPanels: () => [{ extensionId: 'haus.astrid.transcript-lane', id: 'transcript-lane-panel', label: 'Transcript' }, { extensionId: 'example', id: 'beat', label: 'Beat Cue' }] }));
 vi.mock('../../contexts/VideoEditorRuntimeContext', () => ({ useOptionalVideoEditorRuntime: () => ({ extensionRuntime: { extensions: state.extensions, packageStateInventory: state.inventory ?? [
-  { extensionId: 'com.reigh.transcript-lane', packageSource: 'direct', packageState: 'loaded', packageMetadata: {label:'Transcript'} },
+  { extensionId: 'haus.astrid.transcript-lane', packageSource: 'direct', packageState: 'loaded', packageMetadata: {label:'Transcript'} },
   { extensionId: 'example', packageSource: 'installed', packageState: 'disabled-by-user', packageMetadata: {label:'Beat Cue'} },
 ] }, extensionStateRepository: { putEnablementState: state.toggle }, triggerExtensionRefresh: state.refresh }) }));
 vi.mock('../../hooks/timelineStore', () => ({ useTimelineEditorData: () => ({ data: state.timelineData, preferences: state.preferences, ...state.selection }), useTimelineEditorOps: () => ({
@@ -43,8 +43,8 @@ beforeEach(() => {
   state.timelineData = {};
   state.inventory = null;
   state.extensions = [
-    { manifest: { id: 'com.reigh.astrid.live-scenes', label: 'Three.js Live Editor' } },
-    { manifest: { id: 'com.reigh.transcript-lane', label: 'Transcript' } },
+    { manifest: { id: 'haus.astrid.live-scenes', label: 'Three.js Live Editor' } },
+    { manifest: { id: 'haus.astrid.transcript-lane', label: 'Transcript' } },
   ];
 }); afterEach(cleanup);
 it('mounts extension panels only once the timeline has arrived, so they never show a false empty state', () => {

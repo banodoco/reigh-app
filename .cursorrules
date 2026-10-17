@@ -1,4 +1,4 @@
-# Reigh: Working Rules (read first)
+# Astrid: Working Rules (read first)
 
 ## Docs (consult before editing cross-cutting code)
 - **Cross-cutting** = spans multiple tools, or touches core tables/storage/auth/billing.

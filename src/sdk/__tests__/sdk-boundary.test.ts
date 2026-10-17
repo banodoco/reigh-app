@@ -2,7 +2,7 @@
  * @publicContract
  * SDK public-import boundary test.
  *
- * Proves that the stable @reigh/editor-sdk alias resolves to the public
+ * Proves that the stable @astrid/editor-sdk alias resolves to the public
  * contract re-exported from src/sdk/index.ts and that the real vendored
  * @banodoco/timeline-schema package is consumable without relying on
  * editor-internal deep imports or the Vitest shim.
@@ -11,7 +11,7 @@
 import { describe, expect, it } from 'vitest';
 
 // ── Public SDK alias boundary ────────────────────────────────────────────────
-// These imports must resolve through the @reigh/editor-sdk alias (wired in
+// These imports must resolve through the @astrid/editor-sdk alias (wired in
 // vitest.config.ts → src/sdk) and re-export the stable public contract from
 // src/tools/video-editor/index.ts.  No deep @/tools/video-editor/… paths.
 import {
@@ -19,7 +19,7 @@ import {
   getConfigSignature,
   getStableConfigSignature,
   TimelineVersionConflictError,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 
 // ── Canonical generated timeline-schema boundary ──────────────────────────────
 // The canonical package publishes generated TypeScript interfaces, not a
@@ -34,7 +34,7 @@ import {
   deepMergeTheme,
 } from '@banodoco/timeline-schema';
 
-describe('SDK public-import boundary (@reigh/editor-sdk)', () => {
+describe('SDK public-import boundary (@astrid/editor-sdk)', () => {
   it('exports BUILTIN_CLIP_TYPES as a non-empty array', () => {
     expect(Array.isArray(BUILTIN_CLIP_TYPES)).toBe(true);
     expect(BUILTIN_CLIP_TYPES.length).toBeGreaterThan(0);
@@ -64,7 +64,7 @@ describe('Canonical generated timeline-schema boundary', () => {
       track: 'captions',
       clipType: 'text',
       label: 'Human-readable caption',
-      app: { __generated__: { extensionId: 'com.reigh.transcript-lane' } },
+      app: { __generated__: { extensionId: 'haus.astrid.transcript-lane' } },
       keyframes: {
         opacity: [
           { time: 0, value: 0, interpolation: 'linear' },
@@ -84,11 +84,11 @@ describe('Canonical generated timeline-schema boundary', () => {
         { id: 'voice', kind: 'audio', label: 'Voice' },
         { id: 'music', kind: 'audio', label: 'Music' },
       ],
-      app: { 'com.reigh.scene-phase-markers': { sceneMarkers: [] } },
+      app: { 'haus.astrid.scene-phase-markers': { sceneMarkers: [] } },
     };
     expect(silentEmpty.clips).toHaveLength(0);
     expect(ordinaryAndAudio.clips).toHaveLength(3);
-    expect(ordinaryAndAudio.app?.['com.reigh.scene-phase-markers']).toEqual({ sceneMarkers: [] });
+    expect(ordinaryAndAudio.app?.['haus.astrid.scene-phase-markers']).toEqual({ sceneMarkers: [] });
   });
 
   it('exports resolveTheme as a function', () => {
@@ -113,11 +113,11 @@ describe('Canonical generated timeline-schema boundary', () => {
 });
 
 // ── M3: SDK boundary ──────────────────────────────────────────────────────────
-// Prove extensions can import M3 contracts from @reigh/editor-sdk but
+// Prove extensions can import M3 contracts from @astrid/editor-sdk but
 // cannot import raw TimelineData, TimelineEditMutation, provider, store,
 // or command internals.
 
-import * as sdkStar from '@reigh/editor-sdk';
+import * as sdkStar from '@astrid/editor-sdk';
 import {
   // M3 value exports (const, function, class)
   EXTENSION_PROJECT_DATA_LIMITS,
@@ -131,7 +131,7 @@ import {
   getVideoFamilyConformanceReport,
   getVideoFamilyLegacyBridgeStatus,
   KNOWN_CONTRIBUTION_KINDS,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import type {
   // M4 commands / keybindings / context menus
   ContributionId,
@@ -258,7 +258,7 @@ import type {
   ProcessLiveSourceDeclaration,
   ProcessLiveSourceBinding,
   ProcessContribution,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import type {
   ExtensionId,
   ExtensionManifest,
@@ -271,13 +271,13 @@ import type {
   ContributionRef,
   LiveSourceRef,
   MaterialRef,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import type {
   ProcessProgressEvent,
   ProcessRoundtripRequest,
   ProcessRoundtripResult,
   ProcessLogSummary,
-} from '@reigh/editor-sdk/capabilities';
+} from '@astrid/editor-sdk/capabilities';
 import type {
   ProcessLifecycleState,
   ProcessOutputKind,
@@ -286,18 +286,18 @@ import type {
   ProcessStatusBase,
   ProcessEnvFieldSpec,
   ProcessOperationSpec,
-} from '@reigh/editor-sdk/video/families/processes';
+} from '@astrid/editor-sdk/video/families/processes';
 
 // M1a value exports
 import {
   contributionRefKey,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 
 // ---------------------------------------------------------------------------
-// 1. M3 value exports are importable from @reigh/editor-sdk
+// 1. M3 value exports are importable from @astrid/editor-sdk
 // ---------------------------------------------------------------------------
 
-describe('M3: value exports are importable from @reigh/editor-sdk', () => {
+describe('M3: value exports are importable from @astrid/editor-sdk', () => {
   it('EXTENSION_PROJECT_DATA_LIMITS is a frozen const object', () => {
     expect(typeof EXTENSION_PROJECT_DATA_LIMITS).toBe('object');
     expect(EXTENSION_PROJECT_DATA_LIMITS).not.toBeNull();
@@ -358,7 +358,7 @@ describe('M3: value exports are importable from @reigh/editor-sdk', () => {
 // 2. M3 type interfaces are importable and have expected shapes
 // ---------------------------------------------------------------------------
 
-describe('M3: type interfaces are importable from @reigh/editor-sdk', () => {
+describe('M3: type interfaces are importable from @astrid/editor-sdk', () => {
   it('TimelinePatchOperation shape is constructable', () => {
     const op: TimelinePatchOperation = {
       op: 'clip.add',
@@ -880,7 +880,7 @@ describe('M3: type interfaces are importable from @reigh/editor-sdk', () => {
 // M4: Command / keybinding / context-menu type interfaces
 // ---------------------------------------------------------------------------
 
-describe('M4: command/keybinding/context-menu type interfaces are importable from @reigh/editor-sdk', () => {
+describe('M4: command/keybinding/context-menu type interfaces are importable from @astrid/editor-sdk', () => {
   it('TargetContext sealed union accepts only the 4 documented values', () => {
     // Compile-time proof that TargetContext is limited to these 4 literals.
     // Assigning anything else would be a type error.
@@ -1053,11 +1053,11 @@ describe('M4: command/keybinding/context-menu type interfaces are importable fro
 });
 
 // ---------------------------------------------------------------------------
-// 3. Internal types are NOT importable from @reigh/editor-sdk
+// 3. Internal types are NOT importable from @astrid/editor-sdk
 //    (neither as value exports nor leaked through the context)
 // ---------------------------------------------------------------------------
 
-describe('M3: internal types are NOT re-exported from @reigh/editor-sdk', () => {
+describe('M3: internal types are NOT re-exported from @astrid/editor-sdk', () => {
   const INTERNAL_FORBIDDEN_NAMES = [
     // Raw timeline data structures
     'TimelineData',
@@ -1153,7 +1153,7 @@ describe('M3: internal types are NOT re-exported from @reigh/editor-sdk', () => 
 // M6: Parser / output format / search provider contribution type interfaces
 // ---------------------------------------------------------------------------
 
-describe('M6: parser/outputFormat/searchProvider type interfaces are importable from @reigh/editor-sdk', () => {
+describe('M6: parser/outputFormat/searchProvider type interfaces are importable from @astrid/editor-sdk', () => {
   it('ParserContribution shape is constructable (minimal)', () => {
     const contrib: ParserContribution = {
       id: 'myParser' as ContributionId,
@@ -1340,10 +1340,10 @@ describe('M6: contribution kind bridging for parser/output/search', () => {
 });
 
 // ---------------------------------------------------------------------------
-// M6: Internal types are NOT leaked through @reigh/editor-sdk
+// M6: Internal types are NOT leaked through @astrid/editor-sdk
 // ---------------------------------------------------------------------------
 
-describe('M6: internal types are NOT re-exported from @reigh/editor-sdk', () => {
+describe('M6: internal types are NOT re-exported from @astrid/editor-sdk', () => {
   const M6_INTERNAL_FORBIDDEN = [
     // Parser internals
     'parserRegistry',
@@ -1402,7 +1402,7 @@ describe('M6: internal types are NOT re-exported from @reigh/editor-sdk', () => 
 // M7: Trusted component effect contribution type interfaces
 // ---------------------------------------------------------------------------
 
-describe('M7: trusted component effect type interfaces are importable from @reigh/editor-sdk', () => {
+describe('M7: trusted component effect type interfaces are importable from @astrid/editor-sdk', () => {
   it('EffectContribution shape is constructable (minimal)', () => {
     const contrib: EffectContribution = {
       id: 'myEffect' as ContributionId,
@@ -1634,7 +1634,7 @@ describe('M7: ExtensionContext includes effects registration service', () => {
 // M7: Internal effect registration types are NOT exported
 // ---------------------------------------------------------------------------
 
-describe('M7: internal effect registration types are NOT re-exported from @reigh/editor-sdk', () => {
+describe('M7: internal effect registration types are NOT re-exported from @astrid/editor-sdk', () => {
   const M7_INTERNAL_FORBIDDEN = [
     // Effect registry internals
     'effectRegistry',
@@ -1697,7 +1697,7 @@ describe('M7/M8: contribution kind bridging for effect and transition', () => {
 // M8: Trusted component transition contribution type interfaces
 // ---------------------------------------------------------------------------
 
-describe('M8: trusted component transition type interfaces are importable from @reigh/editor-sdk', () => {
+describe('M8: trusted component transition type interfaces are importable from @astrid/editor-sdk', () => {
   it('TransitionContribution shape is constructable (minimal)', () => {
     const contrib: TransitionContribution = {
       id: 'myTransition' as ContributionId,
@@ -1930,7 +1930,7 @@ describe('M8: ExtensionContext includes transitions registration service', () =>
 // M8: Internal transition registration types are NOT exported
 // ---------------------------------------------------------------------------
 
-describe('M8: internal transition registration types are NOT re-exported from @reigh/editor-sdk', () => {
+describe('M8: internal transition registration types are NOT re-exported from @astrid/editor-sdk', () => {
   const M8_INTERNAL_FORBIDDEN = [
     // Transition registry internals
     'transitionRegistry',
@@ -1966,7 +1966,7 @@ describe('M8: internal transition registration types are NOT re-exported from @r
 // M9: Clip type contribution type interfaces
 // ---------------------------------------------------------------------------
 
-describe('M9: trusted component clip type interfaces are importable from @reigh/editor-sdk', () => {
+describe('M9: trusted component clip type interfaces are importable from @astrid/editor-sdk', () => {
   it('ClipTypeContribution shape is constructable (minimal)', () => {
     const contrib: ClipTypeContribution = {
       id: 'myClipType' as ContributionId,
@@ -2217,7 +2217,7 @@ describe('M9: ExtensionContext includes clipTypes registration service', () => {
 // M9: Internal clip type registration types are NOT exported
 // ---------------------------------------------------------------------------
 
-describe('M9: internal clip type registration types are NOT re-exported from @reigh/editor-sdk', () => {
+describe('M9: internal clip type registration types are NOT re-exported from @astrid/editor-sdk', () => {
   const M9_INTERNAL_FORBIDDEN = [
     // Clip type registry internals
     'clipTypeRegistry',
@@ -2254,7 +2254,7 @@ describe('M9: internal clip type registration types are NOT re-exported from @re
 // M9: Keyframe contracts
 // ---------------------------------------------------------------------------
 
-describe('M9: keyframe contracts are importable from @reigh/editor-sdk', () => {
+describe('M9: keyframe contracts are importable from @astrid/editor-sdk', () => {
   it('KeyframeInterpolation accepts only linear and hold', () => {
     const linear: KeyframeInterpolation = 'linear';
     const hold: KeyframeInterpolation = 'hold';
@@ -2306,7 +2306,7 @@ describe('M9: keyframe contracts are importable from @reigh/editor-sdk', () => {
 // M9: Automation clip contracts
 // ---------------------------------------------------------------------------
 
-describe('M9: automation clip contracts are importable from @reigh/editor-sdk', () => {
+describe('M9: automation clip contracts are importable from @astrid/editor-sdk', () => {
   it('AutomationClipTarget shape is constructable', () => {
     const target: AutomationClipTarget = {
       contributionId: 'myContrib',
@@ -2370,15 +2370,15 @@ import type {
   RenderArtifact,
   ArtifactBoundary,
   BakeContract,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 
 import {
   DETERMINISM_STATUSES,
   RENDER_BLOCKER_REASONS,
   RENDER_ROUTES,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 
-describe('M5: renderability type interfaces are importable from @reigh/editor-sdk', () => {
+describe('M5: renderability type interfaces are importable from @astrid/editor-sdk', () => {
   it('RenderRoute union covers preview, browser-export, worker-export, sidecar-export', () => {
     const routes: RenderRoute[] = ['preview', 'browser-export', 'worker-export', 'sidecar-export'];
     expect(routes).toHaveLength(4);
@@ -2618,9 +2618,9 @@ import type {
   SteeringParameterHotness,
   SteeringPriorSamplePolicy,
   ProcessSpawnConfig,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 
-describe('M10: agent tool type interfaces are importable from @reigh/editor-sdk', () => {
+describe('M10: agent tool type interfaces are importable from @astrid/editor-sdk', () => {
   it('AgentToolContribution shape is constructable (minimal)', () => {
     const contrib: AgentToolContribution = {
       id: 'myTool' as ContributionId,
@@ -2978,13 +2978,13 @@ describe('M10: agent tool type interfaces are importable from @reigh/editor-sdk'
   it('SteeringProvenance is constructable', () => {
     const provenance: SteeringProvenance = {
       prompt: 'A slow pan across clouds',
-      model: 'reigh-gen-v1',
+      model: 'astrid-gen-v1',
       seed: 42,
       producerExtensionId: 'ext.generator',
       tags: ['user-approved'],
     };
     expect(provenance.prompt).toBe('A slow pan across clouds');
-    expect(provenance.model).toBe('reigh-gen-v1');
+    expect(provenance.model).toBe('astrid-gen-v1');
   });
 
   it('SteeringParameterChange is constructable', () => {
@@ -3007,7 +3007,7 @@ describe('M10: agent tool type interfaces are importable from @reigh/editor-sdk'
       producerVersion: '1.2.0',
       provenance: {
         prompt: 'A slow pan across clouds',
-        model: 'reigh-gen-v1',
+        model: 'astrid-gen-v1',
         seed: 42,
         producerExtensionId: 'ext.generator',
       },
@@ -3291,9 +3291,9 @@ import type {
   ShaderUniformSchema,
   ShaderTextureSchema,
   ShaderMaterializerDescriptor,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 
-describe('M13: shader type interfaces are importable from @reigh/editor-sdk', () => {
+describe('M13: shader type interfaces are importable from @astrid/editor-sdk', () => {
   it('ShaderPassKind covers clip, overlay, postprocess', () => {
     const kinds: ShaderPassKind[] = ['clip', 'overlay', 'postprocess'];
     expect(kinds).toHaveLength(3);
@@ -3504,9 +3504,9 @@ import type {
   ManifestValidationMode,
   ManifestValidationResult,
   ExtensionPermissionDeclaration,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 
-describe('SDK diagnostics types are importable from @reigh/editor-sdk', () => {
+describe('SDK diagnostics types are importable from @astrid/editor-sdk', () => {
   it('DiagnosticSeverity covers error, warning, info', () => {
     const severities: DiagnosticSeverity[] = ['error', 'warning', 'info'];
     expect(severities).toHaveLength(3);
@@ -3621,7 +3621,7 @@ describe('SDK diagnostics types are importable from @reigh/editor-sdk', () => {
   });
 });
 
-describe('SDK migration types are importable from @reigh/editor-sdk', () => {
+describe('SDK migration types are importable from @astrid/editor-sdk', () => {
   it('MigrationHookKind covers settings, contribution, manifest', () => {
     const kinds: MigrationHookKind[] = ['settings', 'contribution', 'manifest'];
     expect(kinds).toHaveLength(3);
@@ -3642,7 +3642,7 @@ describe('SDK migration types are importable from @reigh/editor-sdk', () => {
   });
 });
 
-describe('SDK packaging types are importable from @reigh/editor-sdk', () => {
+describe('SDK packaging types are importable from @astrid/editor-sdk', () => {
   it('DependencyPosture covers required and optional', () => {
     const postures: DependencyPosture[] = ['required', 'optional'];
     expect(postures).toHaveLength(2);
@@ -3756,10 +3756,10 @@ describe('SDK packaging types are importable from @reigh/editor-sdk', () => {
 });
 
 // ---------------------------------------------------------------------------
-// M10: Internal agent tool types are NOT leaked through @reigh/editor-sdk
+// M10: Internal agent tool types are NOT leaked through @astrid/editor-sdk
 // ---------------------------------------------------------------------------
 
-describe('M10: internal agent tool types are NOT re-exported from @reigh/editor-sdk', () => {
+describe('M10: internal agent tool types are NOT re-exported from @astrid/editor-sdk', () => {
   const M10_INTERNAL_FORBIDDEN = [
     'agentToolRegistry',
     'AgentToolRegistry',
@@ -3790,7 +3790,7 @@ describe('M10: internal agent tool types are NOT re-exported from @reigh/editor-
 // M5/M12: Internal renderability types are NOT leaked
 // ---------------------------------------------------------------------------
 
-describe('M5/M12: internal renderability types are NOT re-exported from @reigh/editor-sdk', () => {
+describe('M5/M12: internal renderability types are NOT re-exported from @astrid/editor-sdk', () => {
   const M5_M12_INTERNAL_FORBIDDEN = [
     'renderabilityRegistry',
     'RenderabilityChecker',
@@ -3835,7 +3835,7 @@ describe('M1: proposal import API name contract', () => {
     expect(sdkKeys.filter((k) => k.toLowerCase().includes('importenvelope'))).toHaveLength(0);
   });
 
-  it('ProposalImportDiagnostic is exported as a type from @reigh/editor-sdk', () => {
+  it('ProposalImportDiagnostic is exported as a type from @astrid/editor-sdk', () => {
     // Type-only import already verified above; runtime check proves it's in
     // the module's type space (not a value export, so not in Object.keys).
     // We verify it compiles by constructing the type — already proven above.
@@ -3847,7 +3847,7 @@ describe('M1: proposal import API name contract', () => {
     expect(diag.severity).toBe('warning');
   });
 
-  it('ProposalImportResult is exported as a type from @reigh/editor-sdk', () => {
+  it('ProposalImportResult is exported as a type from @astrid/editor-sdk', () => {
     const result: ProposalImportResult = {
       imported: 0,
       skipped: 0,
@@ -3858,7 +3858,7 @@ describe('M1: proposal import API name contract', () => {
     expect(result.imported).toBe(0);
   });
 
-  it('ProposalImportStatus is exported as a type from @reigh/editor-sdk', () => {
+  it('ProposalImportStatus is exported as a type from @astrid/editor-sdk', () => {
     const s: ProposalImportStatus = 'imported';
     expect(s).toBe('imported');
   });
@@ -4114,7 +4114,7 @@ describe('registry-derived family helpers', () => {
 
 import {
   FamilyAdapterRegistryImpl,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import type {
   HostFamilyAdapter,
   HostAdapterManifest,
@@ -4130,7 +4130,7 @@ import type {
   FamilyAdapterManifest,
   FamilyAdapterManifestEntry,
   ManifestCrossReferenceResult,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 
 describe('T3: family adapter contract types (sdk-boundary)', () => {
   it('HostFamilyAdapter import resolves and is constructable', () => {
@@ -4509,7 +4509,7 @@ import {
   identifyDelegatedFamilies,
   buildFamilyAdapterManifest,
   crossReferenceManifest,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 
 // ---- T5 shared helpers ------------------------------------------------------
 
@@ -4831,7 +4831,7 @@ describe('T6: family adapter manifest (sdk-boundary)', () => {
 // M1a: Composition reference identity
 // ===========================================================================
 
-describe('M1a: Composition reference types are data-only and importable from @reigh/editor-sdk', () => {
+describe('M1a: Composition reference types are data-only and importable from @astrid/editor-sdk', () => {
   it('ContributionRef is a data-only type with kind, extensionId, contributionId', () => {
     const ref: ContributionRef = {
       kind: 'effect',
@@ -4921,7 +4921,7 @@ describe('M1a: Composition reference types are data-only and importable from @re
     expect(contributionRefKey(refB)).toBe('transition:ext-a:glow');
   });
 
-  it('contributionRefKey is importable from @reigh/editor-sdk as a function', () => {
+  it('contributionRefKey is importable from @astrid/editor-sdk as a function', () => {
     expect(typeof contributionRefKey).toBe('function');
   });
 

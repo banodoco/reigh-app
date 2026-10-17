@@ -88,7 +88,7 @@ class FixerConfig:
 
 2. **The dep graph is special.** It's built once and reused by ~6 detectors. The language config provides the builder, and phases that need it can call it (with caching).
 
-3. **Area classification is project-specific, not language-specific.** A Python Django project groups by `apps/`, a Flask project by `blueprints/`, etc. The default is simple path-based grouping; the TS config overrides with the current Reigh-specific `get_area()`.
+3. **Area classification is project-specific, not language-specific.** A Python Django project groups by `apps/`, a Flask project by `blueprints/`, etc. The default is simple path-based grouping; the TS config overrides with the current Astrid-specific `get_area()`.
 
 4. **No inheritance or abstract classes.** A language config is just data + callables. Adding a new language means writing a new config file — you don't need to understand a class hierarchy.
 
@@ -438,7 +438,7 @@ boundaries: list[BoundaryRule] = [
 
 - Allow `decruftify.toml` or `[tool.decruftify]` in `pyproject.toml`
 - Define: boundaries, pattern families, entry points, area mapping
-- This decouples Reigh-specific coupling rules from the TypeScript language config
+- This decouples Astrid-specific coupling rules from the TypeScript language config
 
 ---
 

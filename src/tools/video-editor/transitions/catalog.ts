@@ -12,7 +12,7 @@
  * `effects/transitions.ts` remain compatible for unmigrated callers.
  */
 
-import type { ExtensionDiagnostic } from '@reigh/editor-sdk';
+import type { ExtensionDiagnostic } from '@astrid/editor-sdk';
 import type {
   TransitionRegistryRecord,
   TransitionRegistrySnapshot,

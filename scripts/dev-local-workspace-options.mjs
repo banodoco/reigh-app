@@ -138,7 +138,7 @@ export function resolveWorkspaceDiscoveryPath({ discovery, supportRoot, dataRoot
   if (roots.some((value) => !isAbsolute(value))) throw new Error('Runtime support root must be an absolute path');
   const canonical = (value) => { try { return realpathSync(value); } catch { return resolve(value); } };
   if (roots.length === 2 && canonical(roots[0]) !== canonical(roots[1])) {
-    throw new Error('ASTRID_SUPPORT_ROOT and BANODOCO_LOCAL_DATA_ROOT select different roots');
+    throw new Error('ASTRID_SUPPORT_ROOT and ASTRID_RUNTIME_DATA_ROOT select different roots');
   }
-  return join(roots[0] || join(home, 'Library', 'Application Support', 'Banodoco'), 'runtime', 'discovery.json');
+  return join(roots[0] || join(home, 'Library', 'Application Support', 'Astrid Runtime'), 'runtime', 'discovery.json');
 }

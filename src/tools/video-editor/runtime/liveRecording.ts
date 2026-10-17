@@ -14,7 +14,7 @@ import type {
   LiveSample,
   LiveSource,
   LiveSourceDiagnostic,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import {
   type AutomationRecorderOptions,
   type SamplePoint,

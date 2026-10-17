@@ -51,7 +51,7 @@ inputs, pump heartbeat, supervise runners, upload, and settle; it also owns the
 persistent JSONL protocol. This lane consumes those contracts and must not
 implement a second host or runtime control plane.
 
-Reigh Worker owns GPU bootstrap, resource admission, telemetry, and eventual
+Astrid App Worker owns GPU bootstrap, resource admission, telemetry, and eventual
 deletion of migrated route/template/adapter code. This lane does not modify
 Worker dispatch or delete Worker files; it supplies the replacement receipt and
 exact deletion target.
@@ -116,7 +116,7 @@ host-instance half resolves Python/argv, model/input/output/temp roots, port,
 and readiness timeout. A host-owned `ServerSession` starts
 and supervises it; the adapter submits the same typed workflow/output contract.
 Current `ServerSession` owns one managed `comfyui serve` subprocess and uses
-SIGTERM then bounded SIGKILL. Reigh Worker owns the profile-specific environment
+SIGTERM then bounded SIGKILL. Astrid App Worker owns the profile-specific environment
 and launcher implementation; `GenericPackHost` consumes it and owns process
 supervision. This lane defines/tests the adapter contract.
 
@@ -294,7 +294,7 @@ extras.py` defines plugin/dynamic-root discovery; `registry/ready.py` defines
 repository versus dynamic templates and `pure_python` classification.
 
 Current migration surfaces are `Astrid/astrid/packs/vibecomfy/` (CLI escape
-hatch) and `reigh-worker/source/models/comfy/vibecomfy_adapter.py`,
+hatch) and `astrid-worker/source/models/comfy/vibecomfy_adapter.py`,
 `source/task_handlers/tasks/template_routing.py`, and
 `source/task_handlers/tasks/task_execution.py` (behavior summarized in the
 replacement receipt and later deleted by Worker).

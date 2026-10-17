@@ -2,7 +2,7 @@
 import { act, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react';
 import { createElement, type ReactElement } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { DataItemInspectorProps, DataLaneRendererProps } from '@reigh/editor-sdk';
+import type { DataItemInspectorProps, DataLaneRendererProps } from '@astrid/editor-sdk';
 import type { DataLaneView } from '@/tools/video-editor/data/typed/envelope';
 import {
   DATA_LANE_DOM_ITEM_BUDGET,
@@ -340,7 +340,7 @@ describe('Runaway timeline bridge adapter', () => {
         payload: item.payload,
       }));
       return renderRunawayTimelineLane({
-        kindId: 'reigh.runaway.transitions',
+        kindId: 'astrid.runaway.transitions',
         schemaRef: RUNAWAY_SCHEMA_REF,
         shape: 'interval',
         domain: 'timeline_seconds',
@@ -398,7 +398,7 @@ describe('Runaway timeline bridge adapter', () => {
       payload: item.payload,
     }));
     const lane = renderRunawayTimelineLane({
-      kindId: 'reigh.runaway.transitions',
+      kindId: 'astrid.runaway.transitions',
       schemaRef: RUNAWAY_SCHEMA_REF,
       shape: 'interval',
       domain: 'timeline_seconds',
@@ -540,7 +540,7 @@ describe('Runaway timeline bridge adapter', () => {
     }));
     const lane = {
       laneId: 'runaway',
-      kindId: 'reigh.runaway.transitions',
+      kindId: 'astrid.runaway.transitions',
       label: 'Runaway transitions',
       schemaRef: RUNAWAY_SCHEMA_REF,
       shape: 'interval',
@@ -586,7 +586,7 @@ describe('Runaway timeline bridge adapter', () => {
   it('renders selected transition provenance and timing evidence in the inspector', () => {
     const [item] = parseRunawayBridgeResponse(response);
     const props: DataItemInspectorProps = {
-      kindId: 'reigh.runaway.transitions',
+      kindId: 'astrid.runaway.transitions',
       schemaRef: RUNAWAY_SCHEMA_REF,
       shape: 'interval',
       domain: 'timeline_seconds',

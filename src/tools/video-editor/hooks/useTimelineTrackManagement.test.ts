@@ -556,18 +556,18 @@ describe('source track editing', async () => {
 });
 
 describe('mixed timeline row mutation', () => {
-  const lanes = [{ laneId: 'reigh.transcript', height: 24, opaque: true }] as DataLaneView[];
+  const lanes = [{ laneId: 'astrid.transcript', height: 24, opaque: true }] as DataLaneView[];
   it('atomically persists lane placement through config serialization without changing tracks/clips or selection', () => {
     const config = makeResolvedConfig([makeTrack('V1', 'visual'), makeTrack('A1', 'audio')]);
     const applyEdit = vi.fn();
     const { result } = renderHook(() => useTimelineTrackManagement({ dataRef: { current: null }, resolvedConfig: config,
       selectedClipId: null, setSelectedTrackId: vi.fn(), applyEdit }));
-    act(() => result.current.handleMoveTrack('data-lane-reigh.transcript', 'track-A1', lanes));
+    act(() => result.current.handleMoveTrack('data-lane-astrid.transcript', 'track-A1', lanes));
     expect(applyEdit).toHaveBeenCalledTimes(1);
     const edit = applyEdit.mock.calls[0][0];
     expect(edit.resolvedConfig.tracks).toBe(config.tracks);
     expect(edit.resolvedConfig.clips).toBe(config.clips);
-    expect(edit.resolvedConfig.app.timelineDataLanePlacement).toEqual({ version: 1, lanes: [{ laneId: 'reigh.transcript', beforeTrackId: 'A1' }] });
+    expect(edit.resolvedConfig.app.timelineDataLanePlacement).toEqual({ version: 1, lanes: [{ laneId: 'astrid.transcript', beforeTrackId: 'A1' }] });
     expect(applyEdit.mock.calls[0]).toHaveLength(1);
     const serialized = serializeForDisk(edit.resolvedConfig);
     expect(JSON.parse(JSON.stringify(serialized)).app.timelineDataLanePlacement).toEqual(edit.resolvedConfig.app.timelineDataLanePlacement);
@@ -577,7 +577,7 @@ describe('mixed timeline row mutation', () => {
     const applyEdit = vi.fn();
     const { result } = renderHook(() => useTimelineTrackManagement({ dataRef: { current: null }, resolvedConfig: config,
       selectedClipId: null, setSelectedTrackId: vi.fn(), applyEdit, editability: createTimelineEditability({ readOnly: true }) }));
-    act(() => result.current.handleMoveTrack('data-lane-reigh.transcript', 'track-V1', lanes));
+    act(() => result.current.handleMoveTrack('data-lane-astrid.transcript', 'track-V1', lanes));
     expect(applyEdit).not.toHaveBeenCalled();
   });
 });

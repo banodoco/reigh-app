@@ -51,7 +51,7 @@ describe('extension release runtime config writer', () => {
   });
 
   it('atomically replaces the served file without leaving a temporary sibling', async () => {
-    const directory = await mkdtemp(join(tmpdir(), 'reigh-runtime-config-'));
+    const directory = await mkdtemp(join(tmpdir(), 'astrid-runtime-config-'));
     const outputPath = join(directory, 'runtime-config/v1/extensions.json');
     await writeExtensionReleaseRuntimeConfig({ outputPath, env: {} });
     await writeFile(outputPath, 'stale', 'utf8');

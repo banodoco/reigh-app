@@ -13,7 +13,7 @@ by the [evidence ledger](extension-ship-evidence-ledger.md).
 
 The release manifest is the source of truth for the current cycle's release ID,
 annotated tag, Astrid commit, branch pins, and verification toolchain. During
-integration, resolve the moving Reigh synchronization head with `git rev-parse
+integration, resolve the moving Astrid App synchronization head with `git rev-parse
 HEAD`; do not copy a branch SHA into a receipt before the source freeze. The
 paired Astrid checkout must be clean, on the manifest-configured branch, and at
 the exact manifest-configured commit with a clean hermetic `make ci` proof.
@@ -65,12 +65,12 @@ branch synchronization is recorded separately from candidate identity.
    release worktrees, or live release servers. The current margin above the
    enforced floor is small, so recheck it before and after every heavyweight
    phase and remove only verified task-owned residue.
-2. Use fresh clean worktrees at the exact Reigh candidate computed after native
+2. Use fresh clean worktrees at the exact Astrid App candidate computed after native
    attestation and the pinned Astrid commit. Run the individual local release
    gates, complete unit suites,
    production build, three-engine browser/device/accessibility suites, visual
    baseline provenance, container rollback, and the standalone paired
-   Reigh/Astrid E2E journey.
+   Astrid/Astrid E2E journey.
 3. Retain complete logs, canonical database/state hashes, the decoded MP4 and
    every-frame report, screenshots, rollback hashes, dependency inventories,
    native-tool/platform attestation, and the detached artifact-index hash.
@@ -99,11 +99,11 @@ persisted state. This replaces the old shorthand of “two caption midpoints.”
 The Runaway/API/UI proof is likewise one chain: apply the Astrid-owned tracked
 Runaway fixtures twice (566 transitions, one evidence receipt, stable project/run
 identity); prove the release-mode bearer and `v1` bridge contract and exact
-media response; exercise the built Reigh preview's authenticated same-origin
+media response; exercise the built Astrid App preview's authenticated same-origin
 proxy, including hostile-header rejection; then run the development-only local
 editor journey with the 566-item lane, 48-fps/8,085-frame bounds, keyboard
 first/last navigation, inspector selection, persistence after restart, and
-render/export. Astrid and Reigh receive newly allocated ports for every phase;
+render/export. Astrid and Astrid App receive newly allocated ports for every phase;
 no fixed developer port is evidence.
 
 Every external command is bounded by a phase budget and writes timeout
@@ -136,16 +136,16 @@ and all four human personas have signed receipts. The paired caption path is
 now machine-proven; general SDK caption semantics and Caption Safe-Zone
 Orchestra's text/layout/contrast/media acceptance remain limited and must not
 be represented as a broader semantic-caption guarantee. Local Astrid mode does
-not authorize removing Supabase from ordinary cloud or legacy Reigh routes.
+not authorize removing Supabase from ordinary cloud or legacy Astrid App routes.
 
 ## Phase 4 — independent review and frozen RC
 
 1. Register six authenticated Ed25519 principals: the four human personas and
    two independent reviewers. Keep private keys outside the repository.
 2. Freeze product candidate `C`, create the annotated tag named by
-   `reigh.releaseTag` in the manifest, and permit only evidence/ledger/status
+   `astrid.releaseTag` in the manifest, and permit only evidence/ledger/status
    commits in controller history `C..H`.
-3. Bind every receipt and artifact hash to the exact Reigh candidate, controller
+3. Bind every receipt and artifact hash to the exact Astrid App candidate, controller
    commit, annotated tag object, Astrid commit, toolchain, and dependency locks.
 4. Have both independent reviewers reproduce the evidence, verify rollback,
    sign their dispositions, and advance the ledger only when all 23 workstreams

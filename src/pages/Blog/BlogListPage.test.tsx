@@ -9,7 +9,7 @@ const { blogPostsMock } = vi.hoisted(() => ({
       slug: 'hello-world',
       title: 'Hello World',
       date: '2026-02-18',
-      author: 'Reigh Team',
+      author: 'Astrid Team',
       description: 'Launch post',
       content: '# Hello',
     },

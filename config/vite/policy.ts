@@ -2,7 +2,7 @@ const DEFAULT_PORT = 2222;
 
 export const PREVIEW_ALLOWED_HOSTS = [
   "healthcheck.railway.app",
-  "reigh-production.up.railway.app",
+  "astrid-production.up.railway.app",
   "astrid.haus",
   "www.astrid.haus",
 ] as const;

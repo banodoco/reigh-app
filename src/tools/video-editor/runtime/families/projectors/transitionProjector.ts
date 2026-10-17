@@ -7,7 +7,7 @@
  * @module families/projectors/transitionProjector
  */
 
-import type { TransitionContribution, TransitionMaterialSlotDeclaration } from '@reigh/editor-sdk';
+import type { TransitionContribution, TransitionMaterialSlotDeclaration } from '@astrid/editor-sdk';
 import type { VideoEditorTransitionDescriptor, VideoEditorTransitionMaterialSlotDescriptor } from '../../extensionSurface';
 import type { CollectedContribution } from '../FamilyContributionSequence';
 import { sortFamilyContributions, freezeDescriptor } from '../familyAdapterUtils';

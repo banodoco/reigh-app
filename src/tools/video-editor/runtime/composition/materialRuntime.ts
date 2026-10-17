@@ -9,7 +9,7 @@ import type {
   RenderMaterialStatusState,
   RenderRoute,
   RouteFitMetadata,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import type { ProcessStatus } from '@/sdk/video/families/processes';
 import {
   hasProvenance,
@@ -21,8 +21,8 @@ import {
   RENDER_MATERIAL_STATUS_QUALITIES,
   RENDER_MATERIAL_STATUSES,
   RENDER_ROUTES,
-} from '@reigh/editor-sdk';
-import type { ProvenanceGap } from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
+import type { ProvenanceGap } from '@astrid/editor-sdk';
 import type { VideoEditorPlannerNextActionKind } from '@/tools/video-editor/runtime/extensionSurface.ts';
 import type { ProcessResultAttachRecord } from '@/tools/video-editor/runtime/composition/processResultAttach.ts';
 import {
@@ -32,8 +32,8 @@ import {
   type CompositionDiagnosticDetail,
 } from '@/tools/video-editor/runtime/composition/diagnostics.ts';
 import { validateRenderRouteScope } from '@/tools/video-editor/runtime/composition/routeScopeValidation.ts';
-import type { ExtensionDiagnostic } from '@reigh/editor-sdk';
-import type { ReferenceState } from '@reigh/editor-sdk';
+import type { ExtensionDiagnostic } from '@astrid/editor-sdk';
+import type { ReferenceState } from '@astrid/editor-sdk';
 import type {
   ContributionIndex,
   ContributionIndexEntry,

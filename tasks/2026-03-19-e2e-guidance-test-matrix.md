@@ -50,10 +50,10 @@ SSH to the GPU pod and start the worker. It stays running and polls for tasks co
 ssh root@213.173.103.158 -p 10453 "pkill -f 'python worker.py' ; pkill -f 'python main.py'"
 
 # Start worker with output to a known log file
-ssh root@213.173.103.158 -p 10453 "cd /workspace/Reigh-Worker && \
+ssh root@213.173.103.158 -p 10453 "cd /workspace/Astrid-Worker && \
   git pull && \
   source venv/bin/activate && \
-  nohup python worker.py --reigh-access-token 3HKcoLeJAFFfTFFeRV6Eu7Lq --debug --wgp-profile 4 \
+  nohup python worker.py --astrid-access-token 3HKcoLeJAFFfTFFeRV6Eu7Lq --debug --wgp-profile 4 \
     > /tmp/worker_test.log 2>&1 &"
 
 # Verify it started
@@ -156,7 +156,7 @@ Worker stdout (from the SSH session in Step 1) shows real-time processing logs.
 | Generation exists, not in UI | **Frontend** | React Query / realtime issue |
 
 ### Step 6: Fix & retry
-- **Worker issue**: Edit `~/Documents/Reigh-Worker/` locally → `git push` → SSH: `git pull` in worker dir → kill & restart worker (Step 1 again)
+- **Worker issue**: Edit `~/Documents/Astrid-Worker/` locally → `git push` → SSH: `git pull` in worker dir → kill & restart worker (Step 1 again)
 - **Frontend issue**: Edit `src/` locally (dev server hot-reloads)
 - **Edge function issue**: Edit `supabase/functions/` → deploy
 
@@ -222,11 +222,11 @@ To run each test: duplicate the cancelled task in DB with `status = 'Queued'`, l
 ### Worker Start Command (RunPod SSH)
 
 ```bash
-# From RunPod pod, inside /workspace/Reigh-Worker
-[ ! -f "worker.py" ] && cd Reigh-Worker
+# From RunPod pod, inside /workspace/Astrid-Worker
+[ ! -f "worker.py" ] && cd Astrid-Worker
 git pull && \
 source venv/bin/activate && \
-python worker.py --reigh-access-token 3HKcoLeJAFFfTFFeRV6Eu7Lq --debug --wgp-profile 4
+python worker.py --astrid-access-token 3HKcoLeJAFFfTFFeRV6Eu7Lq --debug --wgp-profile 4
 ```
 
 ## Iteration Log
@@ -234,7 +234,7 @@ python worker.py --reigh-access-token 3HKcoLeJAFFfTFFeRV6Eu7Lq --debug --wgp-pro
 ### Iteration 1: Worker startup fixes
 - **Bug 1**: `server.py:main()` → `import_module("worker").main()` infinite recursion. Fixed by replacing with actual worker loop.
 - **Bug 2**: `worker.py` shim missing `if __name__ == "__main__"` guard. Added.
-- **Bug 3**: `_resolve_worker_db_client_key` defaulted to `anon` mode, rejected `--reigh-access-token`. Fixed fallback: `service_key or access_token or anon_key`.
+- **Bug 3**: `_resolve_worker_db_client_key` defaulted to `anon` mode, rejected `--astrid-access-token`. Fixed fallback: `service_key or access_token or anon_key`.
 - **Bug 4**: `validate_config` required `SUPABASE_SERVICE_KEY` even with access token auth. Made non-fatal.
 - **Bug 5**: Missing `postgrest` pip package on pod. Installed.
 
@@ -270,8 +270,8 @@ python worker.py --reigh-access-token 3HKcoLeJAFFfTFFeRV6Eu7Lq --debug --wgp-pro
 
 - **Arnold Pod SSH**: `ssh root@213.173.99.14 -p 12102`
 - **Worker Log**: `/tmp/worker_test.log`
-- **Worker Dir**: `/workspace/Reigh-Worker`
-- **Local Worker**: `~/Documents/Reigh-Worker`
+- **Worker Dir**: `/workspace/Astrid-Worker`
+- **Local Worker**: `~/Documents/Astrid-Worker`
 - **Init time**: ~3-4 min (heavy WGP/CUDA imports)
 
 ---

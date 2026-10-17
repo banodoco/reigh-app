@@ -1,5 +1,5 @@
 /**
- * Core manifest contracts for the Reigh Editor SDK.
+ * Core manifest contracts for the Astrid Editor SDK.
  *
  * Stable public types and constants for extension manifest declarations,
  * contribution contracts, slot definitions, placement rules, manifest

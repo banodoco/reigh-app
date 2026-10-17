@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const { useUserUIStateMock } = vi.hoisted(() => ({ useUserUIStateMock: vi.fn() }));
 
 vi.mock('@/shared/hooks/useUserUIState', () => ({ useUserUIState: useUserUIStateMock }));
-vi.mock('@/shared/components/ReighLoading', () => ({ ReighLoading: () => <div data-testid="loading" /> }));
+vi.mock('@/shared/components/AstridLoading', () => ({ AstridLoading: () => <div data-testid="loading" /> }));
 
 import { DefaultToolRedirect } from './DefaultToolRedirect';
 

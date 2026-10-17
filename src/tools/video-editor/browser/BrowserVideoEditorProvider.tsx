@@ -14,7 +14,7 @@ import type {
   VideoEditorHostContext,
 } from '@/tools/video-editor/lib/browser-runtime.ts';
 import { createLocalAssetResolver } from '@/tools/video-editor/lib/browser-runtime.ts';
-import type { ExtensionDiagnostic, ReighExtension } from '@reigh/editor-sdk';
+import type { ExtensionDiagnostic, AstridExtension } from '@astrid/editor-sdk';
 import { getExtensionSmokeExtension } from '@/sdk/smoke/extensionSmoke';
 import { useExtensionLoaderWiring } from '@/tools/video-editor/runtime/useExtensionLoaderWiring';
 import type { ExtensionStateRepository } from '@/tools/video-editor/runtime/extensionStateRepository';
@@ -35,7 +35,7 @@ export interface BrowserVideoEditorProviderProps {
   assetResolver?: VideoEditorAssetResolver | null;
   exporter?: VideoEditorExporter | null;
   hostContext?: VideoEditorHostContext | null;
-  extensions?: readonly ReighExtension[];
+  extensions?: readonly AstridExtension[];
   /** M14: Optional extension state repository for installed pack resolution. */
   repository?: ExtensionStateRepository | null;
   /** M14: Optional bundle content store for installed pack bytes (IndexedDB). */
@@ -200,7 +200,7 @@ function BrowserVideoEditorProviderInstance({
   const effectiveAssetResolver = assetResolver ?? createLocalAssetResolver();
 
   // ---- Smoke extension wiring (prepend when ?extensionSmoke=1) -------------
-  const effectiveDirectExtensions = useMemo<readonly ReighExtension[] | undefined>(() => {
+  const effectiveDirectExtensions = useMemo<readonly AstridExtension[] | undefined>(() => {
     const smokeExt = import.meta.env.DEV
       ? getExtensionSmokeExtension(window.location.search)
       : null;

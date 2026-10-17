@@ -63,7 +63,7 @@ function collectIssues(page: Page): string[] {
   const expectedCapabilityProbe = (url: string, status: number) => {
     const parsed = new URL(url);
     return status === 404
-      && /^\/api\/astrid\/projects\/[^/]+\/media\/__reigh_capability_probe__\/content$/.test(parsed.pathname);
+      && /^\/api\/astrid\/projects\/[^/]+\/media\/__astrid_capability_probe__\/content$/.test(parsed.pathname);
   };
   page.on('pageerror', (error) => issues.push(`[pageerror] ${error.message}`));
   page.on('console', (message) => {
@@ -81,10 +81,10 @@ function collectIssues(page: Page): string[] {
 
 async function openEditor(page: Page): Promise<void> {
   await page.addInitScript(() => {
-    localStorage.removeItem('reigh.dev-extensions.disabled');
+    localStorage.removeItem('astrid.dev-extensions.disabled');
   });
   await page.goto(EDITOR_URL, { waitUntil: 'domcontentloaded', timeout: 45_000 });
-  await expect.poll(() => page.evaluate(() => Boolean(window.__REIGH_LOCAL_TEST__))).toBe(true);
+  await expect.poll(() => page.evaluate(() => Boolean(window.__ASTRID_APP_LOCAL_TEST__))).toBe(true);
 }
 
 async function fulfillJson(route: Route, body: unknown): Promise<void> {

@@ -8,7 +8,7 @@ import {
 describe('local test runtime', () => {
   afterEach(() => {
     window.history.replaceState({}, '', '/');
-    delete window.__REIGH_LOCAL_TEST__;
+    delete window.__ASTRID_APP_LOCAL_TEST__;
   });
 
   it('requires both DEV and the exact localTest=1 query value', () => {
@@ -21,26 +21,26 @@ describe('local test runtime', () => {
     window.history.replaceState({}, '', '/tools/video-editor?localTest=1');
     initializeLocalTestRuntime();
     publishLocalTestExtensionDiagnostics('runtime', [{
-      extensionId: 'com.reigh.zed',
+      extensionId: 'haus.astrid.zed',
       source: 'extension',
       severity: 'error',
       code: 'runtime/z',
       message: 'Zed failed',
     }, {
-      extensionId: 'com.reigh.alpha',
+      extensionId: 'haus.astrid.alpha',
       source: 'extension',
       severity: 'warning',
       code: 'runtime/a',
       message: 'Alpha warned',
     }]);
 
-    expect(window.__REIGH_LOCAL_TEST__).toMatchObject({
+    expect(window.__ASTRID_APP_LOCAL_TEST__).toMatchObject({
       enabled: true,
       diagnostics: {
         loader: [],
         runtime: [
-          { extensionId: 'com.reigh.alpha', code: 'runtime/a' },
-          { extensionId: 'com.reigh.zed', code: 'runtime/z' },
+          { extensionId: 'haus.astrid.alpha', code: 'runtime/a' },
+          { extensionId: 'haus.astrid.zed', code: 'runtime/z' },
         ],
       },
     });

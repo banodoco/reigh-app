@@ -74,7 +74,7 @@ Planned stable host/adapter names for Sprint 2:
 
 These names are the runtime source of truth and must stay aligned with `VIDEO_EDITOR_HOST_PORT_NAMES` in `src/tools/video-editor/runtime/ports.ts`.
 
-Sprint 2 host-governance work should treat these imports as the watched Reigh-coupling surface under `src/tools/video-editor/`:
+Sprint 2 host-governance work should treat these imports as the watched Astrid-coupling surface under `src/tools/video-editor/`:
 
 ```text
 @/integrations/supabase
@@ -105,41 +105,41 @@ Governance policy:
 
 ## Authoritative host inventory
 
-The list below is the source of truth for every live runtime Reigh-coupled module currently under `src/tools/video-editor/`. Type-only bridges that still import the watched surface are also listed so the grep-based governance check stays complete.
+The list below is the source of truth for every live runtime Astrid-coupled module currently under `src/tools/video-editor/`. Type-only bridges that still import the watched surface are also listed so the grep-based governance check stays complete.
 
 ### Port-backed migration targets
 
-| Module | Current live Reigh coupling | Sprint 2 classification | Notes |
+| Module | Current live Astrid coupling | Sprint 2 classification | Notes |
 | --- | --- | --- | --- |
 | `src/tools/video-editor/data/SupabaseDataProvider.ts` | Direct Supabase timeline and asset persistence | `DataProvider` adapter | Keep the public `DataProvider` shape mechanically compatible. |
 | `src/tools/video-editor/runtime/ports.ts` | Type-level dependency on `useShotFinalVideos()` output | Runtime host contract surface | Keep the stable port names centralized here; extract a shared final-video type later if this bridge survives Sprint 2. |
-| `src/tools/video-editor/adapters/reigh/useReighTimelinesList.ts` | Direct Supabase timeline list CRUD | Concrete Reigh timeline catalog adapter | The watched imports now live here; exported hook wrappers should remain thin compatibility shims. |
-| `src/tools/video-editor/hooks/useTimelinesList.ts` | Compatibility wrapper over the Reigh timeline catalog adapter | Stable import-path wrapper | Keep existing caller imports stable while the direct host coupling stays concentrated in the adapter. |
-| `src/tools/video-editor/adapters/reigh/useReighEffectsCatalog.ts` | Direct Supabase custom-effect CRUD | Concrete Reigh effect catalog adapter | Same class of host dependency as timeline list CRUD; not part of the command facade. |
-| `src/tools/video-editor/hooks/useEffects.ts` | Compatibility wrapper over the Reigh effect catalog adapter | Stable import-path wrapper | Keep existing caller imports stable while the direct host coupling stays concentrated in the adapter. |
-| `src/tools/video-editor/hooks/useAgentSession.ts` | Supabase table reads, auth lookup, realtime channel, edge-function invocation | `AgentChatHost` adapter | Owns session transport; should stop being imported as a raw Reigh hook by editor UI. |
-| `src/tools/video-editor/hooks/useActiveTaskClips.ts` | `ProjectContext` plus direct Supabase task reads | `ProjectHost` + Reigh task-status adapter | Keeps active-task badges tied to the selected project without embedding project/supabase reads in timeline UI. |
+| `src/tools/video-editor/adapters/app/useAstridTimelinesList.ts` | Direct Supabase timeline list CRUD | Concrete Astrid timeline catalog adapter | The watched imports now live here; exported hook wrappers should remain thin compatibility shims. |
+| `src/tools/video-editor/hooks/useTimelinesList.ts` | Compatibility wrapper over the Astrid timeline catalog adapter | Stable import-path wrapper | Keep existing caller imports stable while the direct host coupling stays concentrated in the adapter. |
+| `src/tools/video-editor/adapters/app/useAstridEffectsCatalog.ts` | Direct Supabase custom-effect CRUD | Concrete Astrid effect catalog adapter | Same class of host dependency as timeline list CRUD; not part of the command facade. |
+| `src/tools/video-editor/hooks/useEffects.ts` | Compatibility wrapper over the Astrid effect catalog adapter | Stable import-path wrapper | Keep existing caller imports stable while the direct host coupling stays concentrated in the adapter. |
+| `src/tools/video-editor/hooks/useAgentSession.ts` | Supabase table reads, auth lookup, realtime channel, edge-function invocation | `AgentChatHost` adapter | Owns session transport; should stop being imported as a raw Astrid hook by editor UI. |
+| `src/tools/video-editor/hooks/useActiveTaskClips.ts` | `ProjectContext` plus direct Supabase task reads | `ProjectHost` + Astrid task-status adapter | Keeps active-task badges tied to the selected project without embedding project/supabase reads in timeline UI. |
 | `src/tools/video-editor/hooks/useFinalVideoAvailable.ts` | `ProjectContext` plus `useShotFinalVideos()` from travel-between-images | `ProjectHost` + `ShotsHost` adapter | This is the final-video availability boundary for timeline/editor consumers. |
-| `src/tools/video-editor/adapters/reigh/useReighShotsHost.ts` | `ShotsContext` plus `useShotFinalVideos()` | Concrete Reigh `ShotsHost` adapter | Owns the actual shots/final-video host assembly that timeline consumers should read through. |
+| `src/tools/video-editor/adapters/app/useAstridShotsHost.ts` | `ShotsContext` plus `useShotFinalVideos()` | Concrete Astrid `ShotsHost` adapter | Owns the actual shots/final-video host assembly that timeline consumers should read through. |
 | `src/tools/video-editor/hooks/useSelectedMediaClips.ts` | `ShotsContext` | `ShotsHost` | Selected attachment summaries should resolve shot names/membership through a host, not a raw shared context. |
 | `src/tools/video-editor/hooks/useTimelineClipsForAttachments.ts` | `ShotsContext` | `ShotsHost` | Same host concern as `useSelectedMediaClips.ts`; used for timeline attachment export. |
-| `src/tools/video-editor/hooks/useAddVariantAsGeneration.ts` | `ProjectContext`, direct Supabase query, toast, variant-promotion hook | `ProjectHost` + `ToastHost` + Reigh generation-promotion adapter | Mandatory Sprint 2 migration target. Must reuse Sprint 1 helpers and move to the shared command/planner path. |
-| `src/tools/video-editor/hooks/useStaleVariants.ts` | Direct Supabase reads, realtime processor, toast | `ToastHost` + Reigh variant-status adapter | Toasting and live variant drift checks need explicit host boundaries. |
+| `src/tools/video-editor/hooks/useAddVariantAsGeneration.ts` | `ProjectContext`, direct Supabase query, toast, variant-promotion hook | `ProjectHost` + `ToastHost` + Astrid generation-promotion adapter | Mandatory Sprint 2 migration target. Must reuse Sprint 1 helpers and move to the shared command/planner path. |
+| `src/tools/video-editor/hooks/useStaleVariants.ts` | Direct Supabase reads, realtime processor, toast | `ToastHost` + Astrid variant-status adapter | Toasting and live variant drift checks need explicit host boundaries. |
 | `src/tools/video-editor/hooks/useSwitchToFinalVideo.ts` | Toast-backed final-video replacement flow | `ToastHost` command-facade consumer | Mandatory Sprint 2 migration target alongside duplicate-generation and add-variant promotion. |
-| `src/tools/video-editor/hooks/useAssetManagement.ts` | Toast plus direct Reigh generation/upload repository calls | `AssetResolver` + Reigh asset-ingest adapter + `ToastHost` | This is the main asset-registration/drop seam that Sprint 2 must split into pure planners plus imperative adapters. |
+| `src/tools/video-editor/hooks/useAssetManagement.ts` | Toast plus direct Astrid generation/upload repository calls | `AssetResolver` + Astrid asset-ingest adapter + `ToastHost` | This is the main asset-registration/drop seam that Sprint 2 must split into pure planners plus imperative adapters. |
 | `src/tools/video-editor/hooks/useTimelineState.ts` | `ProjectContext` plus editor runtime bootstrap | `ProjectHost` consumer and bootstrap boundary | Preserve seeded store bootstrap behavior while routing project/runtime reads through explicit hosts. |
 | `src/tools/video-editor/contexts/VideoEditorProvider.tsx` | `ShotsContext`, `AgentChatContext`, `MediaLightbox`, toast-backed staged add flow | Runtime composition root for `ShotsHost`, `AgentChatHost`, `MediaLightboxHost`, `ToastHost` | This file is a hard compatibility boundary because it owns pending-add draining and post-mount ops augmentation. |
-| `src/tools/video-editor/pages/VideoEditorPage.tsx` | `AuthContext`, `ProjectContext`, `useToolSettings`, toast, `SupabaseDataProvider` construction | Runtime composition root for `AuthHost`, `ProjectHost`, `ToastHost`, `DataProvider` adapter | Page wiring stays Reigh-specific, but host construction should be concentrated here instead of leaking through the tree. |
+| `src/tools/video-editor/pages/VideoEditorPage.tsx` | `AuthContext`, `ProjectContext`, `useToolSettings`, toast, `SupabaseDataProvider` construction | Runtime composition root for `AuthHost`, `ProjectHost`, `ToastHost`, `DataProvider` adapter | Page wiring stays Astrid-specific, but host construction should be concentrated here instead of leaking through the tree. |
 | `src/tools/video-editor/components/PropertiesPanel/AssetPanel.tsx` | `MediaLightbox` | `MediaLightboxHost` | Double-click/open behavior should be hosted explicitly. |
 | `src/tools/video-editor/components/AgentChat/AgentChat.tsx` | `MediaLightbox`, `AgentChatContext`, app-wide attachment/pane state | `AgentChatHost` + `MediaLightboxHost` with extra allowlist entries below | Main chat surface; host work cannot ignore its lightbox and composer bridges. |
 | `src/tools/video-editor/components/TimelineEditor/TimelineEditor.tsx` | `ProjectContext`, `ShotsContext`, toast, shot creation/navigation helpers | `ProjectHost`, `ShotsHost`, `ToastHost` with extra allowlist entries below | Command-facade migration target for duplicate-generation, variant-promotion, and final-video actions. |
-| `src/tools/video-editor/components/CustomEffectEditor.tsx` | Toast + effect catalog hook | `ToastHost` + Reigh effect catalog adapter | Keep effect save/delete UI from reaching raw toast/effect persistence directly. |
-| `src/tools/video-editor/components/EffectCreatorPanel.tsx` | Toast + Supabase edge-function invocation | `ToastHost` + Reigh effect-generation adapter | Effect generation remains Reigh-specific, but the network boundary should be named. |
-| `src/tools/video-editor/components/SequenceCreator/sequenceGenerationService.ts` | Supabase edge-function invocation | Reigh sequence-generation adapter | Service boundary should be named even if the sequence UI stays editor-local. |
-| `src/tools/video-editor/adapters/reigh/generationLookup.ts` | Direct Supabase generation lookups | Concrete Reigh generation lookup adapter | Used by lightbox and generation-backed UI; watched imports now live here. |
-| `src/tools/video-editor/lib/generation-utils.ts` | Compatibility wrapper over the Reigh generation lookup adapter | Stable import-path wrapper | Keep existing caller imports stable while the direct host coupling stays concentrated in the adapter. |
-| `src/tools/video-editor/adapters/reigh/variantPromotionLookup.ts` | Direct Supabase variant lookups | Concrete Reigh variant-promotion adapter | Shared promotion queries should stop being embedded directly inside command consumers. |
-| `src/tools/video-editor/adapters/reigh/staleVariantRepository.ts` | Direct Supabase stale-variant reads | Concrete Reigh variant-status adapter | Keeps the stale-variant transport in one place even while the UI flow stays editor-local. |
+| `src/tools/video-editor/components/CustomEffectEditor.tsx` | Toast + effect catalog hook | `ToastHost` + Astrid effect catalog adapter | Keep effect save/delete UI from reaching raw toast/effect persistence directly. |
+| `src/tools/video-editor/components/EffectCreatorPanel.tsx` | Toast + Supabase edge-function invocation | `ToastHost` + Astrid effect-generation adapter | Effect generation remains Astrid-specific, but the network boundary should be named. |
+| `src/tools/video-editor/components/SequenceCreator/sequenceGenerationService.ts` | Supabase edge-function invocation | Astrid sequence-generation adapter | Service boundary should be named even if the sequence UI stays editor-local. |
+| `src/tools/video-editor/adapters/app/generationLookup.ts` | Direct Supabase generation lookups | Concrete Astrid generation lookup adapter | Used by lightbox and generation-backed UI; watched imports now live here. |
+| `src/tools/video-editor/lib/generation-utils.ts` | Compatibility wrapper over the Astrid generation lookup adapter | Stable import-path wrapper | Keep existing caller imports stable while the direct host coupling stays concentrated in the adapter. |
+| `src/tools/video-editor/adapters/app/variantPromotionLookup.ts` | Direct Supabase variant lookups | Concrete Astrid variant-promotion adapter | Shared promotion queries should stop being embedded directly inside command consumers. |
+| `src/tools/video-editor/adapters/app/staleVariantRepository.ts` | Direct Supabase stale-variant reads | Concrete Astrid variant-status adapter | Keeps the stale-variant transport in one place even while the UI flow stays editor-local. |
 
 ### Explicit direct-import allowlist for Sprint 2
 
@@ -156,7 +156,7 @@ These entries are allowed to remain direct for Sprint 2, but only for the stated
 | `src/tools/video-editor/hooks/clip-editing/types.ts` | `selectionStore` type import | Type-only selection bridge | Keep existing clip-editing type contracts stable; no runtime selection-ownership change is implied by this file. |
 | `src/tools/video-editor/hooks/useTimelineState.types.ts` | `selectionStore` type import | Type-only selection bridge | Keep the mounted editor context/store type surface stable while runtime ownership stays elsewhere. |
 | `src/tools/video-editor/components/PreviewPanel/PreviewPanel.tsx` | `selectionStore` and render-budget instrumentation | Internal preview-selection bridge plus deferred `TelemetryHost` work; not a new public host boundary in Sprint 2. |
-| `src/tools/video-editor/components/VideoEditorShell.tsx` | `panesStore`, `selectionStore`, typed app events, home navigation | App-shell integration remains local to the mounted Reigh editor shell this sprint; typed app events stay on the deferred `TelemetryHost` allowlist. |
+| `src/tools/video-editor/components/VideoEditorShell.tsx` | `panesStore`, `selectionStore`, typed app events, home navigation | App-shell integration remains local to the mounted Astrid editor shell this sprint; typed app events stay on the deferred `TelemetryHost` allowlist. |
 | `src/tools/video-editor/components/SequenceCreator/SequenceCreatorPanel.tsx` | `currentAttachmentSet`, `selectionStore`, toast | Reuses the app-level attachment composer strip; keep behavior stable while the command facade lands. |
 | `src/tools/video-editor/components/AgentChat/AgentChat.tsx` | `panesStore`, `selectionStore`, `currentAttachmentSet` | Keep the existing app-level attachment/pane bridge stable while `AgentChatHost` is introduced. |
 | `src/tools/video-editor/components/TimelineEditor/TimelineEditor.tsx` | `useShotCreation`, `useShotNavigation`, `VideoGenerationModal` | Shot-creation/navigation UI remains editor-internal this sprint; do not broaden the command facade to cover it. |
@@ -171,11 +171,11 @@ These entries are allowed to remain direct for Sprint 2, but only for the stated
 - Do not add any new public API that exposes raw timeline internals as the preferred mutation path.
 - Keep `useExternalDrop` and pinned-group drag flows internal even if they are updated to reuse new planners.
 - Preserve current visible editor behavior while concentrating host imports behind adapters.
-- When in doubt, prefer a small adapter around an existing Reigh implementation over widening `DataProvider`.
+- When in doubt, prefer a small adapter around an existing Astrid implementation over widening `DataProvider`.
 
 ## Batch 1 done when
 
 - This checklist remains the source of truth for Sprint 2 scope and host governance.
 - `src/tools/video-editor/hooks/useAddVariantAsGeneration.ts` is explicitly named as a migration target and is not hidden in a generic bucket.
 - The mounted safe-hook/bootstrap boundary is written down as a compatibility contract.
-- Every live runtime Reigh-coupled module under `src/tools/video-editor/` is classified either as a port-backed migration target or as an explicit allowlist entry.
+- Every live runtime Astrid-coupled module under `src/tools/video-editor/` is classified either as a port-backed migration target or as an explicit allowlist entry.

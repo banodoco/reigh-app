@@ -43,7 +43,7 @@ describe('TimelineItemSelectionSummary', () => {
           { laneId: 'transcript-lane', itemId: 'word-a' },
           { laneId: 'transcript-lane', itemId: 'word-b' },
         ]}
-        lanes={[lane('transcript-lane', 'reigh.transcript', 'Transcript')]}
+        lanes={[lane('transcript-lane', 'astrid.transcript', 'Transcript')]}
       />,
     );
 
@@ -62,7 +62,7 @@ describe('TimelineItemSelectionSummary', () => {
           { laneId: 'transcript-lane', itemId: 'word-b' },
           { laneId: 'transcript-lane', itemId: 'word-c' },
         ]}
-        lanes={[lane('transcript-lane', 'reigh.transcript', 'Transcript')]}
+        lanes={[lane('transcript-lane', 'astrid.transcript', 'Transcript')]}
       />,
     );
 
@@ -82,8 +82,8 @@ describe('TimelineItemSelectionSummary', () => {
           { laneId: 'markers', itemId: 'marker-b' },
         ]}
         lanes={[
-          lane('captions', 'reigh.caption', 'Captions'),
-          lane('markers', 'reigh.marker', 'Markers'),
+          lane('captions', 'astrid.caption', 'Captions'),
+          lane('markers', 'astrid.marker', 'Markers'),
         ]}
       />,
     );

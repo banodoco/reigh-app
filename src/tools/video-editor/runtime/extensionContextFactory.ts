@@ -43,7 +43,7 @@ import type {
   ExtensionDiagnostic,
 } from '@/sdk/diagnostics';
 import { DIAGNOSTIC_SOURCE_EXTENSION } from '@/sdk/diagnostics';
-import type { ReighExtension } from '@/sdk/lifecycle';
+import type { AstridExtension } from '@/sdk/lifecycle';
 import {
   createExtensionSettingsService,
   type CreateExtensionSettingsServiceOptions,
@@ -238,7 +238,7 @@ function createExtensionTimelineOps(
  * escape hatch is exposed.
  */
 export function createExtensionContext(
-  extension: ReighExtension,
+  extension: AstridExtension,
   creativeOverrides?: Partial<CreativeContext>,
   commands?: ExtensionCommandService,
   effects?: EffectRegistrationService,

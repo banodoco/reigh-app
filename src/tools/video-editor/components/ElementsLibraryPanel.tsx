@@ -8,11 +8,11 @@ import { Badge } from '@/shared/components/ui/badge.tsx';
 import { useAgentChatBridge } from '@/shared/contexts/AgentChatContext.tsx';
 import { timelineQueryKey } from '@/tools/video-editor/hooks/useTimeline.ts';
 import { useTimelineEditorData } from '@/tools/video-editor/hooks/timelineStore.ts';
-import type { ReighElementCatalogEntry } from '@/tools/video-editor/runtime/element-contract.ts';
+import type { AstridElementCatalogEntry } from '@/tools/video-editor/runtime/element-contract.ts';
 
 type ElementFilter = 'all' | 'effect' | 'animation' | 'transition';
 
-function publicationLabel(element: ReighElementCatalogEntry): string {
+function publicationLabel(element: AstridElementCatalogEntry): string {
   return element.publication === 'draft' ? 'Draft / Preview only' : element.publication;
 }
 
@@ -43,7 +43,7 @@ export function ElementsLibraryPanel({
     ));
   }, [editorContext?.elementContext?.catalog, filter, query]);
 
-  const applyElement = async (element: ReighElementCatalogEntry) => {
+  const applyElement = async (element: AstridElementCatalogEntry) => {
     const adapter = editorContext?.elementOperationAdapter;
     const project = editorContext?.projectSlug;
     const timeline = editorContext?.timelineId;

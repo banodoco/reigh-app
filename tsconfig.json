@@ -12,7 +12,7 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
-      "@reigh/editor-sdk": ["./src/sdk/index.ts"]
+      "@astrid/editor-sdk": ["./src/sdk/index.ts"]
     },
     "skipLibCheck": true,
     "allowJs": true

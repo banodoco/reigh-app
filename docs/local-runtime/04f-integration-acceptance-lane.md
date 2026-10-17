@@ -8,7 +8,7 @@
 
 This lane turns independently reviewed runtime, host, Wan2GP, VibeComfy, and Worker changes into one releasable Astrid-first GPU composition. It owns merge order, frozen cross-lane fixtures, exact source pins, integrated evidence, and promotion. It does not become a fifth implementation owner or resolve conflicts by silently redesigning another lane's contract.
 
-The final accepted journey starts Astrid, reuses or starts the Banodoco runtime and configured GPU profile, admits tasks through Astrid, runs both engines cold and warm, publishes fenced CAS outputs, survives cancellation and independent restarts, and exposes no legacy Worker/Supabase authority.
+The final accepted journey starts Astrid, reuses or starts the Astrid Runtime and configured GPU profile, admits tasks through Astrid, runs both engines cold and warm, publishes fenced CAS outputs, survives cancellation and independent restarts, and exposes no legacy Worker/Supabase authority.
 
 ## 2. Exclusive ownership
 
@@ -27,11 +27,11 @@ It does not own runtime schemas, host lifecycle, pack adapters, Worker implement
 Initial clean baselines are:
 
 - Astrid Stage 1 composition `132b846b`;
-- Banodoco runtime Stage 1 composition `7618aebb`, or one explicitly reviewed Stage 2 successor selected once at M0 before implementation;
-- Reigh Worker main `68b70149`;
+- Astrid Runtime Stage 1 composition `7618aebb`, or one explicitly reviewed Stage 2 successor selected once at M0 before implementation;
+- Astrid App Worker main `68b70149`;
 - the exact Wan2GP, VibeComfy, ComfyUI, and custom-node pins declared by their lane receipts.
 
-The currently dirty default Astrid/runtime/reigh-app worktrees are evidence sources, not integration bases. Every lane branches from or rebases once onto the chosen immutable composition before writing implementation code; the base does not change later.
+The currently dirty default Astrid/runtime/astrid-app worktrees are evidence sources, not integration bases. Every lane branches from or rebases once onto the chosen immutable composition before writing implementation code; the base does not change later.
 
 ## 4. Merge-train model
 
@@ -60,7 +60,7 @@ M1 is the first useful product result. M2–M4 add warmth, real video custody, a
 - freeze one canonical tiny request, input object, expected output manifest, composite digest vector, portable environment profile, and fake-runner transcript;
 - freeze paired host-instance fixtures with different paths/ports but identical verified dependencies/model hashes and require equal portable capability digests plus distinct reuse identities;
 - probe the representative VibeComfy template/custom nodes under `pip_embedded` and record whether pip or checkout integrates first; both remain M4 gates;
-- record whether existing task/run events and heartbeat reads satisfy Astrid observation and REIGH R3 progress display, or freeze the minimal bounded runtime addition;
+- record whether existing task/run events and heartbeat reads satisfy Astrid observation and Astrid App R3 progress display, or freeze the minimal bounded runtime addition;
 - allocate unique ports, actor credentials, runtime roots, output roots, and evidence directories per lane;
 - publish the composition-manifest schema and merge-receipt template.
 
@@ -97,7 +97,7 @@ M1 is the first useful product result. M2–M4 add warmth, real video custody, a
 ### I3 — Integrate M3 large output and Wan cutover
 
 **Estimate:** 1–2 engineering days
-**Depends on:** runtime staged-output receipt; accepted real Wan pack; for any REIGH-exposed route, its R3/R5 runtime-admission receipt or explicit unsupported/retired disposition
+**Depends on:** runtime staged-output receipt; accepted real Wan pack; for any ASTRID-exposed route, its R3/R5 runtime-admission receipt or explicit unsupported/retired disposition
 
 - preflight GPU, model availability, scratch space, output reservation, and temporary storage;
 - generate one representative video;
@@ -111,7 +111,7 @@ M1 is the first useful product result. M2–M4 add warmth, real video custody, a
 ### I4 — Integrate M4 VibeComfy profiles
 
 **Estimate:** 1–2 engineering days
-**Depends on:** typed VibeComfy pack and Worker profile receipts; for any REIGH-exposed route, its R3/R5 runtime-admission receipt or explicit unsupported/retired disposition
+**Depends on:** typed VibeComfy pack and Worker profile receipts; for any ASTRID-exposed route, its R3/R5 runtime-admission receipt or explicit unsupported/retired disposition
 
 - run the same typed capability contract through both profiles in the M0-proven order;
 - prove their distinct composite execution digests and identical observable task/output schema;
@@ -130,9 +130,9 @@ M1 is the first useful product result. M2–M4 add warmth, real video custody, a
 
 - integrate accepted capability families in disjoint batches;
 - require every route to be migrated, explicitly unsupported with prerequisite, or retired;
-- for every accepted route exposed by REIGH, require its [REIGH plan](./02-reigh-plan.md) R3/R5 runtime-admission receipt before deleting the legacy consumer; a legacy Supabase producer is not an accepted parallel authority;
+- for every accepted route exposed by Astrid App, require its [Astrid App plan](./02-astrid-plan.md) R3/R5 runtime-admission receipt before deleting the legacy consumer; a legacy Supabase producer is not an accepted parallel authority;
 - run dependency closure from every supported launcher;
-- reject any reachable Supabase queue/storage, direct DB, `REIGH_BACKEND`, engine-specific Worker selector, dynamic VibeComfy plugin root, Gradio/MCP, or second settlement path;
+- reject any reachable Supabase queue/storage, direct DB, `ASTRID_APP_BACKEND`, engine-specific Worker selector, dynamic VibeComfy plugin root, Gradio/MCP, or second settlement path;
 - verify documentation and launch output name exact next actions for unavailable capabilities.
 
 **Gate:** the finite capability and authority matrices contain no unclassified entry, and every accepted producer/consumer pair uses the runtime end to end.
@@ -204,7 +204,7 @@ The release receipt must link:
 - VibeComfy pip/check-out, warm, cancel, queue-abandonment, and restart evidence;
 - staged-output/fence/idempotency evidence;
 - Worker authority/dependency/capability disposition;
-- REIGH R3/R5 producer-admission receipts or unsupported/retired dispositions for every accepted route;
+- Astrid App R3/R5 producer-admission receipts or unsupported/retired dispositions for every accepted route;
 - forbidden import/network/dynamic-plugin scans;
 - focused suite results and final integrated run;
 - reviewer decisions against the same immutable SHA set.
@@ -213,7 +213,7 @@ The release receipt must link:
 
 - Astrid creates and observes real Wan2GP and VibeComfy tasks through one runtime authority.
 - `GenericPackHost` is the only pack host and task execution coordinator.
-- Reigh Worker is a neutral GPU substrate, not a queue, router, or plugin system.
+- Astrid App Worker is a neutral GPU substrate, not a queue, router, or plugin system.
 - Pip-installed and pinned traditional-checkout ComfyUI profiles both work through the same typed pack contract.
 - Compatible models can stay warm; losing warmth never loses or changes task truth.
 - Cancellation, lease loss, crash, and restart cannot publish stale outputs.

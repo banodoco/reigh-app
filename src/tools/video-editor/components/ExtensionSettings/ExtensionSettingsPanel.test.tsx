@@ -3,22 +3,22 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ExtensionSettingsPanel } from '@/tools/video-editor/components/ExtensionSettings/ExtensionSettingsPanel';
-import type { ExtensionManifest, ExtensionDiagnostic } from '@reigh/editor-sdk';
+import type { ExtensionManifest, ExtensionDiagnostic } from '@astrid/editor-sdk';
 
 // ---------------------------------------------------------------------------
 // Mock dependencies
 // ---------------------------------------------------------------------------
 
 // Mock createExtensionSettingsService to return an in-memory settings store
-vi.mock('@reigh/editor-sdk', async () => {
-  const actual = await vi.importActual('@reigh/editor-sdk');
+vi.mock('@astrid/editor-sdk', async () => {
+  const actual = await vi.importActual('@astrid/editor-sdk');
   return {
     ...actual,
     createExtensionSettingsService: vi.fn(),
   };
 });
 
-const { createExtensionSettingsService } = await import('@reigh/editor-sdk') as unknown as { createExtensionSettingsService: typeof import('@reigh/editor-sdk')['createExtensionSettingsService'] };
+const { createExtensionSettingsService } = await import('@astrid/editor-sdk') as unknown as { createExtensionSettingsService: typeof import('@astrid/editor-sdk')['createExtensionSettingsService'] };
 
 // Mock cn to pass through class names unchanged
 vi.mock('@/shared/components/ui/contracts/cn.ts', () => ({

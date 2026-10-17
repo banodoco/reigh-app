@@ -28,7 +28,7 @@ function withEnv(values, callback) {
   }
 }
 
-const RESERVATION_DIR = join(tmpdir(), 'reigh-playwright-port-reservations');
+const RESERVATION_DIR = join(tmpdir(), 'astrid-playwright-port-reservations');
 
 async function freePort() {
   const server = createServer();

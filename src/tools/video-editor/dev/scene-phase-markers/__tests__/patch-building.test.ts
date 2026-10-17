@@ -17,7 +17,7 @@ import type {
   TimelinePatch,
   TimelineReader,
   TimelineSnapshot,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import { createExtensionContext } from '@/tools/video-editor/runtime/extensionContextFactory';
 import { validateTimelinePatch } from '@/tools/video-editor/lib/timeline-patch';
 import { createTimelineViewStore } from '@/tools/video-editor/lib/timeline-view-store.ts';

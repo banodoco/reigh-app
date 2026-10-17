@@ -14,7 +14,7 @@ import {
   type TimelineSnapshot,
   type TimelineShaderSummary,
   getCapabilityRequirements,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import type { ProcessStatus } from '@/sdk/video/families/processes';
 import { shaderMissingMaterializerBlockerMessage } from '@/sdk/video/rendering/capabilities.ts';
 import {
@@ -37,7 +37,7 @@ import {
   projectProcessResultContracts,
   type ProcessResultAttachRecord,
 } from '@/tools/video-editor/runtime/composition/processResultAttach.ts';
-import type { ExtensionDiagnostic } from '@reigh/editor-sdk';
+import type { ExtensionDiagnostic } from '@astrid/editor-sdk';
 import {
   projectShaderRefs,
   validateShaderComposition,

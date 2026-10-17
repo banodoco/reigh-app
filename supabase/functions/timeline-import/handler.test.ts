@@ -68,8 +68,8 @@ describe("handleTimelineImport", () => {
     vi.stubGlobal("Deno", {
       env: {
         get: vi.fn((key: string) => {
-          if (key === "REIGH_APPEND_SERVICE_URL") return "https://append-service.example";
-          if (key === "REIGH_APPEND_SERVICE_INTERNAL_TOKEN") return "internal-token";
+          if (key === "ASTRID_APP_APPEND_SERVICE_URL") return "https://append-service.example";
+          if (key === "ASTRID_APP_APPEND_SERVICE_INTERNAL_TOKEN") return "internal-token";
           return undefined;
         }),
       },
@@ -128,7 +128,7 @@ describe("handleTimelineImport", () => {
       clips: [],
       generation_defaults: {
         model: "sequence-v1",
-        image: { quality: "high", provider: "reigh" },
+        image: { quality: "high", provider: "astrid" },
         provider_settings: { seed: 1234, flags: ["keep", "open"] },
       },
     };

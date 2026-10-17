@@ -1,6 +1,6 @@
-"""Theme-merge helpers shared across Banodoco/Reigh.
+"""Theme-merge helpers shared across Banodoco/Astrid.
 
-SD-006a: lives in timeline-schema (NOT composition) so Reigh's read-only Theme
+SD-006a: lives in timeline-schema (NOT composition) so Astrid's read-only Theme
 chip can call `resolve_theme` before composition extraction.
 
 Source of truth was `tools/timeline.py:605-673`; this is the canonical version.

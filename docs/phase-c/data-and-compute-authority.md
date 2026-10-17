@@ -1,6 +1,6 @@
 # Data and compute authority during the Astrid cutover
 
-The Reigh migration has two separate decisions:
+The Astrid App migration has two separate decisions:
 
 - **Data authority** answers where projects, timelines, tasks, media, and
   extension state are read and persisted.  Phase C defaults this to the local

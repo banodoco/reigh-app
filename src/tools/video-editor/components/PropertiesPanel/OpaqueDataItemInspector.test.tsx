@@ -10,9 +10,9 @@ function createItem(overrides: Partial<FrozenDataItem> = {}): FrozenDataItem {
     shape: 'interval',
     domain: 'source_seconds',
     extent: { start: 2, end: 4 },
-    schemaRef: 'reigh.transcript_segment/v1',
+    schemaRef: 'astrid.transcript_segment/v1',
     payload: { text: 'hello world' },
-    provenance: { adapterId: 'reigh.adaptTranscript', adapterVersion: '1' },
+    provenance: { adapterId: 'astrid.adaptTranscript', adapterVersion: '1' },
     ...overrides,
   };
 }
@@ -23,10 +23,10 @@ describe('OpaqueDataItemInspector', () => {
 
     expect(screen.getByTestId('opaque-data-item-id')).toHaveTextContent('asset-1:0');
     expect(screen.getByTestId('opaque-data-item-shape')).toHaveTextContent('interval');
-    expect(screen.getByTestId('opaque-data-item-schema-ref')).toHaveTextContent('reigh.transcript_segment/v1');
+    expect(screen.getByTestId('opaque-data-item-schema-ref')).toHaveTextContent('astrid.transcript_segment/v1');
     expect(screen.getByTestId('opaque-data-item-extent')).toHaveTextContent('[2, 4)');
     expect(screen.getByTestId('opaque-data-item-domain')).toHaveTextContent('source_seconds');
-    expect(screen.getByTestId('opaque-data-item-adapter')).toHaveTextContent('reigh.adaptTranscript');
+    expect(screen.getByTestId('opaque-data-item-adapter')).toHaveTextContent('astrid.adaptTranscript');
     expect(screen.getByTestId('opaque-data-item-payload')).toHaveTextContent('hello world');
   });
 

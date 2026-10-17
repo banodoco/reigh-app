@@ -7,7 +7,7 @@ import {
   type LiveBakeResult,
   type LiveChannelDescriptor,
   type LiveSessionsService,
-  type ReighExtension,
+  type AstridExtension,
   type ToolGenerationSessionResult,
 } from '@/sdk/index';
 import { createExtensionContext } from '@/tools/video-editor/runtime/extensionContextFactory';
@@ -26,7 +26,7 @@ import {
   type LiveDataRegistry,
 } from '@/tools/video-editor/runtime/liveDataRegistry';
 
-const EXTENSION_ID = 'com.reigh.examples.live-generated-frame-canary';
+const EXTENSION_ID = 'haus.astrid.examples.live-generated-frame-canary';
 const TOOL_ID = 'generated-frame.session';
 
 function makeSessions(registry: LiveDataRegistry, extensionId = EXTENSION_ID): LiveSessionsService {
@@ -95,7 +95,7 @@ function makeAgentTools(registry: AgentToolRegistry, extensionId = EXTENSION_ID)
 }
 
 function makeCtx(
-  extension: ReighExtension,
+  extension: AstridExtension,
   liveRegistry: LiveDataRegistry,
   agentRegistry: AgentToolRegistry,
 ): ExtensionContext {
@@ -137,7 +137,7 @@ function replacements(result: LiveBakeResult): any[] {
 function activateCanary(options: {
   now?: () => number;
 } = {}): {
-  extension: ReighExtension;
+  extension: AstridExtension;
   liveRegistry: LiveDataRegistry;
   agentRegistry: AgentToolRegistry;
   ctx: ExtensionContext;
@@ -210,7 +210,7 @@ describe('live-generated-frame-canary extension', () => {
       seed: 77,
     });
     const session = result.session as LiveGeneratedFrameSession;
-    const sourceId = 'com.reigh.examples.live-generated-frame-canary:generated:session-supersede';
+    const sourceId = 'haus.astrid.examples.live-generated-frame-canary:generated:session-supersede';
     const hostChannel = hostChannelFor(test.agentRegistry, sourceId);
 
     expect(test.liveRegistry.getSource(sourceId)).toEqual(expect.objectContaining({
@@ -270,7 +270,7 @@ describe('live-generated-frame-canary extension', () => {
     const test = activateCanary({ now: () => 2000 });
     const result = await invokeSession(test.agentRegistry, { sessionId: 'session-cancel' });
     const session = result.session as LiveGeneratedFrameSession;
-    const sourceId = 'com.reigh.examples.live-generated-frame-canary:generated:session-cancel';
+    const sourceId = 'haus.astrid.examples.live-generated-frame-canary:generated:session-cancel';
     const hostChannel = hostChannelFor(test.agentRegistry, sourceId);
 
     expect(test.agentRegistry.cancelSessions(TOOL_ID)).toBe(1);
@@ -296,7 +296,7 @@ describe('live-generated-frame-canary extension', () => {
       generationIndex: 4,
       parentRefs: ['session-supersede'],
     });
-    const forkSourceId = 'com.reigh.examples.live-generated-frame-canary:generated:session-fork';
+    const forkSourceId = 'haus.astrid.examples.live-generated-frame-canary:generated:session-fork';
     const forkSession = fork.agentRegistry.getSnapshot().sessions[0];
     expect(fork.liveRegistry.getSource(forkSourceId)).toBeDefined();
     expect(forkSession.liveDelivery).toEqual(expect.objectContaining({
@@ -314,7 +314,7 @@ describe('live-generated-frame-canary extension', () => {
       generationIndex: 5,
       parentRefs: ['session-fork'],
     });
-    const rejectSourceId = 'com.reigh.examples.live-generated-frame-canary:generated:session-reject';
+    const rejectSourceId = 'haus.astrid.examples.live-generated-frame-canary:generated:session-reject';
     const rejectSession = reject.agentRegistry.getSnapshot().sessions[0];
     expect(reject.liveRegistry.getSource(rejectSourceId)).toBeUndefined();
     expect(rejectSession.liveDelivery).toEqual(expect.objectContaining({

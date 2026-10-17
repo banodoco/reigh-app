@@ -20,8 +20,8 @@ import type {
   TimelineOverlayRenderProps,
   TimelineReader,
   TimelineSnapshot,
-} from '@reigh/editor-sdk';
-import { createTimelineOverlayGeometry } from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
+import { createTimelineOverlayGeometry } from '@astrid/editor-sdk';
 import { createTimelineOverlayStores } from '@/tools/video-editor/lib/timeline-overlay-stores.ts';
 import { createTimelineViewStore, type TimelineViewStoreApi } from '@/tools/video-editor/lib/timeline-view-store.ts';
 import { createExtensionContext } from '@/tools/video-editor/runtime/extensionContextFactory';

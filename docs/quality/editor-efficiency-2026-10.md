@@ -112,8 +112,8 @@ Two halves; the hosted half holds no Runtime credential.
 | Half | What it does |
 |---|---|
 | Build | `npm run build -- --outDir <share-dist>` with `VITE_ASTRID_WORKSPACE_V1=1`, `VITE_WORKSPACE_RUNTIME_URL`, `VITE_WORKSPACE_RUNTIME_EXPECTED_{ACTOR,REALM,INSTANCE}_ID` baked in from the live discovery file |
-| Hosted | `REIGH_PAIRED_RELAY_ORIGIN=<https tunnel url> __VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS=<tunnel host> npm run preview -- --host 127.0.0.1 --port 2223 --strictPort --outDir <share-dist>`; tunnel points at 2223 |
-| User-local | `REIGH_PAIRED_RELAY_ORIGIN=<same> REIGH_PAIRED_PRODUCT_ACTOR=... REIGH_PAIRED_REALM_ID=... ASTRID_PRODUCT_TOKEN_FILE=... REIGH_PAIRED_CONNECTOR_STATE=... npm run dev:local -- --paired --reset-pairing` (connector dials out to the relay) |
+| Hosted | `ASTRID_APP_PAIRED_RELAY_ORIGIN=<https tunnel url> __VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS=<tunnel host> npm run preview -- --host 127.0.0.1 --port 2223 --strictPort --outDir <share-dist>`; tunnel points at 2223 |
+| User-local | `ASTRID_APP_PAIRED_RELAY_ORIGIN=<same> ASTRID_APP_PAIRED_PRODUCT_ACTOR=... ASTRID_APP_PAIRED_REALM_ID=... ASTRID_PRODUCT_TOKEN_FILE=... ASTRID_APP_PAIRED_CONNECTOR_STATE=... npm run dev:local -- --paired --reset-pairing` (connector dials out to the relay) |
 
 ## Smells (App-relevant)
 

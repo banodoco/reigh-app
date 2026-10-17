@@ -3,7 +3,7 @@ import type { AssetRegistryEntry } from '@/tools/video-editor/types/index.ts';
 import { runAllParsers } from './assetParserRuntime';
 import type { RegisteredParser } from './assetParserRuntime';
 import type { AssetParserPreflightInput } from './assetParserRuntime';
-import type { ParserDiagnostic } from '@reigh/editor-sdk';
+import type { ParserDiagnostic } from '@astrid/editor-sdk';
 
 const VIDEO_EXTENSION_TYPES: Record<string, string> = {
   '.avi': 'video/x-msvideo',

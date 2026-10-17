@@ -36,7 +36,7 @@ import type {
   LiveChannelDescriptor,
   LiveSample,
   LiveSourceDiagnostic,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import {
   validateAgentToolInputSchema,
   validateToolResult,

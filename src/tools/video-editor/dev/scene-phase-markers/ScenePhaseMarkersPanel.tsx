@@ -18,7 +18,7 @@
  */
 
 import { useState } from 'react';
-import type { ExtensionContext, TimelinePatch, TimelineSnapshot } from '@reigh/editor-sdk';
+import type { ExtensionContext, TimelinePatch, TimelineSnapshot } from '@astrid/editor-sdk';
 import {
   buildMarkersPatch,
   createShotsFromMarkers,

@@ -7,7 +7,7 @@
  * @module families/projectors/agentToolProjector
  */
 
-import type { AgentToolContribution, ToolResultFamily } from '@reigh/editor-sdk';
+import type { AgentToolContribution, ToolResultFamily } from '@astrid/editor-sdk';
 import type { VideoEditorAgentToolDescriptor } from '../../extensionSurface';
 import type { CollectedContribution } from '../FamilyContributionSequence';
 import { sortFamilyContributions, freezeDescriptor } from '../familyAdapterUtils';

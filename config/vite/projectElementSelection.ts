@@ -66,7 +66,7 @@ export async function selectProjectElements(projectId:string,refs:ElementRef[],o
     const selected=content.admissions.find(entry=>entry.id===ref.id&&entry.kind===ref.kind&&entry.revision===ref.revision);
     if(!selected){unavailable.push(ref);continue;}
     if(!/^[a-f0-9]{64}$/.test(selected.snapshot_digest))throw new Error('Invalid canonical admission digest');
-    const cacheKey=sha256(stableJson([options.realmId,projectId,ref,selected.snapshot_digest,content.source_binding_key,content.relative_manifest,sourceRoot,artifactRoot,'reigh-pack-host-v1']));
+    const cacheKey=sha256(stableJson([options.realmId,projectId,ref,selected.snapshot_digest,content.source_binding_key,content.relative_manifest,sourceRoot,artifactRoot,'astrid-pack-host-v1']));
     let verified=options.resolvedCache?.get(cacheKey);
     if(!verified) {
       if(!options.resolveRecord)throw new Error('Native canonical element resolver is not configured');

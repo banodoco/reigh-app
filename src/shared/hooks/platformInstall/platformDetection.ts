@@ -112,7 +112,7 @@ export const getInstallInstructions = (context: InstallInstructionContext): stri
 
   if (isAppInstalled || (promptTimedOut && isDesktopChromium)) {
     if (deviceType === 'phone' || deviceType === 'tablet') {
-      return ['Find Reigh on your home screen:'];
+      return ['Find Astrid on your home screen:'];
     }
     return ['Look for this in your address bar:'];
   }
@@ -154,7 +154,7 @@ export const getInstallInstructions = (context: InstallInstructionContext): stri
 
 export const getCtaText = (ctx: CtaContext): string => {
   if (ctx.isStandalone) return 'Sign in with Discord';
-  if (ctx.isAppInstalled || (ctx.promptTimedOut && ctx.isDesktopChromium)) return 'Open Reigh App';
+  if (ctx.isAppInstalled || (ctx.promptTimedOut && ctx.isDesktopChromium)) return 'Open Astrid App';
   if (ctx.installMethod === 'none' && !ctx.isWaitingForPrompt) return 'Sign in with Discord';
 
   switch (ctx.platform) {

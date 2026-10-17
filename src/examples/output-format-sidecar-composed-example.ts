@@ -9,7 +9,7 @@
  * a stopped-process repair path without claiming sandboxing or execution.
  *
  * This file must NOT import from editor internals (src/tools/video-editor/*).
- * It imports only from the public @reigh/editor-sdk package surface and
+ * It imports only from the public @astrid/editor-sdk package surface and
  * sibling public examples.
  *
  * @publicContract
@@ -22,7 +22,7 @@ import {
   REFERENCE_STATES,
   contributionRefKey,
   defineExtension,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import type {
   ArtifactManifestProfile,
   ArtifactManifestProfileBase,
@@ -47,7 +47,7 @@ import type {
   ProcessManifestEntry,
   PreviewArtifactManifestProfile,
   ReferenceState,
-  ReighExtension,
+  AstridExtension,
   RenderArtifact,
   RenderArtifactManifest,
   RenderArtifactSidecarDescriptor,
@@ -59,7 +59,7 @@ import type {
   TimelineAutomationSummary,
   TransitionMaterialSlotDeclaration,
   VideoArtifactManifestProfile,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import { metadataJsonOutputExtension } from './metadata-json-output-example';
 import { processExample } from './process-example';
 
@@ -82,7 +82,7 @@ type ProcessStatus =
       readonly updatedAt?: string;
     };
 
-const EX04_EXTENSION_ID = 'com.reigh.examples.output-format-sidecar-composed';
+const EX04_EXTENSION_ID = 'haus.astrid.examples.output-format-sidecar-composed';
 const EX04_OUTPUT_FORMAT_ID = 'metadata-json-sidecar' as OutputFormatContribution['id'];
 const EX04_GRAPH_PATH_MARKER = 'EX-04/output-format-sidecar-composed';
 const EX04_SOURCE_EXAMPLES = Object.freeze([
@@ -249,7 +249,7 @@ function noOpActivate(_ctx: ExtensionContext): DisposeHandle {
   };
 }
 
-export const outputFormatSidecarComposedExample: ReighExtension = defineExtension({
+export const outputFormatSidecarComposedExample: AstridExtension = defineExtension({
   manifest: {
     id: EX04_EXTENSION_ID as any,
     version: '1.0.0',
@@ -420,7 +420,7 @@ const ex04SourceMaterial = Object.freeze({
     mimeType: 'video/quicktime',
     contentSha256: hash('d'),
   },
-  producerExtensionId: 'com.reigh.host.capture',
+  producerExtensionId: 'haus.astrid.host.capture',
   producerVersion: '1.0.0',
   determinism: 'deterministic',
   replacementPolicy: 'materialize-on-export',
@@ -575,7 +575,7 @@ const ex04MachinePathProfileWitness = Object.freeze({
   artifactId: 'artifact.profile.ex04.machine-path',
   locator: {
     kind: 'local-file',
-    uri: 'file:///var/tmp/reigh/ex04/metadata.json',
+    uri: 'file:///var/tmp/astrid/ex04/metadata.json',
     mimeType: 'application/json',
     contentSha256: hash('f'),
   },
@@ -886,7 +886,7 @@ export interface OutputFormatSidecarComposedContract {
   readonly graphPathMarker: string;
   readonly sourceExamples: readonly string[];
   readonly routeConstraints: readonly RenderRoute[];
-  readonly extension: ReighExtension;
+  readonly extension: AstridExtension;
   readonly outputFormat: RenderDependentOutputFormatContribution;
   readonly processContribution: ProcessContribution;
   readonly processSpec: ProcessManifestEntry;

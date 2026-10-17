@@ -10,14 +10,14 @@
  */
 
 import type {
-  ReighExtension,
+  AstridExtension,
   ExtensionContext,
   DisposeHandle,
   ExtensionDiagnostic,
   ExtensionDiagnosticsService,
   DiagnosticSeverity,
-} from '@reigh/editor-sdk';
-import { disposeExtensionContextServices, DIAGNOSTIC_SOURCE_EXTENSION } from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
+import { disposeExtensionContextServices, DIAGNOSTIC_SOURCE_EXTENSION } from '@astrid/editor-sdk';
 import type { LiveDataRegistry } from '@/tools/video-editor/runtime/liveDataRegistry.ts';
 
 // ---------------------------------------------------------------------------
@@ -68,7 +68,7 @@ export interface ExtensionLifecycle {
   readonly state: ExtensionLifecycleState;
 
   /** The extension this lifecycle manages (frozen by defineExtension). */
-  readonly extension: ReighExtension;
+  readonly extension: AstridExtension;
 
   /** The extension ID (derived from manifest). */
   readonly extensionId: string;
@@ -153,7 +153,7 @@ export function createExtensionDiagnosticsService(
  *
  * The returned lifecycle is NOT activated — the caller must call `activate(ctx)`.
  */
-export function createExtensionLifecycle(extension: ReighExtension): ExtensionLifecycle {
+export function createExtensionLifecycle(extension: AstridExtension): ExtensionLifecycle {
   const extensionId = extension.manifest.id as string;
   const diagnosticsService = createExtensionDiagnosticsService(extensionId);
 
@@ -477,8 +477,8 @@ export interface ExtensionLifecycleHost {
    * @param contextFactory  Creates an ExtensionContext for a given extension.
    */
   synchronize(
-    extensions: readonly ReighExtension[],
-    contextFactory: (ext: ReighExtension) => ExtensionContext,
+    extensions: readonly AstridExtension[],
+    contextFactory: (ext: AstridExtension) => ExtensionContext,
   ): void;
 
   /** Dispose all managed lifecycles. Idempotent. */
@@ -561,8 +561,8 @@ export function createExtensionLifecycleHost(
   }
 
   function synchronize(
-    extensions: readonly ReighExtension[],
-    contextFactory: (ext: ReighExtension) => ExtensionContext,
+    extensions: readonly AstridExtension[],
+    contextFactory: (ext: AstridExtension) => ExtensionContext,
   ): void {
     if (disposed) {
       // Host is disposed — log warning but don't crash

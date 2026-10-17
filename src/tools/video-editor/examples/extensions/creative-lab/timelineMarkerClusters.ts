@@ -1,4 +1,4 @@
-import type { TimelinePointMarker } from '@reigh/editor-sdk';
+import type { TimelinePointMarker } from '@astrid/editor-sdk';
 
 /** The entries represented by one visible marker at an exact timestamp. */
 export interface TimelineMarkerCluster<T extends object> {

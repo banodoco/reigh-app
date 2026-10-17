@@ -591,7 +591,7 @@ function generateReadmeContent(
 
   // Main content
   readme += `# ${loraDetails.name}\n\n`;
-  readme += `This LoRA was uploaded via [Reigh](https://astrid.haus/).\n\n`;
+  readme += `This LoRA was uploaded via [Astrid](https://astrid.haus/).\n\n`;
 
   readme += `## Model Details\n\n`;
 

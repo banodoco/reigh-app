@@ -23,7 +23,7 @@ import type {
 // Constants
 // ---------------------------------------------------------------------------
 
-const DB_NAME = 'reigh.extension-state';
+const DB_NAME = 'astrid.extension-state';
 const DB_VERSION = 1;
 const STORE_PACKS = 'pack-records';
 const STORE_ENABLEMENT = 'enablement-states';

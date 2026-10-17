@@ -20,7 +20,7 @@ import { getProjectSelectionFallbackId } from '@/shared/contexts/projectSelectio
 import type { DerivedCountsResult } from './variantBadgeTypes';
 import { withGenerationBadgeCount } from './variantBadgeCacheUtils';
 import { useRuntimeAuthority } from '@/app/runtime/runtimeAuthority';
-import { ReighRuntimeClient } from '@/integrations/runtime/client';
+import { AstridRuntimeClient } from '@/integrations/runtime/client';
 import { fetchRuntimeGenerationSnapshot } from '@/integrations/runtime/generationAccess';
 
 interface VariantBadgeData {
@@ -69,7 +69,7 @@ export function useVariantBadges(
         if (!runtimeProjectId || generationIds.length === 0) {
           return { derivedCounts: {}, hasUnviewedVariants: {}, unviewedVariantCounts: {} };
         }
-        const runtimeClient = new ReighRuntimeClient();
+        const runtimeClient = new AstridRuntimeClient();
         const snapshots = await Promise.all(
           generationIds.map((generationId) => fetchRuntimeGenerationSnapshot(generationId, runtimeClient)),
         );

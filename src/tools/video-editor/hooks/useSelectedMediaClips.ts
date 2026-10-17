@@ -1,5 +1,5 @@
 /**
- * Internal attachment-selection adapter for Reigh host surfaces.
+ * Internal attachment-selection adapter for Astrid host surfaces.
  * Not part of the supported public SDK surface.
  */
 import { useMemo } from 'react';

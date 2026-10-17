@@ -113,9 +113,9 @@ export function buildDataFromSnapshot(
     output: { ...canonicalConfig.output },
     sourceItemsBySchemaRef: current.transcriptReferences ? {
       ...sourceItemsBySchemaRef,
-      'reigh.transcript_segment/v1': [
-        ...(sourceItemsBySchemaRef?.['reigh.transcript_segment/v1'] ?? []).filter(i => !current.transcriptReferences!.associations.some(r => r.assetId === i.sourceArtifactRef.assetId)),
-        ...(current.sourceItemsBySchemaRef?.['reigh.transcript_segment/v1'] ?? []).filter(i => current.transcriptReferences!.associations.some(r => r.assetId === i.sourceArtifactRef.assetId)),
+      'astrid.transcript_segment/v1': [
+        ...(sourceItemsBySchemaRef?.['astrid.transcript_segment/v1'] ?? []).filter(i => !current.transcriptReferences!.associations.some(r => r.assetId === i.sourceArtifactRef.assetId)),
+        ...(current.sourceItemsBySchemaRef?.['astrid.transcript_segment/v1'] ?? []).filter(i => current.transcriptReferences!.associations.some(r => r.assetId === i.sourceArtifactRef.assetId)),
       ],
     } : sourceItemsBySchemaRef,
     transcriptReferences: current.transcriptReferences,

@@ -1,4 +1,4 @@
-# Build-only tools for installing Reigh's vendored timeline-schema package into
+# Build-only tools for installing Astrid App's vendored timeline-schema package into
 # the paired Astrid virtualenv. Keep aligned with Astrid's pinned pyproject
 # build-system requirements.
 setuptools==80.9.0 \

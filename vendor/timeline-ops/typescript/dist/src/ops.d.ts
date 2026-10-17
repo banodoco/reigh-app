@@ -6,7 +6,7 @@
  * return the input cloned unchanged so callers can detect the no-op via
  * { changed: false }.
  *
- * Why a result envelope? The Reigh agent wraps these ops in handlers that
+ * Why a result envelope? The Astrid agent wraps these ops in handlers that
  * already render their own user-facing strings. Returning a structured
  * { config, changed, message } shape lets the existing handler keep its
  * exact output text after the move (snapshot-byte-equivalent LLM tool

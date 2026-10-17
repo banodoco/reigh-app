@@ -7,7 +7,7 @@ type Json = Record<string, unknown>;
 const record = (v: unknown): Json => v && typeof v === 'object' && !Array.isArray(v) ? v as Json : {};
 const number = (v: unknown, fallback = 0): number => typeof v === 'number' && Number.isFinite(v) ? v : fallback;
 export type DisclosedOwner = IntentOwner & {clipId: string; ownerId: string; primary: boolean; disclosure: BoundaryDisclosure};
-const PICTURE = new Set(['media', 'hold', 'video', 'image', 'animated-media-transform', 'com.reigh.astrid.liveScene']);
+const PICTURE = new Set(['media', 'hold', 'video', 'image', 'animated-media-transform', 'haus.astrid.liveScene']);
 
 /** Closed metadata adapter shared by normal preflight and portable authoring.
  * Normal analysis uses resolved source metadata only and never reads registry. */

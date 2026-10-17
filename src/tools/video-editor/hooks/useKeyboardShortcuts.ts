@@ -8,7 +8,7 @@ import {
 import { evaluatePredicate } from '@/tools/video-editor/runtime/commandPredicates.ts';
 import type { KeybindingEntry } from '@/tools/video-editor/runtime/commandRegistry.ts';
 import type { PredicateContext } from '@/tools/video-editor/runtime/commandPredicates.ts';
-import type { ReighExtension } from '@reigh/editor-sdk';
+import type { AstridExtension } from '@astrid/editor-sdk';
 
 // ---------------------------------------------------------------------------
 // KeyboardEvent → normalized keybinding notation
@@ -126,7 +126,7 @@ export function normalizeKeyboardEvent(event: KeyboardEvent): string | null {
  */
 function buildPredicateContext(
   extensionId: string,
-  extensions: readonly ReighExtension[],
+  extensions: readonly AstridExtension[],
   selectedClipIds: ReadonlySet<string>,
 ): PredicateContext | null {
   const ext = extensions.find((e) => e.manifest.id === extensionId);

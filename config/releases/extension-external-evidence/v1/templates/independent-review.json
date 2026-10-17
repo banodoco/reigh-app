@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "evidenceType": "independent-review",
   "release": "",
-  "candidate": { "reighCommit": "", "astridCommit": "" },
+  "candidate": { "appCommit": "", "astridCommit": "" },
   "capturedAt": "",
   "environment": { "id": "", "toolVersions": {} },
   "record": {

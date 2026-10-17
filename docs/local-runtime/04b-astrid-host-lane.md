@@ -29,7 +29,7 @@ This lane does not own:
 
 - runtime contract/store/server/generated-client changes or attempt-staging semantics (lane 04a);
 - Wan2GP or VibeComfy capability definitions, typed schemas, template graphs, model settings, native engine adapters, custom-node source, or engine profile implementation (their pack/engine lanes);
-- Reigh Worker profile/launcher implementation, GPU lifecycle/telemetry, claim polling, task settlement, Supabase/hosted queue/storage, direct database access, or a Worker plugin/route registry;
+- Astrid App Worker profile/launcher implementation, GPU lifecycle/telemetry, claim polling, task settlement, Supabase/hosted queue/storage, direct database access, or a Worker plugin/route registry;
 - UI progress or a second event stream;
 - arbitrary pre-existing ComfyUI servers in production. They remain development-only because their lifecycle is not host-owned.
 

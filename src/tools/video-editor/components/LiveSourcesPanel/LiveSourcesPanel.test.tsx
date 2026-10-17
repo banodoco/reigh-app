@@ -8,7 +8,7 @@ import {
 import { createLiveDataRegistry } from '@/tools/video-editor/runtime/liveDataRegistry';
 import type { LivePermissionService } from '@/tools/video-editor/runtime/livePermissions';
 import type { ResolvedTimelineConfig, TimelineConfig } from '@/tools/video-editor/types/index';
-import type { LiveChannelDescriptor } from '@reigh/editor-sdk';
+import type { LiveChannelDescriptor } from '@astrid/editor-sdk';
 
 function makeTimelineConfig(sourceId: string, status?: string): TimelineConfig {
   return {

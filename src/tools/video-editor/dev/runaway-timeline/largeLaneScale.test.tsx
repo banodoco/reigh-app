@@ -96,7 +96,7 @@ function laneFromParsedItems(
 ): DataLaneView {
   return {
     laneId: 'runaway-scale',
-    kindId: 'reigh.runaway.transitions',
+    kindId: 'astrid.runaway.transitions',
     label: 'Runaway transitions',
     schemaRef: RUNAWAY_SCHEMA_REF,
     shape: 'interval',

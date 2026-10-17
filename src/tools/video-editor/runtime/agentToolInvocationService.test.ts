@@ -6,7 +6,7 @@ import type {
   AgentToolInvocationRequest,
   ProposalRuntime,
   ToolMaterialArtifactResult,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import type { AgentToolRegistry } from '@/tools/video-editor/runtime/agentToolRegistry';
 
 function makeRequest(): AgentToolInvocationRequest {

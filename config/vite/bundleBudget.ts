@@ -106,7 +106,7 @@ export function createBundleBudgetPlugin(
   budget: JavaScriptBudget = PRODUCTION_JAVASCRIPT_BUDGET,
 ): Plugin {
   return {
-    name: 'reigh-production-bundle-budget',
+    name: 'astrid-production-bundle-budget',
     apply: 'build',
     generateBundle: {
       // Vite's import-analysis plugin mutates generated chunks in its own

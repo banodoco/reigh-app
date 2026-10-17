@@ -16,8 +16,8 @@ import type {
   FamilyConformanceReport,
   ExecutionMaturity,
   ProcessContribution,
-} from '@reigh/editor-sdk';
-import { getVideoFamilyDefinition } from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
+import { getVideoFamilyDefinition } from '@astrid/editor-sdk';
 import type { ProcessStatus } from '@/sdk/video/families/processes';
 import type { VideoEditorProcessDescriptor } from '../extensionSurface';
 import { buildProcessDescriptors } from './projectors/processProjector';
@@ -39,7 +39,7 @@ const MANIFEST: HostAdapterManifest = Object.freeze({
     'enumeration, route scoping, and host-supplied ProcessStatus overlay.',
   metadata: Object.freeze({
     classification: 'real',
-    owner: 'reigh-app:video-editor',
+    owner: 'astrid-app:video-editor',
     reason: 'Process contributions normalize to trusted-local descriptors; runtime execution is reserved for M12.',
     expiration: 'M12',
   }),

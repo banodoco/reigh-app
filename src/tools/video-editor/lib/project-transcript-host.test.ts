@@ -727,7 +727,7 @@ describe("canonical project transcript consistency", () => {
     await a.host.refreshSources();
     expect(a.host.stageTextDraft({ ...edit("proposed"), documentId: id, baseVersion: 1, assetId: "alias" })).toMatchObject({ ok: false, code: "source_conflict" });
     expect(a.host.getProjectState().sources[0]).toMatchObject({ status: "conflict", hasDraft: true, draftPreview: { baseVersion: 1, text: "proposed remote" } });
-    expect(JSON.parse(localStorage.getItem(`reigh:transcript-draft:p:${id}`)!)).toMatchObject({ baseVersion: 1, content: { segments: [{ text: "proposed remote" }] } });
+    expect(JSON.parse(localStorage.getItem(`astrid:transcript-draft:p:${id}`)!)).toMatchObject({ baseVersion: 1, content: { segments: [{ text: "proposed remote" }] } });
     expect(documents.get(id)!.version).toBe(2);
     expect(documents.get(id)!.content.segments[0].text).toBe("hello remote");
     expect(await a.host.resolveSourceConflict(id, choice)).toMatchObject({ ok: true });

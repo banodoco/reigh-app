@@ -121,7 +121,7 @@ export const buildGenerateSequenceMessages = (
       params: entry.params,
     }));
 
-  const systemMsg = `You generate and edit trusted structured timeline sequence drafts for the Reigh video editor.
+  const systemMsg = `You generate and edit trusted structured timeline sequence drafts for the Astrid video editor.
 
 CLASSIFIER PREAMBLE (always emit first, on its own two lines, before any JSON):
 - Decide whether the user's request can be satisfied by editing the existing

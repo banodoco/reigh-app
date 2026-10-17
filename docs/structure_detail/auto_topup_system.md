@@ -2,7 +2,7 @@
 
 ## Overview
 
-Reigh uses a credit-based payment system with manual purchases and optional automatic top-ups via Stripe.
+Astrid uses a credit-based payment system with manual purchases and optional automatic top-ups via Stripe.
 
 | Feature | Details |
 |---------|---------|

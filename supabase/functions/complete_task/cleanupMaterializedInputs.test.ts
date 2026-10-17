@@ -74,7 +74,7 @@ describe('cleanupMaterializedInputs', () => {
   it('skips kind:file records (no cleanupFile call) and logs the worker-side handoff', async () => {
     const logger = makeLogger();
     const ctx = makeTaskContext([
-      { generation_id: 'gen-2', kind: 'file', target: '/Users/me/.reigh-local-files/gen-2.png' },
+      { generation_id: 'gen-2', kind: 'file', target: '/Users/me/.astrid-local-files/gen-2.png' },
     ]);
 
     const issues = await cleanupMaterializedInputs(supabaseAdmin, ctx, logger);

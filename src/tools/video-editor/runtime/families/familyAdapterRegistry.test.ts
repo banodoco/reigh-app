@@ -26,7 +26,7 @@ import type {
   SlotContribution,
   MetadataFacetContribution,
   ParserContribution,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 
 describe('VIDEO_EDITOR_FAMILY_ADAPTER_REGISTRY', () => {
   it('is a frozen ReadonlyMap', () => {

@@ -10,15 +10,15 @@
  *     prior pending proposals from the same tool source.
  *
  * This file must NOT import from editor internals (src/tools/video-editor/*).
- * It imports exclusively from @reigh/editor-sdk, the public SDK entrypoint.
+ * It imports exclusively from @astrid/editor-sdk, the public SDK entrypoint.
  *
  * @publicContract
  * @milestone M10
  */
 
-import { defineExtension } from '@reigh/editor-sdk';
+import { defineExtension } from '@astrid/editor-sdk';
 import type {
-  ReighExtension,
+  AstridExtension,
   ExtensionContext,
   DisposeHandle,
   AgentToolContribution,
@@ -31,13 +31,13 @@ import type {
   ToolSourceRef,
   TimelinePatch,
   TimelineSnapshot,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
-const COPILOT_EXTENSION_ID = 'com.reigh.examples.agent-tools-copilot';
+const COPILOT_EXTENSION_ID = 'haus.astrid.examples.agent-tools-copilot';
 const COPILOT_ANALYZE_TOOL_ID = 'canary.copilot.analyze';
 const COPILOT_SUGGEST_TOOL_ID = 'canary.copilot.suggest';
 
@@ -325,7 +325,7 @@ const suggestHandler: AgentToolHandler = (
 // Extension definition
 // ---------------------------------------------------------------------------
 
-export const agentToolsCopilotExtension: ReighExtension = defineExtension({
+export const agentToolsCopilotExtension: AstridExtension = defineExtension({
   manifest: {
     id: COPILOT_EXTENSION_ID as any,
     version: '1.0.0',

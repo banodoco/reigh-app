@@ -93,7 +93,7 @@ export interface DataKindContribution {
    * `dataKinds/undeclared-kind` diagnostic.
    */
   kindId: string;
-  /** Qualified schema reference for the kind's payload (e.g. "reigh.transcript_segment/v1"). */
+  /** Qualified schema reference for the kind's payload (e.g. "astrid.transcript_segment/v1"). */
   schemaRef: string;
   /**
    * Shape name. Open string on the public manifest schema; the host

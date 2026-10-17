@@ -1,13 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
 import { AstridElementOperationAdapter, createElementTimelineRoutes } from './element-adapter.ts';
-import { buildReighAgentElementContext } from './element-contract.ts';
+import { buildAstridAgentElementContext } from './element-contract.ts';
 import {getPinnedTimelineElementDescriptors} from './pinned-element-source';
 import { ASTRID_EFFECT_CATALOG } from './astrid-element-catalog.ts';
 import { configToRows, rowsToConfig } from '../lib/timeline-data.ts';
 import type { TimelineConfig } from '../types/index.ts';
 
 function context() {
-  return buildReighAgentElementContext({
+  return buildAstridAgentElementContext({
     astridTransitions: [{ transitionId: 'cross-fade', packId:'rendering', provenance: 'astrid-catalog' }],
     effects: [{ id: 'glow', name: 'Glow', packId:'rendering', provenance:'astrid-catalog', is_public: true }],
     clips: [
@@ -101,7 +101,7 @@ describe('Astrid element operation adapter', () => {
   });
 
   it('uses the active data provider CAS path to apply and reload an element', async () => {
-    const ownedContext = buildReighAgentElementContext({ astridEffects: ASTRID_EFFECT_CATALOG });
+    const ownedContext = buildAstridAgentElementContext({ astridEffects: ASTRID_EFFECT_CATALOG });
     const payload = documentPayload();
     const registry = { assets: { source: { type: 'image/png', file: 'managed:source' } } };
     let config = payload.config as TimelineConfig;
@@ -148,7 +148,7 @@ describe('Astrid element operation adapter', () => {
   });
 
   it('preserves owner and revision through editor serialization and save/reload', async () => {
-    const ownedContext = buildReighAgentElementContext({ astridEffects: ASTRID_EFFECT_CATALOG });
+    const ownedContext = buildAstridAgentElementContext({ astridEffects: ASTRID_EFFECT_CATALOG });
     for (const packId of ['local', 'rendering']) {
       let payload = { ...documentPayload(), config: {
         ...documentPayload().config, tracks: [{ id: 'picture', kind: 'visual' }],
@@ -305,7 +305,7 @@ describe('Astrid element operation adapter', () => {
       registry: input.registry,
       config_version: 8,
     }));
-    const animationContext = buildReighAgentElementContext({
+    const animationContext = buildAstridAgentElementContext({
       effects: [{ id: 'glow', name: 'Glow', packId:'rendering', provenance:'astrid-catalog', is_public: true }],
       astridTransitions: [{ transitionId: 'cross-fade', packId:'rendering', provenance: 'astrid-catalog' }],
       astridAnimations: [{ id: 'fade-up', name: 'Fade Up',packId:'rendering', revision: 'rev-animation', provenance: 'astrid-catalog' }],

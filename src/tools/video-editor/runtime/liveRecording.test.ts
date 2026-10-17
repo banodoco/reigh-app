@@ -12,7 +12,7 @@ import type {
   LiveChannelDescriptor,
   LiveSample,
   LiveSource,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import type { ParameterDefinition } from '@/tools/video-editor/types';
 
 const source: LiveSource = {

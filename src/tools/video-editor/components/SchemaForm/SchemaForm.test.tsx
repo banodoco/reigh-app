@@ -8,8 +8,8 @@ import type {
   SchemaCapabilityRegistry,
   SchemaCapabilityEntry,
 } from '@/tools/video-editor/runtime/schemaCapabilityRegistry';
-import type { ExtensionDiagnostic } from '@reigh/editor-sdk';
-import type { ShaderUniformSchema } from '@reigh/editor-sdk';
+import type { ExtensionDiagnostic } from '@astrid/editor-sdk';
+import type { ShaderUniformSchema } from '@astrid/editor-sdk';
 import type { ParameterDefinition, ParameterSchema } from '@/tools/video-editor/types';
 
 // ---------------------------------------------------------------------------

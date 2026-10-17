@@ -1,10 +1,10 @@
 # Phase C B8 real-bridge acceptance — CLOSED (2026-08-26)
-Status: **PASS at the exact pinned Reigh/Astrid pair with honest BLOCKED rows**
+Status: **PASS at the exact pinned Astrid/Astrid pair with honest BLOCKED rows**
 Evidence date: 2026-08-26
 
 Pair (custody lineage):
-- REIGH_HEAD=ef304c39f4db393a4815f83db276b23511a3ee0e (branch codex/phase-c-megado, custody ddfe01b21 + B8-1..B8-7, HEAD ef304c39f)
-- ASTRID_BRIDGE_SHA=9d714649f2f658ad508dbb4ead8eaf15bff2149b (Astrid checkout at /workspace/astrid-checkout, clone https://github.com/peteromallet/Astrid.git)
+- ASTRID_APP_HEAD=ef304c39f4db393a4815f83db276b23511a3ee0e (branch codex/phase-c-megado, custody ddfe01b21 + B8-1..B8-7, HEAD ef304c39f)
+- ASTRID_BRIDGE_SHA=9d714649f2f658ad508dbb4ead8eaf15bff2149b (Astrid checkout at /workspace/astrid-checkout, clone https://github.com/peteromallet/astrid-agent.git)
 - Pinned toolchain: Node v20.19.4 (/workspace/pinned-runtimes/node-v20.19.4-linux-x64), npm 10.8.2, Python 3.11.11
 
 ## Exact commands and results (pinned toolchain, REAL_BRIDGE)

@@ -2,8 +2,8 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { DiagnosticPanel } from '@/tools/video-editor/components/DiagnosticPanel/DiagnosticPanel';
-import { createDiagnosticCollection } from '@reigh/editor-sdk';
-import type { DiagnosticCollection, Diagnostic } from '@reigh/editor-sdk';
+import { createDiagnosticCollection } from '@astrid/editor-sdk';
+import type { DiagnosticCollection, Diagnostic } from '@astrid/editor-sdk';
 
 // ---------------------------------------------------------------------------
 // Helpers

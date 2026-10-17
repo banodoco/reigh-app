@@ -10,8 +10,8 @@ import {
   normalizeExtensionRuntime,
   type PackageStateInventoryEntry,
 } from '@/tools/video-editor/runtime/extensionSurface';
-import { defineExtension, createDiagnosticCollection } from '@reigh/editor-sdk';
-import type { DiagnosticCollection, ReighExtension } from '@reigh/editor-sdk';
+import { defineExtension, createDiagnosticCollection } from '@astrid/editor-sdk';
+import type { DiagnosticCollection, AstridExtension } from '@astrid/editor-sdk';
 import { createRendererRegistry } from '@/tools/video-editor/runtime/extensionRendererRegistry';
 import { createContext, useContext, useEffect, type ReactNode } from 'react';
 import { EffectRegistryProvider, useEffectRegistryContext } from '@/tools/video-editor/effects/registry/EffectRegistryContext';
@@ -23,7 +23,7 @@ import type { EffectComponentProps } from '@/tools/video-editor/effects/entrance
 
 /** Build a minimal runtime context value for testing. */
 function buildRuntimeContext(
-  extensions: readonly ReighExtension[],
+  extensions: readonly AstridExtension[],
   diagnosticCollection?: DiagnosticCollection,
   packageStateEntries?: readonly PackageStateInventoryEntry[],
 ): VideoEditorRuntimeContextValue {
@@ -123,7 +123,7 @@ function makeSlotExtension(
   label: string,
   contributionId: string,
   slot: string = 'header',
-): ReighExtension {
+): AstridExtension {
   return defineExtension({
     manifest: {
       id: id as never,
@@ -146,7 +146,7 @@ function makeInactiveExtension(
   id: string,
   label: string,
   contributionId: string,
-): ReighExtension {
+): AstridExtension {
   return defineExtension({
     manifest: {
       id: id as never,
@@ -169,7 +169,7 @@ function makeInactiveExtension(
 function makeMixedExtension(
   id: string,
   label: string,
-): ReighExtension {
+): AstridExtension {
   return defineExtension({
     manifest: {
       id: id as never,

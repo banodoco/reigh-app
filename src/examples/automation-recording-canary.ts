@@ -21,14 +21,14 @@
  * the contract shapes and data flow.
  *
  * This file must NOT import from editor internals (src/tools/video-editor/*).
- * It imports exclusively from @reigh/editor-sdk, the public SDK entrypoint.
+ * It imports exclusively from @astrid/editor-sdk, the public SDK entrypoint.
  *
  * @publicContract
  */
 
-import { defineExtension } from '@reigh/editor-sdk';
+import { defineExtension } from '@astrid/editor-sdk';
 import type {
-  ReighExtension,
+  AstridExtension,
   ExtensionContext,
   DisposeHandle,
   Keyframe,
@@ -38,7 +38,7 @@ import type {
   AutomationClipParams,
   ClipParameterDefinition,
   ClipParameterSchema,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 
 // ---------------------------------------------------------------------------
 // Parameter schema — the target parameters that can be automated
@@ -495,9 +495,9 @@ function setNestedParam(
 // Extension definition
 // ---------------------------------------------------------------------------
 
-export const automationRecordingCanaryExample: ReighExtension = defineExtension({
+export const automationRecordingCanaryExample: AstridExtension = defineExtension({
   manifest: {
-    id: 'com.reigh.examples.automation-recording-canary' as any,
+    id: 'haus.astrid.examples.automation-recording-canary' as any,
     version: '1.0.0',
     label: 'Automation Recording Canary',
     description:
@@ -553,7 +553,7 @@ export const automationRecordingCanaryExample: ReighExtension = defineExtension(
 
     // Build automation clip params from the recorded keyframes
     const automationParams = buildAutomationClipParams(
-      'com.reigh.examples.clipType.keyframed',
+      'haus.astrid.examples.clipType.keyframed',
       'intensity',
       result.keyframes,
       true,
@@ -569,7 +569,7 @@ export const automationRecordingCanaryExample: ReighExtension = defineExtension(
     const targetParams = { intensity: 0.5, speed: 1, mode: 'auto' };
     const overriddenParams = canaryApplyAutomationOverrides(
       [automationClipShape],
-      'com.reigh.examples.clipType.keyframed',
+      'haus.astrid.examples.clipType.keyframed',
       targetParams,
       1.0,
     );
@@ -578,7 +578,7 @@ export const automationRecordingCanaryExample: ReighExtension = defineExtension(
       severity: 'info',
       code: 'automation-canary/override-applied',
       message: ctx.services.i18n.t('override.applied', {
-        contributionId: 'com.reigh.examples.clipType.keyframed',
+        contributionId: 'haus.astrid.examples.clipType.keyframed',
         parameterPath: 'intensity',
         time: '1.0',
       }),

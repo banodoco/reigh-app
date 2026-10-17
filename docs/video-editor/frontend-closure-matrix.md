@@ -10,7 +10,7 @@
 
 ## 1. Purpose
 
-This matrix classifies every public frontend primitive that is part of the Reigh extension platform contract. Each row documents:
+This matrix classifies every public frontend primitive that is part of the Astrid extension platform contract. Each row documents:
 
 - **Primitive** — The component, surface, or host affordance name.
 - **Host affordance** — Which `VideoEditorSlotName` slot or host registration path it occupies.

@@ -5,7 +5,7 @@
  * these entries in production. DEV honors the Extension Manager's local
  * disabled-ID store. Host-only smoke checks remain separate from this catalog.
  */
-import type { ReighExtension } from '@reigh/editor-sdk';
+import type { AstridExtension } from '@astrid/editor-sdk';
 import { ASTRID_EDITOR_EXTENSIONS } from '@astrid/packs/rendering/editor/catalog';
 
-export const devLocalExtensions: ReighExtension[] = [...ASTRID_EDITOR_EXTENSIONS];
+export const devLocalExtensions: AstridExtension[] = [...ASTRID_EDITOR_EXTENSIONS];

@@ -12,7 +12,7 @@ import {
 import { Checkbox } from '@/shared/components/ui/checkbox';
 import { cn } from '@/shared/components/ui/contracts/cn';
 
-export const DELETE_GENERATION_SKIP_CONFIRM_KEY = 'reigh:skipDeleteGenerationConfirm';
+export const DELETE_GENERATION_SKIP_CONFIRM_KEY = 'astrid:skipDeleteGenerationConfirm';
 
 export function shouldSkipDeleteGenerationConfirm(): boolean {
   try {

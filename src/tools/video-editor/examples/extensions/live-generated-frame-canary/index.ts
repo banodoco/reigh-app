@@ -6,7 +6,7 @@
  * bake refs through the public SDK only.
  */
 
-import { defineExtension } from '@reigh/editor-sdk';
+import { defineExtension } from '@astrid/editor-sdk';
 import type {
   AgentToolContribution,
   AgentToolHandler,
@@ -19,14 +19,14 @@ import type {
   LiveChannelDescriptor,
   LiveSample,
   LiveSourceDiagnostic,
-  ReighExtension,
+  AstridExtension,
   SteeringDecision,
   SteeringDecisionKind,
   ToolGenerationSessionResult,
   ToolResultDiagnostic,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 
-const EXTENSION_ID = 'com.reigh.examples.live-generated-frame-canary';
+const EXTENSION_ID = 'haus.astrid.examples.live-generated-frame-canary';
 const TOOL_ID = 'generated-frame.session';
 const CONTRIBUTION_ID = 'generated-frame-session-contribution';
 const PRODUCER_VERSION = '1.0.0';
@@ -594,7 +594,7 @@ export function startLiveGeneratedFrameCanary(
 
 export function createLiveGeneratedFrameCanaryExtension(
   options: LiveGeneratedFrameCanaryOptions = {},
-): ReighExtension {
+): AstridExtension {
   return defineExtension({
     manifest: {
       id: EXTENSION_ID as any,

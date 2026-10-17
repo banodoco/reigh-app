@@ -90,7 +90,7 @@ import type {
   ExtensionStateRepository,
   ExtensionSettingsSnapshot,
 } from '@/tools/video-editor/runtime/extensionStateRepository.ts';
-import type { ExtensionDiagnostic } from '@reigh/editor-sdk';
+import type { ExtensionDiagnostic } from '@astrid/editor-sdk';
 
 
 // ---------------------------------------------------------------------------

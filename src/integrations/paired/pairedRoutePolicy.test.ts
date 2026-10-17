@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import * as policy from '../../../config/vite/pairedRoutePolicy';
-import { allowedAcpRoute, allowedRoute } from '../../../scripts/reigh-loopback-gateway';
+import { allowedAcpRoute, allowedRoute } from '../../../scripts/astrid-loopback-gateway';
 import { classifyPairedRoute, type PairedService } from '../../../config/vite/pairedRoutePolicy';
 
 const P = 'proj-1';
@@ -321,7 +321,7 @@ describe('paired route policy', () => {
       'content-type': 'video/mp4', 'idempotency-key': 'k1', 'if-match': '"v1"', 'if-none-match': '"v0"', range: 'bytes=0-9',
       'x-original-name': 'a.mp4', 'x-filename': 'a.mp4', 'x-expected-digest': 'sha256:abc', 'x-expected-version': '3',
       'x-media-width': '1920', 'x-media-height': '1080', 'x-media-duration-seconds': '4.5',
-      authorization: 'Bearer browser', cookie: 'reigh_paired=1', 'x-output-binding': '{}', origin: 'https://x', host: 'x',
+      authorization: 'Bearer browser', cookie: 'astrid_paired=1', 'x-output-binding': '{}', origin: 'https://x', host: 'x',
     });
     expect(forwarded).toMatchObject({
       'x-expected-digest': 'sha256:abc', 'x-media-width': '1920', 'x-media-height': '1080',

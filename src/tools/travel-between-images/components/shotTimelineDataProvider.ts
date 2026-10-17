@@ -483,7 +483,7 @@ export function createShotTimelineDataProvider(
               candidate = {
                 configSignature,
                 expectedHeadRevisionId: canonicalBase.headRevisionId,
-                idempotencyKey: `reigh.shot-popup.${identitySeed}`,
+                idempotencyKey: `astrid.shot-popup.${identitySeed}`,
                 graph,
               };
               pendingPublication = candidate;

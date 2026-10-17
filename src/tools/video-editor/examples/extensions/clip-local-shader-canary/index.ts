@@ -8,19 +8,19 @@
  * metadata, and planner blockers.
  */
 
-import { defineExtension } from '@reigh/editor-sdk';
+import { defineExtension } from '@astrid/editor-sdk';
 import type {
   DisposeHandle,
   ExtensionContext,
-  ReighExtension,
+  AstridExtension,
   ShaderContribution,
   ShaderInlineSource,
   ShaderTextureSchema,
   ShaderUniformDefinition,
   ShaderUniformSchema,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 
-export const CLIP_LOCAL_SHADER_CANARY_EXTENSION_ID = 'com.reigh.examples.clip-local-shader-canary';
+export const CLIP_LOCAL_SHADER_CANARY_EXTENSION_ID = 'haus.astrid.examples.clip-local-shader-canary';
 export const CLIP_LOCAL_SHADER_CANARY_SHADER_ID = 'shader.clipLocalCanary.grade';
 export const CLIP_LOCAL_SHADER_CANARY_CONTRIBUTION_ID = 'clip-local-shader-canary';
 export const CLIP_LOCAL_SHADER_CANARY_DIAGNOSTIC_SHADER_ID = 'shader.clipLocalCanary.diagnostic';
@@ -254,7 +254,7 @@ export function startClipLocalShaderCanary(
 
 export function createClipLocalShaderCanaryExtension(
   options: ClipLocalShaderCanaryOptions = {},
-): ReighExtension {
+): AstridExtension {
   return defineExtension({
     manifest: {
       id: CLIP_LOCAL_SHADER_CANARY_EXTENSION_ID as any,

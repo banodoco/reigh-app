@@ -1,4 +1,4 @@
-# Extension Author Contract — Reigh Video Editor V1
+# Extension Author Contract — Astrid App Video Editor V1
 
 **Status:** Active (M15)
 **Last updated:** 2026-06-20
@@ -9,7 +9,7 @@
 
 ## 1. Purpose
 
-This document defines the **developer contract** between extension authors and the Reigh V1 extension platform. It specifies:
+This document defines the **developer contract** between extension authors and the Astrid App V1 extension platform. It specifies:
 
 1. What the platform **guarantees** to extension authors (invariants, lifecycle, services).
 2. What extension authors **must** do (import boundary, dispose contract, diagnostic conventions).
@@ -25,13 +25,13 @@ This contract is backed by the [supported/deferred matrix](./extension-platform-
 
 | Guarantee | Evidence |
 |---|---|
-| `@reigh/editor-sdk` is the **only** public import path for extensions | S-001, S-154 |
-| Package aliases resolve `@reigh/editor-sdk` → `src/sdk/index.ts` | S-002 |
+| `@astrid/editor-sdk` is the **only** public import path for extensions | S-001, S-154 |
+| Package aliases resolve `@astrid/editor-sdk` → `src/sdk/index.ts` | S-002 |
 | The SDK boundary test runs without importing editor internals | S-003, S-154 |
 | No internal `DataProvider`, `applyEdit`, or mutation escape hatches leak from SDK entrypoints | S-014, S-152 |
 | SDK exports are governed by a public-export allowlist (`config/governance/sdk-public-export-allowlist.json`) | S-152 |
 
-**Author obligation:** Import exclusively from `@reigh/editor-sdk`. Internal imports (`src/tools/video-editor/`, `@/tools/`, etc.) are violations. The pre-doc example readiness gate enforces this mechanically.
+**Author obligation:** Import exclusively from `@astrid/editor-sdk`. Internal imports (`src/tools/video-editor/`, `@/tools/`, etc.) are violations. The pre-doc example readiness gate enforces this mechanically.
 
 ### 2.2 Extension lifecycle
 
@@ -227,7 +227,7 @@ interface ExportDiagnostic extends ExtensionDiagnostic {
 
 ### 4.4 Source-pack contract
 
-Extension packages share a common manifest format (`reigh-extension.json`) with 8 consistent examples in the repository. The format is frozen for V1 (S-153). See any extension directory (e.g. `flagship-local/reigh-extension.json`) for the canonical shape.
+Extension packages share a common manifest format (`astrid-extension.json`) with 8 consistent examples in the repository. The format is frozen for V1 (S-153). See any extension directory (e.g. `flagship-local/astrid-extension.json`) for the canonical shape.
 
 ---
 
@@ -341,7 +341,7 @@ The M14 packaging milestone — everything that creates, installs, verifies, mig
 
 ### 8.1 SDK stability
 
-The `@reigh/editor-sdk` entrypoint is the stable public boundary. Types and functions exported from `src/sdk/index.ts` follow semantic versioning:
+The `@astrid/editor-sdk` entrypoint is the stable public boundary. Types and functions exported from `src/sdk/index.ts` follow semantic versioning:
 
 - **Patch**: bug fixes, no breaking changes
 - **Minor**: new types/functions, backward-compatible
@@ -349,7 +349,7 @@ The `@reigh/editor-sdk` entrypoint is the stable public boundary. Types and func
 
 ### 8.2 Manifest format stability
 
-The `reigh-extension.json` format is frozen for V1 (S-153). New optional fields may be added in minor versions; required fields will not change without a major version bump.
+The `astrid-extension.json` format is frozen for V1 (S-153). New optional fields may be added in minor versions; required fields will not change without a major version bump.
 
 ### 8.3 Provider compatibility
 
@@ -439,7 +439,7 @@ This gate enforces:
 
 1. Every `EX:` and `EXT:` evidence reference in a **supported** matrix row resolves to an existing file.
 2. Example files demonstrating deferred/unsupported behaviour are flagged as unsupported docs candidates.
-3. Every example file under `src/examples/` imports exclusively from `@reigh/editor-sdk`.
+3. Every example file under `src/examples/` imports exclusively from `@astrid/editor-sdk`.
 4. On-disk examples without a corresponding supported matrix row are reported as unclassified.
 
 The gate outputs a JSON record of docs-safe example IDs. At the time of this document's writing, the gate passed with **22 docs-safe examples**, **0 failures**, and **8 unclassified warnings** (examples on disk not yet classified in the matrix).

@@ -2,7 +2,7 @@
  * Host-owned hook that wires ExtensionLoader into the provider lifecycle.
  *
  * Accepts direct-local extensions plus optional repository/bundle state and
- * resolves them into a final ReighExtension[] suitable for the existing
+ * resolves them into a final AstridExtension[] suitable for the existing
  * `extensions` prop of VideoEditorProvider / EditorRuntimeProvider.
  *
  * This keeps the loader/lifecycle state scoped to the mounted provider
@@ -10,7 +10,7 @@
  * activation.
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { ExtensionDiagnostic, ReighExtension } from '@reigh/editor-sdk';
+import type { ExtensionDiagnostic, AstridExtension } from '@astrid/editor-sdk';
 import type { ExtensionStateRepository } from '@/tools/video-editor/runtime/extensionStateRepository';
 import {
   createExtensionLoader,
@@ -24,7 +24,7 @@ import {
 import type { ExtensionPackRecord } from '@/tools/video-editor/runtime/extensionStateRepository';
 import type { PackageStateInventoryEntry } from '@/tools/video-editor/runtime/extensionSurface';
 import { computePackageContributionSummary } from '@/tools/video-editor/runtime/extensionSurface';
-import type { ExtensionContribution } from '@reigh/editor-sdk';
+import type { ExtensionContribution } from '@astrid/editor-sdk';
 import type { PackageContributionSummary } from '@/tools/video-editor/runtime/families/FamilyRuntimeAssembly';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -44,7 +44,7 @@ function extensionIdFromInput(input: ExtensionLoaderInput, diagnostics: readonly
   return diagnostics.find((diagnostic) => diagnostic.extensionId)?.extensionId ?? '(unknown)';
 }
 
-function metadataFromManifest(manifest: Partial<ReighExtension['manifest']> | null | undefined): PackageMetadata | null {
+function metadataFromManifest(manifest: Partial<AstridExtension['manifest']> | null | undefined): PackageMetadata | null {
   if (!manifest || typeof manifest !== 'object') return null;
 
   const id = typeof manifest.id === 'string' ? manifest.id : undefined;
@@ -197,7 +197,7 @@ function createSettingsErrorDiagnostic(extensionId: string, reason: string): Ext
   };
 }
 
-function contributionsFromManifest(manifest: Partial<ReighExtension['manifest']> | null | undefined): readonly ExtensionContribution[] | null {
+function contributionsFromManifest(manifest: Partial<AstridExtension['manifest']> | null | undefined): readonly ExtensionContribution[] | null {
   if (!manifest || !manifest.contributions) return null;
   const contribs = manifest.contributions;
   if (!Array.isArray(contribs)) return null;
@@ -241,7 +241,7 @@ export interface UseExtensionLoaderWiringOptions {
    * Direct workspace-source extensions (the existing `extensions` prop).
    * Passed through as-is when no repository is provided.
    */
-  directExtensions?: readonly ReighExtension[];
+  directExtensions?: readonly AstridExtension[];
 
   /**
    * Repository for installed pack records, enablement, dev overrides,
@@ -287,7 +287,7 @@ export interface UseExtensionLoaderWiringResult {
    * Resolved extensions ready for the `normalizeExtensionRuntime` +
    * `ExtensionLifecycleHost` pipeline (the `extensions` prop).
    */
-  resolvedExtensions: readonly ReighExtension[];
+  resolvedExtensions: readonly AstridExtension[];
 
   /**
    * Combined diagnostics from loader validation, dependency resolution,
@@ -338,7 +338,7 @@ export interface UseExtensionLoaderWiringResult {
  *   3. Combines with direct-local extensions.
  *   4. Runs through loader.validate() → loader.load() (includes dependency
  *      resolution, conflict resolution, integrity checks).
- *   5. Returns the resolved ReighExtension[] + diagnostics.
+ *   5. Returns the resolved AstridExtension[] + diagnostics.
  *
  * When `repository` is null/undefined:
  *   Falls back to passing `directExtensions` through unchanged (backward
@@ -413,7 +413,7 @@ export function useExtensionLoaderWiring(
   }
 
   const [state, setState] = useState<{
-    resolvedExtensions: readonly ReighExtension[];
+    resolvedExtensions: readonly AstridExtension[];
     diagnostics: readonly ExtensionDiagnostic[];
     loaderResult: ExtensionLoaderLoadResult | null;
     error: Error | null;

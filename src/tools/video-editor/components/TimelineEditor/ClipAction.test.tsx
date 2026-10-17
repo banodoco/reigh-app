@@ -12,7 +12,7 @@ import {
 import { VideoEditorRuntimeProvider, type VideoEditorRuntimeContextValue } from '@/tools/video-editor/contexts/VideoEditorRuntimeContext';
 import { createCommandRegistry, type CommandRegistry } from '@/tools/video-editor/runtime/commandRegistry';
 import type { TimelineAction } from '@/tools/video-editor/types/timeline-canvas';
-import type { ReighExtension } from '@reigh/editor-sdk';
+import type { AstridExtension } from '@astrid/editor-sdk';
 
 const mocks = vi.hoisted(() => ({
   useWaveformData: vi.fn(),
@@ -73,7 +73,7 @@ function buildRuntime(commandRegistry: CommandRegistry): VideoEditorRuntimeConte
       version: '1.0.0',
       label: 'Menu Extension',
     },
-  } as ReighExtension;
+  } as AstridExtension;
 
   return {
     provider: {} as VideoEditorRuntimeContextValue['provider'],

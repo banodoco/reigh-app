@@ -2,7 +2,7 @@ import type { ChildProcessWithoutNullStreams } from 'node:child_process';
 import type {
   CapabilityFinding,
   ExtensionDiagnostic,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import type {
   ProcessLogSummary,
   ProcessProgressEvent,

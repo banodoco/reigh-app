@@ -1,7 +1,7 @@
 /**
  * Development-only smoke extension.
  *
- * Returns a statically-defined ReighExtension when the inert query parameter
+ * Returns a statically-defined AstridExtension when the inert query parameter
  * `?extensionSmoke=1` is present.  The extension registers a tiny slot/status
  * contribution with a stable `data-testid`-equivalent identifier so E2E and
  * integration tests can verify the extension activation surface without
@@ -14,7 +14,7 @@
  * @publicContract
  */
 
-import { defineExtension, type ReighExtension } from '../lifecycle';
+import { defineExtension, type AstridExtension } from '../lifecycle';
 import type { ContributionId, ExtensionId } from '../ids';
 import { createElement } from 'react';
 
@@ -35,12 +35,12 @@ export const EXTENSION_SMOKE_CONTRIBUTION_ID = 'extension-smoke-status';
 // Smoke extension (lazily created, frozen by defineExtension)
 // ---------------------------------------------------------------------------
 
-let _smokeExtension: ReighExtension | undefined;
+let _smokeExtension: AstridExtension | undefined;
 
-function createSmokeExtension(): ReighExtension {
+function createSmokeExtension(): AstridExtension {
   return defineExtension({
     manifest: {
-      id: 'com.reigh.smoke.extension-smoke' as ExtensionId,
+      id: 'haus.astrid.smoke.extension-smoke' as ExtensionId,
       version: '1.0.0',
       label: 'Production Smoke Extension',
       description:
@@ -92,7 +92,7 @@ function createSmokeExtension(): ReighExtension {
  */
 export function getExtensionSmokeExtension(
   searchParams?: URLSearchParams | string | null,
-): ReighExtension | null {
+): AstridExtension | null {
   const value = readSmokeParam(searchParams);
   if (value !== EXTENSION_SMOKE_ACTIVE_VALUE) {
     return null;
@@ -109,7 +109,7 @@ export function getExtensionSmokeExtension(
 export function getDevelopmentExtensionSmokeExtension(
   searchParams: URLSearchParams | string | null | undefined,
   development: boolean,
-): ReighExtension | null {
+): AstridExtension | null {
   return development ? getExtensionSmokeExtension(searchParams) : null;
 }
 

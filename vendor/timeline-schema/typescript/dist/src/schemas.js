@@ -83,7 +83,7 @@ export const TimelineClip = z.object({
     keyframes: z.record(z.array(ClipKeyframe)).optional(),
     // Editor-extension metadata (e.g. scale-bake markers, clip-local shader
     // refs) round-trips through providers; keep the shared schema a superset
-    // of Reigh's own TimelineClip type (types/index.ts:384).
+    // of Astrid's own TimelineClip type (types/index.ts:384).
     app: z.record(z.any()).optional(),
     pool_id: z.string().optional(),
     clip_order: z.number().int().positive().optional(),
@@ -99,7 +99,7 @@ export const TrackDefinition = z.object({
     muted: z.boolean().optional(),
     blendMode: TrackBlendMode.optional(),
     // Editor-extension metadata (e.g. TRACK_SCALE_BAKE_MARKER) round-trips
-    // through providers; keep the shared schema a superset of Reigh's own
+    // through providers; keep the shared schema a superset of Astrid's own
     // TrackDefinition type (types/index.ts:86).
     app: z.record(z.any()).optional(),
 });
@@ -124,8 +124,8 @@ export const ThemeOverrides = z.object({
     audio: z.record(z.any()).optional(),
     pacing: z.record(z.any()).optional(),
 }).partial();
-// SD-009: TimelineOutput shape adopted verbatim from Reigh
-// (reigh-app/src/tools/video-editor/types/index.ts:128-134).
+// SD-009: TimelineOutput shape adopted verbatim from Astrid
+// (astrid-app/src/tools/video-editor/types/index.ts:128-134).
 export const TimelineOutput = z.object({
     resolution: z.string(),
     fps: z.number(),
@@ -157,7 +157,7 @@ export const TimelineConfig = z.object({
     generation_defaults: z.record(z.unknown()).optional(),
     output: TimelineOutput.optional(),
     // Host-owned editor and extension state is durable timeline data. Keep the
-    // canonical package aligned with Reigh's TimelineConfig type instead of
+    // canonical package aligned with Astrid's TimelineConfig type instead of
     // forcing renderers to strip provenance before validation.
     app: z.record(z.any()).optional(),
 });

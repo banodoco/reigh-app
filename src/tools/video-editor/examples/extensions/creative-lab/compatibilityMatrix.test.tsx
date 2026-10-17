@@ -16,12 +16,12 @@ import {
   type ExtensionId,
   type ExtensionRenderer,
   type ExtensionUiService,
-  type ReighExtension,
+  type AstridExtension,
   type TimelineDiff,
   type TimelineOps,
   type TimelinePatch,
   type TimelineReader,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import { createExtensionContext } from '@/tools/video-editor/runtime/extensionContextFactory';
 import {
   createExtensionLifecycle,
@@ -62,7 +62,7 @@ function createPairContextFactory() {
     apply(_patch: TimelinePatch): TimelineDiff { return {} as TimelineDiff; },
   } as TimelineOps;
 
-  const contextFactory = (extension: ReighExtension): ExtensionContext => {
+  const contextFactory = (extension: AstridExtension): ExtensionContext => {
     const owner = extension.manifest.id as string;
     contextCreations.set(owner, (contextCreations.get(owner) ?? 0) + 1);
     const commandService: ExtensionCommandService = {
@@ -194,8 +194,8 @@ describe('Creative Lab + bundled editor-extension compatibility matrix', () => {
   });
 
   it('does not serialize a healthy command behind a slow command from another extension', async () => {
-    const slowCommandId = 'com.reigh.compat.slow.wait';
-    const healthyCommandId = 'com.reigh.compat.healthy.run';
+    const slowCommandId = 'haus.astrid.compat.slow.wait';
+    const healthyCommandId = 'haus.astrid.compat.healthy.run';
     let releaseSlow: (() => void) | undefined;
     const slowStarted = vi.fn();
     const slowFinished = vi.fn();
@@ -204,7 +204,7 @@ describe('Creative Lab + bundled editor-extension compatibility matrix', () => {
 
     const slow = defineExtension({
       manifest: {
-        id: 'com.reigh.compat.slow' as ExtensionId,
+        id: 'haus.astrid.compat.slow' as ExtensionId,
         version: '1.0.0',
         apiVersion: 1,
         license: 'MIT',
@@ -226,7 +226,7 @@ describe('Creative Lab + bundled editor-extension compatibility matrix', () => {
     });
     const healthy = defineExtension({
       manifest: {
-        id: 'com.reigh.compat.healthy' as ExtensionId,
+        id: 'haus.astrid.compat.healthy' as ExtensionId,
         version: '1.0.0',
         apiVersion: 1,
         license: 'MIT',
@@ -283,7 +283,7 @@ describe('Creative Lab + bundled editor-extension compatibility matrix', () => {
   it('contains a partial activation failure without blocking the healthy peer', () => {
     const broken = defineExtension({
       manifest: {
-        id: 'com.reigh.compat.activation-failure' as ExtensionId,
+        id: 'haus.astrid.compat.activation-failure' as ExtensionId,
         version: '1.0.0',
         apiVersion: 1,
         license: 'MIT',
@@ -321,7 +321,7 @@ describe('Creative Lab + bundled editor-extension compatibility matrix', () => {
     render(
       <HostContributionErrorBoundary
         contributionId="compat.renderer"
-        extensionId="com.reigh.compat.renderer"
+        extensionId="haus.astrid.compat.renderer"
         kind="timelineOverlay"
         onError={onError}
       >
@@ -338,7 +338,7 @@ describe('Creative Lab + bundled editor-extension compatibility matrix', () => {
   it('records a disposal failure and still reaches the terminal disposed state', () => {
     const brokenDispose = defineExtension({
       manifest: {
-        id: 'com.reigh.compat.disposal-failure' as ExtensionId,
+        id: 'haus.astrid.compat.disposal-failure' as ExtensionId,
         version: '1.0.0',
         apiVersion: 1,
         license: 'MIT',

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { defineExtension } from '@reigh/editor-sdk';
+import { defineExtension } from '@astrid/editor-sdk';
 import type {
   ProjectObjectMetadata,
   ProjectObjectStorage,
@@ -8,7 +8,7 @@ import type {
   TimelinePatch,
   TimelineReader,
   TimelineSnapshot,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import { createExtensionContext } from './extensionContextFactory.ts';
 
 const EXTENSION_ID = 'com.example.public-project-object-editor';
@@ -137,7 +137,7 @@ describe('public project-object scene edit boundary/unit', () => {
         id: clip.id,
         track: 'V1',
         at: clip.at,
-        clipType: 'com.reigh.astrid.liveScene',
+        clipType: 'haus.astrid.liveScene',
         duration: clip.to - clip.from,
         sourceOffset: clip.from,
         sourceEnd: clip.to,

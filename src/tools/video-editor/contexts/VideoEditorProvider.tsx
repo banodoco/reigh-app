@@ -2,7 +2,7 @@ import { admittedCatalogEntries, getAdmittedElementSelection, subscribeAdmittedE
 import type { ExtensionPendingWorkState } from '@/sdk/context.ts';
 import { useEffects } from '@/tools/video-editor/hooks/useEffects.ts';
 /**
- * Internal host-only provider wiring for the Reigh app shell.
+ * Internal host-only provider wiring for the Astrid App app shell.
  * Not part of the supported public SDK surface.
  *
  * Runtime assembly (registries, extension lifecycle, proposal runtime,
@@ -23,7 +23,7 @@ import type {
 } from '@/domains/media-lightbox/types.ts';
 import type { GenerationRow } from '@/domains/generation/types/index.ts';
 import { VideoEditorLightboxOverlay } from '@/tools/video-editor/components/VideoEditorLightboxOverlay.tsx';
-import { useReighShotsHost } from '@/tools/video-editor/adapters/reigh/useReighShotsHost.ts';
+import { useAstridShotsHost } from '@/tools/video-editor/adapters/app/useAstridShotsHost.ts';
 import { playedShotComposition } from '@/tools/video-editor/lib/timeline-shot-summaries.ts';
 import type { PreparedShotComposition } from '@/tools/video-editor/data/shotCompositionAdapter.ts';
 import type { DataProvider } from '@/tools/video-editor/data/DataProvider.ts';
@@ -38,7 +38,7 @@ import {
   useEditorRuntimeSync,
   type EditorRuntimeAssembly,
 } from '@/tools/video-editor/contexts/editorRuntimeAssembly.tsx';
-import type { DiagnosticCollection, ReighExtension } from '@reigh/editor-sdk';
+import type { DiagnosticCollection, AstridExtension } from '@astrid/editor-sdk';
 import { useAgentChatRegistry, type AgentChatEditorContext } from '@/shared/contexts/AgentChatContext.tsx';
 import { setTimelineClipData, useTimelineClipDataActive } from '@/shared/state/selectionStore.ts';
 import { type VideoEditorEffectCatalog } from '@/tools/video-editor/hooks/useEffectResources.ts';
@@ -59,7 +59,7 @@ import { useTimelineConfigVersion, useTimelineEditorData } from '@/tools/video-e
 import { useEffectResources } from '@/tools/video-editor/hooks/useEffectResources.ts';
 import { useSequenceResources } from '@/tools/video-editor/hooks/useSequenceResources.ts';
 import { getPinnedTimelineElementDescriptors } from '@/tools/video-editor/runtime/pinned-element-source.ts';
-import { buildReighAgentElementContext } from '@/tools/video-editor/runtime/element-contract.ts';
+import { buildAstridAgentElementContext } from '@/tools/video-editor/runtime/element-contract.ts';
 import {
   AstridElementOperationAdapter,
   createElementTimelineRoutes,
@@ -190,7 +190,7 @@ function isVideoEditorMediaLightboxProps(
     && (value.features === undefined || isLightboxFeatures(value.features));
 }
 
-/** Checked adapter from the deliberately generic host port to Reigh's lightbox. */
+/** Checked adapter from the deliberately generic host port to Astrid App's lightbox. */
 function VideoEditorMediaLightbox(props: Record<string, unknown>) {
   if (!isVideoEditorMediaLightboxProps(props)) {
     log('[video-editor] Invalid media lightbox host props');
@@ -273,7 +273,7 @@ function AgentChatBridgeRegistration({ operationsEnabled = true }: { operationsE
     void refreshAdmittedElements().catch(error=>{ console.error('Project pack activation failed; exact missing pins remain unavailable.',error); });
   },[project.projectId,packRefsKey]);
 
-  const elementContext = useMemo(() => buildReighAgentElementContext({
+  const elementContext = useMemo(() => buildAstridAgentElementContext({
     admittedElements: admittedCatalogEntries(project.projectId ?? undefined),
     savedElements: getPinnedTimelineElementDescriptors(resolvedClips, resolvedConfig?.app),
     effects: effectCatalog.effects,
@@ -851,7 +851,7 @@ export interface VideoEditorProviderProps {
   sequenceComponentCatalog?: VideoEditorSequenceComponentCatalog | null;
   onSaveStatusChange?: (status: SaveStatus) => void;
   onPendingWorkChange?: (state: ExtensionPendingWorkState) => void;
-  extensions?: readonly ReighExtension[];
+  extensions?: readonly AstridExtension[];
   /** Package-state inventory entries propagated from the loader (M5). */
   packageStateEntries?: readonly import('@/tools/video-editor/runtime/extensionSurface').PackageStateInventoryEntry[];
   /** M6b: Host-provided process manager override. When absent, a default
@@ -905,7 +905,7 @@ function VideoEditorProviderInstance({
   extensionOperationalEventSink = dispatchExtensionOperationalEvent,
   children,
 }: VideoEditorProviderProps) {
-  const shotsHost = useReighShotsHost(projectId, timelineId, dataProvider.shotComposition);
+  const shotsHost = useAstridShotsHost(projectId, timelineId, dataProvider.shotComposition);
   const effectiveTimelineEditability = useMemo(
     () => withCanonicalShotDraftLock(timelineEditability, Boolean(shotsHost.canonicalDraft)),
     [shotsHost.canonicalDraft, timelineEditability],

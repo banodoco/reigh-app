@@ -1,6 +1,6 @@
 import { Navigate } from 'react-router-dom';
 
-import { ReighLoading } from '@/shared/components/ReighLoading';
+import { AstridLoading } from '@/shared/components/AstridLoading';
 import { useUserUIState } from '@/shared/hooks/useUserUIState';
 import { isToolEligible } from '@/shared/lib/tooling/toolEligibility';
 import { toolsUIManifest } from '@/shared/lib/tooling/toolManifest';
@@ -19,7 +19,7 @@ export function DefaultToolRedirect() {
   const currentEnv = env as AppEnvValue;
 
   if (isLoadingDefaultTool) {
-    return <ReighLoading />;
+    return <AstridLoading />;
   }
 
   const selectedTool = toolsUIManifest.find((tool) => tool.id === defaultTool.toolId);

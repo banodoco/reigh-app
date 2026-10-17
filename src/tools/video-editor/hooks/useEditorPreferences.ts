@@ -61,7 +61,7 @@ function normalizePreferences(value: EditorPreferences): EditorPreferences {
     rightPanelTab: value.rightPanelTab ?? (value.selectedRightPanelId && value.selectedRightPanelId !== 'host:properties' ? 'extensions' : 'inspector'),
     showDataLanes: value.showDataLanes ?? defaultPreferences.showDataLanes,
     showDataLanesByKind: {
-      ...(value.showTranscriptLane !== undefined ? { 'reigh.transcript': value.showTranscriptLane } : {}),
+      ...(value.showTranscriptLane !== undefined ? { 'astrid.transcript': value.showTranscriptLane } : {}),
       ...(value.showDataLanesByKind ?? {}),
     },
     // Retained as a read compatibility field for older consumers during migration.
@@ -138,7 +138,7 @@ export function useEditorPreferences(timelineId: string) {
 
   const setShowTranscriptLane = useCallback((showTranscriptLane: boolean) => {
     setPreferences((current) => ({ ...normalizePreferences(current), showTranscriptLane,
-      showDataLanesByKind: { ...normalizePreferences(current).showDataLanesByKind, 'reigh.transcript': showTranscriptLane } }));
+      showDataLanesByKind: { ...normalizePreferences(current).showDataLanesByKind, 'astrid.transcript': showTranscriptLane } }));
   }, [setPreferences]);
 
   const setDataKindLaneVisible = useCallback((kindId: string, visible: boolean) => {

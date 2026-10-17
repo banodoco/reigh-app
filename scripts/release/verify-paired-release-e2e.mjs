@@ -27,7 +27,7 @@ import {
   assertCleanReleaseCheckout,
   inspectCandidateController,
   resolveAnnotatedCandidateTag,
-} from './reigh-release-provenance.mjs';
+} from './astrid-release-provenance.mjs';
 import { PROCESS_SCOPE_ENV_KEY, runBoundedCommand } from './bounded-command.mjs';
 import {
   PROCESS_SCOPE_CLEANUP_ALLOWANCE_MS,
@@ -294,8 +294,8 @@ export function buildServerEnvironment({
   pythonPath,
   bridgePort,
   token,
-  reighMode,
-  reighPort,
+  astridMode,
+  astridPort,
   readinessIdentity,
   nodeExecutable,
   remotionProjectDir,
@@ -311,7 +311,7 @@ export function buildServerEnvironment({
     ...(remotionProjectDir ? { ASTRID_REMOTION_PROJECT_DIR: remotionProjectDir } : {}),
     ...(timelineSchemaPythonpath ? { ASTRID_TIMELINE_SCHEMA_PYTHONPATH: timelineSchemaPythonpath } : {}),
   });
-  if (reighMode === undefined) {
+  if (astridMode === undefined) {
     return {
       ...shared,
       ASTRID_BRIDGE_TOKEN: token,
@@ -320,25 +320,25 @@ export function buildServerEnvironment({
   return {
     ...shared,
     ...PUBLIC_BUILD_ENV,
-    PORT: String(reighPort),
+    PORT: String(astridPort),
     VITE_ASTRID_BRIDGE_PORT: String(bridgePort),
     ASTRID_BRIDGE_ALLOW_UNAUTHENTICATED_STUB: '0',
     ASTRID_BRIDGE_TOKEN: token,
     // Paired browser phases are the deterministic localTest journey.  Keep
     // remote-font requests out of that route at the HTML transform boundary;
     // the built preview remains byte-for-byte production-configured.
-    VITE_DISABLE_REMOTE_FONTS: reighMode === 'development' ? '1' : '0',
+    VITE_DISABLE_REMOTE_FONTS: astridMode === 'development' ? '1' : '0',
     EXTENSION_HOST_ENABLED: 'true',
     TRANSCRIPT_CAPTION_FOUNDRY_ENABLED: 'true',
     RUNAWAY_TYPED_TIMELINE_ENABLED: 'true',
-    EXTENSION_RELEASE_CONFIG_REVISION: readinessIdentity ?? `paired-${reighMode}`,
+    EXTENSION_RELEASE_CONFIG_REVISION: readinessIdentity ?? `paired-${astridMode}`,
   };
 }
 
-export function buildReadinessIdentity({ nonce, reighCommit }) {
+export function buildReadinessIdentity({ nonce, appCommit }) {
   if (!/^[0-9a-f]{8}$/.test(nonce ?? '')) fail('readiness nonce must be eight lowercase hexadecimal characters');
-  if (!/^[0-9a-f]{40}$/.test(reighCommit ?? '')) fail('readiness candidate must be a full commit pin');
-  return `paired-${nonce}-${reighCommit}`;
+  if (!/^[0-9a-f]{40}$/.test(appCommit ?? '')) fail('readiness candidate must be a full commit pin');
+  return `paired-${nonce}-${appCommit}`;
 }
 
 export function isExactViteReadiness(payload, expectedIdentity) {
@@ -573,7 +573,7 @@ function requireCleanWorktree(checkout, label) {
 }
 
 export function preflightPinnedRepositories({ manifest, env }) {
-  requireFullCommitPin(env.REIGH_REF, 'REIGH_REF');
+  requireFullCommitPin(env.ASTRID_APP_REF, 'ASTRID_APP_REF');
   requireFullCommitPin(manifest.astrid.commit, 'manifest astrid.commit');
   requireFullCommitPin(env.ASTRID_REF, 'ASTRID_REF');
   const astridCheckout = env.ASTRID_CHECKOUT;
@@ -584,44 +584,44 @@ export function preflightPinnedRepositories({ manifest, env }) {
     fail(`ASTRID_CHECKOUT is not a directory: ${astridCheckout}`);
   }
   const resolvedAstridCheckout = realpathSync(astridCheckout);
-  requireCleanWorktree(REPO_ROOT, 'Reigh controller');
+  requireCleanWorktree(REPO_ROOT, 'Astrid App controller');
   requireCleanWorktree(resolvedAstridCheckout, 'Astrid source');
-  const reighCommit = resolveCommit(REPO_ROOT, env.REIGH_REF, 'REIGH_REF');
+  const appCommit = resolveCommit(REPO_ROOT, env.ASTRID_APP_REF, 'ASTRID_APP_REF');
   const mediaFixture = validateMediaFixture({
     fixturePath: resolve(REPO_ROOT, PAIRED_RELEASE_MEDIA_FIXTURE),
     metadataPath: resolve(REPO_ROOT, PAIRED_RELEASE_MEDIA_METADATA),
     gitCheckout: REPO_ROOT,
-    gitRef: reighCommit,
+    gitRef: appCommit,
   });
   const audioFixture = validateAudioFixture({
     fixturePath: resolve(REPO_ROOT, PAIRED_RELEASE_AUDIO_FIXTURE),
     expectedRoot: REPO_ROOT,
     gitCheckout: REPO_ROOT,
-    gitRef: reighCommit,
+    gitRef: appCommit,
   });
-  const reighHead = gitOutput(REPO_ROOT, ['rev-parse', 'HEAD']);
-  const reighTag = resolveAnnotatedCandidateTag({
+  const appHead = gitOutput(REPO_ROOT, ['rev-parse', 'HEAD']);
+  const astridTag = resolveAnnotatedCandidateTag({
     repoRoot: REPO_ROOT,
-    releaseTag: manifest.reigh.releaseTag,
+    releaseTag: manifest.app.releaseTag,
   });
-  if (reighTag.candidateCommit !== reighCommit) {
+  if (astridTag.candidateCommit !== appCommit) {
     fail(
-      `Reigh release tag ${manifest.reigh.releaseTag} resolves to ${reighTag.candidateCommit}, `
-      + `not REIGH_REF candidate ${reighCommit}`,
+      `Astrid App release tag ${manifest.app.releaseTag} resolves to ${astridTag.candidateCommit}, `
+      + `not ASTRID_APP_REF candidate ${appCommit}`,
     );
   }
-  const reighProvenance = inspectCandidateController({
+  const astridProvenance = inspectCandidateController({
     repoRoot: REPO_ROOT,
-    candidateCommit: reighCommit,
-    headCommit: reighHead,
+    candidateCommit: appCommit,
+    headCommit: appHead,
     release: manifest.release,
   });
-  const baseCommit = resolveCommit(REPO_ROOT, manifest.reigh.baseCommit, 'manifest reigh.baseCommit');
-  const ancestry = capture('git', ['merge-base', '--is-ancestor', baseCommit, reighCommit], {
+  const baseCommit = resolveCommit(REPO_ROOT, manifest.app.baseCommit, 'manifest astrid.baseCommit');
+  const ancestry = capture('git', ['merge-base', '--is-ancestor', baseCommit, appCommit], {
     cwd: REPO_ROOT,
     allowFailure: true,
   });
-  if (ancestry.status !== 0) fail(`Reigh candidate is not descended from ${baseCommit}`);
+  if (ancestry.status !== 0) fail(`Astrid App candidate is not descended from ${baseCommit}`);
 
   const manifestAstridCommit = resolveCommit(
     resolvedAstridCheckout,
@@ -647,7 +647,7 @@ export function preflightPinnedRepositories({ manifest, env }) {
     'show', `${manifestAstridCommit}:astrid/core/gateway/dispatch.py`,
   ]);
   const serverSource = gitOutput(resolvedAstridCheckout, [
-    'show', `${manifestAstridCommit}:astrid/core/integrations/reigh/local_bridge_server.py`,
+    'show', `${manifestAstridCommit}:astrid/core/integrations/app/local_bridge_server.py`,
   ]);
   const capability = validateAstridReleaseBridgeSources({ dispatchSource, serverSource });
   const renderWorker = validateAstridRenderWorkerSources({
@@ -659,17 +659,17 @@ export function preflightPinnedRepositories({ manifest, env }) {
     capabilitySource: pinnedSource(
       resolvedAstridCheckout,
       manifestAstridCommit,
-      'astrid/core/integrations/reigh/capabilities.py',
+      'astrid/core/integrations/app/capabilities.py',
     ),
     taskBridgeSource: pinnedSource(
       resolvedAstridCheckout,
       manifestAstridCommit,
-      'astrid/core/integrations/reigh/task_bridge.py',
+      'astrid/core/integrations/app/task_bridge.py',
     ),
     remotionRuntimeSource: pinnedSource(
       resolvedAstridCheckout,
       manifestAstridCommit,
-      'astrid/core/integrations/reigh/remotion_runtime.py',
+      'astrid/core/integrations/app/remotion_runtime.py',
     ),
     envSource: pinnedSource(
       resolvedAstridCheckout,
@@ -721,10 +721,10 @@ export function preflightPinnedRepositories({ manifest, env }) {
     astridPython,
     capability: capability.capability,
     renderWorkerCapability: renderWorker.capability,
-    reighControllerHead: reighHead,
-    reighCommit,
-    reighProvenance,
-    reighTagObject: reighTag.tagObject,
+    astridControllerHead: appHead,
+    appCommit,
+    astridProvenance,
+    astridTagObject: astridTag.tagObject,
     audioFixture,
     mediaFixture,
     nodeVersion,
@@ -781,12 +781,12 @@ export function preflightNativeToolchain({ manifest, env = process.env, pins = {
 export const PAIRED_RELEASE_PHASES = Object.freeze([
   'exact-ref capability preflight',
   'clean archive materialization',
-  'locked Reigh, Playwright, paired Python, and archived Astrid Remotion runtime (attested Node/npm) provisioning plus production build',
+  'locked Astrid App, Playwright, paired Python, and archived Astrid Remotion runtime (attested Node/npm) provisioning plus production build',
   'Astrid database initialization and pre-migration backup',
   'Runaway migration first apply and idempotent second apply',
-  'authenticated Astrid release bridge plus built Reigh preview smoke',
+  'authenticated Astrid release bridge plus built Astrid App preview smoke',
   'development-only local-editor paired acceptance (current production bridge limitation)',
-  'Reigh and Astrid restart plus persisted-state/render acceptance',
+  'Astrid App and Astrid restart plus persisted-state/render acceptance',
   'backup restore, second restart, and rollback-state acceptance',
   'immutable receipt and artifact hash index publication',
 ]);
@@ -794,7 +794,7 @@ export const PAIRED_RELEASE_PHASES = Object.freeze([
 function printPlan(manifest, env) {
   console.log(`${LABEL} PLAN ONLY - no commands will execute`);
   console.log(`${LABEL} release=${manifest.release} status=${manifest.status}`);
-  console.log(`${LABEL} Reigh candidate=${env.REIGH_REF || '<REIGH_REF required>'}`);
+  console.log(`${LABEL} Astrid App candidate=${env.ASTRID_APP_REF || '<ASTRID_APP_REF required>'}`);
   console.log(`${LABEL} Astrid pin=${manifest.astrid.commit}`);
   console.log(`${LABEL} Astrid checkout=${env.ASTRID_CHECKOUT || '<ASTRID_CHECKOUT required>'}`);
   console.log(`${LABEL} required capability=${RELEASE_BRIDGE_CAPABILITY}`);
@@ -807,19 +807,19 @@ function printPlan(manifest, env) {
 function printHelp() {
   console.log(`Usage: npm run verify:paired-release-e2e -- [--plan | --dry-run]
 
-Run the production-like paired Reigh/Astrid release acceptance gate from clean
+Run the production-like paired Astrid/Astrid release acceptance gate from clean
 temporary archives of the exact manifest-bound commits. Run mode requires:
-  REIGH_REF       full Reigh candidate commit equal to the annotated release tag
+  ASTRID_APP_REF       full Astrid App candidate commit equal to the annotated release tag
   ASTRID_CHECKOUT absolute clean Astrid checkout at the manifest pin
   ASTRID_REF      exact commit resolving to the manifest Astrid pin
   ASTRID_PYTHON   absolute pinned Python executable
 
-The clean Reigh controller HEAD must be a strict evidence-only descendant of
-REIGH_REF. The candidate archive, tests, and receipt remain bound to REIGH_REF.
+The clean Astrid App controller HEAD must be a strict evidence-only descendant of
+ASTRID_APP_REF. The candidate archive, tests, and receipt remain bound to ASTRID_APP_REF.
 The bearer credential is generated in memory and passed by environment only to
-the Astrid server (whose serve-owned worker completes render tasks) and Reigh
+the Astrid server (whose serve-owned worker completes render tasks) and Astrid App
 proxy server. It is never placed on argv or exposed to the browser. Evidence is retained beneath /tmp and sealed
-read-only. The current Reigh production build deliberately cannot enter local
+read-only. The current Astrid App production build deliberately cannot enter local
 bridge mode; the gate therefore proves the built preview/auth proxy boundary,
 then labels its browser editing lane as development-only until that production
 product boundary changes. There are no skip flags.`);
@@ -1182,7 +1182,7 @@ function freezeArtifacts(path) {
 }
 
 function createEvidenceRoot(release) {
-  const parent = resolve(tmpdir(), 'reigh-paired-release-evidence');
+  const parent = resolve(tmpdir(), 'astrid-paired-release-evidence');
   mkdirSync(parent, { recursive: true, mode: 0o700 });
   const stamp = new Date().toISOString().replace(/[:.]/g, '-');
   const root = resolve(parent, `${release}-${stamp}-${process.pid}`);
@@ -1273,7 +1273,7 @@ export async function waitForViteReadiness(baseUrl, { expectedIdentity, process:
 }
 
 /**
- * Wait for the contract exposed by the selected Reigh server mode.
+ * Wait for the contract exposed by the selected Astrid App server mode.
  *
  * Production preview serves the generated, fail-closed runtime extension
  * document and must match the paired candidate identity exactly. Development
@@ -1284,7 +1284,7 @@ export async function waitForViteReadiness(baseUrl, { expectedIdentity, process:
  * the server-readiness primitive; the browser journey remains responsible for
  * proving the development runtime itself.
  */
-export async function waitForReighReadiness(
+export async function waitForAstridReadiness(
   baseUrl,
   { mode, expectedIdentity, process: child, timeoutMs = 120_000 } = {},
 ) {
@@ -1301,7 +1301,7 @@ export async function waitForReighReadiness(
       timeoutMs,
     });
   }
-  fail(`unsupported Reigh readiness mode: ${mode ?? '<missing>'}`);
+  fail(`unsupported Astrid App readiness mode: ${mode ?? '<missing>'}`);
 }
 
 /**
@@ -1888,25 +1888,25 @@ function installLockedAstridRuntime(context) {
     logPath: resolve(context.evidenceRoot, 'astrid-runtime-lock-install.log'),
   });
   const buildToolsLock = resolve(
-    context.reighSnapshot,
+    context.appSnapshot,
     'scripts/release/paired-python-build-tools.lock',
   );
-  if (!existsSync(buildToolsLock)) fail('pinned Reigh archive has no paired Python build-tools lock');
+  if (!existsSync(buildToolsLock)) fail('pinned Astrid App archive has no paired Python build-tools lock');
   runLogged(python, [
     '-m', 'pip', '--isolated', 'install', '--disable-pip-version-check', '--no-deps',
     '--only-binary=:all:', '--require-hashes', '-r', buildToolsLock,
   ], {
-    cwd: context.reighSnapshot,
+    cwd: context.appSnapshot,
     env: safeBaseEnvironment({ HOME: context.home, TMPDIR: context.runtimeRoot }),
     logPath: resolve(context.evidenceRoot, 'paired-python-build-tools-install.log'),
   });
-  const timelineSchemaSource = resolve(context.reighSnapshot, 'vendor/timeline-schema/python');
+  const timelineSchemaSource = resolve(context.appSnapshot, 'vendor/timeline-schema/python');
   const timelineSchemaFile = resolve(
     timelineSchemaSource,
     'banodoco_timeline_schema/timeline.schema.json',
   );
   if (!existsSync(timelineSchemaFile)) {
-    fail('pinned Reigh archive has no vendored Python timeline schema package');
+    fail('pinned Astrid App archive has no vendored Python timeline schema package');
   }
   const timelineSchemaSourceSnapshot = fileTreeSnapshot(timelineSchemaSource);
   writeFileSync(
@@ -1918,7 +1918,7 @@ function installLockedAstridRuntime(context) {
     '-m', 'pip', '--isolated', 'install', '--disable-pip-version-check', '--no-deps',
     '--no-build-isolation', timelineSchemaSource,
   ], {
-    cwd: context.reighSnapshot,
+    cwd: context.appSnapshot,
     env: safeBaseEnvironment({ HOME: context.home, TMPDIR: context.runtimeRoot }),
     logPath: resolve(context.evidenceRoot, 'timeline-schema-install.log'),
   });
@@ -1974,14 +1974,14 @@ print(json.dumps({
   return {
     lock: relative(context.astridSnapshot, lock),
     lockSha256: sha256File(lock),
-    buildToolsLock: relative(context.reighSnapshot, buildToolsLock),
+    buildToolsLock: relative(context.appSnapshot, buildToolsLock),
     buildToolsLockSha256: sha256File(buildToolsLock),
     environmentPackageCount: inventory.length,
     environmentSha256: createHash('sha256').update(inventoryJson).digest('hex'),
     python: realpathSync(python),
     timelineSchema: {
       ...timelineSchema,
-      source: relative(context.reighSnapshot, timelineSchemaSource),
+      source: relative(context.appSnapshot, timelineSchemaSource),
       sourceTreeSha256: timelineSchemaSourceSnapshot.sha256,
     },
   };
@@ -2111,7 +2111,7 @@ export function resolvePinnedBrowserExecutable(browserRoot, relativeExecutable) 
 }
 
 function resolvePinnedBrowser(context) {
-  const playwrightCli = resolve(context.reighSnapshot, 'node_modules/playwright/cli.js');
+  const playwrightCli = resolve(context.appSnapshot, 'node_modules/playwright/cli.js');
   const browserRoot = resolve(context.runtimeRoot, 'playwright-browsers');
   const browserEnv = safeBaseEnvironment({
     HOME: context.home,
@@ -2119,7 +2119,7 @@ function resolvePinnedBrowser(context) {
     PLAYWRIGHT_BROWSERS_PATH: browserRoot,
   });
   runLogged(process.execPath, [playwrightCli, 'install', 'chromium'], {
-    cwd: context.reighSnapshot,
+    cwd: context.appSnapshot,
     env: browserEnv,
     logPath: resolve(context.evidenceRoot, 'playwright-browser-install.log'),
   });
@@ -2128,7 +2128,7 @@ function resolvePinnedBrowser(context) {
     "const { chromium } = require('playwright')",
     'process.stdout.write(path.relative(process.env.PLAYWRIGHT_BROWSERS_PATH, chromium.executablePath()))',
   ].join(';')], {
-    cwd: context.reighSnapshot,
+    cwd: context.appSnapshot,
     env: browserEnv,
     logPath: resolve(context.evidenceRoot, 'playwright-browser-path.log'),
   });
@@ -2160,8 +2160,8 @@ function astridCommand(context, args, logName, { parseJson = true } = {}) {
 function seedDemoProject(context) {
   const sourceDir = resolve(context.projectsRoot, 'seed-sources');
   mkdirSync(sourceDir, { recursive: true, mode: 0o700 });
-  const fixturePath = resolve(context.reighSnapshot, PAIRED_RELEASE_MEDIA_FIXTURE);
-  const audioFixturePath = resolve(context.reighSnapshot, PAIRED_RELEASE_AUDIO_FIXTURE);
+  const fixturePath = resolve(context.appSnapshot, PAIRED_RELEASE_MEDIA_FIXTURE);
+  const audioFixturePath = resolve(context.appSnapshot, PAIRED_RELEASE_AUDIO_FIXTURE);
   const imagePath = resolve(sourceDir, 'paired-release-test-card.png');
   const audioPath = resolve(sourceDir, 'motion-output-audio.aac');
   writeFileSync(imagePath, readFileSync(fixturePath), { mode: 0o600 });
@@ -2171,12 +2171,12 @@ function seedDemoProject(context) {
   writeFileSync(resolve(context.evidenceRoot, 'seed-media-fixture.json'), `${JSON.stringify({
     image: {
       ...context.mediaFixture,
-      source: relative(context.reighSnapshot, fixturePath),
+      source: relative(context.appSnapshot, fixturePath),
       seeded: relative(context.projectsRoot, imagePath),
     },
     audio: {
       ...context.audioFixture,
-      source: relative(context.reighSnapshot, audioFixturePath),
+      source: relative(context.appSnapshot, audioFixturePath),
       seeded: relative(context.projectsRoot, audioPath),
     },
   }, null, 2)}\n`, { flag: 'wx', mode: 0o600 });
@@ -2450,8 +2450,8 @@ export async function waitForRenderWorkerReadiness(child, { timeoutMs = 10_000 }
 }
 
 export async function startRenderWorker(context, suffix, bridgePort, token) {
-  const script = resolve(context.reighSnapshot, 'scripts/release/paired-render-worker.py');
-  if (!existsSync(script)) fail(`paired render worker is missing from the archived Reigh candidate: ${script}`);
+  const script = resolve(context.appSnapshot, 'scripts/release/paired-render-worker.py');
+  if (!existsSync(script)) fail(`paired render worker is missing from the archived Astrid App candidate: ${script}`);
   const evidencePath = resolve(context.evidenceRoot, `astrid-render-worker-${suffix}.json`);
   const stagingRoot = resolve(context.runtimeRoot, `render-worker-staging-${suffix}`);
   mkdirSync(stagingRoot, { recursive: true, mode: 0o700 });
@@ -2519,23 +2519,23 @@ export async function assertRenderWorkerCompleted(handle, { timeoutMs = 10_000 }
   return evidence;
 }
 
-export async function startReigh(context, suffix, port, bridgePort, token, mode) {
-  const viteBin = resolve(context.reighSnapshot, 'node_modules/vite/bin/vite.js');
+export async function startApp(context, suffix, port, bridgePort, token, mode) {
+  const viteBin = resolve(context.appSnapshot, 'node_modules/vite/bin/vite.js');
   const args = buildViteArgs(viteBin, mode, port);
   return startLoggedProcessUntilReady(process.execPath, args, {
-    cwd: context.reighSnapshot,
+    cwd: context.appSnapshot,
     env: buildServerEnvironment({
       home: context.home,
       projectsRoot: context.projectsRoot,
       pythonPath: context.astridSnapshot,
       bridgePort,
       token,
-      reighMode: mode,
-      reighPort: port,
+      astridMode: mode,
+      astridPort: port,
       readinessIdentity: context.readinessIdentity,
     }),
-    logPath: resolve(context.evidenceRoot, `reigh-${suffix}.log`),
-  }, (child) => waitForReighReadiness(`http://127.0.0.1:${port}`, {
+    logPath: resolve(context.evidenceRoot, `astrid-${suffix}.log`),
+  }, (child) => waitForAstridReadiness(`http://127.0.0.1:${port}`, {
     mode,
     process: child,
     expectedIdentity: context.readinessIdentity,
@@ -2620,11 +2620,11 @@ async function smokeBuiltPreview(port, expectedIdentity) {
 }
 
 export function runPlaywright(context, phase, port) {
-  const cli = resolve(context.reighSnapshot, 'node_modules/@playwright/test/cli.js');
+  const cli = resolve(context.appSnapshot, 'node_modules/@playwright/test/cli.js');
   const execute = (outputPhase) => runLogged(process.execPath, [
     cli, 'test', '--config', 'playwright.paired-release.config.ts', '--workers=1',
   ], {
-    cwd: context.reighSnapshot,
+    cwd: context.appSnapshot,
     env: buildBrowserEnvironment({
       baseUrl: `http://127.0.0.1:${port}`,
       browserExecutable: context.browserExecutable,
@@ -3410,7 +3410,7 @@ function decodeAudioEvidence(context, inputPath, label, durationSeconds) {
     '-t', String(durationSeconds), '-vn', '-ac', '1', '-ar', '8000',
     '-f', 's16le', '-y', outputPath,
   ], {
-    cwd: context.reighSnapshot,
+    cwd: context.appSnapshot,
     env: safeBaseEnvironment(),
     logPath: resolve(context.evidenceRoot, `${label}.log`),
     strictStderr: true,
@@ -3452,7 +3452,7 @@ function verifyRenderedArtifact(context, { serveOwnedEvidence = null } = {}) {
     '-of', 'json',
     outputPath,
   ], {
-    cwd: context.reighSnapshot,
+    cwd: context.appSnapshot,
     env: safeBaseEnvironment(),
     logPath: resolve(context.evidenceRoot, 'render-ffprobe.json'),
     parseJson: true,
@@ -3490,7 +3490,7 @@ function verifyRenderedArtifact(context, { serveOwnedEvidence = null } = {}) {
   const fullDecodeResult = runLogged(ffmpegExecutable, [
     '-xerror', '-v', 'error', '-i', outputPath, '-f', 'null', '-',
   ], {
-    cwd: context.reighSnapshot,
+    cwd: context.appSnapshot,
     env: safeBaseEnvironment(),
     logPath: resolve(context.evidenceRoot, 'render-full-decode.log'),
     strictStderr: true,
@@ -3527,14 +3527,14 @@ function verifyRenderedArtifact(context, { serveOwnedEvidence = null } = {}) {
     '-vf', `select=eq(n\\,${controlFrame})`, '-fps_mode', 'passthrough',
     '-frames:v', '1', '-y', controlPath,
   ], {
-    cwd: context.reighSnapshot,
+    cwd: context.appSnapshot,
     env: safeBaseEnvironment(),
     logPath: resolve(context.evidenceRoot, 'render-caption-control.log'),
   });
   const mediaEvidence = validateRenderedMediaFrame(controlPath, context.mediaFixture);
   const controlFrameSha256 = sha256File(controlPath);
   const tesseractLanguages = capture(tesseractExecutable, ['--list-langs'], {
-    cwd: context.reighSnapshot,
+    cwd: context.appSnapshot,
     env: safeBaseEnvironment(),
     allowFailure: true,
   });
@@ -3544,7 +3544,7 @@ function verifyRenderedArtifact(context, { serveOwnedEvidence = null } = {}) {
   const controlOcrPath = resolve(context.evidenceRoot, 'render-caption-control-ocr.tsv');
   const controlTesseract = capture(tesseractExecutable, [
     controlPath, 'stdout', '--psm', '11', '-l', 'eng', 'tsv',
-  ], { cwd: context.reighSnapshot, env: safeBaseEnvironment() });
+  ], { cwd: context.appSnapshot, env: safeBaseEnvironment() });
   writeFileSync(controlOcrPath, controlTesseract.stdout, { encoding: 'utf8', flag: 'wx', mode: 0o600 });
   const controlRecognized = recognizedCaption(parseTesseractTsv(controlTesseract.stdout));
   const controlRegions = captions.map((caption) => caption.region);
@@ -3581,7 +3581,7 @@ function verifyRenderedArtifact(context, { serveOwnedEvidence = null } = {}) {
   runLogged(magickExecutable, [
     '-size', `${CAPTION_FRAME_WIDTH}x${CAPTION_FRAME_HEIGHT}`, 'xc:black', blackControlPath,
   ], {
-    cwd: context.reighSnapshot,
+    cwd: context.appSnapshot,
     env: safeBaseEnvironment(),
     logPath: resolve(context.evidenceRoot, 'render-black-control.log'),
     strictStderr: true,
@@ -3597,7 +3597,7 @@ function verifyRenderedArtifact(context, { serveOwnedEvidence = null } = {}) {
       '-vf', `select=eq(n\\,${probeEntry.frame})`, '-fps_mode', 'passthrough',
       '-frames:v', '1', '-y', framePath,
     ], {
-      cwd: context.reighSnapshot,
+      cwd: context.appSnapshot,
       env: safeBaseEnvironment(),
       logPath,
     });
@@ -3607,7 +3607,7 @@ function verifyRenderedArtifact(context, { serveOwnedEvidence = null } = {}) {
       framePath, '-crop', crop, '+repage', '-colorspace', 'gray',
       '-threshold', '70%', ocrInputPath,
     ], {
-      cwd: context.reighSnapshot,
+      cwd: context.appSnapshot,
       env: safeBaseEnvironment(),
       logPath: resolve(context.evidenceRoot, `${fileStem}-ocr-input.log`),
       strictStderr: true,
@@ -3615,7 +3615,7 @@ function verifyRenderedArtifact(context, { serveOwnedEvidence = null } = {}) {
     const ocrPath = resolve(context.evidenceRoot, `${fileStem}-ocr.tsv`);
     const tesseract = capture(tesseractExecutable, [
       ocrInputPath, 'stdout', '--psm', '7', '-l', 'eng', 'tsv',
-    ], { cwd: context.reighSnapshot, env: safeBaseEnvironment() });
+    ], { cwd: context.appSnapshot, env: safeBaseEnvironment() });
     writeFileSync(ocrPath, tesseract.stdout, { encoding: 'utf8', flag: 'wx', mode: 0o600 });
     const recognizedInCrop = recognizedCaption(parseTesseractTsv(tesseract.stdout));
     const recognized = {
@@ -3679,7 +3679,7 @@ function verifyRenderedArtifact(context, { serveOwnedEvidence = null } = {}) {
       '-vf', `select=eq(n\\,${probeEntry.frame})`, '-fps_mode', 'passthrough',
       '-frames:v', '1', '-y', framePath,
     ], {
-      cwd: context.reighSnapshot,
+      cwd: context.appSnapshot,
       env: safeBaseEnvironment(),
       logPath,
     });
@@ -3689,7 +3689,7 @@ function verifyRenderedArtifact(context, { serveOwnedEvidence = null } = {}) {
       framePath, '-crop', crop, '+repage', '-colorspace', 'gray',
       '-threshold', '70%', ocrInputPath,
     ], {
-      cwd: context.reighSnapshot,
+      cwd: context.appSnapshot,
       env: safeBaseEnvironment(),
       logPath: resolve(context.evidenceRoot, `${fileStem}-ocr-input.log`),
       strictStderr: true,
@@ -3697,7 +3697,7 @@ function verifyRenderedArtifact(context, { serveOwnedEvidence = null } = {}) {
     const ocrPath = resolve(context.evidenceRoot, `${fileStem}-ocr.tsv`);
     const tesseract = capture(tesseractExecutable, [
       ocrInputPath, 'stdout', '--psm', '7', '-l', 'eng', 'tsv',
-    ], { cwd: context.reighSnapshot, env: safeBaseEnvironment() });
+    ], { cwd: context.appSnapshot, env: safeBaseEnvironment() });
     writeFileSync(ocrPath, tesseract.stdout, { encoding: 'utf8', flag: 'wx', mode: 0o600 });
     const recognized = recognizedCaption(parseTesseractTsv(tesseract.stdout));
     const usesSeededMedia = visualMediaIntervals.some((interval) => (
@@ -3805,7 +3805,7 @@ function verifyRenderedArtifact(context, { serveOwnedEvidence = null } = {}) {
 }
 
 async function executeGate(manifest, pins, evidenceRoot) {
-  const runtimeRoot = mkdtempSync(resolve(tmpdir(), 'reigh-paired-release-runtime-'));
+  const runtimeRoot = mkdtempSync(resolve(tmpdir(), 'astrid-paired-release-runtime-'));
   chmodSync(runtimeRoot, 0o700);
   const context = {
     ...pins,
@@ -3818,11 +3818,11 @@ async function executeGate(manifest, pins, evidenceRoot) {
     runtimeRoot,
     home: resolve(runtimeRoot, 'home'),
     projectsRoot: resolve(runtimeRoot, 'projects'),
-    reighSnapshot: resolve(runtimeRoot, 'reigh'),
+    appSnapshot: resolve(runtimeRoot, 'app'),
     astridSnapshot: resolve(runtimeRoot, 'astrid'),
     readinessIdentity: buildReadinessIdentity({
       nonce: randomBytes(4).toString('hex'),
-      reighCommit: pins.reighCommit,
+      appCommit: pins.appCommit,
     }),
   };
   mkdirSync(context.home, { recursive: true, mode: 0o700 });
@@ -3842,10 +3842,10 @@ async function executeGate(manifest, pins, evidenceRoot) {
     release: manifest.release,
     startedAt: new Date().toISOString(),
     status: 'failed',
-    reighCommit: pins.reighCommit,
-    reighControllerHead: pins.reighControllerHead,
-    reighTagObject: pins.reighTagObject,
-    reighEvidencePaths: pins.reighProvenance.changedPaths,
+    appCommit: pins.appCommit,
+    astridControllerHead: pins.astridControllerHead,
+    astridTagObject: pins.astridTagObject,
+    astridEvidencePaths: pins.astridProvenance.changedPaths,
     astridCommit: pins.astridCommit,
     capability: pins.capability,
     diskCapacity: pins.diskCapacity,
@@ -3859,19 +3859,19 @@ async function executeGate(manifest, pins, evidenceRoot) {
     phases: [],
   };
   let astridHandle;
-  let reighHandle;
+  let appHandle;
   let cleanupError;
   const token = randomBytes(32).toString('base64url');
   try {
-    archiveCommit(REPO_ROOT, pins.reighCommit, context.reighSnapshot, resolve(runtimeRoot, 'reigh.tar'));
+    archiveCommit(REPO_ROOT, pins.appCommit, context.appSnapshot, resolve(runtimeRoot, 'app.tar'));
     archiveCommit(pins.astridCheckout, pins.astridCommit, context.astridSnapshot, resolve(runtimeRoot, 'astrid.tar'));
     context.mediaFixture = validateMediaFixture({
-      fixturePath: resolve(context.reighSnapshot, PAIRED_RELEASE_MEDIA_FIXTURE),
-      metadataPath: resolve(context.reighSnapshot, PAIRED_RELEASE_MEDIA_METADATA),
+      fixturePath: resolve(context.appSnapshot, PAIRED_RELEASE_MEDIA_FIXTURE),
+      metadataPath: resolve(context.appSnapshot, PAIRED_RELEASE_MEDIA_METADATA),
     });
     context.audioFixture = validateAudioFixture({
-      fixturePath: resolve(context.reighSnapshot, PAIRED_RELEASE_AUDIO_FIXTURE),
-      expectedRoot: context.reighSnapshot,
+      fixturePath: resolve(context.appSnapshot, PAIRED_RELEASE_AUDIO_FIXTURE),
+      expectedRoot: context.appSnapshot,
       ffprobeExecutable: context.nativeTools?.ffprobe?.executable,
     });
     receipt.phases.push({ id: 'archives', status: 'pass' });
@@ -3882,18 +3882,18 @@ async function executeGate(manifest, pins, evidenceRoot) {
     });
 
     runPinnedNpm(context, ['ci', '--no-audit', '--no-fund'], {
-      cwd: context.reighSnapshot,
+      cwd: context.appSnapshot,
       env: safeBaseEnvironment({ HOME: context.home, TMPDIR: runtimeRoot, NPM_CONFIG_USERCONFIG: npmUserConfig, NPM_CONFIG_GLOBALCONFIG: npmGlobalConfig }),
-      logPath: resolve(evidenceRoot, 'reigh-npm-ci.log'),
+      logPath: resolve(evidenceRoot, 'astrid-npm-ci.log'),
     });
     runPinnedNpm(context, ['run', 'build'], {
-      cwd: context.reighSnapshot,
+      cwd: context.appSnapshot,
       env: safeBaseEnvironment({ ...PUBLIC_BUILD_ENV, HOME: context.home, TMPDIR: runtimeRoot, NPM_CONFIG_USERCONFIG: npmUserConfig, NPM_CONFIG_GLOBALCONFIG: npmGlobalConfig }),
-      logPath: resolve(evidenceRoot, 'reigh-build.log'),
+      logPath: resolve(evidenceRoot, 'astrid-build.log'),
     });
     const browser = resolvePinnedBrowser(context);
     runLogged(process.execPath, ['scripts/runtime/write-extension-release-config.mjs'], {
-      cwd: context.reighSnapshot,
+      cwd: context.appSnapshot,
       env: safeBaseEnvironment({
         HOME: context.home,
         EXTENSION_HOST_ENABLED: 'true',
@@ -3901,9 +3901,9 @@ async function executeGate(manifest, pins, evidenceRoot) {
         RUNAWAY_TYPED_TIMELINE_ENABLED: 'true',
         EXTENSION_RELEASE_CONFIG_REVISION: context.readinessIdentity,
       }),
-      logPath: resolve(evidenceRoot, 'reigh-runtime-config.log'),
+      logPath: resolve(evidenceRoot, 'astrid-runtime-config.log'),
     });
-    receipt.phases.push({ id: 'reigh-build', status: 'pass', browser });
+    receipt.phases.push({ id: 'astrid-build', status: 'pass', browser });
 
     const astridRuntime = installLockedAstridRuntime(context);
     receipt.phases.push({
@@ -3971,24 +3971,24 @@ async function executeGate(manifest, pins, evidenceRoot) {
       fixture: context.audioFixture,
       token,
     });
-    let reighPort = await allocatePort();
-    reighHandle = await startReigh(context, 'preview', reighPort, bridgePort, token, 'preview');
-    const preview = await smokeBuiltPreview(reighPort, context.readinessIdentity);
+    let astridPort = await allocatePort();
+    appHandle = await startApp(context, 'preview', astridPort, bridgePort, token, 'preview');
+    const preview = await smokeBuiltPreview(astridPort, context.readinessIdentity);
     receipt.phases.push({
       id: 'built-preview-auth-proxy',
       status: 'pass',
       ...preview,
       bridgeMedia: { image: bridgeImage, audio: bridgeAudio },
     });
-    await stopLoggedProcesses([reighHandle, astridHandle]);
-    reighHandle = undefined;
+    await stopLoggedProcesses([appHandle, astridHandle]);
+    appHandle = undefined;
     astridHandle = undefined;
 
     bridgePort = await allocatePort();
     astridHandle = await startAstrid(context, 'browser-first', bridgePort, token);
-    reighPort = await allocatePort();
-    reighHandle = await startReigh(context, 'browser-first', reighPort, bridgePort, token, 'development');
-    const firstBrowser = runPlaywright(context, 'first', reighPort);
+    astridPort = await allocatePort();
+    appHandle = await startApp(context, 'browser-first', astridPort, bridgePort, token, 'development');
+    const firstBrowser = runPlaywright(context, 'first', astridPort);
     receipt.phases.push({
       id: 'browser-first',
       status: 'pass',
@@ -3997,15 +3997,15 @@ async function executeGate(manifest, pins, evidenceRoot) {
         ? { contextSetupRetryEvidence: firstBrowser.contextSetupRetryEvidence }
         : {}),
     });
-    await stopLoggedProcesses([reighHandle, astridHandle]);
-    reighHandle = undefined;
+    await stopLoggedProcesses([appHandle, astridHandle]);
+    appHandle = undefined;
     astridHandle = undefined;
 
     bridgePort = await allocatePort();
     astridHandle = await startAstrid(context, 'browser-restart', bridgePort, token);
-    reighPort = await allocatePort();
-    reighHandle = await startReigh(context, 'browser-restart', reighPort, bridgePort, token, 'development');
-    const restartBrowser = runPlaywright(context, 'restart', reighPort);
+    astridPort = await allocatePort();
+    appHandle = await startApp(context, 'browser-restart', astridPort, bridgePort, token, 'development');
+    const restartBrowser = runPlaywright(context, 'restart', astridPort);
     const serveOwnedEvidence = await captureAstridServeOwnedRenderEvidence(context, { bridgePort, token });
     const renderVerification = verifyRenderedArtifact(context, { serveOwnedEvidence });
     receipt.phases.push({
@@ -4031,8 +4031,8 @@ async function executeGate(manifest, pins, evidenceRoot) {
         workerBinding: renderVerification.workerBinding,
       },
     });
-    await stopLoggedProcesses([reighHandle, astridHandle]);
-    reighHandle = undefined;
+    await stopLoggedProcesses([appHandle, astridHandle]);
+    appHandle = undefined;
     astridHandle = undefined;
 
     astridCommand(context, [
@@ -4099,9 +4099,9 @@ async function executeGate(manifest, pins, evidenceRoot) {
       fixture: context.audioFixture,
       token,
     });
-    reighPort = await allocatePort();
-    reighHandle = await startReigh(context, 'restore', reighPort, bridgePort, token, 'development');
-    const restoreBrowser = runPlaywright(context, 'restore', reighPort);
+    astridPort = await allocatePort();
+    appHandle = await startApp(context, 'restore', astridPort, bridgePort, token, 'development');
+    const restoreBrowser = runPlaywright(context, 'restore', astridPort);
     receipt.phases.push({
       id: 'rollback-restore',
       status: 'pass',
@@ -4129,7 +4129,7 @@ async function executeGate(manifest, pins, evidenceRoot) {
     throw error;
   } finally {
     try {
-      await stopLoggedProcesses([reighHandle, astridHandle]);
+      await stopLoggedProcesses([appHandle, astridHandle]);
     } catch (error) {
       cleanupError = error;
       receipt.status = 'failed';
@@ -4188,7 +4188,7 @@ export async function main(argv = process.argv.slice(2), env = process.env) {
       release: manifest.release,
       status: 'failed',
       phase: preflightPhase,
-      reighRef: env.REIGH_REF || null,
+      appRef: env.ASTRID_APP_REF || null,
       astridRef: env.ASTRID_REF || null,
       manifestAstridPin: manifest.astrid.commit,
       requiredCapability: RELEASE_BRIDGE_CAPABILITY,

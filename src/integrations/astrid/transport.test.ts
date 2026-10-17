@@ -76,7 +76,7 @@ describe('Astrid bridge transport boundary', () => {
 
       expect(error).toBeInstanceOf(BridgeRouteError);
       expect(error).toMatchObject({ status, code });
-      // `rate_limited` is an Astrid wire code, not one of Reigh's public
+      // `rate_limited` is an Astrid wire code, not one of Astrid App's public
       // recovery categories; preserve it without relabeling as conflict.
       if (code === 'rate_limited') expect(error).toMatchObject({ category: 'unknown' });
     } finally {

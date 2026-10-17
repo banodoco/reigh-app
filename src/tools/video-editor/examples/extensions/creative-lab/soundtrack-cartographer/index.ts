@@ -8,14 +8,14 @@
  */
 
 import { createElement } from 'react';
-import { defineExtension } from '@reigh/editor-sdk';
+import { defineExtension } from '@astrid/editor-sdk';
 import type {
   CommandRunContext,
   ContributionId,
   DisposeHandle,
   ExtensionContext,
   ExtensionId,
-  ReighExtension,
+  AstridExtension,
   TimelineClipSummary,
   TimelineMarkerChange,
   TimelineOverlayRenderProps,
@@ -23,7 +23,7 @@ import type {
   TimelinePointMarker,
   TimelineSnapshot,
   TimelineTrackSummary,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import {
   clusterTimelineMarkers,
   moveTimelineMarkerCluster,
@@ -31,7 +31,7 @@ import {
 } from '../timelineMarkerClusters';
 
 export const SOUNDTRACK_CARTOGRAPHER_EXTENSION_ID =
-  'com.reigh.creative-lab.soundtrack-cartographer' as ExtensionId;
+  'haus.astrid.creative-lab.soundtrack-cartographer' as ExtensionId;
 export const BUILD_TERRAIN_COMMAND = `${SOUNDTRACK_CARTOGRAPHER_EXTENSION_ID}.buildTerrain`;
 export const TERRAIN_DATA_KEY = 'terrainCues';
 export const TERRAIN_OVERLAY_RENDER_ID = 'soundtrack-cartographer/timeline-overlay';
@@ -383,7 +383,7 @@ function disposeTogether(ctx: ExtensionContext, handles: readonly DisposeHandle[
   }
 }
 
-export const soundtrackCartographerExtension: ReighExtension = defineExtension({
+export const soundtrackCartographerExtension: AstridExtension = defineExtension({
   manifest: {
     id: SOUNDTRACK_CARTOGRAPHER_EXTENSION_ID,
     version: '1.0.0',

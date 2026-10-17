@@ -19,14 +19,14 @@
  * resolved/missing/disabled reference-state diagnostics.
  *
  * This file must NOT import from editor internals (src/tools/video-editor/*).
- * It imports exclusively from @reigh/editor-sdk, the public SDK entrypoint.
+ * It imports exclusively from @astrid/editor-sdk, the public SDK entrypoint.
  *
  * @publicContract
  */
 
-import { defineExtension } from '@reigh/editor-sdk';
+import { defineExtension } from '@astrid/editor-sdk';
 import type {
-  ReighExtension,
+  AstridExtension,
   ExtensionContext,
   DisposeHandle,
   ClipTypeContribution,
@@ -37,7 +37,7 @@ import type {
   ClipTypeRegistrationOptions,
   ClipTypeRegistrationService,
   KeyframeInterpolation,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 
 // ---------------------------------------------------------------------------
 // Parameter schema — these params are keyframed by the host interpolator
@@ -231,9 +231,9 @@ function buildTintFilter(hexColor: string, intensity: number): string {
 // Extension definition
 // ---------------------------------------------------------------------------
 
-export const clipTypeKeyframedExample: ReighExtension = defineExtension({
+export const clipTypeKeyframedExample: AstridExtension = defineExtension({
   manifest: {
-    id: 'com.reigh.examples.clip-type-keyframed' as any,
+    id: 'haus.astrid.examples.clip-type-keyframed' as any,
     version: '1.0.0',
     label: 'Clip-Type Keyframed Example',
     description:
@@ -245,7 +245,7 @@ export const clipTypeKeyframedExample: ReighExtension = defineExtension({
         id: 'clip-type-keyframed-contrib' as any,
         kind: 'clipType',
         label: 'Keyframed Procedural Clip',
-        clipTypeId: 'com.reigh.examples.clipType.keyframed',
+        clipTypeId: 'haus.astrid.examples.clipType.keyframed',
         allowBrowserExport: false,
         allowWorkerExport: false,
         order: 10,
@@ -271,7 +271,7 @@ export const clipTypeKeyframedExample: ReighExtension = defineExtension({
     });
 
     const handle = ctx.clipTypes.registerClipType(
-      'com.reigh.examples.clipType.keyframed',
+      'haus.astrid.examples.clipType.keyframed',
       proceduralRenderer,
       proceduralInspector,
       {
@@ -284,7 +284,7 @@ export const clipTypeKeyframedExample: ReighExtension = defineExtension({
       severity: 'info',
       code: 'clip-type-keyframed/registered',
       message: ctx.services.i18n.t('clipType.registered', {
-        clipTypeId: 'com.reigh.examples.clipType.keyframed',
+        clipTypeId: 'haus.astrid.examples.clipType.keyframed',
         paramCount: KEYFRAMED_CLIP_SCHEMA.length,
       }),
     });

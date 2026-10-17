@@ -59,7 +59,7 @@ function validateAllowlistEntry(entry, importer) {
     errors.push(`${importer}: invalid classification "${entry.classification}".`);
   }
   if (entry.classification === 'author-facing') {
-    errors.push(`${importer}: author-facing deep imports are not allowed; replace with @reigh/editor-sdk or canonical SDK modules.`);
+    errors.push(`${importer}: author-facing deep imports are not allowed; replace with @astrid/editor-sdk or canonical SDK modules.`);
   }
 
   if (typeof entry.expiration === 'string' && entry.expiration !== 'permanent') {
@@ -373,7 +373,7 @@ if (failures.length > 0) {
 console.log('[video-editor-sdk-imports] OK: all external video-editor imports use public entrypoints or the approved allowlist.');
 
 // ---------------------------------------------------------------------------
-// Monorepo extractability smoke: verify @reigh/editor-sdk can be consumed
+// Monorepo extractability smoke: verify @astrid/editor-sdk can be consumed
 // by external code (monorepo-extractable) without requiring any deep imports
 // from src/tools/video-editor/*. This does NOT assert standalone npm
 // publishability — that is explicitly deferred (see D-136 in
@@ -386,34 +386,34 @@ import os from 'node:os';
 const SMOKE_LABEL = '[video-editor-sdk-smoke]';
 
 /**
- * Create a temporary TypeScript fixture that imports only @reigh/editor-sdk,
+ * Create a temporary TypeScript fixture that imports only @astrid/editor-sdk,
  * defines a minimal extension, and type-checks cleanly. If tsc fails, the SDK
  * is not monorepo-extractable — it likely transitively requires video-editor
  * internals that are unavailable to external consumers.
  *
- * NOTE: Passing this smoke does NOT imply that @reigh/editor-sdk is a
+ * NOTE: Passing this smoke does NOT imply that @astrid/editor-sdk is a
  * standalone publishable npm package. Standalone npm publishing is deferred
  * (see deferred row D-136 in extension-platform-supported-deferred.md).
  * This smoke only verifies that external code within the monorepo can consume
  * the SDK through the public alias without deep imports.
  */
 function runPackagabilitySmoke() {
-  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'reigh-sdk-smoke-'));
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'astrid-sdk-smoke-'));
   const fixturePath = path.join(tmpDir, 'smoke-fixture.ts');
   const tsconfigPath = path.join(tmpDir, 'tsconfig.json');
 
   const fixtureContent = `/**
  * Monorepo extractability smoke fixture — must NOT import from src/tools/video-editor/*.
- * Imports exclusively from @reigh/editor-sdk, the public SDK entrypoint.
+ * Imports exclusively from @astrid/editor-sdk, the public SDK entrypoint.
  * NOTE: This does NOT assert standalone npm publishability (deferred — see D-136).
  */
 
-import { defineExtension } from '@reigh/editor-sdk';
-import type { ReighExtension } from '@reigh/editor-sdk';
+import { defineExtension } from '@astrid/editor-sdk';
+import type { AstridExtension } from '@astrid/editor-sdk';
 
-const ext: ReighExtension = defineExtension({
+const ext: AstridExtension = defineExtension({
   manifest: {
-    id: 'com.reigh.smoke.packagability' as any,
+    id: 'haus.astrid.smoke.packagability' as any,
     version: '1.0.0',
     label: 'External Consumption Smoke',
     description: 'Temporary fixture verifying the SDK stands alone.',
@@ -427,7 +427,7 @@ import {
   type ContributionKind,
   CONTRIBUTION_KIND_MILESTONE,
   contributionKindNotYetBridged,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 
 // Exhaustiveness: reference the imports so they are not tree-shaken away
 void ext;
@@ -447,7 +447,7 @@ void ({} as _SmokeCheck);
       baseUrl: repoRoot,
       paths: {
         '@/*': ['./src/*'],
-        '@reigh/editor-sdk': ['./src/sdk/index.ts'],
+        '@astrid/editor-sdk': ['./src/sdk/index.ts'],
       },
       skipLibCheck: true,
       noEmit: true,
@@ -487,12 +487,12 @@ void ({} as _SmokeCheck);
       return false;
     }
 
-    console.log(`${SMOKE_LABEL} PASSED: @reigh/editor-sdk is monorepo-extractable — it type-checks with no video-editor deep imports required.`);
+    console.log(`${SMOKE_LABEL} PASSED: @astrid/editor-sdk is monorepo-extractable — it type-checks with no video-editor deep imports required.`);
     return true;
   } catch (err) {
     // The SDK intentionally re-exports some video-editor internals, so tsc may
     // report diagnostics in those transitive source files. The smoke's real
-    // purpose is to prove that an external consumer can import @reigh/editor-sdk
+    // purpose is to prove that an external consumer can import @astrid/editor-sdk
     // without needing to import from src/tools/video-editor/* directly. We
     // therefore tolerate SDK-internal diagnostics and only fail if the fixture
     // itself cannot resolve the SDK or contains a forbidden deep import.
@@ -507,7 +507,7 @@ void ({} as _SmokeCheck);
     );
 
     if (fixtureErrorPattern.test(output)) {
-      console.error(`${SMOKE_LABEL} FAILED: the smoke fixture cannot import @reigh/editor-sdk cleanly.`);
+      console.error(`${SMOKE_LABEL} FAILED: the smoke fixture cannot import @astrid/editor-sdk cleanly.`);
       console.error(`${SMOKE_LABEL} tsc output:\n${output}`);
       return false;
     }
@@ -525,7 +525,7 @@ void ({} as _SmokeCheck);
     if (output.split('\n').length > 20) {
       console.warn(`${SMOKE_LABEL} ...and ${output.split('\n').length - 20} more lines.`);
     }
-    console.log(`${SMOKE_LABEL} PASSED: smoke fixture imports @reigh/editor-sdk with no direct deep imports into src/tools/video-editor (external consumption confirmed).`);
+    console.log(`${SMOKE_LABEL} PASSED: smoke fixture imports @astrid/editor-sdk with no direct deep imports into src/tools/video-editor (external consumption confirmed).`);
     return true;
   } finally {
     cleanupTmp(tmpDir);

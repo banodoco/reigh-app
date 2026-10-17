@@ -1,6 +1,6 @@
 # Astrid local preview and content handoff
 
-This candidate is part of the existing `banodoco/reigh-app` repository. It replaces the supported `/home` entry and is also served at WEB `/`. It is a local, uncommitted delivery candidate; final acceptance is still open and public deployment is separate.
+This candidate is part of the existing `banodoco/astrid-app` repository. It replaces the supported `/home` entry and is also served at WEB `/`. It is a local, uncommitted delivery candidate; final acceptance is still open and public deployment is separate.
 
 ## Open the local experience
 

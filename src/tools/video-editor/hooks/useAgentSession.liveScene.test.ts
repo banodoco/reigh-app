@@ -3,7 +3,7 @@ import type { AstridLocalClient } from '@/integrations/astrid/client';
 import type { AgentChatEditorContext } from '@/shared/contexts/AgentChatContext';
 import type { TimelineReader } from '@/sdk/video/timeline/reader';
 import { LiveSceneOperationPort } from '../runtime/liveSceneOperationPort';
-import { AstridAgentSessionStore, stripReighEditorContext } from './useAgentSession';
+import { AstridAgentSessionStore, stripAstridEditorContext } from './useAgentSession';
 
 function deferred<T = void>() {
   let resolve!: (value: T | PromiseLike<T>) => void;
@@ -42,7 +42,7 @@ describe('actual ACP store scene roundtrip', () => {
     const pending: unknown[] = [];
     let calls = 0;
     let scope: Record<string, unknown>;
-    port.registration('com.reigh.astrid.live-scenes')!.register(async (request) => {
+    port.registration('haus.astrid.live-scenes')!.register(async (request) => {
       if (request.action === 'read') return { kind: 'read', capture: {
         projectId: 'p', timelineId: 't', capturedTimelineVersion: 7,
         packageRevision: `sha256:${'a'.repeat(64)}`, entryRevision: `sha256:${'b'.repeat(64)}`, packageObjectId: 'package', entryObjectId: 'entry',
@@ -58,18 +58,18 @@ describe('actual ACP store scene roundtrip', () => {
         calls += 1;
         let text: string;
         if (calls === 1) {
-          const contract = blocks.find((block) => block.text.startsWith('<reigh_live_scene_context>'))!.text;
-          scope = JSON.parse(contract.replace('<reigh_live_scene_context>', '').replace('</reigh_live_scene_context>', '')).scope;
-          text = `<reigh_live_scene_request>${JSON.stringify({ schema: 'reigh.live-scene-request/v1', requestId: 'read', scope,
-              placementIds: ['clip'], action: 'read', offset: 0, length: 100 })}</reigh_live_scene_request>`;
+          const contract = blocks.find((block) => block.text.startsWith('<astrid_live_scene_context>'))!.text;
+          scope = JSON.parse(contract.replace('<astrid_live_scene_context>', '').replace('</astrid_live_scene_context>', '')).scope;
+          text = `<astrid_live_scene_request>${JSON.stringify({ schema: 'astrid.live-scene-request/v1', requestId: 'read', scope,
+              placementIds: ['clip'], action: 'read', offset: 0, length: 100 })}</astrid_live_scene_request>`;
         } else {
-          const feedback = JSON.parse(blocks[0].text.replace('<reigh_live_scene_result>', '').replace('</reigh_live_scene_result>', ''));
+          const feedback = JSON.parse(blocks[0].text.replace('<astrid_live_scene_result>', '').replace('</astrid_live_scene_result>', ''));
           expect(feedback.scope.sessionId).toBe(session);
           expect(feedback.results[0].ok).toBe(true);
           if (calls === 2) {
             expect(feedback.results[0].requestId).toBe('read');
-            text = `<reigh_live_scene_request>${JSON.stringify({ schema: 'reigh.live-scene-request/v1', requestId: 'publish', scope,
-              placementIds: ['clip'], action: 'publish', capture: feedback.results[0].result.capture, replacements: [{ before: 'old', after: 'new' }] })}</reigh_live_scene_request>`;
+            text = `<astrid_live_scene_request>${JSON.stringify({ schema: 'astrid.live-scene-request/v1', requestId: 'publish', scope,
+              placementIds: ['clip'], action: 'publish', capture: feedback.results[0].result.capture, replacements: [{ before: 'old', after: 'new' }] })}</astrid_live_scene_request>`;
           } else {
             expect(feedback.results[0].requestId).toBe('publish');
             expect(feedback.results[0].result.flushReceipt.version).toBe(8);
@@ -93,7 +93,7 @@ describe('actual ACP store scene roundtrip', () => {
     expect(session.turns[1].content).toContain('Scene published:');
     expect(session.turns[1].content).toContain('received the durable publication receipt');
     expect(session.status).toBe('waiting_user');
-    expect(stripReighEditorContext(acp.promptProjectSession.mock.calls[1][3][0].text)).toBe('');
+    expect(stripAstridEditorContext(acp.promptProjectSession.mock.calls[1][3][0].text)).toBe('');
   });
 
   it('surfaces a live-scene ACP module-load failure and still ends the scene turn', async () => {

@@ -281,7 +281,7 @@ test.describe('Extension Harness — Integrated Manager Cycle', () => {
   test('disable/enable persists and re-renders installed-extension activation without page refresh', async ({ page }) => {
     await goToScenario(page, 'manager-cycle');
 
-    const extensionId = 'com.reigh.smoke.extension-smoke';
+    const extensionId = 'haus.astrid.smoke.extension-smoke';
     const packageCard = page.locator(`[data-video-editor-extension-package-id="${extensionId}"]`);
     const toggle = page.locator(`[data-video-editor-extension-toggle="${extensionId}"]`);
     const persistedEnablement = page.getByTestId('extension-manager-cycle-persisted-enablement');

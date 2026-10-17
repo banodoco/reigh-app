@@ -8,7 +8,7 @@ Widget SDK.
 ## Keep the three declarations distinct
 
 The Astrid V3 `ui.video-editor` declaration is `type: tool`; it selects the
-existing Reigh host entry `video-editor`. The host launch boundary admits that
+existing Astrid App host entry `video-editor`. The host launch boundary admits that
 catalog-bound Tool at `/tools/video-editor`. This declaration does not contain
 the editor page or create a route.
 
@@ -17,7 +17,7 @@ Astrid's `rendering` pack declares `live-scenes` as an editor contribution and
 the generated editor-extension catalog includes editor declarations while the
 Tool catalog includes Tool declarations. Existing effect, animation,
 transition, overlay, panel, inspector, and command surfaces continue to use
-their current Reigh runtime and contribution IDs when other top-level Tools
+their current Astrid App runtime and contribution IDs when other top-level Tools
 are hidden. A declaration is not proof that an arbitrary capability family is
 implemented; check the existing SDK surface and capability diagnostics.
 The only V3 catalog-bound Tool admitted by this extraction is the Video
@@ -33,7 +33,7 @@ and [`browser-provider.ts`](../../src/tools/video-editor/browser-provider.ts)
 export `BrowserVideoEditorProvider`, the editor hooks,
 `VideoEditorInstanceScope`, `VideoEditorScopedServices`, and
 `VIDEO_EDITOR_SCOPED_SERVICES_CONTRACT`
-(`reigh.video-editor.scoped-services.v1`). `useVideoEditorHost()` returns the
+(`astrid.video-editor.scoped-services.v1`). `useVideoEditorHost()` returns the
 captured scope. These exports form a Video Editor contract, not a portable host
 interface.
 
@@ -63,7 +63,7 @@ The [scene-phase-markers extension](../../src/tools/video-editor/dev/scene-phase
 is a real, development-local authoring example. Its manifest declares the
 `statusBar` slot as `scene-markers-footer` with renderer ID
 `scene-phase-markers/footer`, plus a `timelineOverlay`. It declares the
-semantic command `com.reigh.scene-phase-markers.markPhase`; activation binds
+semantic command `haus.astrid.scene-phase-markers.markPhase`; activation binds
 that ID with `ctx.commands.registerCommand()` and registers both renderers
 through `ctx.ui.registerRenderer()`.
 
@@ -90,7 +90,7 @@ python3 scripts/gen_editor_extension_catalog.py --check
 
 Run the applicable generator when its declaration or source changed; the
 commands above show the actual Tool and editor-extension catalog paths. Then
-from Reigh, select that same Astrid checkout and build:
+from Astrid App, select that same Astrid checkout and build:
 
 ```sh
 ASTRID_CHECKOUT=/path/to/matching/Astrid \
@@ -98,7 +98,7 @@ ASTRID_PUBLIC_CHECKOUT=/path/to/pinned/astrid-browser npm run build
 ```
 
 The generated Tool catalog binds the manifest, JSON host entry, declared
-resources, dependencies, compatibility, and release digest. Reigh's Vite
+resources, dependencies, compatibility, and release digest. Astrid App's Vite
 configuration validates those source bytes during build/test setup, and the
 launch boundary validates catalog identity again. The pinned
 `vendor/astrid-browser` fallback carries the whole-Tool catalog and its bound
@@ -109,18 +109,18 @@ catalog by hand. A stale digest or wrong source selection is a failed
 candidate: keep it closed, restore the intended source or regenerate from the
 intended source, run `--check`, rebuild, and only then open it.
 
-For the deterministic editor preview, run `npm run dev:editor` from Reigh
+For the deterministic editor preview, run `npm run dev:editor` from Astrid App
 with the same `ASTRID_CHECKOUT` environment. Open the printed existing
 `/tools/video-editor` URL. This dev launcher uses an in-memory demo project and
 enables the development timeline-overlay canary; that does not enable a
 production query override. The production host remains a statically built
-Reigh application, with no runtime installer or arbitrary module loader.
+Astrid App application, with no runtime installer or arbitrary module loader.
 
 For an editor UI change, repeat the whole loop after the requested source
 edit: regenerate/check the affected Astrid catalog when pack bytes changed,
-build Reigh against that same source, activate the existing editor page, and
-reopen it to confirm the changed UI. If the change is Reigh-host code, the
-Astrid catalog will not bind those host bytes; record the Reigh source revision
+build Astrid App against that same source, activate the existing editor page, and
+reopen it to confirm the changed UI. If the change is Astrid App-host code, the
+Astrid catalog will not bind those host bytes; record the Astrid App source revision
 and file hash alongside the selected Astrid catalog/release identity.
 
 ## Other Tool examples are design-only

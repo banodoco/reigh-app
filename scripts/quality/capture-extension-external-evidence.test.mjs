@@ -96,7 +96,7 @@ describe('external evidence operator CLI', () => {
   it('parses repeatable tool pins and has no private-key option', () => {
     const parsed = parseArgs([
       'init', '--type', 'rollout-stage', '--output', 'draft.json', '--release', 'rc1',
-      '--reigh-commit', 'a'.repeat(40), '--astrid-commit', 'b'.repeat(40),
+      '--app-commit', 'a'.repeat(40), '--astrid-commit', 'b'.repeat(40),
       '--environment', 'prod', '--tool', 'node=20.19.4', '--tool', 'npm=10.8.2',
     ]);
     assert.deepEqual(parsed.tool, ['node=20.19.4', 'npm=10.8.2']);
@@ -111,18 +111,18 @@ describe('external evidence operator CLI', () => {
     const exitCode = runCli([
       'init', '--type', 'rollout-stage', '--output', output,
       '--release', 'extension-ship-quality-rc1',
-      '--reigh-commit', 'a'.repeat(40), '--astrid-commit', 'b'.repeat(40),
+      '--app-commit', 'a'.repeat(40), '--astrid-commit', 'b'.repeat(40),
       '--environment', 'production-stage-0', '--tool', 'node=20.19.4',
     ]);
     assert.equal(exitCode, 0);
     const draft = JSON.parse(readFileSync(output, 'utf8'));
-    assert.equal(draft.candidate.reighCommit, 'a'.repeat(40));
+    assert.equal(draft.candidate.appCommit, 'a'.repeat(40));
     assert.equal(draft.record.outcome, '');
     assert.ok(validateExternalEvidence(draft).errors.length > 0);
     assert.equal(runCli([
       'init', '--type', 'rollout-stage', '--output', output,
       '--release', 'extension-ship-quality-rc1',
-      '--reigh-commit', 'a'.repeat(40), '--astrid-commit', 'b'.repeat(40),
+      '--app-commit', 'a'.repeat(40), '--astrid-commit', 'b'.repeat(40),
       '--environment', 'production-stage-0', '--tool', 'node=20.19.4',
     ]), 1);
     assert.deepEqual(JSON.parse(readFileSync(output, 'utf8')), draft);

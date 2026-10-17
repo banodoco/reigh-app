@@ -72,8 +72,8 @@ vi.mock('@/app/Layout', async () => {
 vi.mock('./DefaultToolRedirect', () => ({
   DefaultToolRedirect: () => <div data-testid="default-tool-redirect" />,
 }));
-vi.mock('@/shared/components/ReighLoading', () => ({
-  ReighLoading: () => <div data-testid="reigh-loading" />,
+vi.mock('@/shared/components/AstridLoading', () => ({
+  AstridLoading: () => <div data-testid="astrid-loading" />,
 }));
 vi.mock('@/shared/components/ToolErrorBoundary', () => ({
   ToolErrorBoundary: ({ children }: { children: React.ReactNode }) => <>{children}</>,

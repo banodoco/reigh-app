@@ -29,7 +29,7 @@ def validate_timeline(config: Any, *, strict: bool = False) -> None:
     """Validate a TimelineConfig payload against the shared JSON Schema.
 
     `strict=False` is the documented Sprint 1 mode; the canonical schema permits
-    Banodoco-extension fields that Reigh's runtime ignores. `strict=True` is a
+    Banodoco-extension fields that Astrid's runtime ignores. `strict=True` is a
     placeholder for Sprint 5's tightening.
     """
     schema = load_schema()

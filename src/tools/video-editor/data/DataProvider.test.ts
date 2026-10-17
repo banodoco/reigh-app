@@ -8,7 +8,7 @@ import {
   type DataProvider,
   type ExtensionPersistenceScope,
 } from '@/tools/video-editor/data/DataProvider';
-import type { ExtensionDiagnostic } from '@reigh/editor-sdk';
+import type { ExtensionDiagnostic } from '@astrid/editor-sdk';
 
 // ---------------------------------------------------------------------------
 // Test double: a DataProvider that does NOT implement extension persistence

@@ -366,7 +366,7 @@ test.describe('audio-reactive-colour browser export proof', () => {
     expect(saveRequests).toEqual([]);
 
     expect(forbiddenRequests).toEqual([]);
-    expect(notFoundResponses.filter((url) => !url.includes('__reigh_capability_probe__'))).toEqual([]);
+    expect(notFoundResponses.filter((url) => !url.includes('__astrid_capability_probe__'))).toEqual([]);
     expect(pageErrors).toEqual([]);
     const unexpectedConsoleErrors = consoleErrors.filter((message) => !/Failed to load resource.*404/i.test(message));
     expect(unexpectedConsoleErrors).toEqual([]);

@@ -2,7 +2,7 @@
  * Diverse generation test — exercises every generation type the timeline agent supports.
  *
  * Verifies task CREATION only (does not wait for GPU completion).
- * Run: cd reigh-app && npx tsx supabase/functions/_tests/harness/diverse-gen-test.ts
+ * Run: cd astrid-app && npx tsx supabase/functions/_tests/harness/diverse-gen-test.ts
  */
 
 import type { SelectedClipPayload } from "../../ai-timeline-agent/types.ts";

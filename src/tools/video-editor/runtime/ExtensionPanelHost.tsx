@@ -1,5 +1,5 @@
 import { useId } from 'react';
-import type { PanelRenderProps, PanelVideoAdapter } from '@reigh/editor-sdk';
+import type { PanelRenderProps, PanelVideoAdapter } from '@astrid/editor-sdk';
 import type { VideoEditorPanelDescriptor } from './extensionSurface';
 import {
   HostContributionErrorBoundary,

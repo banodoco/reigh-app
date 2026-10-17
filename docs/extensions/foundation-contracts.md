@@ -1,4 +1,4 @@
-# Foundation Contracts — Reigh Video Editor V1
+# Foundation Contracts — Astrid App Video Editor V1
 
 **Status:** Active (M5)
 **Last updated:** 2026-06-24
@@ -10,13 +10,13 @@
 
 ### 1.1 Entry point
 
-Extensions are defined via `defineExtension()` from `@reigh/editor-sdk`. The function validates and deep-freezes the manifest.
+Extensions are defined via `defineExtension()` from `@astrid/editor-sdk`. The function validates and deep-freezes the manifest.
 
 **Canonical path:** `src/sdk/index.ts` → `defineExtension()`
 
 ### 1.2 Manifest contract
 
-Every extension manifest (`reigh-extension.json`) must include:
+Every extension manifest (`astrid-extension.json`) must include:
 
 | Field | Type | Validated by |
 |---|---|---|
@@ -67,9 +67,9 @@ inactive → activating → active ──┐
 Every activation and deactivation is wrapped in `console.groupCollapsed` / `console.groupEnd` with the extension ID as the label:
 
 ```
-[Extension lifecycle] com.reigh.examples.flagship-local
-  Activating extension "com.reigh.examples.flagship-local" (v1.0.0)
-  Extension "com.reigh.examples.flagship-local" activated successfully
+[Extension lifecycle] haus.astrid.examples.flagship-local
+  Activating extension "haus.astrid.examples.flagship-local" (v1.0.0)
+  Extension "haus.astrid.examples.flagship-local" activated successfully
 ```
 
 ---
@@ -122,7 +122,7 @@ Extensions register dialogs via `VideoEditorDialogDescriptor` with modal/overlay
 When extensions are provided to the host, they pass through a normalization pipeline that converts manifest declarations into immutable, provider-scoped runtime descriptors:
 
 ```
-ReighExtension[] → normalizeExtensionRuntime() → ExtensionRuntime
+AstridExtension[] → normalizeExtensionRuntime() → ExtensionRuntime
 ```
 
 **Canonical path:** `src/tools/video-editor/runtime/extensionSurface.ts` → `normalizeExtensionRuntime()`
@@ -134,7 +134,7 @@ ReighExtension[] → normalizeExtensionRuntime() → ExtensionRuntime
 | Output | Description |
 |---|---|
 | `ExtensionRuntime` | Provider-scoped runtime with slots, dialogs, panels, overlays, parsers, effects, transitions, shaders, agent tools, output formats, processes, search providers, metadata facets, asset detail sections |
-| `extensionRuntime.extensions` | Map of extension ID → `ReighExtension` manifest |
+| `extensionRuntime.extensions` | Map of extension ID → `AstridExtension` manifest |
 | `extensionRuntime.contributionOwnerMap` | Map of contribution ID → extension ID (for error boundary owner resolution) |
 | `extensionRuntime.diagnostics` | Normalization diagnostics (unknown kinds, reserved kinds, validation failures) |
 | `extensionRuntime.packageStateInventory` | Package inventory entries for the Extension Manager |
@@ -313,7 +313,7 @@ Extension settings are backed by the provider (`SupabaseProviderStore` in produc
 
 ### 9.2 Key scoping
 
-All extension settings keys are scoped to `reigh.ext.<extensionId>.*` in localStorage, preventing cross-extension key collisions.
+All extension settings keys are scoped to `astrid.ext.<extensionId>.*` in localStorage, preventing cross-extension key collisions.
 
 ### 9.3 Cleanup
 

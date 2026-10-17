@@ -26,7 +26,7 @@ import {
 } from '@/tools/video-editor/runtime/livePermissions';
 import type {
   LiveSourceKind,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 
 // ---------------------------------------------------------------------------
 // Helpers

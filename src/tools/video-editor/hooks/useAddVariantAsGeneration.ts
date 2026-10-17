@@ -5,7 +5,7 @@ import {
   isVariantPromotionUnsupportedError,
   usePromoteVariantToGeneration,
 } from '@/shared/hooks/variants/usePromoteVariantToGeneration.ts';
-import { loadPrimaryVariantForGeneration } from '@/tools/video-editor/adapters/reigh/variantPromotionLookup.ts';
+import { loadPrimaryVariantForGeneration } from '@/tools/video-editor/adapters/app/variantPromotionLookup.ts';
 import type { GenerationVariant } from '@/shared/hooks/variants/useVariants.ts';
 import { useVideoEditorRuntime } from '@/tools/video-editor/contexts/VideoEditorRuntimeContext.tsx';
 import { planDuplicateGenerationAssetRegistration } from '@/tools/video-editor/lib/timeline-asset-plans.ts';

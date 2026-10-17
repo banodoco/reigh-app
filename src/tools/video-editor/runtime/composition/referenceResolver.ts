@@ -4,7 +4,7 @@ import {
   type ContributionRef,
   type ExtensionDiagnostic,
   type ReferenceState,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import {
   buildCompositionDiagnostic,
   referenceStateDiagnosticCode,

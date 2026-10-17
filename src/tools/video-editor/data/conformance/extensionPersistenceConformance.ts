@@ -8,7 +8,7 @@ import {
   type ExtensionPersistenceScope,
   type ExtensionPersistenceService,
 } from '@/tools/video-editor/data/DataProvider';
-import type { ExtensionDiagnostic } from '@reigh/editor-sdk';
+import type { ExtensionDiagnostic } from '@astrid/editor-sdk';
 
 type ServiceFactory = (diagnostics: ExtensionDiagnostic[]) => ExtensionPersistenceService;
 

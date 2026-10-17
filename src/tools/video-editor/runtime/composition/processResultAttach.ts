@@ -5,7 +5,7 @@ import type {
   RenderMaterial,
   RenderMaterialRef,
   RenderMaterialStatus,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import type {
   ProcessLogSummary,
   ProcessProgressEvent,

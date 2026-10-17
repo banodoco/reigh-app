@@ -28,7 +28,7 @@ import {
 import type { ResolvedTimelineClip, TrackDefinition } from '@/tools/video-editor/types/index.ts';
 import { getTimelineClipShader } from '@/tools/video-editor/lib/timeline-domain.ts';
 import { PendingMaterialPlaceholder } from '@/tools/video-editor/components/PendingMaterialPlaceholder.tsx';
-import type { CapabilityFinding, RenderMaterialRef } from '@reigh/editor-sdk';
+import type { CapabilityFinding, RenderMaterialRef } from '@astrid/editor-sdk';
 import type { RenderPlannerMaterialStatus } from '@/tools/video-editor/runtime/renderPlanner.ts';
 import { ClipShaderPreviewCanvas } from '@/tools/video-editor/shaders/preview/ClipShaderPreviewCanvas.tsx';
 import {

@@ -101,7 +101,7 @@ export interface TimelineData {
    * Duration-neutral typed-data lanes ([CONVERGE-WITH-M1], dataKind V1).
    * Evidence/visualization state only — never an input to duration
    * computation, `configToRows`, or export scanning (design:
-   * decisions/reigh-editor-data-lanes.md §Three-layer split). Default is
+   * decisions/astrid-editor-data-lanes.md §Three-layer split). Default is
    * the frozen `EMPTY_DATA_LANES`; producers swap it via `mergeDataLanes`.
    */
   dataLanes: DataLaneView[];

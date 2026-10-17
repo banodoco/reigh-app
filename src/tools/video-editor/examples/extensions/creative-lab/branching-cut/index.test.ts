@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { TimelineOverlayRenderProps, TimelinePatch } from '@reigh/editor-sdk';
+import type { TimelineOverlayRenderProps, TimelinePatch } from '@astrid/editor-sdk';
 import {
   BRANCHING_CUT_EXTENSION_ID,
   BRANCHING_CUT_OVERLAY_RENDER_ID,
@@ -28,7 +28,7 @@ const tracks = [
 
 describe('Sequential Clip-Link Scaffolder', () => {
   it('keeps the checked-in package manifest aligned with the public extension manifest', async () => {
-    const manifestModule = await import('./reigh-extension.json');
+    const manifestModule = await import('./astrid-extension.json');
     expect(manifestModule.default.manifest).toEqual(branchingCutExtension.manifest);
   });
 

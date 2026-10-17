@@ -20,7 +20,7 @@ import { CLIP_ACTION_CLASS, clipActionAttrs } from '@/tools/video-editor/lib/tim
 import { EMPTY_SHOT_ANCHOR_APP_KEY } from '@/tools/video-editor/lib/shot-group-commands.ts';
 import type { CommandRegistry, ContextMenuItemEntry } from '@/tools/video-editor/runtime/commandRegistry.ts';
 import type { TimelineAction } from '@/tools/video-editor/types/timeline-canvas.ts';
-import type { ReighExtension, TargetContextPayload } from '@reigh/editor-sdk';
+import type { AstridExtension, TargetContextPayload } from '@astrid/editor-sdk';
 
 const log = import.meta.env.DEV ? (...args: Parameters<typeof console.log>) => console.log(...args) : () => {};
 
@@ -99,7 +99,7 @@ const menuItemClassName = 'relative flex w-full cursor-default select-none items
 const destructiveMenuItemClassName = `${menuItemClassName} hover:bg-destructive hover:text-destructive-foreground`;
 const disabledMenuItemClassName = 'disabled:cursor-wait disabled:opacity-60';
 
-type ClipContextMenuProps = Pick<ClipActionProps, 'isGenerationAsset' | 'isDuplicatingGeneration' | 'onDuplicateGeneration' | 'onUpdateVariant' | 'isVariantStale' | 'onDismissStale' | 'onSplitHere' | 'onSplitClipsAtPlayhead' | 'onTrimToMediaEnd' | 'onConvertOverhangToHold' | 'overhangDurationSeconds' | 'onToggleMuteClips' | 'onOpenSequenceCreator' | 'onCreateShotFromSelection' | 'onGenerateVideoFromSelection' | 'onNavigateToShot' | 'onOpenGenerateVideo' | 'isCreatingShot' | 'onDeleteClip' | 'onDeleteClips' | 'isInPinnedShotGroup'> & { actionId: string; trackId: string; contextMenu: ContextMenuState; menuRef: React.RefObject<HTMLDivElement>; closeMenu: () => void; hasBatchSelection: boolean; selectedClipIds: string[]; showShotActions: boolean; hasActionsBeforeShotSection: boolean; existingShots?: Shot[]; extensionContextMenuItems: readonly ContextMenuItemEntry[]; extensions: readonly ReighExtension[]; commandRegistry?: CommandRegistry; };
+type ClipContextMenuProps = Pick<ClipActionProps, 'isGenerationAsset' | 'isDuplicatingGeneration' | 'onDuplicateGeneration' | 'onUpdateVariant' | 'isVariantStale' | 'onDismissStale' | 'onSplitHere' | 'onSplitClipsAtPlayhead' | 'onTrimToMediaEnd' | 'onConvertOverhangToHold' | 'overhangDurationSeconds' | 'onToggleMuteClips' | 'onOpenSequenceCreator' | 'onCreateShotFromSelection' | 'onGenerateVideoFromSelection' | 'onNavigateToShot' | 'onOpenGenerateVideo' | 'isCreatingShot' | 'onDeleteClip' | 'onDeleteClips' | 'isInPinnedShotGroup'> & { actionId: string; trackId: string; contextMenu: ContextMenuState; menuRef: React.RefObject<HTMLDivElement>; closeMenu: () => void; hasBatchSelection: boolean; selectedClipIds: string[]; showShotActions: boolean; hasActionsBeforeShotSection: boolean; existingShots?: Shot[]; extensionContextMenuItems: readonly ContextMenuItemEntry[]; extensions: readonly AstridExtension[]; commandRegistry?: CommandRegistry; };
 type ClipContextMenuItemProps = { icon: React.ComponentType<{ className?: string }>; onClick: () => void; children: React.ReactNode; disabled?: boolean; destructive?: boolean; suffix?: React.ReactNode; };
 
 function ClipContextMenuItem({ icon: Icon, onClick, children, disabled = false, destructive = false, suffix }: ClipContextMenuItemProps) {

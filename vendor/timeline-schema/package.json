@@ -2,7 +2,7 @@
   "name": "@banodoco/timeline-schema",
   "version": "0.0.2",
   "private": true,
-  "description": "Canonical TimelineConfig schema shared by Banodoco CLI and Reigh editor.",
+  "description": "Canonical TimelineConfig schema shared by Banodoco CLI and Astrid editor.",
   "type": "module",
   "main": "./typescript/dist/src/index.js",
   "types": "./typescript/dist/src/index.d.ts",

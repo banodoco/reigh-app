@@ -8,7 +8,7 @@
  * reaches main), update MANUAL_SETUP_STEPS and RECONNECT_COMMAND to match.
  */
 
-export const ASTRID_REPO = 'https://github.com/peteromallet/Astrid';
+export const ASTRID_REPO = 'https://github.com/peteromallet/astrid-agent';
 export const ASTRID_SETUP_REF = 'main';
 
 const blobUrl = (path: string) => `${ASTRID_REPO}/blob/${ASTRID_SETUP_REF}/${path}`;
@@ -29,8 +29,8 @@ export function detectSetupPlatform(): SetupPlatform {
 
 /** Restarts an existing install's Runtime, from the folder Astrid was installed into. */
 export const RECONNECT_COMMANDS: Record<SetupPlatform, string> = {
-  unix: 'cd ~/astrid-local && source .venv/bin/activate && banodoco-local up --profile astrid',
-  windows: 'cd ~\\astrid-local; .\\.venv\\Scripts\\Activate.ps1; banodoco-local up --profile astrid',
+  unix: 'cd ~/astrid-local && source .venv/bin/activate && astrid-runtime up --profile astrid',
+  windows: 'cd ~\\astrid-local; .\\.venv\\Scripts\\Activate.ps1; astrid-runtime up --profile astrid',
 };
 
 /**
@@ -128,8 +128,8 @@ export const MANUAL_SETUP_STEPS: Record<SetupPlatform, readonly ManualSetupStep[
       detail: 'In a new folder. The Runtime is pinned to the revision this version of Astrid was tested with.',
       command: [
         'mkdir ~/astrid-local && cd ~/astrid-local',
-        'git clone https://github.com/peteromallet/Astrid.git',
-        'git clone https://github.com/banodoco/banodoco-workspace-runtime.git Runtime',
+        'git clone https://github.com/peteromallet/astrid-agent.git',
+        'git clone https://github.com/banodoco/astrid-runtime.git Runtime',
         `git -C Runtime checkout ${RUNTIME_PIN}`,
         'python3 -m venv .venv && source .venv/bin/activate',
         'python3 -m pip install -e ./Astrid -e ./Runtime',
@@ -138,7 +138,7 @@ export const MANUAL_SETUP_STEPS: Record<SetupPlatform, readonly ManualSetupStep[
     {
       title: 'Launch the Runtime',
       detail: 'One-time: record where the install lives (no secrets), then start the Runtime. This page notices when it’s up.',
-      command: `python3 -c "${SOURCE_PROFILE}"\nbanodoco-local up --profile astrid --source-manifest "$PWD/astrid-source-profile.json"`,
+      command: `python3 -c "${SOURCE_PROFILE}"\nastrid-runtime up --profile astrid --source-manifest "$PWD/astrid-source-profile.json"`,
     },
     {
       title: 'Add the default knowledge pack',
@@ -173,8 +173,8 @@ export const MANUAL_SETUP_STEPS: Record<SetupPlatform, readonly ManualSetupStep[
       detail: 'In a new folder. The Runtime is pinned to the revision this version of Astrid was tested with.',
       command: [
         'mkdir ~\\astrid-local; cd ~\\astrid-local',
-        'git clone https://github.com/peteromallet/Astrid.git',
-        'git clone https://github.com/banodoco/banodoco-workspace-runtime.git Runtime',
+        'git clone https://github.com/peteromallet/astrid-agent.git',
+        'git clone https://github.com/banodoco/astrid-runtime.git Runtime',
         `git -C Runtime checkout ${RUNTIME_PIN}`,
         'py -3.11 -m venv .venv; .\\.venv\\Scripts\\Activate.ps1',
         'python -m pip install -e .\\Astrid -e .\\Runtime',
@@ -183,7 +183,7 @@ export const MANUAL_SETUP_STEPS: Record<SetupPlatform, readonly ManualSetupStep[
     {
       title: 'Launch the Runtime',
       detail: 'One-time: record where the install lives (no secrets), then start the Runtime. This page notices when it’s up.',
-      command: `python -c "${SOURCE_PROFILE}"\nbanodoco-local up --profile astrid --source-manifest "$PWD\\astrid-source-profile.json"`,
+      command: `python -c "${SOURCE_PROFILE}"\nastrid-runtime up --profile astrid --source-manifest "$PWD\\astrid-source-profile.json"`,
     },
     {
       title: 'Add the default knowledge pack',

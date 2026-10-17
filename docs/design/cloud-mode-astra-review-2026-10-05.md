@@ -1,6 +1,6 @@
-# Reigh / Astrid Cloud: Astra architecture sense-check
+# Astrid App / Astrid Cloud: Astra architecture sense-check
 
-**Shared metaplan:** [Reigh Cloud — coordinated projects and execution schedule](/Users/peteromalley/Documents/reigh-workspace/reigh-app/docs/design/cloud-mode-megado-projects-2026-10-05.md).
+**Shared metaplan:** [Astrid App Cloud — coordinated projects and execution schedule](/Users/peteromalley/Documents/astrid-app-workspace/astrid-app/docs/design/cloud-mode-megado-projects-2026-10-05.md).
 
 **2026-10-05 — independent design review; proposals, not implementation decisions**
 
@@ -41,7 +41,7 @@ The split between Runtime tasks and Supabase execution jobs is justified by the 
 
 **Proposal:** implement the gateway, realm router, dispatch loop, result ingestion and reconciler as modules of one trusted Cloud service initially. Use the Supabase execution-job table as the delivery queue, with an atomic hold-plus-job RPC. Use Runtime outbox rows as durable intents, not as an additional queue product. Run API execution in a separate worker process; add CPU workers later. An Edge Function may remain a thin existing ingress where useful, but an Edge Function → gateway → admission bridge → dispatcher chain need not become four deployments or four authorization protocols.
 
-The claim-order correction is valid. `claim_next` accepts executor, capabilities, epoch and optional target, not a task ID; it selects an eligible queued task. Use the returned task to bind its quote and delivery. See [claim implementation](/Users/peteromalley/Documents/reigh-workspace/banodoco-workspace-runtime/runtime_protocol/service.py:5866). A targeted-claim API is not an MVP prerequisite.
+The claim-order correction is valid. `claim_next` accepts executor, capabilities, epoch and optional target, not a task ID; it selects an eligible queued task. Use the returned task to bind its quote and delivery. See [claim implementation](/Users/peteromalley/Documents/astrid-app-workspace/astrid-runtime/runtime_protocol/service.py:5866). A targeted-claim API is not an MVP prerequisite.
 
 Explicitly close four remaining recovery cases:
 
@@ -66,7 +66,7 @@ Distinguish logout from stop/cancel. A native or browser logout should remove th
 
 ## 4. One database per user does not require one permanent machine per user
 
-Runtime really does own a local `owner.lock`, SQLite connection, local staging and CAS paths. The Turso adaptation is substantial. The [store implementation](/Users/peteromalley/Documents/reigh-workspace/banodoco-workspace-runtime/runtime_protocol/store.py:367) establishes sole realm ownership, not a product requirement for a permanently provisioned process or container for every registered user.
+Runtime really does own a local `owner.lock`, SQLite connection, local staging and CAS paths. The Turso adaptation is substantial. The [store implementation](/Users/peteromalley/Documents/astrid-app-workspace/astrid-runtime/runtime_protocol/store.py:367) establishes sole realm ownership, not a product requirement for a permanently provisioned process or container for every registered user.
 
 **Proposal:** first prove one service can hold a bounded set of isolated realm contexts. If existing global state makes that risky, use a bounded supervised subprocess per active realm on one host for the beta. Measure before choosing. Either arrangement must keep realms with live dispatch/leases serviced; idle eviction cannot abandon execution. Use one deployment replica and explicit stop-before-start upgrades if that is the tested ownership model. Do not introduce distributed placement, actor infrastructure, per-user DNS or automatic failover yet. Do not claim high availability with this deployment.
 
@@ -93,7 +93,7 @@ Recommended rollout order:
 1. Select clean source pins and verify the deployed auth/billing baseline. In parallel, run only the decisive Runtime/Turso and OMP remote-durability probes. Define the interruption and provider-unknown policies now.
 2. Build one authenticated Cloud service: account-to-realm provisioning, schema version checks, private object storage and native Cloud authentication. Demonstrate the same realm from two devices.
 3. Wire the native OMP storage backend in both Local and Cloud entry points. Prove acknowledged turn durability, takeover fencing and hard-kill recovery with a fake model. Add the hosted sandbox using this same contract.
-4. Complete one fake provider task from native and hosted agents through claim, atomic hold/job, verified output and settlement. Kill components at the consequential boundaries. Show recovered results in Reigh.
+4. Complete one fake provider task from native and hosted agents through claim, atomic hold/job, verified output and settlement. Kill components at the consequential boundaries. Show recovered results in Astrid App.
 5. Release a bounded API-generation pilot with one capability, explicit inference/provider caps and an operator reconciliation runbook. Add inactive-project import and portable export before broad migration.
 6. Add the separate measured CPU rendering lane. Broaden capability support only after actual usage and failure evidence justify it.
 

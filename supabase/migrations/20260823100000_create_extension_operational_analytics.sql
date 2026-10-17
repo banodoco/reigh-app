@@ -28,7 +28,7 @@ create table if not exists public.extension_operational_events (
     release_revision ~ '^[A-Za-z0-9._-]{1,64}$'
   ),
   constraint extension_operational_events_extension_id_check check (
-    extension_id is null or extension_id ~ '^com[.]reigh[.][a-z0-9.-]{1,100}$'
+    extension_id is null or extension_id ~ '^haus[.]astrid[.][a-z0-9.-]{1,100}$'
   ),
   constraint extension_operational_events_extension_pair_check check (
     (extension_id is null and extension_version is null)

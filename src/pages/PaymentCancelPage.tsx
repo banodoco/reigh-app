@@ -33,7 +33,7 @@ const PaymentCancelPage: React.FC = () => {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="text-sm text-muted-foreground text-center">
-            You can continue using Reigh with your existing credits, or try the payment process again if you'd like to add more credits.
+            You can continue using Astrid with your existing credits, or try the payment process again if you'd like to add more credits.
           </div>
 
           <div className="space-y-2">

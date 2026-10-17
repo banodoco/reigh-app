@@ -1,4 +1,4 @@
-import { ReighRuntimeClient } from './client.ts';
+import { AstridRuntimeClient } from './client.ts';
 import { ApiError } from './generated.ts';
 import { generateUUID } from '@/shared/lib/taskCreation/ids.ts';
 import { createDefaultTimelineConfig } from '@/tools/video-editor/lib/defaults.ts';
@@ -42,11 +42,11 @@ async function publishEmptyTimeline(
   projectId: string,
   targetTimelineId: string,
   name: string,
-  client: ReighRuntimeClient,
+  client: AstridRuntimeClient,
   key: string,
 ): Promise<void> {
   const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'timeline';
-  const parentRevisionId = await stableUuid(`reigh-parent-revision:${projectId}:${targetTimelineId}`);
+  const parentRevisionId = await stableUuid(`astrid-parent-revision:${projectId}:${targetTimelineId}`);
   await client.publishParentComposition(
     projectId,
     targetTimelineId,
@@ -74,18 +74,18 @@ async function publishEmptyTimeline(
 export async function createCanonicalTimeline(
   projectId: string,
   options: { name?: string; timelineId?: string; idempotencyKey?: string } = {},
-  client: ReighRuntimeClient = new ReighRuntimeClient(),
+  client: AstridRuntimeClient = new AstridRuntimeClient(),
 ): Promise<string> {
   const targetTimelineId = options.timelineId
     ?? (options.idempotencyKey
-      ? await stableUuid(`reigh-timeline:${options.idempotencyKey}`)
+      ? await stableUuid(`astrid-timeline:${options.idempotencyKey}`)
       : generateUUID());
   await publishEmptyTimeline(
     projectId,
     targetTimelineId,
     options.name ?? 'Timeline',
     client,
-    options.idempotencyKey ?? `reigh-timeline-create-${projectId}-${targetTimelineId}`,
+    options.idempotencyKey ?? `astrid-timeline-create-${projectId}-${targetTimelineId}`,
   );
   return targetTimelineId;
 }
@@ -93,7 +93,7 @@ export async function createCanonicalTimeline(
 /** Ensure a project has a canonical Runtime composition, repairing an existing headless shell. */
 export async function ensureProjectHasTimeline(
   projectId: string,
-  client: ReighRuntimeClient = new ReighRuntimeClient(),
+  client: AstridRuntimeClient = new AstridRuntimeClient(),
 ): Promise<string> {
   const timelines = await client.listTimelines(projectId) as RuntimeTimeline[];
   const project = await client.getProject(projectId);
@@ -105,13 +105,13 @@ export async function ensureProjectHasTimeline(
   let target = timelineId(existing);
   if (target) {
     if (typeof existing?.head_revision_id !== 'string' || !existing.head_revision_id) {
-      await publishEmptyTimeline(projectId, target, 'Main', client, `reigh-first-timeline-${projectId}`);
+      await publishEmptyTimeline(projectId, target, 'Main', client, `astrid-first-timeline-${projectId}`);
     }
   } else {
     target = await createCanonicalTimeline(projectId, {
       name: 'Main',
-      timelineId: await stableUuid(`reigh-first-timeline:${projectId}`),
-      idempotencyKey: `reigh-first-timeline-${projectId}`,
+      timelineId: await stableUuid(`astrid-first-timeline:${projectId}`),
+      idempotencyKey: `astrid-first-timeline-${projectId}`,
     }, client);
   }
   // A concurrent Main reassignment wins. Merge metadata against the latest

@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "release": "extension-ship-quality-rc45",
   "status": "integration",
-  "reigh": {
+  "app": {
     "branch": "main",
     "releaseTag": "extension-ship-quality-rc45",
     "baseCommit": "0fb8cda1054b9727ce1fae3a7ee33081d08b52a5"

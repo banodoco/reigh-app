@@ -8,7 +8,7 @@
 
 ## 1. Purpose
 
-This matrix is the canonical reference for what the Reigh extension platform **supports in V1** and what is **explicitly deferred**. Every row links to concrete implementation evidence discoverable in the repository — tests, compiled examples, absence checks, blocker entries, or contract-recheck row IDs. No row relies on aspirational prose.
+This matrix is the canonical reference for what the Astrid App extension platform **supports in V1** and what is **explicitly deferred**. Every row links to concrete implementation evidence discoverable in the repository — tests, compiled examples, absence checks, blocker entries, or contract-recheck row IDs. No row relies on aspirational prose.
 
 This document is the downstream consumer of the [M15 Contract-Recheck Matrix](./extension-platform-contract-recheck.md). The gate semantics are governed by the shared matrix helper (SD1) and the rule that deferred behavior is a valid terminal classification only when backed by absence checks or an explicit release blocker (SD2).
 
@@ -42,8 +42,8 @@ This document is the downstream consumer of the [M15 Contract-Recheck Matrix](./
 
 | Row ID | Behavior | Classification | Evidence |
 |---|---|---|---|
-| S-001 | `@reigh/editor-sdk` is the only public import path for extensions | **supported** | CR:M0-001, CR:X-001, CR:X-004; TEST:src/sdk/__tests__/sdk-boundary.test.ts (2023 lines) |
-| S-002 | Package aliases resolve `@reigh/editor-sdk` → `src/sdk/index.ts` | **supported** | CR:M0-002; vitest.config.ts, tsconfig.json, vite.config.ts |
+| S-001 | `@astrid/editor-sdk` is the only public import path for extensions | **supported** | CR:M0-001, CR:X-001, CR:X-004; TEST:src/sdk/__tests__/sdk-boundary.test.ts (2023 lines) |
+| S-002 | Package aliases resolve `@astrid/editor-sdk` → `src/sdk/index.ts` | **supported** | CR:M0-002; vitest.config.ts, tsconfig.json, vite.config.ts |
 | S-003 | SDK boundary test runs without importing editor internals | **supported** | CR:M0-003; TEST:src/sdk/__tests__/sdk-boundary.test.ts |
 | S-004 | ID validation for extension and contribution IDs | **supported** | CR:M0-001; `validateExtensionId()`, `validateContributionId()` in `src/sdk/index.ts` |
 | S-005 | `DisposeHandle` contract (idempotent, must not throw) | **supported** | CR:M5-011; `DisposeHandle` interface in `src/sdk/index.ts` |
@@ -201,7 +201,7 @@ This document is the downstream consumer of the [M15 Contract-Recheck Matrix](./
 | S-150 | V1 trust envelope documented and honest (trusted-local execution) | **supported** | CR:X-003; DOC:extensions-trust-envelope.md |
 | S-151 | No new platform primitives added beyond explicitly bridged kinds | **supported** | CR:X-005; `contribution_kind_not_yet_bridged` diagnostics |
 | S-152 | Public SDK boundary guard: no internal provider/mutation leaks from SDK entrypoints | **supported** | CR:X-002; `@publicContract` annotation in `src/sdk/index.ts` |
-| S-153 | Source-pack/package contract freeze for manifest format | **supported** | CR:X-009; 8 `reigh-extension.json` files with consistent format |
+| S-153 | Source-pack/package contract freeze for manifest format | **supported** | CR:X-009; 8 `astrid-extension.json` files with consistent format |
 | S-154 | `npm run test:sdk-boundary` passes | **supported** | CR:M0-003; `src/sdk/__tests__/sdk-boundary.test.ts` |
 | S-155 | `npm run build` passes with docs-linked examples | **supported** | CR:X-001; sdk-boundary.test.ts verifies public alias |
 
@@ -367,7 +367,7 @@ This document is the downstream consumer of the [M15 Contract-Recheck Matrix](./
 | D-132 | Proposal diff rendering, source-map navigation from diff/diagnostic UI, stale badges | **deferred** | CR:M3-015; infrastructure exists; dedicated rendering tests not identified |
 | D-134 | Extension status drawer: active extension IDs, contribution inventory, diagnostics, current blockers, and composition-spine expansion | **deferred** | CR:M2-009; skeletal concept; the manager UI basics (enable/disable, settings editing, persistence) are now supported and credited to M5/M14 cross-delivery (see S-160–S-164); composition-spine and status-drawer expansion remain staged |
 | D-135 | Subscription cleanup dedicated tests (leaked listener prevention) | **deferred** | CR:M2-002; `DisposeHandle` infrastructure exists; dedicated leak tests not identified |
-| D-136 | Standalone `@reigh/editor-sdk` npm package publishing (independent npm registry publication with its own `package.json`, versioning, and distribution outside the monorepo) | **deferred** | ABSENCE:grep -r 'standalone-publish' src/sdk/; `@reigh/editor-sdk` is a monorepo path alias resolving to `src/sdk/index.ts` — it does not have its own `package.json`, publishConfig, or independent build pipeline (no standalone-publish markers exist). The SDK is monorepo-extractable (verified by `scripts/quality/check-video-editor-sdk-imports.mjs` external-consumption smoke). Standalone npm publishing has not been implemented. |
+| D-136 | Standalone `@astrid/editor-sdk` npm package publishing (independent npm registry publication with its own `package.json`, versioning, and distribution outside the monorepo) | **deferred** | ABSENCE:grep -r 'standalone-publish' src/sdk/; `@astrid/editor-sdk` is a monorepo path alias resolving to `src/sdk/index.ts` — it does not have its own `package.json`, publishConfig, or independent build pipeline (no standalone-publish markers exist). The SDK is monorepo-extractable (verified by `scripts/quality/check-video-editor-sdk-imports.mjs` external-consumption smoke). Standalone npm publishing has not been implemented. |
 
 ---
 
@@ -380,7 +380,7 @@ These behaviors are documented as unsupported across all milestones and have no 
 | Behavior | Evidence |
 |---|---|
 | Marketplace / extension registry | ABSENCE:grep -r 'marketplace' src/sdk/; CR:X-006 |
-| Standalone `@reigh/editor-sdk` npm publishing | Deferred — see D-136 above. The SDK is monorepo-extractable but has not been published as an independent npm package. |
+| Standalone `@astrid/editor-sdk` npm publishing | Deferred — see D-136 above. The SDK is monorepo-extractable but has not been published as an independent npm package. |
 | Cloud extension loading | ABSENCE:grep -r 'cloud.*extension' src/tools/video-editor/runtime/ |
 | Sandboxed execution (iframe/Worker/ShadowRealm) | DOC:extensions-trust-envelope.md§5 |
 | Theme contributions | ABSENCE:grep -r 'theme.*contribution' src/sdk/index.ts |

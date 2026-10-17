@@ -153,7 +153,7 @@ export interface GeneratedObjectMeta {
 // Host-owned generation provenance
 // ---------------------------------------------------------------------------
 
-/** Current wire contract for provenance authored through the Reigh SDK. */
+/** Current wire contract for provenance authored through the Astrid SDK. */
 export const HOST_GENERATION_PROVENANCE_VERSION = 1 as const;
 
 /** What should happen when source data and editable generated output diverge. */
@@ -208,7 +208,7 @@ const canonicalizeForFingerprint = (value: unknown, seen: Set<unknown>): unknown
 };
 
 /**
- * Reigh-owned synchronous fingerprint. The prefix makes the algorithm
+ * Astrid-owned synchronous fingerprint. The prefix makes the algorithm
  * explicit and leaves room for a future cryptographic contract version.
  */
 export function computeHostFingerprint(value: unknown): string {
@@ -220,7 +220,7 @@ export function computeHostFingerprint(value: unknown): string {
     hash ^= BigInt(byte);
     hash = (hash * prime) & mask;
   }
-  return `reigh-fnv1a64-v1:${hash.toString(16).padStart(16, '0')}`;
+  return `astrid-fnv1a64-v1:${hash.toString(16).padStart(16, '0')}`;
 }
 
 /** Editable clip fields covered by the host's generated-output fingerprint. */
@@ -285,7 +285,7 @@ export function createHostGeneratedObjectMeta(
   };
 }
 
-/** Parse only the exact Reigh-owned provenance contract; legacy blobs stay untracked. */
+/** Parse only the exact Astrid-owned provenance contract; legacy blobs stay untracked. */
 export function readHostGenerationProvenance(
   meta: GeneratedObjectMeta | undefined,
 ): HostGenerationProvenance | undefined {

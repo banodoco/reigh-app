@@ -23,7 +23,7 @@ describe('useHiddenShots', () => {
 
     await waitFor(() => {
       expect(result.current.hiddenIds.has('shot-1')).toBe(true);
-      expect(window.localStorage.getItem('reigh-hidden-shots:project-a')).toBe('["shot-1"]');
+      expect(window.localStorage.getItem('astrid-hidden-shots:project-a')).toBe('["shot-1"]');
     });
 
     rerender({ projectId: 'project-a' });
@@ -34,7 +34,7 @@ describe('useHiddenShots', () => {
   });
 
   it('unhides a shot and removes the stored project entry when the set becomes empty', async () => {
-    window.localStorage.setItem('reigh-hidden-shots:project-a', '["shot-1"]');
+    window.localStorage.setItem('astrid-hidden-shots:project-a', '["shot-1"]');
     const { result } = renderHook(() => useHiddenShots('project-a'));
 
     await waitFor(() => {
@@ -48,7 +48,7 @@ describe('useHiddenShots', () => {
     await waitFor(() => {
       expect(result.current.isHidden('shot-1')).toBe(false);
       expect(result.current.hiddenIds.size).toBe(0);
-      expect(window.localStorage.getItem('reigh-hidden-shots:project-a')).toBeNull();
+      expect(window.localStorage.getItem('astrid-hidden-shots:project-a')).toBeNull();
     });
   });
 
@@ -65,7 +65,7 @@ describe('useHiddenShots', () => {
     });
 
     await waitFor(() => {
-      expect(window.localStorage.getItem('reigh-hidden-shots:project-a')).toBe('["shot-a"]');
+      expect(window.localStorage.getItem('astrid-hidden-shots:project-a')).toBe('["shot-a"]');
     });
 
     rerender({ projectId: 'project-b' });
@@ -80,7 +80,7 @@ describe('useHiddenShots', () => {
     });
 
     await waitFor(() => {
-      expect(window.localStorage.getItem('reigh-hidden-shots:project-b')).toBe('["shot-b"]');
+      expect(window.localStorage.getItem('astrid-hidden-shots:project-b')).toBe('["shot-b"]');
     });
 
     rerender({ projectId: 'project-a' });
@@ -103,7 +103,7 @@ describe('useHiddenShots', () => {
       expect(result.current.hiddenIds.size).toBe(0);
     });
 
-    window.localStorage.setItem('reigh-hidden-shots:broken-project', '{not-json');
+    window.localStorage.setItem('astrid-hidden-shots:broken-project', '{not-json');
     rerender({ projectId: 'broken-project' });
 
     await waitFor(() => {
@@ -120,6 +120,6 @@ describe('useHiddenShots', () => {
     });
 
     expect(result.current.hiddenIds.size).toBe(0);
-    expect(window.localStorage.getItem('reigh-hidden-shots:undefined')).toBeNull();
+    expect(window.localStorage.getItem('astrid-hidden-shots:undefined')).toBeNull();
   });
 });

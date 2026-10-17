@@ -202,7 +202,7 @@ const TasksPaneComponent: React.FC<TasksPaneProps> = ({ onOpenSettings }) => {
   // Sprint 3 adapter boundary: AgentChatPanel remains app-owned in TasksPane
   // instead of moving into the editor shell. The core talks to chat through
   // registration bridges; this pane still owns when chat is mounted and how the
-  // split-button affordance drives it on Reigh routes.
+  // split-button affordance drives it on Astrid App routes.
   // Agent chat lives inside the action pane only on tool routes (where a timeline
   // makes sense). On other routes the pane is task-only.
   // null until AgentChatPanel mounts and registers; the split button stays hidden

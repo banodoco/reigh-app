@@ -18,7 +18,7 @@ import type {
   RenderMaterial,
   RenderMaterialRef,
   RenderMaterialStatus,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import type { ProcessRoundtripResult } from '@/sdk/capabilities';
 import type { ProcessStatus } from '@/sdk/video/families/processes';
 import type {

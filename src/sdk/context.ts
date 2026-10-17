@@ -1,5 +1,5 @@
 /**
- * Portable context contracts and safe helpers for the Reigh Editor SDK.
+ * Portable context contracts and safe helpers for the Astrid Editor SDK.
  *
  * Core extension context types, creative context stubs, command registration
  * contracts, and disposal utilities.  This module is free of host wiring —
@@ -359,7 +359,7 @@ export interface ExtensionContext {
  * localStorage keys, chrome event subscribers, and any future host-owned
  * service state scoped to this extension activation.
  */
-export const CONTEXT_DISPOSE_SYMBOL: unique symbol = Symbol('reigh.extensionContext.dispose');
+export const CONTEXT_DISPOSE_SYMBOL: unique symbol = Symbol('astrid.extensionContext.dispose');
 
 /**
  * Dispose host-owned services (settings localStorage, chrome subscriptions)

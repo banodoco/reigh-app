@@ -35,7 +35,7 @@ const buildRepairMessages = (
   {
     role: "system",
     content: [
-      "You repair malformed Reigh sequence draft responses.",
+      "You repair malformed Astrid sequence draft responses.",
       "Return JSON only, with shape {\"drafts\":[{\"clipType\":string,\"hold\":number,\"params\":object}]}.",
       "Do not include analysis, explanations, Markdown, or text before or after the JSON.",
       "Use only the allowed clipType values and allowed asset keys.",

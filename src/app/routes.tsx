@@ -29,7 +29,7 @@ import ShotsPage from '@/pages/ShotsPage';
 import { Layout } from './Layout';
 import { DefaultToolRedirect } from './DefaultToolRedirect';
 import { AppEnv } from '@/types/env';
-import { ReighLoading } from '@/shared/components/ReighLoading';
+import { AstridLoading } from '@/shared/components/AstridLoading';
 import { ToolErrorBoundary } from '@/shared/components/ToolErrorBoundary';
 import { ToolLaunchBoundary } from '@/shared/components/ToolLaunchBoundary';
 import { TOOL_IDS } from '@/shared/lib/tooling/toolIds';
@@ -41,7 +41,7 @@ const currentEnv = (import.meta.env.VITE_APP_ENV?.toLowerCase() || AppEnv.WEB);
 
 // Loading fallback component for lazy loaded pages
 const LazyLoadingFallback = () => (
-  <ReighLoading />
+  <AstridLoading />
 );
 
 function HomeWithAuthRedirect() {

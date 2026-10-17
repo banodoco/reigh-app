@@ -14,13 +14,13 @@ import type {
   ExtensionContext,
   ExtensionRenderer,
   ExtensionUiService,
-  ReighExtension,
+  AstridExtension,
   TimelineDiff,
   TimelineOps,
   TimelinePatch,
   TimelineReader,
   TimelineSnapshot,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 
 export function createCreativeLabSnapshot(
   overrides: Partial<TimelineSnapshot> = {},
@@ -48,7 +48,7 @@ export interface CreativeLabExtensionHarness {
 }
 
 export function createCreativeLabExtensionHarness(
-  extension: ReighExtension,
+  extension: AstridExtension,
   initialSnapshot: TimelineSnapshot = createCreativeLabSnapshot(),
 ): CreativeLabExtensionHarness {
   let currentSnapshot = initialSnapshot;

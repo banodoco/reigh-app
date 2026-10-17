@@ -13,10 +13,10 @@ const capture: LiveSceneCapture = {
   packageObjectId: 'package-a', entryObjectId: 'entry-a',
 };
 const read = (requestId = 'read-a'): LiveSceneRequest => ({
-  schema: 'reigh.live-scene-request/v1', requestId, scope: { ...scope }, placementIds: ['scene-a'], action: 'read', offset: 0, length: 100,
+  schema: 'astrid.live-scene-request/v1', requestId, scope: { ...scope }, placementIds: ['scene-a'], action: 'read', offset: 0, length: 100,
 });
 const publish = (requestId = 'publish-a'): LiveSceneRequest => ({
-  schema: 'reigh.live-scene-request/v1', requestId, scope: { ...scope }, placementIds: ['scene-a'],
+  schema: 'astrid.live-scene-request/v1', requestId, scope: { ...scope }, placementIds: ['scene-a'],
   action: 'publish', capture: { ...capture }, replacements: [{ before: 'old', after: 'new' }],
 });
 function deferred() {
@@ -39,7 +39,7 @@ function fixture() {
     revision: `sha256:${'c'.repeat(64)}`, entryRevision: `sha256:${'d'.repeat(64)}`,
     affectedPlacements: ['scene-a'], acknowledgedTimelineVersion: 8, flushReceipt: { version: 8 },
   });
-  const registration = port.registration('com.reigh.astrid.live-scenes')!;
+  const registration = port.registration('haus.astrid.live-scenes')!;
   const binding = registration.register(handler);
   const controller = new AbortController();
   return { gate, load, port, current, handler, registration, binding, controller };
@@ -283,7 +283,7 @@ describe('deferred live-scene operation implementation', () => {
     const { port, load, handler, gate, controller } = fixture();
     const followup = vi.fn(async (_prompt: string) => 'The operation failed to load.');
     const pending = runLiveSceneAcpRoundtrip({
-      content: `<reigh_live_scene_request>${JSON.stringify(read())}</reigh_live_scene_request>`,
+      content: `<astrid_live_scene_request>${JSON.stringify(read())}</astrid_live_scene_request>`,
       scope, port, signal: controller.signal, followup,
     });
     gate.reject(new Error('chunk unavailable'));

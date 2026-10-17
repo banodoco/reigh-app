@@ -2,7 +2,7 @@
  * overlay-example — timelineOverlay contribution example (required render).
  *
  * Demonstrates the required-render `timelineOverlay` contract end to end
- * using only the public @reigh/editor-sdk entrypoint:
+ * using only the public @astrid/editor-sdk entrypoint:
  *
  *   1. The manifest contribution declares a NON-BLANK `render` id
  *      (OVERLAY_RENDER_ID) and no `when` clause — overlays are render-backed
@@ -27,9 +27,9 @@ import {
   createTimelineOverlayGeometry,
   getVideoFamilyDefinition,
   getVideoFamilyLegacyBridgeStatus,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import type {
-  ReighExtension,
+  AstridExtension,
   ExtensionContext,
   DisposeHandle,
   DiagnosticSeverity,
@@ -50,7 +50,7 @@ import type {
   TimelinePointMarker,
   TimelineMarkerChange,
   TimelineMarkerLayerOptions,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 
 // ---------------------------------------------------------------------------
 // Identifiers
@@ -163,9 +163,9 @@ const overlayContribution = {
   order: 100,
 } satisfies TimelineOverlayManifestContribution;
 
-export const overlayExample: ReighExtension = defineExtension({
+export const overlayExample: AstridExtension = defineExtension({
   manifest: {
-    id: 'com.reigh.examples.overlay-m2' as any,
+    id: 'haus.astrid.examples.overlay-m2' as any,
     version: '1.0.0',
     label: 'Timeline Overlay M2 Example',
     description:

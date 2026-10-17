@@ -33,7 +33,7 @@ Promise.all([
 });
 `.trim();
 
-const IMAGE_REPOSITORY = 'reigh-extension-container-gate';
+const IMAGE_REPOSITORY = 'astrid-extension-container-gate';
 const IMAGE_TAG = `${IMAGE_REPOSITORY}:local-${process.pid}`;
 const CONTAINER_PREFIX = `${IMAGE_REPOSITORY}-${process.pid}`;
 const PUBLIC_BUILD_ARGS = Object.freeze([

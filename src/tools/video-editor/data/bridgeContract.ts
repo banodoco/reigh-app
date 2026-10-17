@@ -187,7 +187,7 @@ export const bridgeTimelinesSchema = z.looseObject({
 
 // ---------------------------------------------------------------------------
 // doc-27 §4.1 route set: tasks, generations, media content. Frozen against
-// the phase-b `astrid serve` implementation (`ReighTaskBridge` DTOs), which
+// the phase-b `astrid serve` implementation (`AstridTaskBridge` DTOs), which
 // is the wire truth this contract mirrors.
 // ---------------------------------------------------------------------------
 
@@ -333,7 +333,7 @@ export const bridgeTaskDetailAttemptSchema = bridgeTaskAttemptSchema.extend({
 });
 
 /**
- * Polling task summary (`ReighTaskBridge._task_summary`): the shape returned
+ * Polling task summary (`AstridTaskBridge._task_summary`): the shape returned
  * by `GET /projects/:slug/tasks[/:task_id]` and cancel's terminal replay.
  */
 export const bridgeTaskSummarySchema = z.looseObject({
@@ -407,7 +407,7 @@ export const bridgeTaskAdmissionRequestSchema = z.strictObject({
     limits: jsonObject.optional(),
     checks: jsonObject.optional(),
   }).optional(),
-  /** Producer-validated GEN intent; Reigh carries it without rebuilding it. */
+  /** Producer-validated GEN intent; Astrid App carries it without rebuilding it. */
   generation_intent: jsonObject.optional(),
   settlement_effect: bridgeTaskSettlementEffectSchema,
 });

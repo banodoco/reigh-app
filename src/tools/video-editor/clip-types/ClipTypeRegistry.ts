@@ -14,7 +14,7 @@ import type {
   LiveChannelMetadata,
   LiveSample,
   LiveSource,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import type {
   ContributionRenderability,
   RenderCapability,

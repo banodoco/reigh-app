@@ -17,7 +17,7 @@
  *    release-blocking behaviour are flagged as **unsupported docs
  *    candidates** and cause the check to fail (even in audit mode).
  * 3. Every example file under `src/examples/` must import exclusively
- *    from `@reigh/editor-sdk` (the public boundary).  Internal imports
+ *    from `@astrid/editor-sdk` (the public boundary).  Internal imports
  *    (`src/tools/video-editor/` etc.) are not allowed in public examples.
  * 4. Examples that exist on disk but have no corresponding **supported**
  *    matrix row are reported as unclassified.
@@ -438,7 +438,7 @@ function checkExFile(absPath) {
 
 /**
  * Check that an EXT: example directory exists and has the required files
- * (index.ts and reigh-extension.json).
+ * (index.ts and astrid-extension.json).
  *
  * @param {string} absDir
  * @returns {{ exists: boolean, reason?: string }}
@@ -458,7 +458,7 @@ function checkExtDir(absDir) {
   }
 
   const indexFile = resolve(absDir, 'index.ts');
-  const manifestFile = resolve(absDir, 'reigh-extension.json');
+  const manifestFile = resolve(absDir, 'astrid-extension.json');
 
   if (!existsSync(indexFile)) {
     return {
@@ -470,7 +470,7 @@ function checkExtDir(absDir) {
   if (!existsSync(manifestFile)) {
     return {
       exists: false,
-      reason: `Extension directory missing reigh-extension.json: ${absDir}`,
+      reason: `Extension directory missing astrid-extension.json: ${absDir}`,
     };
   }
 
@@ -482,7 +482,7 @@ function checkExtDir(absDir) {
 // ---------------------------------------------------------------------------
 
 /**
- * Check that a TypeScript source file only imports from @reigh/editor-sdk
+ * Check that a TypeScript source file only imports from @astrid/editor-sdk
  * (the public SDK entrypoint).  Returns a list of internal-import violations.
  *
  * @param {string} absPath
@@ -503,8 +503,8 @@ function checkImportBoundary(absPath) {
   while ((match = importRe.exec(content)) !== null) {
     const specifier = match[1];
 
-    // Allow @reigh/editor-sdk imports
-    if (specifier === '@reigh/editor-sdk') continue;
+    // Allow @astrid/editor-sdk imports
+    if (specifier === '@astrid/editor-sdk') continue;
 
     // Allow relative imports within the examples/extensions directories
     if (specifier.startsWith('./') || specifier.startsWith('../')) continue;
@@ -529,7 +529,7 @@ function checkImportBoundary(absPath) {
   const dynamicImportRe = /import\s*\(\s*['"]([^'"]+)['"]\s*\)/g;
   while ((match = dynamicImportRe.exec(content)) !== null) {
     const specifier = match[1];
-    if (specifier === '@reigh/editor-sdk') continue;
+    if (specifier === '@astrid/editor-sdk') continue;
     if (specifier.startsWith('./') || specifier.startsWith('../')) continue;
     if (
       !specifier.startsWith('@/') &&

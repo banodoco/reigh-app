@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { ContributionRef, ReferenceState } from '@reigh/editor-sdk';
+import type { ContributionRef, ReferenceState } from '@astrid/editor-sdk';
 import {
   resolveCompositionReferences,
   resolveCompositionReferenceState,

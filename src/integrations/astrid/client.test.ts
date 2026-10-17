@@ -137,7 +137,7 @@ describe('AstridLocalClient', () => {
     const admitted = vi.fn();
     window.addEventListener('runtime:task-admitted', admitted, { once: true });
 
-    const response = await client.tasks.admit(admissionRequest(), 'reigh.admit:test-1');
+    const response = await client.tasks.admit(admissionRequest(), 'astrid.admit:test-1');
 
     expect(response.task.id).toBeTruthy();
     expect(response.task.status).toBe('queued');
@@ -146,27 +146,27 @@ describe('AstridLocalClient', () => {
     }));
     const [, init] = vi.mocked(globalThis.fetch).mock.calls[0] as [string, RequestInit];
     expect(init.method).toBe('POST');
-    expect((init.headers as Record<string, string>)['Idempotency-Key']).toBe('reigh.admit:test-1');
+    expect((init.headers as Record<string, string>)['Idempotency-Key']).toBe('astrid.admit:test-1');
     expect((init.headers as Record<string, string>)['Content-Type']).toBe('application/json');
   });
 
   it('replays the stored task on idempotent re-admission', async () => {
     const client = makeClient();
-    const first = await client.tasks.admit(admissionRequest(), 'reigh.admit:same');
+    const first = await client.tasks.admit(admissionRequest(), 'astrid.admit:same');
 
-    const replay = await client.tasks.admit(admissionRequest(), 'reigh.admit:same');
+    const replay = await client.tasks.admit(admissionRequest(), 'astrid.admit:same');
     expect(replay.task.id).toBe(first.task.id);
   });
 
   it('rejects key reuse with different bytes as a conflict', async () => {
     const client = makeClient();
-    await client.tasks.admit(admissionRequest(), 'reigh.admit:same');
+    await client.tasks.admit(admissionRequest(), 'astrid.admit:same');
 
     const error = await client.tasks
       .admit({ ...admissionRequest(), spec: {
         ...admissionRequest().spec,
         params: { prompt: 'changed' },
-      } }, 'reigh.admit:same')
+      } }, 'astrid.admit:same')
       .catch((cause: unknown) => cause);
 
     expect(error).toBeInstanceOf(BridgeRouteError);
@@ -182,7 +182,7 @@ describe('AstridLocalClient', () => {
         ...admissionRequest(),
         capability_id: 'astrid.image_generation_dead',
         spec: { ...admissionRequest().spec, family: 'image_generation_dead', params: {} },
-      }, 'reigh.admit:x'),
+      }, 'astrid.admit:x'),
     ).rejects.toMatchObject({
       status: 422,
       code: 'capability_unavailable',
@@ -193,7 +193,7 @@ describe('AstridLocalClient', () => {
 
   it('lists and reads admitted tasks through the polling shapes', async () => {
     const client = makeClient();
-    const { task } = await client.tasks.admit(admissionRequest(), 'reigh.admit:list');
+    const { task } = await client.tasks.admit(admissionRequest(), 'astrid.admit:list');
 
     const list = await client.tasks.list();
     expect(list.tasks.map((entry) => entry.task_id)).toContain(task.id);
@@ -206,7 +206,7 @@ describe('AstridLocalClient', () => {
 
   it('keeps neutral task reads free of synthetic bridge diagnostics', async () => {
     const client = makeClient();
-    const { task } = await client.tasks.admit(admissionRequest(), 'reigh.admit:diagnostics');
+    const { task } = await client.tasks.admit(admissionRequest(), 'astrid.admit:diagnostics');
     const summary = router.state.tasks.get(task.id);
     if (!summary) throw new Error('fixture missing');
     summary.status = 'running';
@@ -221,7 +221,7 @@ describe('AstridLocalClient', () => {
 
   it('cancels a queued task without a fence and replays terminal state', async () => {
     const client = makeClient();
-    const { task } = await client.tasks.admit(admissionRequest(), 'reigh.admit:cancel');
+    const { task } = await client.tasks.admit(admissionRequest(), 'astrid.admit:cancel');
 
     const cancelled = await client.tasks.cancel(task.id);
     expect(cancelled.task.status).toBe('cancelled');
@@ -232,7 +232,7 @@ describe('AstridLocalClient', () => {
 
   it('refuses an unfenced cancel of a running task with the bounded attempt extra', async () => {
     const client = makeClient();
-    const { task } = await client.tasks.admit(admissionRequest(), 'reigh.admit:running');
+    const { task } = await client.tasks.admit(admissionRequest(), 'astrid.admit:running');
     const summary = router.state.tasks.get(task.id);
     if (!summary) throw new Error('fixture missing');
     summary.status = 'running';
@@ -305,7 +305,7 @@ describe('AstridLocalClient', () => {
     });
 
     // conflict via unfenced running-cancel
-    const { task } = await client.tasks.admit(admissionRequest(), 'reigh.admit:cat-conflict');
+    const { task } = await client.tasks.admit(admissionRequest(), 'astrid.admit:cat-conflict');
     const summary = router.state.tasks.get(task.id);
     if (summary) summary.status = 'running';
     await expect(client.tasks.cancel(task.id)).rejects.toMatchObject({ category: 'conflict' });

@@ -119,7 +119,7 @@ describe('assembleDataLanes', () => {
             words: [{ id: `${logicalId}:word:w1`, start: 2, end: 3, text: 'saved' }],
           },
           sourceArtifactRef: { assetId: 'a' },
-          provenance: { adapterId: 'reigh.adaptTranscript', adapterVersion: '2' },
+          provenance: { adapterId: 'astrid.adaptTranscript', adapterVersion: '2' },
         }],
       },
     });
@@ -331,7 +331,7 @@ describe('assembleDataLanes — kind-agnostic ingest (G2)', () => {
   it('projects timeline-domain source items exactly once without a carrier clip', () => {
     const runwayKind: DataKindSnapshotRecord = {
       kindId: 'runaway',
-      schemaRef: 'reigh.runaway_transition/v1',
+      schemaRef: 'astrid.runaway_transition/v1',
       shape: 'interval',
       domain: 'timeline_seconds',
       label: 'Runaway',
@@ -341,12 +341,12 @@ describe('assembleDataLanes — kind-agnostic ingest (G2)', () => {
       clips: clips([CLIP_C1, CLIP_C2]),
       segmentsByAsset: {},
       sourceItemsBySchemaRef: {
-        'reigh.runaway_transition/v1': [{
+        'astrid.runaway_transition/v1': [{
           id: 'T0001',
           shape: 'interval',
           domain: 'timeline_seconds',
           extent: { start: 0.292, end: 1.5 },
-          schemaRef: 'reigh.runaway_transition/v1',
+          schemaRef: 'astrid.runaway_transition/v1',
           payload: { prompt: 'rose note' },
           sourceArtifactRef: { assetId: 'astrid:runaway-timing:demo' },
           provenance: { adapterId: 'astrid.runaway.bridge', adapterVersion: '1' },

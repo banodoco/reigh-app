@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { ReighRuntimeClient, RuntimeAuthenticationError, RUNTIME_CLIENT_SCOPES } from './client.ts';
+import { AstridRuntimeClient, RuntimeAuthenticationError, RUNTIME_CLIENT_SCOPES } from './client.ts';
 import type { RequestBody, Transport } from './generated.ts';
 import { RuntimeDataProvider, toRuntimePublication } from './dataProvider.ts';
 import { TimelineSchemaIncompatibleError, TimelineVersionConflictError } from '@/tools/video-editor/data/DataProvider.ts';
@@ -11,7 +11,7 @@ import {
 } from './contract-metadata.ts';
 import { sanitizeTimelineClipSnapshot } from '@/tools/video-editor/lib/timeline-domain.ts';
 import { createDefaultTimelineConfig } from '@/tools/video-editor/lib/defaults.ts';
-import type { ProjectObjectMetadata } from '@reigh/editor-sdk';
+import type { ProjectObjectMetadata } from '@astrid/editor-sdk';
 import type { TimelineConfig } from '@/tools/video-editor/types/index.ts';
 
 const PROJECT_ID = 'project-r1';
@@ -89,7 +89,7 @@ function compactParentComposition() {
   const clips = [
     {
       id: 'l3-scene', track: 'V1', at: 0, from: 63, to: 65, speed: 1,
-      clipType: 'com.reigh.astrid.liveScene',
+      clipType: 'haus.astrid.liveScene',
       app: { liveScene: { revision: 'sha256:7c036c46ba2c4fedbf911a72b694c8c6ab2f5dd3211d4023857809a4bbc7fe6b', html: '<html>scene fixture</html>' } },
     },
     { id: 'l3-label', track: 'Overlay', at: 0.5, hold: 1, text: 'Maple Hollow' },
@@ -159,7 +159,7 @@ function runtimeFixture(options: {
       return { status: 200, headers: {}, body: json({ status: 'ok', protocol: 'workspace.v1', schema_digest: RUNTIME_SCHEMA_DIGEST, runtime_epoch: 1, runtime_instance_id: options.runtimeInstanceId ?? 'runtime-instance-r1' }) };
     }
     if (path === '/v1/handshake') {
-      return { status: 200, headers: {}, body: json({ protocol: 'workspace.v1', schema_digest: RUNTIME_SCHEMA_DIGEST, session_id: 'session-r1', actor_id: 'reigh-product-connector', realm_id: 'realm-r1', scopes: RUNTIME_CLIENT_SCOPES, capabilities: [RUNTIME_TARGETED_EXECUTION_CAPABILITY] }) };
+      return { status: 200, headers: {}, body: json({ protocol: 'workspace.v1', schema_digest: RUNTIME_SCHEMA_DIGEST, session_id: 'session-r1', actor_id: 'astrid-product-connector', realm_id: 'realm-r1', scopes: RUNTIME_CLIENT_SCOPES, capabilities: [RUNTIME_TARGETED_EXECUTION_CAPABILITY] }) };
     }
     if (path === '/v1/realm') {
       return { status: 200, headers: {}, body: json({ realm_id: 'realm-r1', display_name: 'R1 fixture', version: 1, created_at: '2026-09-11T00:00:00Z' }) };
@@ -758,7 +758,7 @@ describe('RuntimeDataProvider', () => {
   });
 
   it('preserves the local draft and performs no writes after a same-realm Runtime restart', async () => {
-    vi.stubEnv('VITE_WORKSPACE_RUNTIME_EXPECTED_ACTOR_ID', 'reigh-product-connector');
+    vi.stubEnv('VITE_WORKSPACE_RUNTIME_EXPECTED_ACTOR_ID', 'astrid-product-connector');
     vi.stubEnv('VITE_WORKSPACE_RUNTIME_EXPECTED_REALM_ID', 'realm-r1');
     vi.stubEnv('VITE_WORKSPACE_RUNTIME_EXPECTED_INSTANCE_ID', 'runtime-instance-r1');
     try {
@@ -804,9 +804,9 @@ describe('RuntimeDataProvider', () => {
     const provider = new RuntimeDataProvider({ projectId: PROJECT_ID, transport: fixture.transport });
     const initial = await provider.loadTimeline(TIMELINE_ID);
     const bundle = { schema_version: 1 as const, itemsBySchemaRef: {
-      'reigh.transcript_segment/v1': [{
+      'astrid.transcript_segment/v1': [{
         id: 'source:segment', shape: 'interval' as const, domain: 'source_seconds' as const,
-        extent: { start: 1, end: 2 }, schemaRef: 'reigh.transcript_segment/v1',
+        extent: { start: 1, end: 2 }, schemaRef: 'astrid.transcript_segment/v1',
         sourceArtifactRef: { assetId: 'asset-1', artifactHash: 'content-v2' },
         provenance: { adapterId: 'transcript', adapterVersion: '1' },
         payload: { sourceId: 'source', segmentId: 'segment', text: 'Corrected', speaker: 'Alice', words: [{ id: 'word-1', start: 1, end: 2, text: 'Corrected' }] },
@@ -1082,7 +1082,7 @@ describe('RuntimeDataProvider', () => {
         return { status: 200, headers: {}, body: json({ status: 'ok', protocol: 'workspace.v1', schema_digest: RUNTIME_SCHEMA_DIGEST, runtime_epoch: 1, runtime_instance_id: 'runtime-instance-lightbox' }) };
       }
       if (path === '/v1/handshake') {
-        return { status: 200, headers: {}, body: json({ protocol: 'workspace.v1', schema_digest: RUNTIME_SCHEMA_DIGEST, session_id: 'session-lightbox', actor_id: 'reigh-product-connector', realm_id: 'realm-r1', scopes: RUNTIME_CLIENT_SCOPES, capabilities: [RUNTIME_TARGETED_EXECUTION_CAPABILITY] }) };
+        return { status: 200, headers: {}, body: json({ protocol: 'workspace.v1', schema_digest: RUNTIME_SCHEMA_DIGEST, session_id: 'session-lightbox', actor_id: 'astrid-product-connector', realm_id: 'realm-r1', scopes: RUNTIME_CLIENT_SCOPES, capabilities: [RUNTIME_TARGETED_EXECUTION_CAPABILITY] }) };
       }
       if (path === '/v1/realm') {
         return { status: 200, headers: {}, body: json({ realm_id: 'realm-r1', display_name: 'R1 fixture', version: 1, created_at: '2026-09-11T00:00:00Z' }) };
@@ -1488,7 +1488,7 @@ describe('RuntimeDataProvider', () => {
           id: 'scene-a',
           at: 2,
           track: 'V1',
-          clipType: 'com.reigh.astrid.liveScene',
+          clipType: 'haus.astrid.liveScene',
           label: 'scene A sentinel',
           from: 55,
           to: 75,
@@ -1499,7 +1499,7 @@ describe('RuntimeDataProvider', () => {
           id: 'scene-b',
           at: 22,
           track: 'V1',
-          clipType: 'com.reigh.astrid.liveScene',
+          clipType: 'haus.astrid.liveScene',
           label: 'scene B sentinel',
           from: 20,
           to: 30,
@@ -1784,7 +1784,7 @@ describe('RuntimeDataProvider', () => {
   });
 
   it('returns an actionable error when the Runtime is down', async () => {
-    const client = new ReighRuntimeClient({
+    const client = new AstridRuntimeClient({
       baseUrl: 'http://runtime.test',
       token: 'fixture-token',
       transport: async () => { throw new Error('connect ECONNREFUSED'); },

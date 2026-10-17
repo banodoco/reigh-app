@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { TimelineConfig } from "../../../../src/tools/video-editor/index.ts";
 import { getAdminSupabaseClient } from "./client.ts";
-import { getReighAppRoot } from "./env.ts";
+import { getAstridAppRoot } from "./env.ts";
 import { TestHarness } from "./index.ts";
 import type { HarnessSnapshot } from "./snapshot.ts";
 import { snapshotState } from "./snapshot.ts";
@@ -87,7 +87,7 @@ function readOptionalEnvValue(key: string): string | undefined {
   if (direct) return direct;
   const envFile = process.env.HARNESS_ENV_FILE?.trim()
     ? path.resolve(process.cwd(), process.env.HARNESS_ENV_FILE)
-    : path.join(getReighAppRoot(), ".env.local");
+    : path.join(getAstridAppRoot(), ".env.local");
   if (!existsSync(envFile)) return undefined;
   return parseEnvFile(readFileSync(envFile, "utf8"))[key]?.trim();
 }
@@ -129,7 +129,7 @@ function parseArgs(argv: string[]): AgenticRunnerOptions | { help: true } {
 
 function printHelp(): void {
   console.log([
-    "Usage: npx tsx reigh-app/supabase/functions/_tests/harness/agentic-runner.ts [options]",
+    "Usage: npx tsx astrid-app/supabase/functions/_tests/harness/agentic-runner.ts [options]",
     "",
     "Options:",
     "  --timeline-id <uuid>",

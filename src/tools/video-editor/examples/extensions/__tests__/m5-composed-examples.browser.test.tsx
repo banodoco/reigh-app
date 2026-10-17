@@ -6,7 +6,7 @@ import type {
   CapabilityFinding,
   RenderMaterialRef,
   TimelineSnapshot,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import { BlockerActionCard } from '@/tools/video-editor/components/BlockerActionCard.tsx';
 import { MaterialBrowser } from '@/tools/video-editor/components/MaterialBrowser.tsx';
 import { RouteCompletionDashboard } from '@/tools/video-editor/components/RouteCompletionDashboard/index.ts';
@@ -44,20 +44,20 @@ import type {
   TimelineLiveDeterministicRef,
 } from '@/tools/video-editor/types/index.ts';
 
-const FLAGSHIP_EXTENSION_ID = 'com.reigh.examples.flagship-local';
+const FLAGSHIP_EXTENSION_ID = 'haus.astrid.examples.flagship-local';
 
 const EX02_CLIP_ID = 'clip-flagship-glow-live';
 const EX02_SOURCE_ID = 'source-flagship-glow-live';
 const EX02_BINDING_ID = 'binding-flagship-glow-intensity';
 const EX02_CAPTURE_REF_ID = 'capture-flagship-glow-intensity';
 const EX02_EFFECT_CONTRIBUTION_ID = 'flagship-effect-glow';
-const EX02_EFFECT_ID = 'com.reigh.flagship.effect.glow';
+const EX02_EFFECT_ID = 'haus.astrid.flagship.effect.glow';
 const EX02_EFFECT_REF_KEY = `effect:${FLAGSHIP_EXTENSION_ID}:${EX02_EFFECT_CONTRIBUTION_ID}`;
 const EX02_EFFECT_NODE_ID = `contribution:${EX02_EFFECT_REF_KEY}`;
 
 const EX03_CLIP_ID = 'clip-flagship-wipe-mask';
 const EX03_TRANSITION_CONTRIBUTION_ID = 'flagship-transition-wipe';
-const EX03_TRANSITION_ID = 'com.reigh.flagship.transition.wipe';
+const EX03_TRANSITION_ID = 'haus.astrid.flagship.transition.wipe';
 const EX03_TRANSITION_REF_KEY = `transition:${FLAGSHIP_EXTENSION_ID}:${EX03_TRANSITION_CONTRIBUTION_ID}`;
 const EX03_TRANSITION_NODE_ID = `contribution:${EX03_TRANSITION_REF_KEY}`;
 const EX03_MASK_SLOT = 'transition-mask';

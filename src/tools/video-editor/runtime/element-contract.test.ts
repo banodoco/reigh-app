@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { ASTRID_EFFECT_CATALOG } from './astrid-element-catalog.ts';
 import {
-  buildReighAgentElementContext,
+  buildAstridAgentElementContext,
   pinElementRevision,
-  validateReighElementOperation,
+  validateAstridElementOperation,
 } from './element-contract.ts';
 
 describe('Astrid-backed element contract', () => {
   it('retains owner identity for both actual text-card catalog entries', () => {
-    const context = buildReighAgentElementContext({ astridEffects: ASTRID_EFFECT_CATALOG });
+    const context = buildAstridAgentElementContext({ astridEffects: ASTRID_EFFECT_CATALOG });
     expect(context.catalog.filter((entry) => entry.id === 'text-card').map((entry) => entry.packId))
       .toEqual(['rendering', 'local']);
     const operation = {
@@ -16,10 +16,10 @@ describe('Astrid-backed element contract', () => {
       clip_id: 'a', placement: 'overlay',
       element: { id: 'text-card', kind: 'effect', revision: 'r', packId: '' },
     };
-    expect(validateReighElementOperation(operation)).toContainEqual({ path: 'element.packId', message: 'must be a non-empty string' });
+    expect(validateAstridElementOperation(operation)).toContainEqual({ path: 'element.packId', message: 'must be a non-empty string' });
   });
   it('builds one compact catalog while retaining legacy sequence resources separately', () => {
-    const context = buildReighAgentElementContext({
+    const context = buildAstridAgentElementContext({
       effects: [{
         id: 'glow',
         name: 'Glow',
@@ -74,7 +74,7 @@ describe('Astrid-backed element contract', () => {
   });
 
   it('requires a positive CAS version for timeline mutations', () => {
-    const diagnostics = validateReighElementOperation({
+    const diagnostics = validateAstridElementOperation({
       name: 'timeline.set_clip_fade',
       project: 'astrid-intro',
       timeline: 'main',
@@ -89,7 +89,7 @@ describe('Astrid-backed element contract', () => {
   });
 
   it('projects Astrid effects and animations into the shared agent catalog', () => {
-    const context = buildReighAgentElementContext({
+    const context = buildAstridAgentElementContext({
       astridEffects: [{
         id: 'frame-overlay',
         name: 'Frame Overlay',
@@ -122,7 +122,7 @@ describe('Astrid-backed element contract', () => {
   });
 
   it('rejects unsafe draft source and malformed transition placement', () => {
-    const diagnostics = validateReighElementOperation({
+    const diagnostics = validateAstridElementOperation({
       name: 'elements.create_draft',
       id: 'draft-1',
       kind: 'effect',
@@ -131,7 +131,7 @@ describe('Astrid-backed element contract', () => {
     });
     expect(diagnostics.some((diagnostic) => diagnostic.path === 'source')).toBe(true);
 
-    const transitionDiagnostics = validateReighElementOperation({
+    const transitionDiagnostics = validateAstridElementOperation({
       name: 'timeline.apply_transition',
       project: 'astrid-intro',
       timeline: 'main',

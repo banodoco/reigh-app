@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { defineExtension } from '@reigh/editor-sdk';
+import { defineExtension } from '@astrid/editor-sdk';
 import {
   buildExtensionLifecycleOperationalEvents,
   createHostOwnedExtensionOperationalEmitter,
@@ -28,8 +28,8 @@ const extension = (id: string) => defineExtension({
 const operationalPolicy = {
   releaseRevision: 'rc1',
   extensionVersions: new Map([
-    ['com.reigh.runaway-timeline', new Set(['1.0.0'])],
-    ['com.reigh.example', new Set(['1.0.0'])],
+    ['haus.astrid.runaway-timeline', new Set(['1.0.0'])],
+    ['haus.astrid.example', new Set(['1.0.0'])],
   ]),
 };
 
@@ -38,8 +38,8 @@ describe('extension release controls', () => {
     expect(RUNAWAY_RELEASE_EXTENSION_ID).toBe(RUNAWAY_TIMELINE_EXTENSION_ID);
     expect(TRANSCRIPT_RELEASE_EXTENSION_ID).toBe(TRANSCRIPT_LANE_EXTENSION_ID);
     const localIds = devLocalExtensions.map((item) => item.manifest.id as string);
-    expect(localIds).toContain('com.reigh.astrid.live-scenes');
-    expect(localIds).toContain('com.reigh.transcript-lane');
+    expect(localIds).toContain('haus.astrid.live-scenes');
+    expect(localIds).toContain('haus.astrid.transcript-lane');
     const reviewedIds = new Set<string>(REVIEWED_PRODUCTION_EXTENSION_IDS);
     expect(devLocalExtensions.every((item) =>
       reviewedIds.has(item.manifest.id as string),
@@ -51,7 +51,7 @@ describe('extension release controls', () => {
     await expect(loadExtensionReleaseFlags({
       development: true,
       fetchImpl,
-      origin: 'https://reigh.example',
+      origin: 'https://astrid-app.example',
     })).resolves.toMatchObject({
       extensionHostEnabled: true,
       transcriptCaptionFoundryEnabled: true,
@@ -126,7 +126,7 @@ describe('extension release controls', () => {
     }));
     await expect(loadExtensionReleaseFlags({
       development: false,
-      origin: 'https://reigh.example/editor?extensionSmoke=1',
+      origin: 'https://astrid-app.example/editor?extensionSmoke=1',
       fetchImpl,
     })).resolves.toMatchObject({
       extensionHostEnabled: true,
@@ -134,7 +134,7 @@ describe('extension release controls', () => {
       runawayTypedTimelineEnabled: false,
     });
     expect(fetchImpl).toHaveBeenCalledWith(
-      'https://reigh.example/runtime-config/v1/extensions.json',
+      'https://astrid-app.example/runtime-config/v1/extensions.json',
       expect.objectContaining({
         cache: 'no-store',
         credentials: 'same-origin',
@@ -144,12 +144,12 @@ describe('extension release controls', () => {
 
     await expect(loadExtensionReleaseFlags({
       development: false,
-      origin: 'https://reigh.example',
+      origin: 'https://astrid-app.example',
       fetchImpl: vi.fn(async () => { throw new Error('offline'); }),
     })).resolves.toMatchObject({ extensionHostEnabled: false });
     await expect(loadExtensionReleaseFlags({
       development: false,
-      origin: 'https://reigh.example',
+      origin: 'https://astrid-app.example',
       fetchImpl: vi.fn(async () => ({
         ok: true,
         url: 'https://attacker.example/extensions.json',
@@ -167,7 +167,7 @@ describe('extension release controls', () => {
       });
       const initialization = initializeExtensionReleaseFlags({
         development: false,
-        origin: 'https://reigh.example',
+        origin: 'https://astrid-app.example',
         fetchImpl,
       });
       await vi.advanceTimersByTimeAsync(EXTENSION_RELEASE_RUNTIME_CONFIG_TIMEOUT_MS);
@@ -190,7 +190,7 @@ describe('extension release controls', () => {
     const fetchImpl = vi.fn(() => new Promise<Response>(() => {}));
     const loading = loadExtensionReleaseFlags({
       development: false,
-      origin: 'https://reigh.example',
+      origin: 'https://astrid-app.example',
       fetchImpl,
       signal: caller.signal,
     });
@@ -201,8 +201,8 @@ describe('extension release controls', () => {
 
   it('selects independent Transcript and Runaway children from reviewed bundled extensions', () => {
     const all = [
-      extension('com.reigh.scene-phase-markers'),
-      extension('com.reigh.unreviewed-local-example'),
+      extension('haus.astrid.scene-phase-markers'),
+      extension('haus.astrid.unreviewed-local-example'),
       extension(TRANSCRIPT_LANE_EXTENSION_ID),
       extension(RUNAWAY_TIMELINE_EXTENSION_ID),
     ];
@@ -212,7 +212,7 @@ describe('extension release controls', () => {
       runawayTypedTimelineEnabled: true,
       configurationRevision: 'r1',
     }).map((item) => item.manifest.id)).toEqual([
-      'com.reigh.scene-phase-markers',
+      'haus.astrid.scene-phase-markers',
       RUNAWAY_TIMELINE_EXTENSION_ID,
     ]);
   });
@@ -222,14 +222,14 @@ describe('extension release controls', () => {
       runawayTypedTimelineEnabled: true, configurationRevision: 'r1' };
     expect(isExtensionReleaseEnabled(TRANSCRIPT_RELEASE_EXTENSION_ID, flags)).toBe(false);
     expect(isExtensionReleaseEnabled(RUNAWAY_RELEASE_EXTENSION_ID, flags)).toBe(true);
-    expect(isExtensionReleaseEnabled('com.reigh.scene-phase-markers', flags)).toBe(true);
-    expect(isExtensionReleaseEnabled('com.reigh.scene-phase-markers', { ...flags, extensionHostEnabled: false })).toBe(false);
+    expect(isExtensionReleaseEnabled('haus.astrid.scene-phase-markers', flags)).toBe(true);
+    expect(isExtensionReleaseEnabled('haus.astrid.scene-phase-markers', { ...flags, extensionHostEnabled: false })).toBe(false);
   });
 
   it('keeps disable and downgrade scope bounded to the host and reviewed children', () => {
     const all = [
-      extension('com.reigh.scene-phase-markers'),
-      extension('com.reigh.unreviewed-local-example'),
+      extension('haus.astrid.scene-phase-markers'),
+      extension('haus.astrid.unreviewed-local-example'),
       extension(TRANSCRIPT_LANE_EXTENSION_ID),
       extension(RUNAWAY_TIMELINE_EXTENSION_ID),
     ];
@@ -240,7 +240,7 @@ describe('extension release controls', () => {
       runawayTypedTimelineEnabled: true,
       configurationRevision: 'rollback-18',
     }).map((item) => item.manifest.id)).toEqual([
-      'com.reigh.scene-phase-markers',
+      'haus.astrid.scene-phase-markers',
       RUNAWAY_TIMELINE_EXTENSION_ID,
     ]);
 
@@ -259,7 +259,7 @@ describe('extension release controls', () => {
       event: 'bridge.request',
       outcome: 'failure',
       releaseRevision: 'rc1',
-      extensionId: 'com.reigh.runaway-timeline',
+      extensionId: 'haus.astrid.runaway-timeline',
       extensionVersion: '1.0.0',
       errorClass: 'bridge.timeout',
       durationMs: 125,
@@ -276,7 +276,7 @@ describe('extension release controls', () => {
       event: 'extension.activation',
       outcome: 'failure',
       releaseRevision: 'rc1',
-      extensionId: 'com.reigh.example',
+      extensionId: 'haus.astrid.example',
       extensionVersion: '9.9.9',
       errorClass: 'activation.error',
     }, operationalPolicy)).toBeNull();
@@ -284,7 +284,7 @@ describe('extension release controls', () => {
       event: 'extension.activation',
       outcome: 'failure',
       releaseRevision: 'rc1',
-      extensionId: 'com.reigh.example',
+      extensionId: 'haus.astrid.example',
       extensionVersion: '1.0.0',
       errorClass: 'attacker.free_form',
     }, operationalPolicy)).toBeNull();
@@ -372,22 +372,22 @@ describe('extension release controls', () => {
 
   it('emits lifecycle transitions once and disposal on removal', () => {
     const active = [{
-      extensionId: 'com.reigh.example',
+      extensionId: 'haus.astrid.example',
       extensionVersion: '1.0.0',
-      activationKey: 'com.reigh.example:1',
+      activationKey: 'haus.astrid.example:1',
       state: 'active' as const,
     }];
     expect(buildExtensionLifecycleOperationalEvents([], active, 'rc1')).toEqual([{
       event: 'extension.activation',
       outcome: 'success',
       releaseRevision: 'rc1',
-      extensionId: 'com.reigh.example',
+      extensionId: 'haus.astrid.example',
       extensionVersion: '1.0.0',
     }]);
     expect(buildExtensionLifecycleOperationalEvents(active, active, 'rc1')).toEqual([]);
     expect(buildExtensionLifecycleOperationalEvents(active, [{
       ...active[0],
-      activationKey: 'com.reigh.example:2',
+      activationKey: 'haus.astrid.example:2',
     }], 'rc1')).toEqual([
       expect.objectContaining({ event: 'extension.disposal', outcome: 'success' }),
       expect.objectContaining({ event: 'extension.activation', outcome: 'success' }),
@@ -405,7 +405,7 @@ describe('extension release controls', () => {
       event: 'extension.disposal',
       outcome: 'success',
       releaseRevision: 'rc1',
-      extensionId: 'com.reigh.example',
+      extensionId: 'haus.astrid.example',
       extensionVersion: '1.0.0',
     }]);
     expect(buildExtensionLifecycleOperationalEvents(active, [{
@@ -413,7 +413,7 @@ describe('extension release controls', () => {
       state: 'inactive',
     }], 'rc1')).toEqual([expect.objectContaining({
       event: 'extension.disposal',
-      extensionId: 'com.reigh.example',
+      extensionId: 'haus.astrid.example',
     })]);
     expect(buildExtensionLifecycleOperationalEvents([{
       ...active[0],

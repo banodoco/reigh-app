@@ -225,7 +225,7 @@ describe('Astrid bridge server-side auth boundary', () => {
   });
 
   it('fails closed in a spawned Vite preview before contacting upstream', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'reigh-astrid-preview-'));
+    const root = await mkdtemp(join(tmpdir(), 'astrid-app-preview-'));
     await mkdir(join(root, 'dist'));
     await writeFile(join(root, 'dist', 'index.html'), '<!doctype html><title>preview</title>');
     let upstreamRequests = 0;

@@ -98,12 +98,12 @@ export const LOCAL_SEQUENCE_REGISTRY = {
   'image-jump': {
     component: ImageJumpSequence,
     themeId: '2rp',
-    source: 'local:reigh',
+    source: 'local:astrid',
   },
   'title-card': {
     component: TitleCardSequence,
     themeId: '2rp',
-    source: 'local:reigh',
+    source: 'local:astrid',
   },
   'frame-overlay': {
     component: FrameOverlaySequence,

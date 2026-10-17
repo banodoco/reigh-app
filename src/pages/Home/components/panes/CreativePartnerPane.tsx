@@ -48,7 +48,7 @@ export const CreativePartnerPane: React.FC<CreativePartnerPaneProps> = ({
   return (
     <GlassSidePane isOpen={isOpen} onClose={onClose} side="left" zIndex={UI_Z_LAYERS.HOME_GLASS_PANE}>
       <div className="mt-8 sm:mt-10 mb-6 pr-10 sm:pr-0 relative z-10">
-        <h2 className="text-2xl sm:text-3xl font-theme-heading text-primary leading-tight mb-5">reigh is an open source tool built on top of open models</h2>
+        <h2 className="text-2xl sm:text-3xl font-theme-heading text-primary leading-tight mb-5">astrid is an open source tool built on top of open models</h2>
         <div className="w-20 h-1.5 bg-gradient-to-r from-wes-vintage-gold to-wes-vintage-gold/50 rounded-full animate-pulse-breathe opacity-90"></div>
       </div>
       
@@ -66,13 +66,13 @@ export const CreativePartnerPane: React.FC<CreativePartnerPaneProps> = ({
               >
                 1
               </span>
-              If you have a decent computer, <span className="text-wes-vintage-gold">you can run Reigh for free</span>. We make it very easy - you can use the app in any browser while tasks process locally. Just run this command:
+              If you have a decent computer, <span className="text-wes-vintage-gold">you can run Astrid for free</span>. We make it very easy - you can use the app in any browser while tasks process locally. Just run this command:
             </p>
             
             <div className="rounded-lg overflow-hidden border border-border shadow-sm">
               <img 
                 src="/gpu.webp"
-                alt="Screenshot showing how easy it is to run Reigh locally"
+                alt="Screenshot showing how easy it is to run Astrid locally"
                 className="w-full h-auto rounded-lg"
               />
             </div>
@@ -87,7 +87,7 @@ export const CreativePartnerPane: React.FC<CreativePartnerPaneProps> = ({
               >
                 2
               </span>
-              Because we use open models on consumer-grade hardware, <span className="text-wes-vintage-gold">you can also run Reigh cheaply using our cloud service</span>. By being the least expensive place to run leading open models, we aim to honour this quote by Picasso:
+              Because we use open models on consumer-grade hardware, <span className="text-wes-vintage-gold">you can also run Astrid cheaply using our cloud service</span>. By being the least expensive place to run leading open models, we aim to honour this quote by Picasso:
             </p>
             
             <blockquote className="bg-muted/30 border-l-4 border-muted/60 p-3 rounded-r-lg">
@@ -135,7 +135,7 @@ export const CreativePartnerPane: React.FC<CreativePartnerPaneProps> = ({
                   </div>
                 </TooltipContent>
               </Tooltip>
-              {' '}flourish, so <span className="text-wes-vintage-gold">we share our profits with those whose work makes Reigh possible</span>.
+              {' '}flourish, so <span className="text-wes-vintage-gold">we share our profits with those whose work makes Astrid possible</span>.
             </p>
             
             <p className="mt-3 text-sm leading-7">

@@ -13,8 +13,8 @@ import type {
   DataLaneRendererProps,
   ExtensionDiagnostic,
   ExtensionDiagnosticsService,
-  ReighExtension,
-} from '@reigh/editor-sdk';
+  AstridExtension,
+} from '@astrid/editor-sdk';
 import { createDataKindItemsHost } from '@/tools/video-editor/data-kinds/dataKindItems.ts';
 import type { TimelineData } from '@/tools/video-editor/lib/timeline-data.ts';
 
@@ -26,14 +26,14 @@ const TRANSCRIPT_CONTRIBUTION = {
   id: 'contrib.transcript',
   kind: 'dataKind',
   kindId: 'transcript_segment',
-  schemaRef: 'reigh.transcript_segment/v1',
+  schemaRef: 'astrid.transcript_segment/v1',
   shape: 'interval',
   domain: 'source_seconds',
   label: 'Transcript',
   order: 2,
 };
 
-function makeExtension(contributions: readonly unknown[]): ReighExtension {
+function makeExtension(contributions: readonly unknown[]): AstridExtension {
   return {
     manifest: {
       id: 'test.data',
@@ -41,7 +41,7 @@ function makeExtension(contributions: readonly unknown[]): ReighExtension {
       label: 'Test Data Extension',
       contributions,
     },
-  } as unknown as ReighExtension;
+  } as unknown as AstridExtension;
 }
 
 function makeDiagnosticsService(): {
@@ -100,7 +100,7 @@ describe('createDataKindRegistrationService', () => {
       id: 'bad', shape: 'interval', domain: 'source_seconds', extent: { start: 0, end: 1 },
       schemaRef: 'other.schema/v1', payload: {}, sourceArtifactRef: { assetId: 'a' },
       provenance: { adapterId: 'test', adapterVersion: '1' },
-    }])).toThrow('must use reigh.transcript_segment/v1');
+    }])).toThrow('must use astrid.transcript_segment/v1');
   });
   // ---- declared kindId -------------------------------------------------------
 
@@ -112,7 +112,7 @@ describe('createDataKindRegistrationService', () => {
     const record = registry.resolve('transcript_segment');
     expect(record).toBeDefined();
     expect(record!.contributionId).toBe('contrib.transcript');
-    expect(record!.schemaRef).toBe('reigh.transcript_segment/v1');
+    expect(record!.schemaRef).toBe('astrid.transcript_segment/v1');
     expect(record!.shape).toBe('interval');
     expect(record!.domain).toBe('source_seconds');
     expect(record!.label).toBe('Transcript');

@@ -15,7 +15,7 @@
  *   `loadTranscript`) and never edits the timeline.
  *
  * The declared `schemaRef` matches the host transcript adapter's output
- * (`reigh.transcript_segment/v1`), so assembled lanes resolve this kind's
+ * (`astrid.transcript_segment/v1`), so assembled lanes resolve this kind's
  * registered renderer; an unknown schemaRef would list opaquely with host
  * fallback paint instead.
  *
@@ -30,7 +30,7 @@ import {
   createHostGeneratedObjectMeta,
   defineExtension,
   readHostGenerationProvenance,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import type {
   ContributionId,
   DataItemInspectorProps,
@@ -38,11 +38,11 @@ import type {
   DisposeHandle,
   ExtensionContext,
   ExtensionId,
-  ReighExtension,
+  AstridExtension,
   TimelinePatch,
   TimelinePatchOperation,
   TimelineSnapshot,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import { createElement, useCallback, useState, type ReactNode } from 'react';
 import {
   computeTranscriptChipPlacements,
@@ -56,17 +56,17 @@ import {
 // Identifiers
 // ---------------------------------------------------------------------------
 
-export const TRANSCRIPT_LANE_EXTENSION_ID = 'com.reigh.transcript-lane' as ExtensionId;
+export const TRANSCRIPT_LANE_EXTENSION_ID = 'haus.astrid.transcript-lane' as ExtensionId;
 
 /** Registered data-kind id (the `ctx.dataKinds.register()` key). */
-export const TRANSCRIPT_KIND_ID = 'reigh.transcript';
+export const TRANSCRIPT_KIND_ID = 'astrid.transcript';
 
 /**
  * Qualified schema reference. Must equal the host transcript adapter's
  * output schemaRef so segments land in THIS kind's lane instead of an
  * opaque one ([CONVERGE-WITH-M1] literal).
  */
-export const TRANSCRIPT_SCHEMA_REF = 'reigh.transcript_segment/v1';
+export const TRANSCRIPT_SCHEMA_REF = 'astrid.transcript_segment/v1';
 export const TRANSCRIPT_CAPTION_TRACK_ID = 'transcript-caption-foundry-track';
 export const TRANSCRIPT_CAPTION_CONTRIBUTION_ID = 'transcript-caption-foundry';
 export const TRANSCRIPT_EXTENSION_VERSION = '1.3.0';
@@ -240,7 +240,7 @@ export function transcriptSourceReviewHandoffFingerprint(
   >,
 ): string {
   return computeHostFingerprint({
-    contract: 'reigh.transcript-source-review-handoff/v1',
+    contract: 'astrid.transcript-source-review-handoff/v1',
     sourceSchemaRef: record.sourceSchemaRef,
     sourceItemId: record.sourceItemId,
     currentSourceFingerprint: record.currentSourceFingerprint,
@@ -974,7 +974,7 @@ export function renderTranscriptSourceReviewInspector(
 // Extension definition
 // ---------------------------------------------------------------------------
 
-export const transcriptLaneExtension: ReighExtension = defineExtension({
+export const transcriptLaneExtension: AstridExtension = defineExtension({
   manifest: {
     id: TRANSCRIPT_LANE_EXTENSION_ID,
     version: TRANSCRIPT_EXTENSION_VERSION,

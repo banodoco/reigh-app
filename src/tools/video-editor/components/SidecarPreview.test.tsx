@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { SidecarPreview, SIDECAR_PREVIEW_LIMIT_BYTES } from './SidecarPreview';
-import type { RenderArtifactSidecarDescriptor } from '@reigh/editor-sdk';
+import type { RenderArtifactSidecarDescriptor } from '@astrid/editor-sdk';
 
 const enc = new TextEncoder();
 

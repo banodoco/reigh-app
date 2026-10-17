@@ -1,5 +1,5 @@
 /**
- * Core packaging contracts for the Reigh Editor SDK.
+ * Core packaging contracts for the Astrid Editor SDK.
  *
  * Stable public types for extension dependency management, integrity
  * verification, migration declarations, and installed-package metadata.

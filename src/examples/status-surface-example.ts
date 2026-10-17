@@ -2,16 +2,16 @@
  * status-surface-example — M2 statusBar slot contribution example.
  *
  * Demonstrates registering a status-bar slot contribution using only
- * the public @reigh/editor-sdk entrypoint.  Includes chrome event
+ * the public @astrid/editor-sdk entrypoint.  Includes chrome event
  * subscription scaffolding (toast, progress, save, renderStatus)
  * and settings persistence with manifest defaults.
  *
  * @publicContract
  */
 
-import { defineExtension } from '@reigh/editor-sdk';
+import { defineExtension } from '@astrid/editor-sdk';
 import type {
-  ReighExtension,
+  AstridExtension,
   ExtensionContext,
   DisposeHandle,
   ChromeEvent,
@@ -20,11 +20,11 @@ import type {
   ChromeSavePayload,
   ChromeRenderStatusPayload,
   ChromeEventPayload,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 
-export const statusSurfaceExample: ReighExtension = defineExtension({
+export const statusSurfaceExample: AstridExtension = defineExtension({
   manifest: {
-    id: 'com.reigh.examples.status-m2' as any,
+    id: 'haus.astrid.examples.status-m2' as any,
     version: '1.0.0',
     label: 'Status Surface M2 Example',
     description:

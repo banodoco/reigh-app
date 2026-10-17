@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
-import { defineExtension, type ExtensionContext } from '@reigh/editor-sdk';
+import { defineExtension, type ExtensionContext } from '@astrid/editor-sdk';
 import { AgentChatProvider, useAgentChatBridge, useAgentChatRegistry } from '@/shared/contexts/AgentChatContext';
 import { BrowserVideoEditor } from '@/tools/video-editor/browser/BrowserVideoEditor';
 import { InMemoryDataProvider, createVideoEditorEffectCatalog } from '@/tools/video-editor/browser-provider';
@@ -40,7 +40,7 @@ function Editor({ name, timelineId, compact }: { name: string; timelineId: strin
   const registry = useAgentChatRegistry();
   const [owner] = useState(() => Symbol(name));
   const services = useMemo<VideoEditorScopedServices>(() => ({
-    contract: 'reigh.video-editor.scoped-services.v1', scope: { instanceId: name, projectId: 'same-project', timelineId },
+    contract: 'astrid.video-editor.scoped-services.v1', scope: { instanceId: name, projectId: 'same-project', timelineId },
     shots: { shots: [], isLoading: false, error: null, refetchShots() {}, finalVideoMap: new Map(), dismissFinalVideo() {} },
     mediaLightbox: { Lightbox: () => null, loadGenerationForLightbox: async () => null },
     agentChat: {

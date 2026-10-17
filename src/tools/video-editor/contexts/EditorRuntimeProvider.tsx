@@ -35,7 +35,7 @@ import {
   type EditorRuntimeAssembly,
 } from '@/tools/video-editor/contexts/editorRuntimeAssembly.tsx';
 import type { PackageStateInventoryEntry } from '@/tools/video-editor/runtime/extensionSurface.ts';
-import type { ReighExtension } from '@reigh/editor-sdk';
+import type { AstridExtension } from '@astrid/editor-sdk';
 import type {
   VideoEditorAuthHost,
   VideoEditorProjectHost,
@@ -70,7 +70,7 @@ export interface EditorRuntimeProviderProps {
   effectCatalog?: VideoEditorEffectCatalog | null;
   sequenceComponentCatalog?: VideoEditorSequenceComponentCatalog | null;
   runtime?: Pick<VideoEditorRuntimeContextValue, 'assetResolver' | 'exporter' | 'hostContext'>;
-  extensions?: readonly ReighExtension[];
+  extensions?: readonly AstridExtension[];
   /** Package-state inventory entries propagated from the loader (M5). */
   packageStateEntries?: readonly PackageStateInventoryEntry[];
   /** M5: Extension state repository for enable/disable persistence. */
@@ -405,7 +405,7 @@ function EditorRuntimeProviderInstance({
   }, [enableMutationServices, userId, timelineId, dataProvider]);
   useOwnedResourceDisposal(persistedServiceRef.current, (service) => service?.dispose());
 
-  // ---- stub hosts for browser-embedded contexts that don't provide full Reigh shell ----
+  // ---- stub hosts for browser-embedded contexts that don't provide full Astrid shell ----
   const stubShotsHost = useMemo<VideoEditorShotsHost>(() => ({
     shots: undefined,
     isLoading: false,

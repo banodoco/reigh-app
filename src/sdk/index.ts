@@ -1,5 +1,5 @@
 /**
- * @reigh/editor-sdk — Public SDK entrypoint
+ * @astrid/editor-sdk — Public SDK entrypoint
  *
  * Stable public types and helpers for trusted local extensions.
  * This module must NOT import from editor internals (DataProvider,
@@ -37,7 +37,7 @@ export { type ContributionKind, type VideoEditorSlotName, type ExtensionContribu
 export type { DependencyPosture, ExtensionDependency, IntegrityAlgorithm, IntegrityHash, MigrationHookKind, MigrationDeclaration, InstalledExtensionMetadata } from './packaging';
 
 // lifecycle
-export { type ExtensionActivateFn, type ReighExtension, type DefineExtensionOptions, defineExtension } from './lifecycle';
+export { type ExtensionActivateFn, type AstridExtension, type DefineExtensionOptions, defineExtension } from './lifecycle';
 
 // capabilities
 export type { CapabilityVersion, CapabilitySourceRef, RouteFitMetadata, CapabilityRequirement, IntegrationCapabilities, SamplingStrategy, SamplingSourceRef, SamplingRange, SamplingAttachmentKind, SamplingAttachmentRule, SamplingConfig, SamplingResultItem, SamplingResult } from './capabilities';

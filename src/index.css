@@ -94,7 +94,7 @@
   font-display: swap;
 }
 
-/* Reigh App Styles */
+/* Astrid App App Styles */
 @layer base {
   :root {
     /* ========================================= */
@@ -1910,7 +1910,7 @@
 }
 
 /* Clean, subtle color cycling with smooth loop back to start */
-@keyframes reighColorCycle {
+@keyframes astridColorCycle {
   0% { filter: hue-rotate(0deg) saturate(1.0) brightness(1.0); }      /* Original clean */
   20% { filter: hue-rotate(30deg) saturate(0.95) brightness(1.02); }  /* Clean shift toward gold */
   40% { filter: hue-rotate(60deg) saturate(1.05) brightness(0.98); }  /* Clean shift toward mint */
@@ -2342,8 +2342,8 @@
   animation: shimmer 3s linear infinite;
 }
 
-.animate-reigh-color-cycle {
-  animation: reighColorCycle 20s ease-in-out infinite;
+.animate-astrid-color-cycle {
+  animation: astridColorCycle 20s ease-in-out infinite;
 }
 
 .animate-pulse-glow {

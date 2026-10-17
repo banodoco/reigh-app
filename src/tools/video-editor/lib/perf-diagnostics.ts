@@ -2,8 +2,8 @@ type CounterState = { count: number; start: number; fired: boolean };
 type RafState = CounterState & { last: number };
 
 const now = () => (typeof performance === 'undefined' ? Date.now() : performance.now());
-const PERF_DIAGNOSTICS_STORAGE_KEY = 'reigh:perf-diagnostics';
-const PERF_DIAGNOSTICS_GLOBAL_FLAG = '__REIGH_PERF_DIAGNOSTICS__';
+const PERF_DIAGNOSTICS_STORAGE_KEY = 'astrid:perf-diagnostics';
+const PERF_DIAGNOSTICS_GLOBAL_FLAG = '__ASTRID_APP_PERF_DIAGNOSTICS__';
 
 function arePerfDiagnosticsEnabled() {
   const globalScope = globalThis as typeof globalThis & {

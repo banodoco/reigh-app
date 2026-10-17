@@ -273,7 +273,7 @@ export function createProjectTranscriptHost(
     });
     for (const l of listeners) l();
   };
-  const key = (id: string) => `reigh:transcript-draft:${repo?.projectId}:${id}`;
+  const key = (id: string) => `astrid:transcript-draft:${repo?.projectId}:${id}`;
   const persistDraft = (id: string, e: Entry) => {
     try {
       if (e.draft) localStorage.setItem(key(id), JSON.stringify(e.draft));
@@ -369,7 +369,7 @@ export function createProjectTranscriptHost(
       ...existing.filter(
         (i) =>
           !assetIds.has(i.sourceArtifactRef.assetId) ||
-          (i.provenance.adapterId !== 'reigh.projectTranscript' &&
+          (i.provenance.adapterId !== 'astrid.projectTranscript' &&
             payloadOf(i).sourceId !== e.document!.content.source_id),
       ),
       ...[...assetIds].flatMap((assetId) =>
@@ -627,7 +627,7 @@ export function createProjectTranscriptHost(
     );
     const next = input.items ? preparePersistedDataKindItems(data, TRANSCRIPT_SCHEMA_REF,
       old.filter((item) => item.sourceArtifactRef.assetId !== assetId ||
-        (item.provenance.adapterId !== 'reigh.projectTranscript' && payloadOf(item).sourceId !== document.content.source_id)), {
+        (item.provenance.adapterId !== 'astrid.projectTranscript' && payloadOf(item).sourceId !== document.content.source_id)), {
         config,
         transcriptReferences: { schema: 'media.transcript.references/v1', associations },
       }) : buildDataFromCurrentRegistry(config, data, {
@@ -641,7 +641,7 @@ export function createProjectTranscriptHost(
           ...old.filter(
             (i) =>
               i.sourceArtifactRef.assetId !== assetId ||
-              (i.provenance.adapterId !== 'reigh.projectTranscript' &&
+              (i.provenance.adapterId !== 'astrid.projectTranscript' &&
                 payloadOf(i).sourceId !== document.content.source_id),
           ),
           ...projected,
@@ -805,7 +805,7 @@ export function createProjectTranscriptHost(
           d = entries.get(id)!.document!;
         }
       } else {
-        d = await r.create(content, `reigh.transcript-create.${id.slice('transcript:'.length)}`);
+        d = await r.create(content, `astrid.transcript-create.${id.slice('transcript:'.length)}`);
         invalidateDocuments();
         current();
       }
@@ -847,7 +847,7 @@ export function createProjectTranscriptHost(
           );
       } catch (error) {
         if ((error as { status?: number }).status !== 404) throw error;
-        d = await r.create(content, `reigh.transcript-create.${id.slice('transcript:'.length)}`);
+        d = await r.create(content, `astrid.transcript-create.${id.slice('transcript:'.length)}`);
       }
       current();
       if (operation !== selection)

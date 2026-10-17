@@ -24,14 +24,14 @@ host behavior.
 
 ### 2. Completely green merged repository
 
-Run the full Reigh and Astrid unit, integration, type, lint, manifest-drift,
+Run the full Astrid App and Astrid unit, integration, type, lint, manifest-drift,
 factoring, and production-build suites. The former Astrid authority-lint and
 reduced-pack factoring findings have been fixed; rerun the exact paired suite
 at candidate freeze and do not waive failures on shipped paths.
 
 ### 3. Production-like end-to-end suite
 
-From clean temporary state, start Astrid and Reigh, migrate Runaway, open the
+From clean temporary state, start Astrid and Astrid App, migrate Runaway, open the
 editor, invoke every extension, edit results, reload, restart, and render/export.
 Assert UI evidence, persisted database state, and output artifacts.
 
@@ -169,7 +169,7 @@ instructions, and a verified rollback.
 ## Final release gate
 
 A clean machine must be able to clone the integration branch, start Astrid and
-Reigh, migrate the Runaway project, exercise every extension in a real browser,
+Astrid App, migrate the Runaway project, exercise every extension in a real browser,
 restart everything, render/export the result, and reproduce the same persisted
 state and visual evidence with zero unexpected errors.
 
@@ -186,7 +186,7 @@ contract checklist. The immutable receipt format, honest in-progress ledger,
 and fail-closed command are documented in
 [`extension-ship-evidence-ledger.md`](./extension-ship-evidence-ledger.md). A
 release verifier run cannot pass until that ledger reports 23/23 against the
-exact frozen Reigh/Astrid candidate pair. The annotated Reigh tag identifies
+exact frozen Astrid/Astrid candidate pair. The annotated Astrid App tag identifies
 the immutable product candidate; the clean controller `HEAD` is a strict
 evidence-only descendant containing only the frozen ledger, the manifest status
 transition, and committed artifacts under the release-specific evidence root.

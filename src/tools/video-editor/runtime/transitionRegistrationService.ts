@@ -19,8 +19,8 @@ import type {
   TransitionRegistrationService,
   ExtensionDiagnostic,
   ExtensionDiagnosticsService,
-  ReighExtension,
-} from '@reigh/editor-sdk';
+  AstridExtension,
+} from '@astrid/editor-sdk';
 import type { TransitionRegistry } from '@/tools/video-editor/transitions/registry/types.ts';
 import type {
   TransitionRegistryRecord,
@@ -39,7 +39,7 @@ import type { ParameterSchema } from '@/tools/video-editor/types/index.ts';
 
 /** Extract `TransitionContribution` entries from a frozen manifest. */
 function getTransitionContributions(
-  manifest: ReighExtension['manifest'],
+  manifest: AstridExtension['manifest'],
 ): readonly TransitionContribution[] {
   return (manifest.contributions?.filter(
     (c): c is TransitionContribution => c.kind === 'transition',
@@ -375,7 +375,7 @@ function noopDisposeHandle(): DisposeHandle {
 
 export interface CreateTransitionRegistrationServiceParams {
   /** The extension whose manifest declares TransitionContributions. */
-  readonly extension: ReighExtension;
+  readonly extension: AstridExtension;
   /** The provider-scoped TransitionRegistry. */
   readonly transitionRegistry: TransitionRegistry;
   /** Diagnostics service scoped to this extension's lifecycle. */

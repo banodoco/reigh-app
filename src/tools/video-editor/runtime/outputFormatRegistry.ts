@@ -18,7 +18,7 @@ import type {
   OutputFormatContext,
   TimelineSnapshot,
   AssetMetadata,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import {
   assertFinalArtifactHasManifest,
   createCompileOnlyArtifact,

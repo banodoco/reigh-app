@@ -1,4 +1,4 @@
-import type { DisposeHandle, ExtensionDiagnostic, TransitionRenderer } from '@reigh/editor-sdk';
+import type { DisposeHandle, ExtensionDiagnostic, TransitionRenderer } from '@astrid/editor-sdk';
 import type { ContributionRenderability } from '@/tools/video-editor/runtime/renderability.ts';
 import type { ParameterSchema } from '@/tools/video-editor/types/index.ts';
 

@@ -1091,7 +1091,7 @@ export function useTimelineState(services: TimelineHostServiceHooks, initialTime
   ), [runtime.assetResolver, runtime.timelineId, save.dataRef]);
   const transcriptPendingWork = useMemo(() => ({
     report: (state: import('@/sdk/context.ts').ExtensionPendingWorkState) =>
-      pendingWorkRegistry.report('com.reigh.transcript-lane', state),
+      pendingWorkRegistry.report('haus.astrid.transcript-lane', state),
   }), [pendingWorkRegistry]);
   const transcriptHost = useProjectTranscriptHost({
     dataRef: save.dataRef,
@@ -1101,8 +1101,8 @@ export function useTimelineState(services: TimelineHostServiceHooks, initialTime
     assets: transcriptAssets,
     items: dataKindItemsHost,
     pendingWork: transcriptPendingWork,
-    getTimelineLaneVisible: () => transcriptPreferencesRef.current.preferences.showDataLanesByKind?.['reigh.transcript'] ?? true,
-    setTimelineLaneVisible: (visible) => transcriptPreferencesRef.current.setDataKindLaneVisible('reigh.transcript', visible),
+    getTimelineLaneVisible: () => transcriptPreferencesRef.current.preferences.showDataLanesByKind?.['astrid.transcript'] ?? true,
+    setTimelineLaneVisible: (visible) => transcriptPreferencesRef.current.setDataKindLaneVisible('astrid.transcript', visible),
     flushPendingSave: save.flushPendingSave,
   }, runtime.provider, runtime.timelineId);
   useEffect(() => { void transcriptHost.refreshSources(); }, [transcriptHost, save.data?.transcriptReferences]);

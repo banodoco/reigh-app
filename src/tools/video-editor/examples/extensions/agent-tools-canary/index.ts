@@ -11,15 +11,15 @@
  *   - Structured diagnostics
  *
  * This file must NOT import from editor internals (src/tools/video-editor/*).
- * It imports exclusively from @reigh/editor-sdk, the public SDK entrypoint.
+ * It imports exclusively from @astrid/editor-sdk, the public SDK entrypoint.
  *
  * @publicContract
  * @milestone M10
  */
 
-import { defineExtension } from '@reigh/editor-sdk';
+import { defineExtension } from '@astrid/editor-sdk';
 import type {
-  ReighExtension,
+  AstridExtension,
   ExtensionContext,
   DisposeHandle,
   AgentToolContribution,
@@ -34,13 +34,13 @@ import type {
   ToolArtifactRef,
   ToolSourceRef,
   TimelinePatch,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
-const CANARY_EXTENSION_ID = 'com.reigh.examples.agent-tools-canary';
+const CANARY_EXTENSION_ID = 'haus.astrid.examples.agent-tools-canary';
 const GENERATION_TOOL_ID = 'canary.generation';
 const MATERIAL_TOOL_ID = 'canary.material';
 const PROPOSAL_TOOL_ID = 'canary.proposal';
@@ -394,7 +394,7 @@ const proposalHandler: AgentToolHandler = (
 // Extension definition
 // ---------------------------------------------------------------------------
 
-export const agentToolsCanaryExtension: ReighExtension = defineExtension({
+export const agentToolsCanaryExtension: AstridExtension = defineExtension({
   manifest: {
     id: CANARY_EXTENSION_ID as any,
     version: '1.0.0',

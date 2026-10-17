@@ -128,8 +128,8 @@ def main() -> int:
     evidence = args.evidence.resolve()
     preparation_root = args.preparation_root.resolve()
     patch_path = args.patch.resolve()
-    BASE.require_repository(astrid_repo, "https://github.com/peteromallet/Astrid.git", BASE.ASTRID_COMMIT)
-    BASE.require_repository(app_repo, "https://github.com/banodoco/reigh-app", BASE.APP_COMMIT)
+    BASE.require_repository(astrid_repo, "https://github.com/peteromallet/astrid-agent.git", BASE.ASTRID_COMMIT)
+    BASE.require_repository(app_repo, "https://github.com/banodoco/astrid-app", BASE.APP_COMMIT)
 
     preserved = {
         "original_v005_package_sha256": "9cb6590adbc90df18c96071ab73b44fc8cf4373a7f95bb07ccc7cc1289350b3f",

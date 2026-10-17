@@ -40,7 +40,7 @@ import type {
   ToolMutationProposalResult,
   ToolGenerationSessionResult,
   ToolUISummaryResult,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 
 // ---------------------------------------------------------------------------
 // Helpers

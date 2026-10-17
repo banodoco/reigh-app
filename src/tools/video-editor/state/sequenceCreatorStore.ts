@@ -4,7 +4,7 @@
  * drafts, classifier verdicts, fork-pending state, or the latest generated
  * component when the dialog unmounts.
  *
- * Persisted (localStorage key 'reigh:video-editor:sequence-creator'):
+ * Persisted (localStorage key 'astrid:video-editor:sequence-creator'):
  *   mode, generationMode, prompt, editPrompt, draftGroups, selectedGroupId,
  *   selectedDraftIndex, classifierVerdict, forkPending, generatedComponent.
  *
@@ -120,7 +120,7 @@ const INITIAL_STATE: SequenceCreatorPersistedState = {
   generatedComponentSourceClipType: undefined,
 };
 
-const STORAGE_KEY = 'reigh:video-editor:sequence-creator';
+const STORAGE_KEY = 'astrid:video-editor:sequence-creator';
 
 const sequenceCreatorStore = createStore<SequenceCreatorState>()(
   persist(

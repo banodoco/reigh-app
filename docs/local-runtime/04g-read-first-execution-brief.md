@@ -6,7 +6,7 @@
 
 ## The decision in one paragraph
 
-Astrid becomes the only capability and adapter layer. The Banodoco runtime is the only durable task, lease, event, output, and settlement authority. Astrid's `GenericPackHost`, launched on the Reigh Worker GPU substrate, is the only process that claims and settles tasks. Wan2GP and VibeComfy remain engine libraries: their native sessions load models and perform inference, while typed Astrid packs translate durable tasks into engine calls. Reigh Worker becomes a neutral GPU environment, telemetry, process, and launcher substrate—not another queue, router, database writer, or plugin system. The system supports both cold correctness and optional warm model reuse without changing task meaning.
+Astrid becomes the only capability and adapter layer. The Astrid Runtime is the only durable task, lease, event, output, and settlement authority. Astrid's `GenericPackHost`, launched on the Astrid App Worker GPU substrate, is the only process that claims and settles tasks. Wan2GP and VibeComfy remain engine libraries: their native sessions load models and perform inference, while typed Astrid packs translate durable tasks into engine calls. Astrid App Worker becomes a neutral GPU environment, telemetry, process, and launcher substrate—not another queue, router, database writer, or plugin system. The system supports both cold correctness and optional warm model reuse without changing task meaning.
 
 ## Why this is the chosen shape
 
@@ -14,16 +14,16 @@ It gives the product one answer to each architectural question:
 
 | Question | One answer |
 |---|---|
-| Where is durable work recorded? | Banodoco runtime |
+| Where is durable work recorded? | Astrid Runtime |
 | Where is a generation capability defined? | An Astrid pack |
 | Who claims, heartbeats, uploads, and settles it? | Astrid `GenericPackHost` |
-| Who owns GPU processes and environments? | Reigh Worker substrate |
+| Who owns GPU processes and environments? | Astrid App Worker substrate |
 | Who actually runs inference? | Wan2GP or VibeComfy native engine session |
 | Where do immutable outputs live? | Runtime CAS, published through a fenced attempt |
 | What identifies executable capability code? | One composite `capability_digest` |
 | What owns warm reuse? | Host policy plus pack-provided engine lifecycle hooks |
 
-This removes the failure mode where Astrid, Reigh Worker, Supabase, ComfyUI, and an engine queue each carry a partially overlapping idea of the same job.
+This removes the failure mode where Astrid, Astrid App Worker, Supabase, ComfyUI, and an engine queue each carry a partially overlapping idea of the same job.
 
 ## Non-negotiable anchor points
 
@@ -55,7 +55,7 @@ Operationally, both of these are first-class:
 - Wan2GP through its native Python session and a private, contained output spool.
 - VibeComfy through a canonical pip-embedded profile and a second pinned traditional-checkout profile.
 
-The normal path has no manual Comfy server startup, backend flag, Supabase credential, legacy Worker route, or secondary task record. Reigh Worker can evolve or be replaced as GPU infrastructure without changing the Astrid capability contract.
+The normal path has no manual Comfy server startup, backend flag, Supabase credential, legacy Worker route, or secondary task record. Astrid App Worker can evolve or be replaced as GPU infrastructure without changing the Astrid capability contract.
 
 ## How the finished system should feel
 
@@ -131,7 +131,7 @@ These are the material uncertainties, in priority order. Each has a contained re
 | VibeComfy's two production installation shapes | Embedded and traditional checkout modes differ in process ownership, paths, nodes, and cancellation | Use M0's bounded compatibility probe to choose integration order, require both by M4, and keep arbitrary shared servers development-only |
 | Warm-model correctness and VRAM behavior | Fingerprint mistakes, fragmentation, or failed cleanup can cross-contaminate tasks or cause OOM loops | Start serialized; compare warm/cold outputs; test model/LoRA/environment mismatch; kill and forfeit warmth on ambiguity |
 | Large-output staging and crash recovery | Video-sized bytes expose disk, restart, stale-attempt, and duplicate-publish failures | Runtime-only conformance uses large synthetic files and crash/reclaim tests before the first real video |
-| Producer/consumer cutover | A new runtime consumer can strand a still-Supabase producer, or leave a second authority reachable | Require the matching REIGH R3/R5 runtime-admission receipt or unsupported/retired disposition before each legacy consumer deletion |
+| Producer/consumer cutover | A new runtime consumer can strand a still-Supabase producer, or leave a second authority reachable | Require the matching Astrid App R3/R5 runtime-admission receipt or unsupported/retired disposition before each legacy consumer deletion |
 | GPU/model availability and evidence throughput | Model downloads, CUDA compatibility, VRAM, and one-device serialization can dominate elapsed time | Preflight profiles, disks, models, drivers, scratch, and credentials before each train; reserve separate GPUs if available |
 | Cold-launch simplicity | Correct components can still produce a brittle first-run experience | Treat launch, bootstrap/reuse, task creation, routing, output, independent restart, and recovery as one canonical M6 journey |
 | Cancellation semantics in VibeComfy/ComfyUI | There is not yet a proven cooperative per-run interrupt surface | Own the runner/server process group, kill it on cancellation, clear or abandon the depth-one prompt queue, and rely on runtime fencing |
@@ -164,7 +164,7 @@ If those four pass in order, most remaining risk is bounded adapter work and ope
 3. [04b-astrid-host-lane.md](./04b-astrid-host-lane.md) — `GenericPackHost`, composite digest, and runner lifecycle.
 4. [04c-wan2gp-pack-lane.md](./04c-wan2gp-pack-lane.md) — typed native Wan2GP adapter and warm session.
 5. [04d-vibecomfy-pack-lane.md](./04d-vibecomfy-pack-lane.md) — typed VibeComfy adapters for embedded and checkout profiles.
-6. [04e-reigh-worker-cutover-lane.md](./04e-reigh-worker-cutover-lane.md) — neutral GPU substrate and legacy authority deletion.
+6. [04e-astrid-worker-cutover-lane.md](./04e-astrid-worker-cutover-lane.md) — neutral GPU substrate and legacy authority deletion.
 7. [04f-integration-acceptance-lane.md](./04f-integration-acceptance-lane.md) — merge custody, evidence, and promotion.
 
 This brief is an orientation layer. Where wording is compressed, the seven converged planning documents above are authoritative.

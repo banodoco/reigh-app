@@ -1,4 +1,4 @@
-import type { ContributionKind } from '@reigh/editor-sdk';
+import type { ContributionKind } from '@astrid/editor-sdk';
 
 // ---------------------------------------------------------------------------
 // Contribution summary helpers

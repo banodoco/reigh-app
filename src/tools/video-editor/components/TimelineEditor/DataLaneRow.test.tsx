@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { DataLaneRendererProps } from '@reigh/editor-sdk';
+import type { DataLaneRendererProps } from '@astrid/editor-sdk';
 import type { DataLaneView, FrozenDataItem } from '@/tools/video-editor/data/typed/envelope.ts';
 import { DataLaneRow } from './DataLaneRow.tsx';
 
@@ -19,7 +19,7 @@ const makeItem = (id: string): FrozenDataItem => ({
 
 const makeLane = (overrides: Partial<DataLaneView> = {}): DataLaneView => ({
   laneId: 'transcript-lane',
-  kindId: 'reigh.transcript',
+  kindId: 'astrid.transcript',
   label: 'Transcript',
   schemaRef: 'test.segment/v1',
   shape: 'interval',

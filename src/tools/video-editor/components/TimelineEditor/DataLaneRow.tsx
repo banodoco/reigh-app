@@ -38,7 +38,7 @@ import type {
   DataLaneActionDescriptor,
   DataLaneRenderItem,
   DataLaneRendererProps,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import type { DataLaneView } from '@/tools/video-editor/data/typed/envelope.ts';
 import { LABEL_WIDTH } from '@/tools/video-editor/lib/coordinate-utils.ts';
 

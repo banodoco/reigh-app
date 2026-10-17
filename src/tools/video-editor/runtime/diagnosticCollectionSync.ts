@@ -3,8 +3,8 @@ import type {
   DiagnosticCollection,
   ExtensionDiagnostic,
   LiveSourceDiagnostic,
-} from '@reigh/editor-sdk';
-import { DIAGNOSTIC_SOURCE_EXTENSION, getSettingsPrefix } from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
+import { DIAGNOSTIC_SOURCE_EXTENSION, getSettingsPrefix } from '@astrid/editor-sdk';
 import type {
   CapabilityFinding,
   RenderBlocker,

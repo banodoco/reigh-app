@@ -1,6 +1,6 @@
--- Retire the removed Reigh-Worker/local-generation preference.
+-- Retire the removed Astrid-Worker/local-generation preference.
 --
--- Reigh generation is now admitted through Astrid's cloud capability route.
+-- Astrid App generation is now admitted through Astrid's cloud capability route.
 -- The task claim/count functions intentionally default to cloud-enabled when
 -- this key is absent, so removing it also prevents an old local preference
 -- from blocking newly-created Astrid tasks.

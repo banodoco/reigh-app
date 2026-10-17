@@ -2,22 +2,22 @@
  * toolbar-example — M2 toolbar slot contribution example.
  *
  * Demonstrates registering a toolbar slot contribution using only the
- * public @reigh/editor-sdk entrypoint.  This example is SDK-only and
+ * public @astrid/editor-sdk entrypoint.  This example is SDK-only and
  * must NOT import from editor internals.
  *
  * @publicContract
  */
 
-import { defineExtension } from '@reigh/editor-sdk';
+import { defineExtension } from '@astrid/editor-sdk';
 import type {
-  ReighExtension,
+  AstridExtension,
   ExtensionContext,
   DisposeHandle,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 
-export const toolbarExample: ReighExtension = defineExtension({
+export const toolbarExample: AstridExtension = defineExtension({
   manifest: {
-    id: 'com.reigh.examples.toolbar-m2' as any,
+    id: 'haus.astrid.examples.toolbar-m2' as any,
     version: '1.0.0',
     label: 'Toolbar M2 Example',
     description: 'Demonstrates toolbar slot contribution with M2 SDK surface.',

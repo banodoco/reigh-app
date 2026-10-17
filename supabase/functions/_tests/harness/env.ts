@@ -16,7 +16,7 @@ function harnessDir(): string {
   return path.dirname(fileURLToPath(import.meta.url));
 }
 
-export function getReighAppRoot(): string {
+export function getAstridAppRoot(): string {
   return path.resolve(harnessDir(), "../../../..");
 }
 
@@ -66,7 +66,7 @@ function resolveEnvFilePath(): string {
       : path.resolve(process.cwd(), configuredPath);
   }
 
-  return path.join(getReighAppRoot(), ".env.local");
+  return path.join(getAstridAppRoot(), ".env.local");
 }
 
 function requireEnvValue(

@@ -11,13 +11,13 @@ import { planRender } from '@/tools/video-editor/runtime/renderPlanner.ts';
 import {
   getVideoFamilyDefinition,
   getVideoFamilyLegacyBridgeStatus,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import type {
   KnownIdCollection,
   InactiveKnownIds,
   ExportGuardResult,
 } from '@/tools/video-editor/runtime/exportGuard.ts';
-import type { CompositionGraph, ExtensionContribution, ExtensionDiagnostic } from '@reigh/editor-sdk';
+import type { CompositionGraph, ExtensionContribution, ExtensionDiagnostic } from '@astrid/editor-sdk';
 import type {
   EffectRegistryRecord,
   EffectRegistrySnapshot,
@@ -2780,7 +2780,7 @@ describe('scanExportConfig — dataKind editorial lanes', () => {
     id: 'contrib.transcript-lane',
     kind: 'dataKind',
     kindId: 'transcript-segment',
-    schemaRef: 'reigh.transcript_segment/v1',
+    schemaRef: 'astrid.transcript_segment/v1',
     shape: 'interval',
     domain: 'source_seconds',
   } as ExtensionContribution;

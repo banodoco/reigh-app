@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
-import type { DisposeHandle } from '@reigh/editor-sdk';
+import type { DisposeHandle } from '@astrid/editor-sdk';
 import {
   continuousEffects,
   entranceEffects,

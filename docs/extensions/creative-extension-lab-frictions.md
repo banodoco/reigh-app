@@ -26,8 +26,8 @@ evidence and a concrete improvement direction.
 1. **The authoring docs describe two generations of extension shape.**
    `docs/extensions/authoring.md` begins with an older `ExtensionPackage`
    manifest-plus-config example while current DEV examples use
-   `defineExtension`, `ReighExtension`, flat contribution arrays, and
-   `@reigh/editor-sdk`. This creates immediate uncertainty about the canonical
+   `defineExtension`, `AstridExtension`, flat contribution arrays, and
+   `@astrid/editor-sdk`. This creates immediate uncertainty about the canonical
    starting point.
 
 2. **A smallest useful extension spans several manually synchronized seams.**
@@ -373,15 +373,15 @@ evidence and a concrete improvement direction.
   `ctx.dataKinds` or transcript items to extensions, so a robust author cannot
   fetch or map transcript segments here without using host internals.
 - The smallest real follow-on is **Transcript Caption Foundry**: consume the
-  host-mapped `reigh.transcript_segment/v1` lane items and create deterministic
+  host-mapped `astrid.transcript_segment/v1` lane items and create deterministic
   built-in text clips on a Captions track. Those clips already render in preview
   and remain editable through normal text controls. The typed lane remains the
   readable source; generated clip IDs make reruns update rather than duplicate.
 - **Historical V1 limitation (now superseded by the review policy):** the source
-  `reigh.transcript_segment/v1` lane was initially readable beside the generated
+  `astrid.transcript_segment/v1` lane was initially readable beside the generated
   editable video-text track only. Caption edits can now create durable,
   per-record source-update proposals with source/proposal comparison and
-  accept/reject state. The source itself remains immutable in Reigh: applying an
+  accept/reject state. The source itself remains immutable in Astrid App: applying an
   accepted correction is deliberately an upstream-owner acknowledgement bound
   to the handoff fingerprint, not a hidden editor-side mutation.
 
@@ -454,7 +454,7 @@ evidence and a concrete improvement direction.
   58% placement. A browser-authored caption edit (text, 48px size, and y=418)
   survived reload and a second foundry run, proving reruns do not erase human
   refinements.
-- The source `reigh.transcript_segment/v1` lane remains readable beside the
+- The source `astrid.transcript_segment/v1` lane remains readable beside the
   generated editable video-text track. Caption changes are now captured as
   explicit review proposals rather than silently mutating source; the selected
   record exposes source/proposal comparison and per-record accept/reject. An
@@ -466,7 +466,7 @@ evidence and a concrete improvement direction.
 
 - The real `oracle-unified-execution` branch was the correct base. The Astrid
   bridge now serves 566 typed `runaway_transitions` plus timing evidence for
-  `runaway-piano-colour-demo`; Reigh renders them as one real interval data lane,
+  `runaway-piano-colour-demo`; Astrid App renders them as one real interval data lane,
   ten populated region bands, and a `566 · 10/11 regions` summary. The empty S03
   region remains visible in evidence rather than being silently relabeled.
 - Query parsing previously dropped a blank `run_id=` and accidentally treated it
@@ -561,11 +561,11 @@ evidence and a concrete improvement direction.
   and threads it through every Astrid gate. Node and npm are also exact pins.
   This turns toolchain drift into a preflight failure rather than a mysterious
   test difference halfway through the release run.
-- Reigh cannot store its own final commit hash inside that same commit: changing
+- Astrid App cannot store its own final commit hash inside that same commit: changing
   the stored hash creates a different commit. The gate therefore requires a
-  full immutable `REIGH_REF` equal to clean `HEAD`, records it in evidence, and
+  full immutable `ASTRID_APP_REF` equal to clean `HEAD`, records it in evidence, and
   checks it again after all gates. Astrid, being the paired external repository,
-  remains pinned directly in the Reigh manifest.
+  remains pinned directly in the Astrid App manifest.
 
 ### Broad-suite mocks hid remote work and lifecycle contract drift
 
@@ -861,7 +861,7 @@ evidence and a concrete improvement direction.
 
 - Enabling the real Astrid Playwright path disabled the unauthenticated stub
   exception but did not create a token or start `astrid serve --release-mode`.
-  The named release test would therefore fail at Reigh's new guard unless the
+  The named release test would therefore fail at Astrid App's new guard unless the
   caller happened to preconfigure matching secrets.
 - Playwright now creates one ephemeral token per real-bridge run, passes it to
   both managed servers, forbids reuse of mismatched hot servers, and requires
@@ -1037,7 +1037,7 @@ evidence and a concrete improvement direction.
 
 ### Tracked build output can shadow the package source of truth
 
-- Reigh's vendored Python timeline-schema package had an ignored but still
+- Astrid App's vendored Python timeline-schema package had an ignored but still
   tracked `build/lib` tree. Its schema hash (`44e6…`) predated the source schema
   (`3dfe…`) and omitted extension `app` metadata. Sparse working trees hid the
   files, while `git archive` restored them; a clean wheel build then packaged
@@ -1052,9 +1052,9 @@ evidence and a concrete improvement direction.
 - Focused Astrid tests used a developer Python environment that already
   contained `banodoco_timeline_schema`. A clean archive installed Astrid's
   declared runtime lock and then failed timeline validation because the shared
-  schema distribution actually lives in Reigh's vendored release input.
+  schema distribution actually lives in Astrid App's vendored release input.
 - The paired verifier now provisions that distribution from the exact archived
-  Reigh commit with dependency and build isolation disabled, records its source
+  Astrid App commit with dependency and build isolation disabled, records its source
   tree and installed resource hashes, and proves Astrid resolves only from the
   pinned archive. Cross-repository dependencies need an executable install
   contract, not a setup note or a fortunate global environment.
@@ -1067,7 +1067,7 @@ evidence and a concrete improvement direction.
   the tagged candidate. Index flags and replacement refs created similar false
   views of history.
 - Release gates now neutralize Git replacement/config state, reject hidden index
-  flags, and run the full Reigh profile in a fresh detached worktree at the
+  flags, and run the full Astrid App profile in a fresh detached worktree at the
   verified evidence-controller commit. Exact-commit execution must be a property
   of the harness, not an operator promise about their checkout.
 
@@ -1133,7 +1133,7 @@ evidence and a concrete improvement direction.
 
 ### A failed immutable candidate needs a new release line, not a retag
 
-- RC1 reached its immutable Reigh candidate and controller, but the paired
+- RC1 reached its immutable Astrid App candidate and controller, but the paired
   release probe found that a hostile `Host` request incorrectly returned `200`
   instead of the required forbidden response. The failure is retained as a
   typed RC1 artifact under its historical evidence root; it is not a passing
@@ -1219,7 +1219,7 @@ identity.
   necessary because Node `fetch` normalizes `Host` and can make a forbidden
   request look valid.
 - Paired Vite dev and preview now require `--strictPort`. Readiness is an
-  exact per-run identity containing a fresh nonce and the full Reigh commit;
+  exact per-run identity containing a fresh nonce and the full Astrid App commit;
   an HTTP 200 with the wrong revision is not readiness. Browser workers never
   receive the bridge token. These checks prevent a healthy stale server from
   satisfying a new candidate's gate.
@@ -1252,7 +1252,7 @@ identity.
 - The combined host inventory is now thirteen extensions, and all-13
   activation/reorder/disable/re-enable and browser evidence must be rerun on
   the current candidate. Local auth is a narrow editor-route/Supabase seam:
-  local Astrid mode must stay backend-free, while ordinary cloud/legacy Reigh
+  local Astrid mode must stay backend-free, while ordinary cloud/legacy Astrid App
   routes retain Supabase. No global Supabase removal is authorized.
 - Exact paired evidence, production/observability and rollback drills, a real
   upstream transcript-owner acknowledgement, Edge/physical-device and
@@ -1341,7 +1341,7 @@ identity.
 - This skew does not weaken the paired lane: it initializes Astrid before using
   `doctor` and runs the check after backup restoration against a real store.
   Backporting the newer clean-machine UX would create a new Astrid SHA, require
-  every Reigh pin and runbook binding to change, and start a fresh paired
+  every Astrid App pin and runbook binding to change, and start a fresh paired
   evidence cycle; that is a deliberate future upgrade, not an RC6 hot fix.
 
 ### A shared mutable browser stub needs a complete atomic reset
@@ -1401,7 +1401,7 @@ identity.
 
 ### Task admission is not real video export
 
-- Reigh correctly admits project-scoped `render_export` work to Astrid and
+- Astrid App correctly admits project-scoped `render_export` work to Astrid and
   polls the common task ledger, but the pinned Astrid capability resolves that
   family to `rendering.timeline_visualize`. Its adapter publishes an evidence
   directory, not an H.264 MP4, and the paired/browser harness starts no worker
@@ -1514,7 +1514,7 @@ unit test is equivalent to release evidence.
 ### External editable schema paths can create false readiness
 
 - `banodoco_timeline_schema` resolved in one test interpreter only because an
-  external editable Reigh worktree/vendor path was ambient on `sys.path`;
+  external editable Astrid App worktree/vendor path was ambient on `sys.path`;
   another clean interpreter failed with the required schema import. Changing
   the child interpreter symlink did not fix the packaging defect.
 - Readiness now provisions or names a trusted schema root, runs a bounded clean
@@ -1628,7 +1628,7 @@ fresh console collection.
 - The first corrected render then exposed two deeper ownership bugs. Remotion's
   browser could fetch the media URL but not use it because Astrid's owned asset
   server omitted CORS; Astrid now advertises only the exact owned Remotion
-  origin. The next render produced a valid MP4 but Reigh rejected task detail
+  origin. The next render produced a valid MP4 but Astrid App rejected task detail
   because SQLite's integer `is_primary` leaked onto the JSON wire; the bridge
   now projects that flag to a boolean and its route test asserts the exact type.
 - The final installed-Chrome repeat succeeded through the real pinned bridge.
@@ -1744,7 +1744,7 @@ fresh console collection.
 ### A synthetic fixture can silently become the acceptance contract for a real repository
 
 - RC11's paired run reached the real Astrid bridge, migrated all 566 Runaway
-  transitions, and returned complete typed provenance, but Reigh rejected the
+  transitions, and returned complete typed provenance, but Astrid App rejected the
   response because its release validator still pinned the older in-process stub's
   fabricated run id, uniform regions, frames, labels, and row ids. The combined
   predicate misleadingly reported the real provenance as missing.
@@ -1776,7 +1776,7 @@ fresh console collection.
   exact audio bytes and headers before browser acceptance starts.
 - File-extension MIME and timeline media type are adjacent but distinct
   contracts. Astrid imports `.aac` as `audio/x-aac` and serves that persisted
-  MIME, while Reigh's timeline registry uses the normalized `audio/aac` type.
+  MIME, while Astrid App's timeline registry uses the normalized `audio/aac` type.
   The paired gate now attests both and binds the registry media ID to the exact
   idempotent import instead of assuming one spelling can stand in for both.
 - An AAC stream in an MP4 was previously optional evidence: the verifier only
@@ -1877,7 +1877,7 @@ fresh console collection.
   `End`, but then removed its button from the DOM. The retained screenshot and
   accessibility snapshot showed the inspector on `T0566` while the 128 mounted
   controls stopped at `T0565`, leaving keyboard focus nowhere. The failed raw
-  evidence root remains under the local `reigh-paired-release-evidence`
+  evidence root remains under the local `astrid-paired-release-evidence`
   directory with artifact-index SHA-256
   `42733cd8dc0054bca22cec14d36b6416750dfc9ee963da2b109c11ab8336fb59`;
   it is diagnostic history, never an RC17 receipt.
@@ -1902,7 +1902,7 @@ fresh console collection.
 
 - RC17 passed the 566-item keyboard-focus edge and then stopped at the first
   extension lifecycle probe. The extension row was visible and enabled, its
-  toggle had accessible name `Disable com.reigh.scene-phase-markers` and
+  toggle had accessible name `Disable haus.astrid.scene-phase-markers` and
   `aria-pressed=true`, and the row reported `4 contributions · 1 active`; the
   gate nevertheless required a case-sensitive `Active` substring.
 - Human-facing summary copy is not the lifecycle contract. The paired gate now
@@ -2118,7 +2118,7 @@ fresh console collection.
   lost its Astrid `media_id`. The create response and first persisted baseline
   both contained the ID, proving the bridge and Astrid repository had not
   stripped it.
-- Reigh rebuilt edited documents through `buildTimelineData` and
+- Astrid App rebuilt edited documents through `buildTimelineData` and
   `canonicalizeTimelinePair`. The registry sanitizer used a closed field list
   which omitted `media_id`, so the next otherwise-valid CAS save durably wrote
   the projected entry without its stable identity. The shared schema, bridge
@@ -2204,14 +2204,14 @@ fresh console collection.
 ### Cross-repository schema drift must fail with bounded, actionable diagnostics
 
 - RC30 passed the complete browser lifecycle, persistence, restart, and visual
-  checks, then failed during the first real render. Reigh legitimately emitted
+  checks, then failed during the first real render. Astrid App legitimately emitted
   `TimelineClip.label`, clip `keyframes`, and top-level `TimelineConfig.app`,
   but the pinned shared timeline schema rejected those fields. Astrid's second
   semantic allowlist also rejected `label`. The RC30 worker discarded both
   child streams, so the release receipt collapsed the real validation reason
   into `render_export child failed` and the browser surfaced only a timeout.
 - The shared TypeScript source, generated TypeScript/JSON/Python artifacts,
-  Reigh SDK boundary tests, and Astrid allowlist now carry the same three
+  Astrid App SDK boundary tests, and Astrid allowlist now carry the same three
   fields. Replaying RC30's exact task snapshot after that repair produced a
   valid 493,241-byte MP4 with SHA-256
   `09fc6b41fd6eda7a0c2d0cf35eb54425d2c72cfdfbfb37a0a303f891dc9ca6a1`.

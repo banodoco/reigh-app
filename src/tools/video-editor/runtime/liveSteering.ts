@@ -16,7 +16,7 @@ import type {
   SteeringParameterHotness,
   SteeringPriorSamplePolicy,
   SteeringProvenance,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 
 export interface LiveSteeringParameterDefinition {
   readonly path: string;

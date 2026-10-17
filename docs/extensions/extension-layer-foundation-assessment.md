@@ -1,14 +1,14 @@
 # Extension Layer Foundation Assessment
 
-This document assesses the last three milestones of the **`reigh-extension-layer-foundation`** epic chain defined in `.megaplan/briefs/reigh-extension-layer-foundation/chain.yaml`:
+This document assesses the last three milestones of the **`astrid-extension-layer-foundation`** epic chain defined in `.megaplan/briefs/astrid-extension-layer-foundation/chain.yaml`:
 
 | Milestone | Idea brief | Merged PR |
 |---|---|---|
-| M3 | `.megaplan/briefs/reigh-extension-layer-foundation/m3-proposal-agent-policy-spine.md` | #56 |
-| M4 | `.megaplan/briefs/reigh-extension-layer-foundation/m4-diagnostics-schemaform-lifecycle.md` | #57 |
-| M5 | `.megaplan/briefs/reigh-extension-layer-foundation/m5-manager-phase4-readiness.md` | #58 |
+| M3 | `.megaplan/briefs/astrid-extension-layer-foundation/m3-proposal-agent-policy-spine.md` | #56 |
+| M4 | `.megaplan/briefs/astrid-extension-layer-foundation/m4-diagnostics-schemaform-lifecycle.md` | #57 |
+| M5 | `.megaplan/briefs/astrid-extension-layer-foundation/m5-manager-phase4-readiness.md` | #58 |
 
-M5 also produced the Phase 4 readiness artifact at `docs/extensions/phase4-readiness.md`. The follow-up target architecture is captured in `.megaplan/briefs/reigh-extension-layer-full-extensibility-ticket.md`.
+M5 also produced the Phase 4 readiness artifact at `docs/extensions/phase4-readiness.md`. The follow-up target architecture is captured in `.megaplan/briefs/astrid-extension-layer-full-extensibility-ticket.md`.
 
 ## 1. Executive summary
 
@@ -16,7 +16,7 @@ M3, M4, and M5 do not yet constitute a proper, complete foundation for a user-fa
 
 ## 2. What the goal seemed to be
 
-The chain brief makes M3-M5 the transition from hidden foundation work to a user-visible extension surface. M3 was supposed to make destructive extension and agent workflows proposal-first, durable, versioned, expirable, stale-safe, wired from the frontend through the Supabase edge function, and acceptable/rejectable through the client proposal apply path (`.megaplan/briefs/reigh-extension-layer-foundation/m3-proposal-agent-policy-spine.md:3`, `m3-proposal-agent-policy-spine.md:16`, `m3-proposal-agent-policy-spine.md:20`, `m3-proposal-agent-policy-spine.md:55`). M4 was supposed to add the host primitives needed before the manager: spoof-resistant extension diagnostics, bounded diagnostic storage, SchemaForm V1, and deterministic cleanup for disable/unload/re-enable including error-boundary reset (`m4-diagnostics-schemaform-lifecycle.md:3`, `m4-diagnostics-schemaform-lifecycle.md:11`, `m4-diagnostics-schemaform-lifecycle.md:14`, `m4-diagnostics-schemaform-lifecycle.md:17`, `m4-diagnostics-schemaform-lifecycle.md:56`). M5 was supposed to expose the foundation to users through a local manager: inspect already-loaded packages, persist enable/disable, edit settings through SchemaForm, see per-package diagnostics, see explicit trust warnings, and produce the Phase 4 readiness gate (`m5-manager-phase4-readiness.md:3`, `m5-manager-phase4-readiness.md:11`, `m5-manager-phase4-readiness.md:15`, `m5-manager-phase4-readiness.md:20`, `m5-manager-phase4-readiness.md:56`).
+The chain brief makes M3-M5 the transition from hidden foundation work to a user-visible extension surface. M3 was supposed to make destructive extension and agent workflows proposal-first, durable, versioned, expirable, stale-safe, wired from the frontend through the Supabase edge function, and acceptable/rejectable through the client proposal apply path (`.megaplan/briefs/astrid-extension-layer-foundation/m3-proposal-agent-policy-spine.md:3`, `m3-proposal-agent-policy-spine.md:16`, `m3-proposal-agent-policy-spine.md:20`, `m3-proposal-agent-policy-spine.md:55`). M4 was supposed to add the host primitives needed before the manager: spoof-resistant extension diagnostics, bounded diagnostic storage, SchemaForm V1, and deterministic cleanup for disable/unload/re-enable including error-boundary reset (`m4-diagnostics-schemaform-lifecycle.md:3`, `m4-diagnostics-schemaform-lifecycle.md:11`, `m4-diagnostics-schemaform-lifecycle.md:14`, `m4-diagnostics-schemaform-lifecycle.md:17`, `m4-diagnostics-schemaform-lifecycle.md:56`). M5 was supposed to expose the foundation to users through a local manager: inspect already-loaded packages, persist enable/disable, edit settings through SchemaForm, see per-package diagnostics, see explicit trust warnings, and produce the Phase 4 readiness gate (`m5-manager-phase4-readiness.md:3`, `m5-manager-phase4-readiness.md:11`, `m5-manager-phase4-readiness.md:15`, `m5-manager-phase4-readiness.md:20`, `m5-manager-phase4-readiness.md:56`).
 
 The intended bar was not "types and components exist somewhere." The briefs ask for connected behavior: frontend to edge to runtime to UI for proposals, SchemaForm-backed settings in the manager, lifecycle cleanup that users can rely on, and a readiness gate that either clears or blocks the next public contribution-family phase.
 

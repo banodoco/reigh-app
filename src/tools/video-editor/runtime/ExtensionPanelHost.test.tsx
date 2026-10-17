@@ -1,7 +1,7 @@
 import { createElement, useEffect, useState } from 'react';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { defineExtension, type ContributionId, type ExtensionId, type PanelRenderProps } from '@reigh/editor-sdk';
+import { defineExtension, type ContributionId, type ExtensionId, type PanelRenderProps } from '@astrid/editor-sdk';
 import { ExtensionPanelHost, getPanelKey } from './ExtensionPanelHost';
 import { normalizeExtensionRuntime, type VideoEditorPanelDescriptor } from './extensionSurface';
 import { createRendererRegistry } from './extensionRendererRegistry';
@@ -38,16 +38,16 @@ describe('registered panel lifecycle', () => {
       diagnosticsService: diagnostics,
     });
     const registration = await transcriptExtension.activate({ ui, dataKinds } as never);
-    expect(dataKindRegistry.resolve('reigh.transcript')?.ownerExtensionId).toBe('com.reigh.transcript-lane');
+    expect(dataKindRegistry.resolve('astrid.transcript')?.ownerExtensionId).toBe('haus.astrid.transcript-lane');
     const panels = resolveRegisteredRenderers(runtime, registry.getSnapshot()).registry.panels;
     expect(panels[0]).toMatchObject({
-      extensionId: 'com.reigh.transcript-lane', id: 'transcript-lane-panel',
-      renderId: 'com.reigh.transcript-lane.panel',
+      extensionId: 'haus.astrid.transcript-lane', id: 'transcript-lane-panel',
+      renderId: 'haus.astrid.transcript-lane.panel',
     });
     const view = render(<ExtensionPanelHost panels={panels} visiblePanelKeys={new Set(panels.map(getPanelKey))} />);
     expect(screen.getByTestId('astrid-transcript-panel')).toBeVisible();
     if (registration) registration.dispose();
-    expect(dataKindRegistry.resolve('reigh.transcript')).toBeUndefined();
+    expect(dataKindRegistry.resolve('astrid.transcript')).toBeUndefined();
     const removed = resolveRegisteredRenderers(runtime, registry.getSnapshot()).registry.panels;
     view.rerender(<ExtensionPanelHost panels={removed} visiblePanelKeys={new Set()} />);
     expect(screen.queryByTestId('astrid-transcript-panel')).toBeNull();

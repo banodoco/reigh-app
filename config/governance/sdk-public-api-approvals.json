@@ -91,7 +91,7 @@
       ],
       "src/sdk/lifecycle.ts": [
         { "name": "ExtensionActivateFn", "kind": "type", "namespace": "type", "change": "inline→reexport" },
-        { "name": "ReighExtension", "kind": "type", "namespace": "type", "change": "inline→reexport" },
+        { "name": "AstridExtension", "kind": "type", "namespace": "type", "change": "inline→reexport" },
         { "name": "DefineExtensionOptions", "kind": "type", "namespace": "type", "change": "inline→reexport" },
         { "name": "defineExtension", "kind": "function", "namespace": "value", "change": "inline→reexport" }
       ],
@@ -123,7 +123,7 @@
     "baselineUpdatedAt": "2026-08-11T20:40:54.916Z",
     "changeKind": "addition",
     "compatibility": "source-compatible",
-    "description": "18 intentional exports added to @reigh/editor-sdk for the governed timeline-overlay family and the ctx.ui renderer service: ExtensionRenderer and ExtensionUiService (src/sdk/ui.ts), plus TimelineOverlayManifestContribution, TimelineOverlayDescriptor, ResolvedTimelineOverlayDescriptor, TimelineOverlayGeometryInput, TimelineOverlayGeometry, TimelineViewportSnapshot, TimelineViewportStore, TimelinePlayheadSnapshot, TimelinePlayheadStore, TimelineOverlaySelection, TimelineOverlayRenderProps, TimelinePointMarker, TimelineMarkerChange, TimelineMarkerLayerOptions, TimelineOverlayPrimitives and createTimelineOverlayGeometry (src/sdk/video/families/timelineOverlays.ts). The baseline manifest was rewritten with --write-baseline to accept these additions; no existing export changed shape or source. TimelineOverlayManifestContribution requires a non-empty render id and forbids when, and the generic ExtensionContribution branch now excludes kind 'timelineOverlay' so TypeScript enforces the governed shape.",
+    "description": "18 intentional exports added to @astrid/editor-sdk for the governed timeline-overlay family and the ctx.ui renderer service: ExtensionRenderer and ExtensionUiService (src/sdk/ui.ts), plus TimelineOverlayManifestContribution, TimelineOverlayDescriptor, ResolvedTimelineOverlayDescriptor, TimelineOverlayGeometryInput, TimelineOverlayGeometry, TimelineViewportSnapshot, TimelineViewportStore, TimelinePlayheadSnapshot, TimelinePlayheadStore, TimelineOverlaySelection, TimelineOverlayRenderProps, TimelinePointMarker, TimelineMarkerChange, TimelineMarkerLayerOptions, TimelineOverlayPrimitives and createTimelineOverlayGeometry (src/sdk/video/families/timelineOverlays.ts). The baseline manifest was rewritten with --write-baseline to accept these additions; no existing export changed shape or source. TimelineOverlayManifestContribution requires a non-empty render id and forbids when, and the generic ExtensionContribution branch now excludes kind 'timelineOverlay' so TypeScript enforces the governed shape.",
     "changedExportCount": 18,
     "addedExportsByModule": {
       "src/sdk/ui.ts": [
@@ -155,7 +155,7 @@
     "baselineUpdatedAt": "2026-08-12T00:00:00.000Z",
     "changeKind": "addition-plus-interface-extension",
     "compatibility": "source-breaking-for-context-literals",
-    "description": "2 intentional exports added to @reigh/editor-sdk for the renderer-independent timeline observation primitive: TimelineViewSnapshot and TimelineViewStore (src/sdk/video/timeline/viewState.ts), surfaced as a NEW REQUIRED member CreativeContext.timelineView (milestone M2). The CreativeContext interface gained a required member, so existing typed context literals that construct CreativeContext exhaustively must add timelineView (see src/sdk/boundary.test.ts literal). Extensions read playback, selection, viewport, and geometry from commands/keybindings without a mounted timelineOverlay renderer. The baseline manifest was rewritten with --write-baseline to accept the two new exports; the CreativeContext shape change is not captured by the shallow manifest and is recorded here. The scene-phase-markers canary's module-level playhead cache was removed in the same change; its B-key command now reads ctx.creative.timelineView.",
+    "description": "2 intentional exports added to @astrid/editor-sdk for the renderer-independent timeline observation primitive: TimelineViewSnapshot and TimelineViewStore (src/sdk/video/timeline/viewState.ts), surfaced as a NEW REQUIRED member CreativeContext.timelineView (milestone M2). The CreativeContext interface gained a required member, so existing typed context literals that construct CreativeContext exhaustively must add timelineView (see src/sdk/boundary.test.ts literal). Extensions read playback, selection, viewport, and geometry from commands/keybindings without a mounted timelineOverlay renderer. The baseline manifest was rewritten with --write-baseline to accept the two new exports; the CreativeContext shape change is not captured by the shallow manifest and is recorded here. The scene-phase-markers canary's module-level playhead cache was removed in the same change; its B-key command now reads ctx.creative.timelineView.",
     "changedExportCount": 2,
     "addedExportsByModule": {
       "src/sdk/video/timeline/viewState.ts": [
@@ -169,7 +169,7 @@
     "baselineUpdatedAt": "2026-08-24T09:13:06.538Z",
     "changeKind": "addition",
     "compatibility": "source-compatible",
-    "description": "13 intentional exports added to @reigh/editor-sdk: the combineDisposeHandles lifecycle helper, the DataLaneActionDescriptor author contract, and the host-owned generation provenance/version/fingerprint/synchronization contracts. The baseline manifest was rewritten after the public contract registry classified these symbols; no existing export changed shape, source, or namespace.",
+    "description": "13 intentional exports added to @astrid/editor-sdk: the combineDisposeHandles lifecycle helper, the DataLaneActionDescriptor author contract, and the host-owned generation provenance/version/fingerprint/synchronization contracts. The baseline manifest was rewritten after the public contract registry classified these symbols; no existing export changed shape, source, or namespace.",
     "changedExportCount": 13,
     "addedExportsByModule": {
       "src/sdk/dispose.ts": [

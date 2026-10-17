@@ -29,7 +29,7 @@ import type {
   DiagnosticCollection,
   DisposeHandle,
   ExtensionDiagnostic,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import type {
   PackageContributionSummary,
   PackageStateInventoryEntry,
@@ -85,7 +85,7 @@ const VALID_SCENARIOS: ReadonlySet<string> = new Set([
 const MANAGER_CYCLE_TIMELINE_ID = 'extension-harness-manager-cycle';
 const MANAGER_CYCLE_USER_ID = 'extension-harness-user';
 const MANAGER_CYCLE_PROJECT_ID = 'extension-harness-project';
-const MANAGER_CYCLE_EXTENSION_ID = 'com.reigh.smoke.extension-smoke';
+const MANAGER_CYCLE_EXTENSION_ID = 'haus.astrid.smoke.extension-smoke';
 const MANAGER_CYCLE_BUNDLE_REF = 'extension-harness-manager-cycle-bundle';
 const MANAGER_CYCLE_BUNDLE = 'export function activate() { return { dispose() {} }; }';
 
@@ -276,7 +276,7 @@ function buildPopulatedScenario(): ScenarioData {
         extensionId: 'ext.inspector-tools',
         packageState: 'loaded',
         stateReason: '',
-        packageMetadata: { label: 'Inspector Tools', version: '1.2.0', publisher: 'Reigh', description: 'Adds inspector sections for clip metadata.' },
+        packageMetadata: { label: 'Inspector Tools', version: '1.2.0', publisher: 'Astrid', description: 'Adds inspector sections for clip metadata.' },
         contributionSummary: { declared: 3, active: 3, inactive: 0, kinds: ['Inspector section'] },
       }),
       makeEntry({
@@ -607,11 +607,11 @@ function ManagerCycleScenarioCard() {
             id: MANAGER_CYCLE_EXTENSION_ID as never,
             version: '1.0.0',
             label: 'Managed Smoke Extension',
-            publisher: 'Reigh',
+            publisher: 'Astrid',
             license: 'MIT',
             contributions: [],
           },
-          publisher: 'Reigh',
+          publisher: 'Astrid',
           license: 'MIT',
         };
         await stateRepository.putPackRecord(pack);

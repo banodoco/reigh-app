@@ -13,7 +13,7 @@ const allocatedPorts = new Set<number>();
 // Timeline gates are intentionally isolated even when invoked from a shell
 // that has no CI marker.  Explicit ports are validated by the allocator;
 // omitted ports are fresh per run.
-const inheritedRunPorts = process.env.REIGH_TIMELINE_PORTS_ALLOCATED === '1';
+const inheritedRunPorts = process.env.ASTRID_APP_TIMELINE_PORTS_ALLOCATED === '1';
 const configuredBaseURL = readCanonicalBaseUrl();
 if (configuredBaseURL && !process.env.PLAYWRIGHT_PORT) process.env.PLAYWRIGHT_PORT = String(configuredBaseURL.port);
 const readInheritedPort = (envName: string): number => {
@@ -119,7 +119,7 @@ if (hardeningBridgeToken) {
 // Playwright reloads this config in worker processes after webServer starts;
 // carry the values across those reloads without probing our own live servers
 // as though they were stale external processes.
-process.env.REIGH_TIMELINE_PORTS_ALLOCATED = '1';
+process.env.ASTRID_APP_TIMELINE_PORTS_ALLOCATED = '1';
 const bridgeServeCommand = useRealBridge
   ? `${shellQuote(realBridgeNodeExecutable!)} tests/e2e/timeline/real-bridge-serve.mjs`
   : 'node tests/e2e/timeline/astrid-bridge-stub.mjs';

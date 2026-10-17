@@ -7,7 +7,7 @@
  * @module families/projectors/effectProjector
  */
 
-import type { EffectContribution } from '@reigh/editor-sdk';
+import type { EffectContribution } from '@astrid/editor-sdk';
 import type { VideoEditorEffectDescriptor } from '../../extensionSurface';
 import type { CollectedContribution } from '../FamilyContributionSequence';
 import { sortFamilyContributions, freezeDescriptor } from '../familyAdapterUtils';

@@ -10,19 +10,19 @@
  * @publicContract
  */
 
-import { defineExtension } from '@reigh/editor-sdk';
+import { defineExtension } from '@astrid/editor-sdk';
 import type {
-  ReighExtension,
+  AstridExtension,
   ExtensionContext,
   DisposeHandle,
   ExtensionDiagnostic,
   DiagnosticSeverity,
   ExportDiagnostic,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 
-export const codePanelDiagnosticsExample: ReighExtension = defineExtension({
+export const codePanelDiagnosticsExample: AstridExtension = defineExtension({
   manifest: {
-    id: 'com.reigh.examples.code-panel-m2' as any,
+    id: 'haus.astrid.examples.code-panel-m2' as any,
     version: '1.0.0',
     label: 'Code Panel Diagnostics M2 Example',
     description:

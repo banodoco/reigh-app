@@ -4,7 +4,7 @@
  * Responsibilities:
  * - Imperative command handler registration during activate()
  * - Declarative command/keybinding/context-menu contribution ingestion
- * - Reserved `reigh.*` command rejection
+ * - Reserved `astrid.*` command rejection
  * - First-registered-wins command & keybinding conflicts (among extensions)
  * - Platform-aware keybinding normalization
  * - Built-in reserved shortcut enforcement
@@ -28,7 +28,7 @@ import type {
   CommandRegistrationOptions,
   TargetContext,
   TargetContextPayload,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 
 // ---------------------------------------------------------------------------
 // Public registry shapes
@@ -154,9 +154,9 @@ export const BUILT_IN_RESERVED_KEYBINDINGS: ReadonlySet<string> = new Set([
 // Reserved command ID prefix
 // ---------------------------------------------------------------------------
 
-const RESERVED_COMMAND_PREFIX = 'reigh.';
+const RESERVED_COMMAND_PREFIX = 'astrid.';
 
-/** True when commandId starts with "reigh." */
+/** True when commandId starts with "astrid." */
 export function isReservedCommandId(commandId: string): boolean {
   return commandId.startsWith(RESERVED_COMMAND_PREFIX);
 }
@@ -383,7 +383,7 @@ export interface CommandRegistry {
    * Ingest a CommandContribution from an extension manifest.
    * Called during synchronization when contributions are discovered.
    *
-   * - Reserved `reigh.*` command IDs are rejected with diagnostics.
+   * - Reserved `astrid.*` command IDs are rejected with diagnostics.
    * - Duplicate command IDs (already registered by a different extension)
    *   are rejected (first-registered-wins).
    * - Duplicate contributions from the same extension are treated as
@@ -553,7 +553,7 @@ export function createCommandRegistry(): CommandRegistry {
     if (isReservedCommandId(commandId)) {
       addDiagnostic('error',
         'command-registry/reserved-command',
-        `Command "${commandId}" (extension "${extensionId}") uses reserved "reigh." prefix.`,
+        `Command "${commandId}" (extension "${extensionId}") uses reserved "astrid." prefix.`,
         extensionId,
         contribution.id,
       );

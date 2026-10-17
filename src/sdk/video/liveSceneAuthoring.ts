@@ -18,7 +18,7 @@ export type LiveSceneCapture = {
   entryObjectId: string;
 };
 export type LiveSceneRequest = {
-  schema: 'reigh.live-scene-request/v1';
+  schema: 'astrid.live-scene-request/v1';
   requestId: string;
   scope: LiveSceneScope;
   placementIds: string[];

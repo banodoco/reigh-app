@@ -25,7 +25,7 @@ export class LiveSceneOperationPort {
   setReader(reader?: TimelineReader): void { this.reader = reader; }
   setAvailable(available: boolean): void { this.available = available; }
   registration(extensionId: string) {
-    if (extensionId !== 'com.reigh.astrid.live-scenes') return undefined;
+    if (extensionId !== 'haus.astrid.live-scenes') return undefined;
     return { register: (handler: LiveSceneAuthoringHandler) => {
       if (this.binding) fail('Live-scene handler already registered');
       const binding = { handler };

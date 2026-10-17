@@ -1,4 +1,4 @@
-import type { ExtensionDiagnostic, ShaderUniformDefinition } from '@reigh/editor-sdk';
+import type { ExtensionDiagnostic, ShaderUniformDefinition } from '@astrid/editor-sdk';
 import type {
   TimelineClipShaderMetadata,
   TimelinePostprocessShaderMetadata,

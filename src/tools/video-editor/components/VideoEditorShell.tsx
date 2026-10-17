@@ -1,1 +1,1 @@
-export { ReighVideoEditorShell as VideoEditorShell } from '@/tools/video-editor/components/ReighVideoEditorShell.tsx';
+export { AstridVideoEditorShell as VideoEditorShell } from '@/tools/video-editor/components/AstridVideoEditorShell.tsx';

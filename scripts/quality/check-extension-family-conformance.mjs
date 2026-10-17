@@ -119,7 +119,7 @@ const repoRoot = resolveRepoRoot();
 
 const SCHEMA_PATH = resolve(
   repoRoot,
-  'config/contracts/reigh-extension.schema.json',
+  'config/contracts/astrid-extension.schema.json',
 );
 const MATURITY_JSON_PATH = resolve(
   repoRoot,

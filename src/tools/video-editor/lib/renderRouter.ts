@@ -2,7 +2,7 @@
 //
 // Decides whether the user's "Render" click should:
 //   * stay in the existing client-side WebCodecs path (`useClientRender`),
-//     which handles pure-media + Reigh-native clipTypes ("text",
+//     which handles pure-media + Astrid App-native clipTypes ("text",
 //     "effect-layer", "media", "hold").
 //   * admit a Runtime `rendering.render` task through the same HC-04 route
 //     used by every other local capability.
@@ -12,12 +12,12 @@
 //   * Mixed timelines (themed + media) → orchestrator (option (a)
 //     in the architecture doc; uniform composition end-to-end inside
 //     the worker, no cross-task ffmpeg-join).
-//   * Pure-Reigh-native timelines → client-side render (untouched).
+//   * Pure-Astrid-native timelines → client-side render (untouched).
 //
 // The router is shape-driven — it inspects the resolved TimelineConfig
 // and returns a tagged decision. The caller (UI hook) translates that
 // decision into either a `useClientRender` invocation or an
-// `enqueueBanodocoRenderTimeline` POST.
+// `enqueueAstridRuntimeRenderTimeline` POST.
 //
 // We intentionally do NOT inspect `timeline.theme` — a timeline can
 // declare a theme but only contain pure-media clips, and the existing
@@ -51,7 +51,7 @@ import type {
   CompositionGraph,
   RenderMaterialRef,
   RenderBlockerReason,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import type { ProcessStatus } from '@/sdk/video/families/processes';
 import type { ContributionRenderability } from '@/tools/video-editor/runtime/renderability.ts';
 import type { VideoEditorProcessDescriptor } from '@/tools/video-editor/runtime/extensionSurface.ts';
@@ -89,7 +89,7 @@ export interface ContributedClipRecord {
  *
  *   * `browser-remotion`  — client-side WebCodecs / Remotion path
  *                          (`useClientRender`, native + media clips).
- *   * `worker-banodoco`   — Runtime `rendering.render` task admission
+ *   * `worker-astrid-runtime`   — Runtime `rendering.render` task admission
  *                          (themed + generated-remotion-module clips).
  *   * `preview-only`      — generated remotion_module clips with invalid /
  *                          missing artifact metadata. Cannot be rendered;
@@ -106,7 +106,7 @@ export interface ContributedClipRecord {
  */
 export type RenderRoute =
   | 'browser-remotion'
-  | 'worker-banodoco'
+  | 'worker-astrid-runtime'
   | 'preview-only'
   | 'external';
 
@@ -114,7 +114,7 @@ export type RenderProviderId = RenderRoute;
 
 export const RENDER_PROVIDER_REGISTRY: Readonly<Record<RenderRoute, RenderProviderId>> = {
   'browser-remotion': 'browser-remotion',
-  'worker-banodoco': 'worker-banodoco',
+  'worker-astrid-runtime': 'worker-astrid-runtime',
   'preview-only': 'preview-only',
   external: 'external',
 };
@@ -123,7 +123,7 @@ export interface RenderRouteDecision {
   route: RenderRoute;
   /** True iff at least one clip is themed (i.e. uses the registry). */
   hasThemedClip: boolean;
-  /** True iff at least one clip is pure-media / Reigh-native. */
+  /** True iff at least one clip is pure-media / Astrid App-native. */
   hasMediaClip: boolean;
   /** True iff at least one clip is a contributed extension clip. */
   hasContributedClip: boolean;
@@ -581,7 +581,7 @@ export function decideRenderRoute(
       };
     }
     return {
-      route: 'worker-banodoco',
+      route: 'worker-astrid-runtime',
       hasThemedClip,
       hasMediaClip,
       hasContributedClip: false,
@@ -631,7 +631,7 @@ export function decideRenderRoute(
 
   if (hasThemedClip && hasMediaClip) {
     return {
-      route: 'worker-banodoco',
+      route: 'worker-astrid-runtime',
       hasThemedClip,
       hasMediaClip,
       hasContributedClip: false,
@@ -641,7 +641,7 @@ export function decideRenderRoute(
   }
   if (hasThemedClip) {
     return {
-      route: 'worker-banodoco',
+      route: 'worker-astrid-runtime',
       hasThemedClip,
       hasMediaClip,
       hasContributedClip: false,
@@ -664,7 +664,7 @@ export function decideRenderRoute(
 // ---------------------------------------------------------------------------
 
 const MANAGED_RENDER_CAPABILITY_ID = 'rendering.render';
-const LIVE_SCENE_CLIP_TYPE = 'com.reigh.astrid.liveScene';
+const LIVE_SCENE_CLIP_TYPE = 'haus.astrid.liveScene';
 
 /** Choose the existing scene composition only for its supported clip subset. */
 function managedRenderSelector(timeline: unknown): string {
@@ -701,7 +701,7 @@ const RUNTIME_SHA256_ID = /^sha256:[0-9a-f]{64}$/;
 const BARE_SHA256 = /^[0-9a-f]{64}$/;
 const MAX_MANAGED_RENDER_INPUTS = 256;
 
-export interface BanodocoRenderTimelinePayload {
+export interface AstridRuntimeRenderTimelinePayload {
   timeline_id: string;
   timeline: unknown;
   assets: unknown;
@@ -846,7 +846,7 @@ function newCorrelationId(): string {
 
 export function buildRenderTimelinePayload(
   input: BuildRenderPayloadInput,
-): { payload?: BanodocoRenderTimelinePayload; error?: string } {
+): { payload?: AstridRuntimeRenderTimelinePayload; error?: string } {
   const { request } = input;
   if (!request?.timelineId) return { error: 'timelineId is required' };
   if (!request?.renderRuntime?.projectId) return { error: 'projectId is required' };
@@ -909,14 +909,14 @@ export interface EnqueueRenderOptions {
   expectedVersion?: number;
 }
 
-function renderAdmissionKey(payload: BanodocoRenderTimelinePayload, options: EnqueueRenderOptions): string {
+function renderAdmissionKey(payload: AstridRuntimeRenderTimelinePayload, options: EnqueueRenderOptions): string {
   if (options.idempotencyKey) return options.idempotencyKey;
   const version = options.expectedVersion ?? 'head';
   const destination = options.destination ?? 'download';
   if (options.operationId) {
-    return `reigh.render:v2:${options.operationId}:${payload.timeline_id}:${version}:${destination}:${payload.output_filename}`;
+    return `astrid.render:v2:${options.operationId}:${payload.timeline_id}:${version}:${destination}:${payload.output_filename}`;
   }
-  return `reigh.render:v1:${payload.timeline_id}:${version}:${destination}:${payload.output_filename}`;
+  return `astrid.render:v1:${payload.timeline_id}:${version}:${destination}:${payload.output_filename}`;
 }
 
 function canonicalAdmissionMetadata(timeline: unknown): Record<string, unknown> {
@@ -938,14 +938,14 @@ function canonicalAdmissionMetadata(timeline: unknown): Record<string, unknown> 
  * Admit a managed render through Runtime's common HC-04 task primitive.
  *
  * The deliberately retained function name keeps older render-pipeline callers
- * source-compatible; there is no Banodoco/orchestrator request behind it.
+ * source-compatible; there is no Astrid Runtime/orchestrator request behind it.
  * Runtime resolves and snapshots `timeline_ref` at admission, so the browser
  * sends neither timeline document bytes nor registry bytes as a second source
  * of truth. The capability digest and storage estimate are both read from
  * Runtime's ready capability catalog; no browser-side identity is fabricated.
  */
-export async function enqueueBanodocoRenderTimeline(
-  payload: BanodocoRenderTimelinePayload,
+export async function enqueueAstridRuntimeRenderTimeline(
+  payload: AstridRuntimeRenderTimelinePayload,
   options: EnqueueRenderOptions = {},
 ): Promise<EnqueueRenderResult> {
   try {

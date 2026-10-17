@@ -108,13 +108,13 @@ const DEFAULT_MAX_DELAY_MS = 1_000;
 const DEFAULT_VERSION = '1.0.0';
 const DEFAULT_PROCESS_ID = 'video-editor.process-fixture';
 const DEFAULT_OPERATION_ID = 'fixture.execute';
-const MISSING_BINARY_COMMAND = '__reigh_process_fixture_missing_binary__';
+const MISSING_BINARY_COMMAND = '__astrid_process_fixture_missing_binary__';
 
-const processId = readEnvString('REIGH_PROCESS_FIXTURE_PROCESS_ID') ?? DEFAULT_PROCESS_ID;
-const operationIds = readEnvStringArray('REIGH_PROCESS_FIXTURE_OPERATION_IDS') ?? [DEFAULT_OPERATION_ID];
-const versionSemver = readEnvString('REIGH_PROCESS_FIXTURE_VERSION_SEMVER') ?? DEFAULT_VERSION;
+const processId = readEnvString('ASTRID_APP_PROCESS_FIXTURE_PROCESS_ID') ?? DEFAULT_PROCESS_ID;
+const operationIds = readEnvStringArray('ASTRID_APP_PROCESS_FIXTURE_OPERATION_IDS') ?? [DEFAULT_OPERATION_ID];
+const versionSemver = readEnvString('ASTRID_APP_PROCESS_FIXTURE_VERSION_SEMVER') ?? DEFAULT_VERSION;
 const healthSequence = readHealthSequence(
-  readEnvString('REIGH_PROCESS_FIXTURE_HEALTH_SEQUENCE'),
+  readEnvString('ASTRID_APP_PROCESS_FIXTURE_HEALTH_SEQUENCE'),
   versionSemver,
 );
 

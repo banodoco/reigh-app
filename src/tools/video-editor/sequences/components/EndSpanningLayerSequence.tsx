@@ -62,7 +62,7 @@ export function resolveEndSpanningLayerPreviewParams(
 
 /**
  * The Astrid worker stages pack assets and injects `__astridAssets` before a
- * Remotion render. Reigh previews do not run that worker staging step, so
+ * Remotion render. Astrid App previews do not run that worker staging step, so
  * provide the same asset map from the pack's Vite-imported files.
  */
 export default function EndSpanningLayerSequence(

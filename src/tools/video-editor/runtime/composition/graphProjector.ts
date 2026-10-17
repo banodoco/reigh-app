@@ -11,8 +11,8 @@ import type {
   TimelineShaderSummary,
   TimelineSnapshot,
   TimelineTransitionSummary,
-} from '@reigh/editor-sdk';
-import { contributionRefKey } from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
+import { contributionRefKey } from '@astrid/editor-sdk';
 import type {
   ClipTypeRegistryRecord,
   ClipTypeRegistrySnapshot,

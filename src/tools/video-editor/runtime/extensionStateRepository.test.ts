@@ -34,7 +34,7 @@ import type {
   ExtensionManifest,
   IntegrityHash,
   ExtensionDiagnostic,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 
 // ---------------------------------------------------------------------------
 // Fixtures

@@ -3,7 +3,7 @@
  * hash, narrow type/extension acceptance, a byte limit, and provenance
  * metadata.
  *
- * Demonstrates M6 parser contributions using only @reigh/editor-sdk:
+ * Demonstrates M6 parser contributions using only @astrid/editor-sdk:
  *   - A ParserContribution with narrow accepted MIME types and extensions
  *   - A maxBytes limit that produces oversized-input diagnostics
  *   - A ParserHandler that computes a SHA-256 content fingerprint and
@@ -11,10 +11,10 @@
  *   - Imperative handler registration during activate()
  *
  * This file must NOT import from editor internals (src/tools/video-editor/*).
- * It imports exclusively from @reigh/editor-sdk, the public SDK entrypoint.
+ * It imports exclusively from @astrid/editor-sdk, the public SDK entrypoint.
  */
 
-import { defineExtension } from '@reigh/editor-sdk';
+import { defineExtension } from '@astrid/editor-sdk';
 import type {
   DisposeHandle,
   ExtensionContext,
@@ -23,14 +23,14 @@ import type {
   ParserHandler,
   ParserInput,
   ParserResult,
-  ReighExtension,
-} from '@reigh/editor-sdk';
+  AstridExtension,
+} from '@astrid/editor-sdk';
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
-const EXTENSION_ID = 'com.reigh.examples.integrity-hash-parser';
+const EXTENSION_ID = 'haus.astrid.examples.integrity-hash-parser';
 
 /** Max file size accepted by this parser (50 MiB). */
 const MAX_BYTES = 50 * 1024 * 1024;
@@ -147,7 +147,7 @@ const integrityParserHandler: ParserHandler = async (
 // Extension definition
 // ---------------------------------------------------------------------------
 
-export const integrityHashParserExtension: ReighExtension = defineExtension({
+export const integrityHashParserExtension: AstridExtension = defineExtension({
   manifest: {
     id: EXTENSION_ID as any,
     version: '1.0.0',

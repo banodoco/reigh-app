@@ -4,7 +4,7 @@
 
 **Milestone:** M1–M15 (Extension Layer Epic — V1 trusted-local runtime complete)
 **Last updated:** 2026-06-20
-**Posture:** Honest trusted-local. Extensions execute with **full browser-renderer privileges** in the same JavaScript context as the Reigh editor. No sandboxing, no process isolation, no capability-based enforcement exists in V1.
+**Posture:** Honest trusted-local. Extensions execute with **full browser-renderer privileges** in the same JavaScript context as the Astrid editor. No sandboxing, no process isolation, no capability-based enforcement exists in V1.
 
 ---
 
@@ -13,7 +13,7 @@
 In M1, every extension is a **trusted-local extension**. This means:
 
 - The extension source is **vetted by the project owner / developer** before it is added.
-- At runtime the extension runs **in the same browser JavaScript context** as the Reigh video editor (same thread, same origin, same DOM).
+- At runtime the extension runs **in the same browser JavaScript context** as the Astrid video editor (same thread, same origin, same DOM).
 - There is **no sandbox, no iframe isolation, no CSP subdivision, and no process boundary** between the extension and the host.
 - The `permissions` field in the manifest is **purely descriptive** — it documents the extension author's intent but has no runtime enforcement. See [§ 3](#3-permission-metadata-descriptive-until-sandboxing-exists).
 
@@ -33,10 +33,10 @@ The table below lists each capability surface, its V1 posture, how the host surf
 | **Edge-tool / agent-tool declarations** (contribution kind `agentTool`) | **Supported in V1.** Extensions can declare `agentTool` contributions that appear in the editor's agent tool palette. The runtime validates the manifest, registers tool metadata, and surfaces the tool in the UI. Actual tool invocation is dispatched through host agent services; extensions do not run agent inference themselves. | Info diagnostic: `runtime/contribution-kind-not-yet-bridged` for unimplemented kinds; agent tools emit registration diagnostics and, on invocation, structured proposal/accept/reject flows. | M5 (for untrusted-agent sandboxing) |
 | **Browser permission helpers** (`navigator.permissions`, clipboard, notifications, etc.) | Extensions have **unrestricted access** to all browser APIs available to the host origin — same as any script on the page. No permission gating, no user-prompt mediation. | Not mediated by the extension runtime. Standard browser permission prompts (e.g. clipboard) fire as usual — the host does not intercept them. | M4+ (if a permission model is introduced) |
 | **Local processes** (`ProcessManifestEntry`) | **Declared and schema-supported in V1; actual execution deferred.** The `processes` field is validated, frozen, and surfaced in the extension manifest. `ProcessSpawnConfig` / `ProcessRuntime` shapes exist in the SDK and the runtime can register process metadata. `ctx.services.invokeProcess()` returns a structured `not-available` diagnostic — no subprocess is spawned, no JSON-RPC/correlation layer is active. | Diagnostics: `runtime/process-not-implemented` on any invocation attempt. Process declarations appear in the extension runtime summary. | M5+ (if local process support is introduced) |
-| **Filesystem** | Extensions have **same-origin access** to `localStorage` (scoped per-extension via the `reigh.ext.<id>.` key prefix), `sessionStorage`, and IndexedDB. No direct filesystem API (`showOpenFilePicker`, File System Access API) is mediated or restricted by the extension runtime. | Settings reads/writes/deletes are scoped to `reigh.ext.<id>.*` localStorage keys. All keys written during an activation are cleaned up on dispose by `disposeHostServices()`. Not logged to diagnostics by default (internal to the settings service). | M4+ |
+| **Filesystem** | Extensions have **same-origin access** to `localStorage` (scoped per-extension via the `astrid.ext.<id>.` key prefix), `sessionStorage`, and IndexedDB. No direct filesystem API (`showOpenFilePicker`, File System Access API) is mediated or restricted by the extension runtime. | Settings reads/writes/deletes are scoped to `astrid.ext.<id>.*` localStorage keys. All keys written during an activation are cleaned up on dispose by `disposeHostServices()`. Not logged to diagnostics by default (internal to the settings service). | M4+ |
 | **Environment variables** | No access to server-side environment variables. The browser has no `process.env`. Build-time env vars (`VITE_*`) are inlined by Vite and available to all code equally — no per-extension gating. | Not surfaced. | N/A (browser constraint) |
 | **Network** | Extensions can use `fetch`, `XMLHttpRequest`, `WebSocket`, and `EventSource` with the same origin/CORS rules as the host page. The runtime does **not** intercept, throttle, or log network requests. | Not surfaced by the extension runtime. Standard browser dev-tools network tab applies. | M4+ |
-| **Dev-console grouping** | Activation and deactivation are wrapped in `console.groupCollapsed` / `console.groupEnd` with the extension ID as the label. This makes extension lifecycle boundaries visible in the browser console. | Console groups: `[Extension lifecycle] com.reigh.examples.flagship-local` at activation time. Activation start, success, and failure are logged with `console.log`/`console.error`. | N/A (already visible) |
+| **Dev-console grouping** | Activation and deactivation are wrapped in `console.groupCollapsed` / `console.groupEnd` with the extension ID as the label. This makes extension lifecycle boundaries visible in the browser console. | Console groups: `[Extension lifecycle] haus.astrid.examples.flagship-local` at activation time. Activation start, success, and failure are logged with `console.log`/`console.error`. | N/A (already visible) |
 | **Diagnostics (structured)** | Extension code can emit structured `ExtensionDiagnostic` records (severity + code + message) via `ctx.services.diagnostics.report()`. The host collects and surfaces these in the `ExtensionRuntime.diagnostics` array. Export guard diagnostics use the same shape but with export-prefixed codes. | Diagnostics are frozen, collected per-extension, and readable via `ctx.services.diagnostics.diagnostics`. Lifecycle errors (activation/teardown throws) are captured as diagnostics automatically. | N/A (already visible) |
 | **Chrome toasts / progress** | `ctx.chrome.toast()` and `ctx.chrome.progress()` call into the host chrome service. In dev, toasts are echoed to `console.log`/`console.warn`/`console.error`. Progress updates are dispatched to chrome subscribers. | Console echo of toast messages. Subscribers receive typed payloads (`ChromeToastPayload`, `ChromeProgressPayload`). | N/A (already visible) |
 | **Shutdown / dispose** | The lifecycle host calls `dispose()` on every `DisposeHandle` returned by `activate()`. Host-owned services (settings localStorage keys, chrome event subscribers) are cleaned up via `disposeHostServices()` attached to the context via `CONTEXT_DISPOSE_SYMBOL`. Provider unmount calls `disposeAll()` idempotently. | Disposal success is silent. Disposal failures are captured as `error`-severity diagnostics (code: `lifecycle/teardown-error`) — the lifecycle never throws from dispose. | N/A (already visible via diagnostics) |
@@ -47,7 +47,7 @@ The table below lists each capability surface, its V1 posture, how the host surf
 
 ## 3. Permission metadata (descriptive until sandboxing exists)
 
-The `ExtensionPermissionDeclaration` type in `@reigh/editor-sdk` has two fields:
+The `ExtensionPermissionDeclaration` type in `@astrid/editor-sdk` has two fields:
 
 ```typescript
 interface ExtensionPermissionDeclaration {
@@ -79,16 +79,16 @@ In M1:
 Every extension activation is wrapped in visible console grouping:
 
 ```
-console.groupCollapsed('[Extension lifecycle] com.reigh.examples.flagship-local')
-  console.log('Activating extension "com.reigh.examples.flagship-local" (v1.0.0)')
+console.groupCollapsed('[Extension lifecycle] haus.astrid.examples.flagship-local')
+  console.log('Activating extension "haus.astrid.examples.flagship-local" (v1.0.0)')
   // ... extension activate() runs ...
-  console.log('Extension "com.reigh.examples.flagship-local" activated successfully')
+  console.log('Extension "haus.astrid.examples.flagship-local" activated successfully')
 console.groupEnd()
 ```
 
 If activation throws:
 ```
-console.error('Extension "com.reigh.examples.flagship-local" failed during activation')
+console.error('Extension "haus.astrid.examples.flagship-local" failed during activation')
 // Error details are included in the console group and captured as a lifecycle diagnostic.
 ```
 
@@ -124,7 +124,7 @@ Before extensions can be safely loaded from untrusted sources (e.g. a marketplac
 3. **Integrity verification:** Extensions loaded from remote sources need content hashing and signature verification.
 4. **User-facing permission prompts:** The host must present a permission dialog before granting capabilities.
 
-These are planned for M4–M5. Until then, treat every extension as trusted code that has the same privileges as the Reigh editor itself.
+These are planned for M4–M5. Until then, treat every extension as trusted code that has the same privileges as the Astrid editor itself.
 
 ---
 

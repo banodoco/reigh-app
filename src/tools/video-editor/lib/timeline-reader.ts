@@ -223,7 +223,7 @@ function liveSceneSourceSummary(
   clip: TimelineClip,
   clipId: string,
 ): TimelineSourceRefSummary | undefined {
-  if (clip.clipType !== 'com.reigh.astrid.liveScene') return undefined;
+  if (clip.clipType !== 'haus.astrid.liveScene') return undefined;
   const liveScene = clip.app?.liveScene;
   if (!liveScene || typeof liveScene !== 'object' || Array.isArray(liveScene)) return undefined;
   const packageRecord = liveScene as Record<string, unknown>;
@@ -241,7 +241,7 @@ function liveSceneSourceSummary(
     id: `source.live-scene.${sourceObjectId ?? sourceRevision ?? packageRevision}.${clipId}`,
     clipId,
     sourceKind: 'provider',
-    extensionId: 'com.reigh.astrid.live-scenes',
+    extensionId: 'haus.astrid.live-scenes',
     ...(sourceObjectId ? { sourceObjectId } : {}),
     ...(sourceRevision ? { sourceRevision } : {}),
     ...(packageRevision ? { packageRevision } : {}),

@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { BASE_URL, PROJECT_SLUG, TIMELINE_SLUG, browserEvidencePath } from './support';
 
 const EDITOR_URL = `${BASE_URL}/tools/video-editor?localProject=${PROJECT_SLUG}&localTimeline=${TIMELINE_SLUG}&localTest=1&timelineOverlayCanary=1`;
-const CAPABILITY_PROBE_PATH = `/api/astrid/projects/${PROJECT_SLUG}/media/__reigh_capability_probe__/content`;
+const CAPABILITY_PROBE_PATH = `/api/astrid/projects/${PROJECT_SLUG}/media/__astrid_capability_probe__/content`;
 
 function collectIssues(page: Page): string[] {
   const issues: string[] = [];
@@ -47,7 +47,7 @@ function collectIssues(page: Page): string[] {
 test('declutters composed marker layers into deterministic accessible pages', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 1200, height: 800 });
   const issues = collectIssues(page);
-  await page.addInitScript(() => localStorage.removeItem('reigh.dev-extensions.disabled'));
+  await page.addInitScript(() => localStorage.removeItem('astrid.dev-extensions.disabled'));
   await page.goto(EDITOR_URL, { waitUntil: 'domcontentloaded', timeout: 45_000 });
 
   const legend = page.getByTestId('timeline-marker-layer-legend');
@@ -76,7 +76,7 @@ test('declutters composed marker layers into deterministic accessible pages', as
 
 test('uses the three-layer ruler budget on a phone viewport', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.addInitScript(() => localStorage.removeItem('reigh.dev-extensions.disabled'));
+  await page.addInitScript(() => localStorage.removeItem('astrid.dev-extensions.disabled'));
   await page.goto(EDITOR_URL, { waitUntil: 'domcontentloaded', timeout: 45_000 });
   const legend = page.getByTestId('timeline-marker-layer-legend');
   await expect(legend).toBeVisible({ timeout: 20_000 });

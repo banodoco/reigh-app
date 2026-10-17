@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "Reigh Extension Manifest (Manifest Unknown Kind Fixture)",
+  "title": "Astrid Extension Manifest (Manifest Unknown Kind Fixture)",
   "type": "object",
   "required": ["id", "version", "label"],
   "definitions": {

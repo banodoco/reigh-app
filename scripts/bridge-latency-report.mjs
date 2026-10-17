@@ -293,7 +293,7 @@ async function main() {
   // arbitrary user-supplied root must not be nuked), and the owned temp root
   // is only removed after re-verifying it is exactly the mkdtemp directory
   // this process created — never anything outside it.
-  const fixtureRoot = FIXTURE_ROOT ?? mkdtempSync(join(tmpdir(), 'reigh-latency-'));
+  const fixtureRoot = FIXTURE_ROOT ?? mkdtempSync(join(tmpdir(), 'astrid-latency-'));
   const ownedFixtureRoot = FIXTURE_ROOT === null ? fixtureRoot : null;
 
   const teardown = () => {
@@ -319,7 +319,7 @@ async function main() {
       // created (mkdtemp under the OS tmpdir with the reporter prefix).
       const tmpRoot = resolve(tmpdir());
       const owned = resolve(ownedFixtureRoot);
-      if (owned.startsWith(tmpRoot + sep) && basename(owned).startsWith('reigh-latency-')) {
+      if (owned.startsWith(tmpRoot + sep) && basename(owned).startsWith('astrid-latency-')) {
         rmSync(owned, { recursive: true, force: true });
       } else {
         console.error(

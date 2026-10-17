@@ -11,7 +11,7 @@ function collectIssues(page: Page): string[] {
   const expectedCapabilityProbe = (url: string, status: number) => {
     const parsed = new URL(url);
     return status === 404
-      && /^\/api\/astrid\/projects\/[^/]+\/media\/__reigh_capability_probe__\/content$/.test(parsed.pathname);
+      && /^\/api\/astrid\/projects\/[^/]+\/media\/__astrid_capability_probe__\/content$/.test(parsed.pathname);
   };
   page.on('pageerror', (error) => issues.push(`[pageerror] ${error.message}`));
   page.on('console', (message) => {
@@ -38,11 +38,11 @@ function collectIssues(page: Page): string[] {
 async function openComposedEditor(page: Page): Promise<string[]> {
   const issues = collectIssues(page);
   expect(await resetBridgeBaseline()).toBeNull();
-  await page.addInitScript(() => localStorage.removeItem('reigh.dev-extensions.disabled'));
+  await page.addInitScript(() => localStorage.removeItem('astrid.dev-extensions.disabled'));
   const response = await page.goto(EDITOR_URL, { waitUntil: 'domcontentloaded', timeout: 45_000 });
   expect(response?.ok()).toBe(true);
-  await expect(page.locator('[data-lane-kind="reigh.transcript"]')).toBeVisible({ timeout: 20_000 });
-  await expect(page.locator('[data-lane-kind="reigh.runaway.transitions"]')).toBeVisible();
+  await expect(page.locator('[data-lane-kind="astrid.transcript"]')).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator('[data-lane-kind="astrid.runaway.transitions"]')).toBeVisible();
   await expect(page.getByTestId('timeline-marker-layer-legend')).toBeVisible();
   return issues;
 }
@@ -107,7 +107,7 @@ test('all 13 extensions expose state and retain keyboard focus through disable a
   const inventory = await openExtensionsPanel(page);
   await expectToggleSemantics(inventory);
 
-  const transcriptId = 'com.reigh.transcript-lane';
+  const transcriptId = 'haus.astrid.transcript-lane';
   const toggle = inventory.locator(`[data-video-editor-dev-local-toggle="${transcriptId}"]`);
   // WebKit models Safari's macOS default, where Option+Tab reaches every
   // control while plain Tab follows the system's reduced tab-stop preference.

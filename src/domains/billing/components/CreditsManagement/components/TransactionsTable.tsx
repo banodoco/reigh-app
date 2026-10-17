@@ -68,7 +68,7 @@ export function TransactionsTable({ entries, isLoading, formatCurrency }: Transa
           <Gift className="w-8 h-8 text-gray-400 mx-auto mb-2" />
           <p className="text-gray-600">No transactions yet</p>
           <p className="text-sm text-gray-500 mt-1">
-            Add budget to start using Reigh's AI features
+            Add budget to start using Astrid's AI features
           </p>
         </div>
       </div>

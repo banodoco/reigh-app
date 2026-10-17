@@ -9,7 +9,7 @@ import type {
   ParserInput,
   ParserResult,
   ParserDiagnostic,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import type { VideoEditorAssetParserDescriptor } from '../runtime/extensionSurface';
 import { validateAssetMetadata } from './assetMetadata';
 
@@ -738,7 +738,7 @@ export async function runAllParsers(
       byteSize: preflightInput.byteSize,
       filename: preflightInput.filename,
       existingMetadata: accumulatedMetadata
-        ? (Object.freeze({ ...accumulatedMetadata }) as unknown as import('@reigh/editor-sdk').AssetMetadata)
+        ? (Object.freeze({ ...accumulatedMetadata }) as unknown as import('@astrid/editor-sdk').AssetMetadata)
         : undefined,
     };
 

@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "Reigh Extension Manifest (Schema Definition Drift Fixture)",
+  "title": "Astrid Extension Manifest (Schema Definition Drift Fixture)",
   "type": "object",
   "required": ["id", "version", "label"],
   "definitions": {

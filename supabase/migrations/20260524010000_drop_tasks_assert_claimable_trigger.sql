@@ -9,7 +9,7 @@
 --
 -- Verified safe to drop:
 --   * The worker self-routes via _direct_route_key() fallback when route_contract
---     is absent (reigh-worker template_routing.py) — route_contract is advisory.
+--     is absent (astrid-worker template_routing.py) — route_contract is advisory.
 --   * route_key / selected_backend / selector_namespace are all NULLable (CHECK
 --     constraints allow NULL); no NOT NULL / runtime deref depends on them.
 --   * The reverted claim RPC does no route checks; only the sentinel reads

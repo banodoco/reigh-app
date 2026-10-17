@@ -4,7 +4,7 @@ import {
   type CreativeContext,
   type ExtensionContext,
   type LiveSessionsService,
-  type ReighExtension,
+  type AstridExtension,
 } from '@/sdk/index';
 import { createExtensionContext } from '@/tools/video-editor/runtime/extensionContextFactory';
 import {
@@ -28,7 +28,7 @@ import {
 import { scanTimelineLiveBindings } from '@/tools/video-editor/lib/timeline-domain';
 import type { ResolvedTimelineConfig } from '@/tools/video-editor/types';
 
-const EXTENSION_ID = 'com.reigh.examples.live-webcam-canary';
+const EXTENSION_ID = 'haus.astrid.examples.live-webcam-canary';
 const SOURCE_ID = `${EXTENSION_ID}:webcam`;
 
 function createTrack() {
@@ -128,7 +128,7 @@ function makeSessions(registry: LiveDataRegistry, extensionId = EXTENSION_ID): L
 }
 
 function makeCtx(
-  extension: ReighExtension,
+  extension: AstridExtension,
   registry: LiveDataRegistry,
 ): ExtensionContext {
   return createExtensionContext(extension, {
@@ -137,7 +137,7 @@ function makeCtx(
 }
 
 function makeHostContextFactory(registry: LiveDataRegistry) {
-  return (extension: ReighExtension): ExtensionContext => (
+  return (extension: AstridExtension): ExtensionContext => (
     createExtensionContext(extension, {
       sessions: makeSessions(registry, extension.manifest.id as string),
     } as Partial<CreativeContext>)

@@ -3,7 +3,7 @@ export const ADD_GENERATION_QUERY_PARAM = 'addGenerationId';
 export const ADD_GENERATION_PROJECT_PARAM = 'addGenerationProject';
 export const ADD_GENERATION_TIMELINE_PARAM = 'addGenerationTimeline';
 
-export const PENDING_ADDS_STORAGE_KEY = 'reigh:videoEditor:pendingAdds';
+export const PENDING_ADDS_STORAGE_KEY = 'astrid:videoEditor:pendingAdds';
 
 export function readPendingAdds(): string[] {
   try {

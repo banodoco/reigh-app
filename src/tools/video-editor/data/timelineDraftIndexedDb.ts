@@ -10,7 +10,7 @@
 
 import type { TimelineHeadRevision } from '@/tools/video-editor/data/DataProvider.ts';
 
-const DATABASE_NAME = 'reigh.timeline-drafts';
+const DATABASE_NAME = 'astrid.timeline-drafts';
 const DATABASE_VERSION = 1;
 const DRAFT_STORE_NAME = 'timeline-drafts';
 

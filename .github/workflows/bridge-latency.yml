@@ -31,11 +31,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          repository: banodoco/reigh-app
-          path: reigh-timeline-main
+          repository: banodoco/astrid-app
+          path: astrid-timeline-main
       - uses: actions/checkout@v4
         with:
-          repository: peteromallet/Astrid
+          repository: peteromallet/astrid-agent
           path: astrid
       - uses: actions/setup-python@v5
         with:
@@ -44,13 +44,13 @@ jobs:
         with:
           node-version: "20.19.0"
       - name: Install shared timeline schema
-        working-directory: reigh-timeline-main
+        working-directory: astrid-timeline-main
         run: pip install -e vendor/timeline-schema/python
       - name: Install astrid
         working-directory: astrid
         run: pip install -e .
       - name: Run bridge latency gate
-        working-directory: reigh-timeline-main
+        working-directory: astrid-timeline-main
         env:
           ASTRID_PYTHON: python3
         run: make bridge-latency-check

@@ -68,7 +68,7 @@ export function createTranscriptPanelAdapter(input: {
     const items = [
       ...(transient ?? []),
       ...(data.sourceItemsBySchemaRef?.[TRANSCRIPT_SCHEMA_REF] ?? []).filter((item) =>
-        !(item.provenance.adapterId === 'reigh.projectTranscript' && projectedAssets.has(item.sourceArtifactRef.assetId)) && !projectedSources.has(JSON.stringify([
+        !(item.provenance.adapterId === 'astrid.projectTranscript' && projectedAssets.has(item.sourceArtifactRef.assetId)) && !projectedSources.has(JSON.stringify([
           item.sourceArtifactRef.assetId, (item.payload as { sourceId?: string }).sourceId,
         ]))),
     ].filter((item) => {

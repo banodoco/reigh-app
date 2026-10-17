@@ -1,12 +1,12 @@
 /**
- * T5: Ajv-backed schema validation coverage for checked-in reigh-extension.json
+ * T5: Ajv-backed schema validation coverage for checked-in astrid-extension.json
  * manifests and proof that unknown/unsupported top-level collections are rejected
  * by the frozen manifest contract.
  *
  * This test:
- *   1. Loads the canonical schema from config/contracts/reigh-extension.schema.json
+ *   1. Loads the canonical schema from config/contracts/astrid-extension.schema.json
  *   2. Compiles it with Ajv
- *   3. Validates every checked-in reigh-extension.json manifest at the top-level
+ *   3. Validates every checked-in astrid-extension.json manifest at the top-level
  *      property boundary (proving they conform to the frozen contract's root shape)
  *   4. Proves that manifests with arbitrary top-level 'effects', 'transitions',
  *      or 'agentTools' collections (as root properties) are rejected by the schema
@@ -29,7 +29,7 @@ const SCHEMA_PATH = path.join(
   REPO_ROOT,
   'config',
   'contracts',
-  'reigh-extension.schema.json',
+  'astrid-extension.schema.json',
 );
 const EXTENSIONS_DIR = path.join(
   REPO_ROOT,
@@ -55,7 +55,7 @@ const validateFn = ajv.compile(schema);
 // ---------------------------------------------------------------------------
 
 interface ManifestFile {
-  /** Absolute path to the reigh-extension.json file. */
+  /** Absolute path to the astrid-extension.json file. */
   filePath: string;
   /** Extension directory name for diagnostics. */
   extensionName: string;
@@ -64,7 +64,7 @@ interface ManifestFile {
 }
 
 /**
- * Walk the extensions directory and collect every reigh-extension.json file,
+ * Walk the extensions directory and collect every astrid-extension.json file,
  * extracting the inner manifest object.
  */
 function collectExtensionManifests(): ManifestFile[] {
@@ -80,7 +80,7 @@ function collectExtensionManifests(): ManifestFile[] {
     const manifestPath = path.join(
       EXTENSIONS_DIR,
       entry.name,
-      'reigh-extension.json',
+      'astrid-extension.json',
     );
 
     if (!fs.existsSync(manifestPath)) continue;
@@ -132,7 +132,7 @@ function baseValidManifest(): Record<string, unknown> {
 describe('T5: Manifest schema validation (Ajv-backed)', () => {
   // -- Checked-in manifest top-level property validation --------------------
 
-  describe('Checked-in reigh-extension.json manifests — root shape conformance', () => {
+  describe('Checked-in astrid-extension.json manifests — root shape conformance', () => {
     const manifests = collectExtensionManifests();
 
     it('finds at least one checked-in manifest to validate', () => {
@@ -378,7 +378,7 @@ describe('T5: Manifest schema validation (Ajv-backed)', () => {
       id: 'transcript-segments',
       kind: 'dataKind',
       kindId: 'transcript.segments',
-      schemaRef: 'reigh.transcript_segment/v1',
+      schemaRef: 'astrid.transcript_segment/v1',
       shape: 'interval',
       domain: 'source_seconds',
       label: 'Transcript segments',
@@ -391,7 +391,7 @@ describe('T5: Manifest schema validation (Ajv-backed)', () => {
       });
 
       it('accepts a dataKind with only required fields', () => {
-        const minimal = { id: 'dk-min', kind: 'dataKind', kindId: 'k.min', schemaRef: 'reigh.min/v1' };
+        const minimal = { id: 'dk-min', kind: 'dataKind', kindId: 'k.min', schemaRef: 'astrid.min/v1' };
         expect(validateFn(dataManifest(minimal))).toBe(true);
       });
 

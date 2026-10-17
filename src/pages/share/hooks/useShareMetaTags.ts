@@ -23,13 +23,13 @@ export function useShareMetaTags(shareData: SharedData | null) {
     const { generation, settings } = shareData;
 
     const title = generation?.name
-      ? `${generation.name} | Reigh`
-      : 'Shared Generation | Reigh';
+      ? `${generation.name} | Astrid`
+      : 'Shared Generation | Astrid';
     document.title = title;
 
     const description = settings?.prompt
       ? `${settings.prompt.substring(0, 150)}...`
-      : 'Check out this AI-generated video created with Reigh';
+      : 'Check out this AI-generated video created with Astrid';
 
     const ogImage = generation?.thumbUrl || generation?.location || '/banodoco-gold.png';
 
@@ -45,7 +45,7 @@ export function useShareMetaTags(shareData: SharedData | null) {
     updateMetaTag('twitter:image', ogImage, false);
 
     return () => {
-      document.title = 'Reigh';
+      document.title = 'Astrid';
     };
   }, [shareData]);
 }

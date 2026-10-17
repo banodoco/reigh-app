@@ -42,8 +42,8 @@ import {
 import {
   createExtensionSettingsService,
   type ExtensionSettingsService,
-} from '@reigh/editor-sdk';
-import type { ExtensionManifest, ExtensionDiagnostic } from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
+import type { ExtensionManifest, ExtensionDiagnostic } from '@astrid/editor-sdk';
 import { cn } from '@/shared/components/ui/contracts/cn.ts';
 import {
   AlertCircle,

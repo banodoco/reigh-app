@@ -25,7 +25,7 @@ import {
   EXTENSION_SMOKE_CONTRIBUTION_ID,
 } from '@/sdk/smoke/extensionSmoke';
 import { getInternalExtensionRenderSurface } from '@/sdk/internalExtensionRenderSurface';
-import type { ReighExtension, ExtensionContribution } from '@reigh/editor-sdk';
+import type { AstridExtension, ExtensionContribution } from '@astrid/editor-sdk';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -40,7 +40,7 @@ function makeSearchParams(params: Record<string, string>): URLSearchParams {
 }
 
 function findContribution(
-  ext: ReighExtension,
+  ext: AstridExtension,
   contribId: string,
 ): ExtensionContribution | undefined {
   return ext.manifest.contributions?.find((c) => c.id === (contribId as any));
@@ -86,23 +86,23 @@ describe('getExtensionSmokeExtension — absent trigger', () => {
 // ---------------------------------------------------------------------------
 
 describe('getExtensionSmokeExtension — active trigger (?extensionSmoke=1)', () => {
-  it('returns a ReighExtension when extensionSmoke=1 via URLSearchParams', () => {
+  it('returns a AstridExtension when extensionSmoke=1 via URLSearchParams', () => {
     const sp = makeSearchParams({ [EXTENSION_SMOKE_QUERY_PARAM]: EXTENSION_SMOKE_ACTIVE_VALUE });
     const ext = getExtensionSmokeExtension(sp);
     expect(ext).not.toBeNull();
-    expect(ext!.manifest.id).toBe('com.reigh.smoke.extension-smoke');
+    expect(ext!.manifest.id).toBe('haus.astrid.smoke.extension-smoke');
   });
 
-  it('returns a ReighExtension when extensionSmoke=1 via raw query string (without ?)', () => {
+  it('returns a AstridExtension when extensionSmoke=1 via raw query string (without ?)', () => {
     const ext = getExtensionSmokeExtension(`${EXTENSION_SMOKE_QUERY_PARAM}=${EXTENSION_SMOKE_ACTIVE_VALUE}`);
     expect(ext).not.toBeNull();
-    expect(ext!.manifest.id).toBe('com.reigh.smoke.extension-smoke');
+    expect(ext!.manifest.id).toBe('haus.astrid.smoke.extension-smoke');
   });
 
-  it('returns a ReighExtension when extensionSmoke=1 via raw query string (with ?)', () => {
+  it('returns a AstridExtension when extensionSmoke=1 via raw query string (with ?)', () => {
     const ext = getExtensionSmokeExtension(`?${EXTENSION_SMOKE_QUERY_PARAM}=${EXTENSION_SMOKE_ACTIVE_VALUE}`);
     expect(ext).not.toBeNull();
-    expect(ext!.manifest.id).toBe('com.reigh.smoke.extension-smoke');
+    expect(ext!.manifest.id).toBe('haus.astrid.smoke.extension-smoke');
   });
 
   it('returns the same frozen extension instance on repeated calls', () => {
@@ -309,7 +309,7 @@ describe('getExtensionSmokeExtension — mixed query params', () => {
     });
     const ext = getExtensionSmokeExtension(sp);
     expect(ext).not.toBeNull();
-    expect(ext!.manifest.id).toBe('com.reigh.smoke.extension-smoke');
+    expect(ext!.manifest.id).toBe('haus.astrid.smoke.extension-smoke');
   });
 
   it('returns null when smoke param is absent but other params are present', () => {

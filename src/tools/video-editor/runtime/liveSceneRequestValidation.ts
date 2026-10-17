@@ -11,7 +11,7 @@ function fail(message: string): never { throw new Error(message); }
 
 export function validateLiveSceneRequest(value: unknown, scope: LiveSceneScope): LiveSceneRequest {
   if (!record(value) || bytes(value) > LIVE_SCENE_MAX_REQUEST_BYTES) fail('Live-scene request is malformed or oversized');
-  if (value.schema !== 'reigh.live-scene-request/v1' || !id(value.requestId)
+  if (value.schema !== 'astrid.live-scene-request/v1' || !id(value.requestId)
     || !record(value.scope)
     || !exactKeys(value.scope, Object.keys(scope))
     || Object.entries(scope).some(([key, expected]) => (value.scope as Record<string, unknown>)[key] !== expected)) fail('Live-scene request scope mismatch');

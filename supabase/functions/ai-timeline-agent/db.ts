@@ -6,8 +6,8 @@ import {
 } from "../../../src/tools/video-editor/index.ts";
 import {
   appendTimelineConfigViaService,
-  ReighAppendServiceError,
-} from "../_shared/reighAppendService.ts";
+  AstridAppendServiceError,
+} from "../_shared/astridAppendService.ts";
 import { isRecord, isSessionStatus, normalizeTimelineRow } from "./llm/messages.ts";
 import type {
   AgentProjectImageSettings,
@@ -730,7 +730,7 @@ export async function saveTimelineConfigVersioned(
         source: "editor_save",
       });
     } catch (err: unknown) {
-      if (err instanceof ReighAppendServiceError && err.status === 409) {
+      if (err instanceof AstridAppendServiceError && err.status === 409) {
         return null;
       }
       if (attempt < retries && err instanceof Error && (err.message.includes("connection") || err.message.includes("reset") || err.message.includes("SendRequest"))) {

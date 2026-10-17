@@ -1,6 +1,6 @@
 import { renderHook, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { defineExtension } from '@reigh/editor-sdk';
+import { defineExtension } from '@astrid/editor-sdk';
 import type { ExtensionStateRepository } from './extensionStateRepository';
 import { useExtensionLoaderWiring } from './useExtensionLoaderWiring';
 
@@ -8,7 +8,7 @@ describe('useExtensionLoaderWiring repository hydration', () => {
   it('keeps a stable hook order when a browser repository arrives asynchronously', async () => {
     const extension = defineExtension({
       manifest: {
-        id: 'com.reigh.hydration-test' as never,
+        id: 'haus.astrid.hydration-test' as never,
         version: '1.0.0',
         label: 'Hydration test',
         contributions: [],

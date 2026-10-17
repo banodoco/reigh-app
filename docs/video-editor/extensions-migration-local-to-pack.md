@@ -1,4 +1,4 @@
-# Extension Migration: Local Source → Installed Pack — Reigh Video Editor V1
+# Extension Migration: Local Source → Installed Pack — Astrid App Video Editor V1
 
 **Status:** Active (M15)
 **Last updated:** 2026-08-11
@@ -61,7 +61,7 @@ Installed packages **can** already be managed (enable/disable, settings editing,
 |---|---|---|
 | **Loading** | Statically imported, bundled with host | Loaded from a workspace pack or bundle at runtime |
 | **Storage** | In repo (`src/tools/video-editor/examples/extensions/`) | Provider-backed extension state repository |
-| **Persistence** | localStorage (`reigh.ext.<id>.*` keys), cleaned up on dispose | Provider-backed state repository with enablement, settings, and lifecycle event persistence |
+| **Persistence** | localStorage (`astrid.ext.<id>.*` keys), cleaned up on dispose | Provider-backed state repository with enablement, settings, and lifecycle event persistence |
 | **Integrity** | Human review of source | Content hash + signature verification (deferred) |
 | **Updates** | Git pull + rebuild | Pack version comparison + migration handlers |
 | **Discovery** | Known only to the developer | Extension manager UI lists installed packages today (enable/disable, settings — S-160–S-164); DEV-local extensions appear in the DEV-only Local extensions section (S-170). Package discovery/install tooling remains absent. |
@@ -111,7 +111,7 @@ This is a **minimal SDK-owned subset** of the full internal `ExtensionStateRepos
 
 ### 4.3 Running a settings migration
 
-The `runSettingsMigration()` function (available today from `@reigh/editor-sdk`) handles:
+The `runSettingsMigration()` function (available today from `@astrid/editor-sdk`) handles:
 
 1. **Schema version detection:** Compares the snapshot's `schemaVersion` against the manifest's declared version.
 2. **Handler lookup:** Finds `kind: 'settings'` migration declarations in the manifest.
@@ -120,7 +120,7 @@ The `runSettingsMigration()` function (available today from `@reigh/editor-sdk`)
 5. **Lifecycle events:** Emits `migration_start`, `migration_success`, `migration_failure`, and `migration_reset` events through the repository.
 
 ```typescript
-import { runSettingsMigration } from '@reigh/editor-sdk';
+import { runSettingsMigration } from '@astrid/editor-sdk';
 
 const result = await runSettingsMigration(extensionId, {
   manifest,
@@ -173,9 +173,9 @@ manifest: {
 
 ### 5.1 Frozen for V1
 
-The `reigh-extension.json` manifest format is **frozen for V1** (S-153). All 8 example extensions in the repository use the same format. New optional fields may be added in minor SDK versions; required fields will not change without a major version bump.
+The `astrid-extension.json` manifest format is **frozen for V1** (S-153). All 8 example extensions in the repository use the same format. New optional fields may be added in minor SDK versions; required fields will not change without a major version bump.
 
-**Evidence:** [Author Contract §8.2](./extension-author-contract.md#82-manifest-format-stability); 8 consistent `reigh-extension.json` files in `src/tools/video-editor/examples/extensions/*/`.
+**Evidence:** [Author Contract §8.2](./extension-author-contract.md#82-manifest-format-stability); 8 consistent `astrid-extension.json` files in `src/tools/video-editor/examples/extensions/*/`.
 
 ### 5.2 Fields that survive migration
 
@@ -291,20 +291,20 @@ What you can do **today** to prepare for the M14 installed-pack migration:
 
 ### 8.1 Manifest readiness
 
-- [x] Ensure your `reigh-extension.json` uses the frozen V1 format (S-153).
+- [x] Ensure your `astrid-extension.json` uses the frozen V1 format (S-153).
 - [x] Declare `settingsSchema.version` in your manifest.
 - [x] Define `settingsDefaults` for every setting your extension reads.
 - [x] Add `kind: 'settings'` migration declarations for any planned schema changes.
 - [x] Verify contribution IDs are stable — they will be the reference keys after migration.
 
-**Evidence:** 8 consistent `reigh-extension.json` files in `src/tools/video-editor/examples/extensions/*/`.
+**Evidence:** 8 consistent `astrid-extension.json` files in `src/tools/video-editor/examples/extensions/*/`.
 
 ### 8.2 Settings migration readiness
 
 - [x] Implement migration handlers as pure functions exported from your extension module.
 - [x] Test migration handlers with `runSettingsMigration()` using a stub `StateRepository`.
 - [x] Handle the `resetToDefaults` case gracefully — assume settings may be lost during migration.
-- [x] Namespace all settings keys uniquely (they are scoped to `reigh.ext.<id>.` prefix automatically).
+- [x] Namespace all settings keys uniquely (they are scoped to `astrid.ext.<id>.` prefix automatically).
 
 **Example reference:** [settings-migration-example.ts](../../src/examples/settings-migration-example.ts) (docs-safe, EX).
 
@@ -332,11 +332,11 @@ What you can do **today** to prepare for the M14 installed-pack migration:
 
 | Provider | Settings persistence today | Post-M14 settings persistence |
 |---|---|---|
-| **InMemory** | `localStorage` (`reigh.ext.<id>.*` keys) | Provider-backed repository (InMemory → ephemeral; settings lost on reload) |
-| **Supabase** | `localStorage` (`reigh.ext.<id>.*` keys) | Provider-backed repository (Supabase → durable; settings survive reload) |
-| **Astrid Bridge** | `localStorage` (`reigh.ext.<id>.*` keys) | Provider-backed repository (Astrid → local filesystem-backed) |
+| **InMemory** | `localStorage` (`astrid.ext.<id>.*` keys) | Provider-backed repository (InMemory → ephemeral; settings lost on reload) |
+| **Supabase** | `localStorage` (`astrid.ext.<id>.*` keys) | Provider-backed repository (Supabase → durable; settings survive reload) |
+| **Astrid Bridge** | `localStorage` (`astrid.ext.<id>.*` keys) | Provider-backed repository (Astrid → local filesystem-backed) |
 
-Settings are always scoped to browser `localStorage` under the `reigh.ext.<id>.` key prefix today, regardless of provider. No provider currently offers a server-side settings store. When M14 introduces the provider-backed `StateRepository`, settings will follow the same persistence model as the provider.
+Settings are always scoped to browser `localStorage` under the `astrid.ext.<id>.` key prefix today, regardless of provider. No provider currently offers a server-side settings store. When M14 introduces the provider-backed `StateRepository`, settings will follow the same persistence model as the provider.
 
 **Evidence:** [Provider Compatibility Matrix §3.1](./provider-compatibility-matrix.md#31-settings).
 
@@ -358,7 +358,7 @@ When migrating from source-local (InMemory) to installed-pack (Supabase), the se
 node scripts/quality/check-extension-example-readiness.mjs --audit
 ```
 
-Verifies that the `settings-migration-example.ts` imports exclusively from `@reigh/editor-sdk` and has a corresponding supported matrix row.
+Verifies that the `settings-migration-example.ts` imports exclusively from `@astrid/editor-sdk` and has a corresponding supported matrix row.
 
 **Evidence:** [Quickstart §7](./extensions-quickstart.md#7-running-the-pre-doc-example-readiness-gate).
 
@@ -401,7 +401,7 @@ Checks that migration-related contract-recheck rows (CR:M14-001 through CR:M14-0
 - `src/sdk/contracts.ts` — `StateRepository`, `SettingsSnapshot`, `LifecycleEvent` contracts
 - `src/sdk/extensionSettingsService.ts` — localStorage-backed settings service (`createExtensionSettingsService`)
 - `src/examples/settings-migration-example.ts` — Complete migration example with stub repository
-- `src/tools/video-editor/examples/extensions/*/reigh-extension.json` — 8 frozen manifest examples
+- `src/tools/video-editor/examples/extensions/*/astrid-extension.json` — 8 frozen manifest examples
 
 ---
 

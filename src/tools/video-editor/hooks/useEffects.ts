@@ -1,4 +1,4 @@
 export {
   effectsQueryKey,
-  useReighEffectsCatalog as useEffects,
-} from '@/tools/video-editor/adapters/reigh/useReighEffectsCatalog.ts';
+  useAstridEffectsCatalog as useEffects,
+} from '@/tools/video-editor/adapters/app/useAstridEffectsCatalog.ts';

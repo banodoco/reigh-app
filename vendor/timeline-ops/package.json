@@ -2,7 +2,7 @@
   "name": "@banodoco/timeline-ops",
   "version": "0.0.1",
   "private": true,
-  "description": "Pure surgical CRUD operations on TimelineConfig. Shared between Banodoco CLI and Reigh agent. No I/O, no Supabase, no async — operates on a TimelineConfig and returns a new TimelineConfig.",
+  "description": "Pure surgical CRUD operations on TimelineConfig. Shared between Banodoco CLI and Astrid agent. No I/O, no Supabase, no async — operates on a TimelineConfig and returns a new TimelineConfig.",
   "type": "module",
   "main": "./typescript/dist/src/index.js",
   "types": "./typescript/dist/src/index.d.ts",

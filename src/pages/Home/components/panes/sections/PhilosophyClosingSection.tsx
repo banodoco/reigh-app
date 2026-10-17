@@ -9,7 +9,7 @@ export function PhilosophyClosingSection({ navigate }: PhilosophyClosingSectionP
     <>
       <div className="space-y-3">
         <p className="text-sm leading-7">
-          We believe that there's a world of creativity that's waiting to be discovered in the AI-driven journey between images and <span className="text-wes-vintage-gold"><span className="font-theme-heading">Reigh</span> is a tool just for exploring this artform.</span>
+          We believe that there's a world of creativity that's waiting to be discovered in the AI-driven journey between images and <span className="text-wes-vintage-gold"><span className="font-theme-heading">Astrid</span> is a tool just for exploring this artform.</span>
         </p>
         <p className="text-sm leading-7">
           And everything is open source - meaning <span className="text-wes-vintage-gold">you can run it for free on your computer</span>!

@@ -25,7 +25,7 @@ export interface InternalExtensionRenderSurface {
 }
 
 export const INTERNAL_EXTENSION_RENDER_SURFACE = Symbol(
-  'reigh.internal.extension-render-surface',
+  'astrid.internal.extension-render-surface',
 );
 
 export function attachInternalExtensionRenderSurface(

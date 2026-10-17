@@ -13,17 +13,17 @@ import {
   defineExtension,
   getVideoFamilyDefinition,
   getVideoFamilyLegacyBridgeStatus,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import type {
-  ReighExtension,
+  AstridExtension,
   ExtensionContext,
   DisposeHandle,
   ContributionKind,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 
-export const stageCanaryExample: ReighExtension = defineExtension({
+export const stageCanaryExample: AstridExtension = defineExtension({
   manifest: {
-    id: 'com.reigh.examples.stage-canary-m2' as any,
+    id: 'haus.astrid.examples.stage-canary-m2' as any,
     version: '1.0.0',
     label: 'Stage Canary M2 Example',
     description:
@@ -41,7 +41,7 @@ export const stageCanaryExample: ReighExtension = defineExtension({
         id: 'm2-stage-effect-future' as any,
         kind: 'effect',
         label: 'Stage custom effect (reserved for M3)',
-        effectId: 'com.reigh.stage.effect.wipe',
+        effectId: 'haus.astrid.stage.effect.wipe',
       },
       {
         id: 'm2-stage-agent-future' as any,

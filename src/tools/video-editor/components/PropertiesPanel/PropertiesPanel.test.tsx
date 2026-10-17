@@ -13,7 +13,7 @@ import { PropertiesPanelBody } from '@/tools/video-editor/components/PropertiesP
 import { TimelineOutlinePanel } from '@/tools/video-editor/components/PropertiesPanel/TimelineOutlinePanel';
 import { VideoEditorAssetPanelSurface } from '@/tools/video-editor/components/PropertiesPanel/VideoEditorAssetPanelSurface';
 import type { DataLaneView, FrozenDataItem } from '@/tools/video-editor/data/typed/envelope';
-import type { DataItemInspectorProps } from '@reigh/editor-sdk';
+import type { DataItemInspectorProps } from '@astrid/editor-sdk';
 
 let realStoreSelectionTest = false;
 const useTimelineEditorDataMock = vi.fn();
@@ -1021,9 +1021,9 @@ function createDataItemFixture(overrides: Partial<FrozenDataItem> = {}): FrozenD
     shape: 'interval',
     domain: 'source_seconds',
     extent: { start: 2, end: 4 },
-    schemaRef: 'reigh.transcript_segment/v1',
+    schemaRef: 'astrid.transcript_segment/v1',
     payload: { text: 'hello world' },
-    provenance: { adapterId: 'reigh.adaptTranscript', adapterVersion: '1' },
+    provenance: { adapterId: 'astrid.adaptTranscript', adapterVersion: '1' },
     ...overrides,
   };
 }
@@ -1033,7 +1033,7 @@ function createDataLaneFixture(overrides: Partial<DataLaneView> = {}): DataLaneV
     laneId: 'transcript',
     kindId: 'transcript',
     label: 'Transcript',
-    schemaRef: 'reigh.transcript_segment/v1',
+    schemaRef: 'astrid.transcript_segment/v1',
     shape: 'interval',
     domain: 'source_seconds',
     items: [{ item: createDataItemFixture(), timelineStart: 2, timelineEnd: 4, clipId: 'clip-1' }],
@@ -1165,10 +1165,10 @@ describe('PropertiesPanel — data item inspector dispatch', () => {
     expect(screen.getByTestId('opaque-data-item-inspector')).toBeInTheDocument();
     expect(screen.getByTestId('opaque-data-item-id')).toHaveTextContent('asset-1:0');
     expect(screen.getByTestId('opaque-data-item-shape')).toHaveTextContent('interval');
-    expect(screen.getByTestId('opaque-data-item-schema-ref')).toHaveTextContent('reigh.transcript_segment/v1');
+    expect(screen.getByTestId('opaque-data-item-schema-ref')).toHaveTextContent('astrid.transcript_segment/v1');
     expect(screen.getByTestId('opaque-data-item-extent')).toHaveTextContent('[2, 4)');
     expect(screen.getByTestId('opaque-data-item-domain')).toHaveTextContent('source_seconds');
-    expect(screen.getByTestId('opaque-data-item-adapter')).toHaveTextContent('reigh.adaptTranscript');
+    expect(screen.getByTestId('opaque-data-item-adapter')).toHaveTextContent('astrid.adaptTranscript');
     expect(screen.getByTestId('opaque-data-item-payload')).toHaveTextContent('hello world');
   });
 
@@ -1196,7 +1196,7 @@ describe('PropertiesPanel — data item inspector dispatch', () => {
     // schemaRef, shape, item count — in place of the clip panel body.
     expect(screen.getByTestId('data-lane-summary')).toBeInTheDocument();
     expect(screen.queryByTestId('mock-clip-panel')).not.toBeInTheDocument();
-    expect(screen.getByTestId('data-lane-summary-schema-ref')).toHaveTextContent('reigh.transcript_segment/v1');
+    expect(screen.getByTestId('data-lane-summary-schema-ref')).toHaveTextContent('astrid.transcript_segment/v1');
     expect(screen.getByTestId('data-lane-summary-item-count')).toHaveTextContent('1');
   });
 
@@ -1224,7 +1224,7 @@ describe('PropertiesPanel — data item inspector dispatch', () => {
     const item = createDataItemFixture({
       sourceItemId: 'transcript-segment-stable-1',
       sourceArtifactRef: { assetId: 'asset-transcript', artifactHash: 'sha256:abc' },
-      provenance: { adapterId: 'reigh.adaptTranscript', adapterVersion: '2' },
+      provenance: { adapterId: 'astrid.adaptTranscript', adapterVersion: '2' },
     });
     const lane = createDataLaneFixture({
       items: [{ item, timelineStart: 2, timelineEnd: 4, clipId: 'clip-1' }],
@@ -1238,14 +1238,14 @@ describe('PropertiesPanel — data item inspector dispatch', () => {
     render(<PropertiesPanel />);
 
     expect(screen.getByTestId('kind-source-identity')).toHaveTextContent(
-      'transcript-segment-stable-1:asset-transcript:reigh.adaptTranscript',
+      'transcript-segment-stable-1:asset-transcript:astrid.adaptTranscript',
     );
     expect(inspector.mock.calls[0]?.[0]).toEqual(expect.objectContaining({
       item: expect.objectContaining({
         id: 'asset-1:0',
         sourceItemId: 'transcript-segment-stable-1',
         sourceArtifactRef: { assetId: 'asset-transcript', artifactHash: 'sha256:abc' },
-        provenance: { adapterId: 'reigh.adaptTranscript', adapterVersion: '2' },
+        provenance: { adapterId: 'astrid.adaptTranscript', adapterVersion: '2' },
       }),
     }));
   });
@@ -1292,7 +1292,7 @@ describe('mounted store transcript selection lifecycle', () => {
     useVideoEditorAssetPanelsMock.mockReturnValue([]);
     useShaderEffectRegistrySnapshotMock.mockReturnValue(createShaderSnapshot());
     getInspectorContributionsMock.mockReturnValue({ all: [], beforeDefault: [], afterDefault: [] });
-    const lane = createDataLaneFixture({ laneId: 'reigh.transcript', kindId: 'reigh.transcript', laneRenderer: TranscriptLane,
+    const lane = createDataLaneFixture({ laneId: 'astrid.transcript', kindId: 'astrid.transcript', laneRenderer: TranscriptLane,
       items: [{ item: createDataItemFixture(), timelineStart: 2, timelineEnd: 4, clipId: 'clip-1' },
         { item: createDataItemFixture({ id: 'asset-1:1' }), timelineStart: 4, timelineEnd: 5, clipId: 'clip-1' }] });
     const store = createTimelineStore();
@@ -1328,7 +1328,7 @@ describe('mounted store transcript selection lifecycle', () => {
     }
     render(<TimelineStoreProvider store={store}><Surface /></TimelineStoreProvider>);
     const [item, secondItem] = screen.getAllByTestId('transcript-lane-occurrence');
-    const expected = { kind: 'dataItem', laneId: 'reigh.transcript', itemId: 'asset-1:0' };
+    const expected = { kind: 'dataItem', laneId: 'astrid.transcript', itemId: 'asset-1:0' };
     fireEvent.pointerDown(item, { button: 0, pointerId: 1 });
     fireEvent.pointerUp(item, { button: 0, pointerId: 1 });
     fireEvent.click(item);

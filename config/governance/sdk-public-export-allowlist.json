@@ -1,6 +1,6 @@
 {
   "$schema": "../schemas/sdk-public-export-allowlist.schema.json",
-  "description": "Allowlist for @reigh/editor-sdk public re-exports that originate from internal paths outside src/sdk/. All M2b inline declarations have been extracted to canonical modules under src/sdk/ and are now sibling re-exports (no longer inline). Zero entries remain — the barrel is fully decomposed.",
+  "description": "Allowlist for @astrid/editor-sdk public re-exports that originate from internal paths outside src/sdk/. All M2b inline declarations have been extracted to canonical modules under src/sdk/ and are now sibling re-exports (no longer inline). Zero entries remain — the barrel is fully decomposed.",
   "allowlist": [],
   "inlineDeclarations": []
 }

@@ -1,5 +1,5 @@
 /**
- * Extension lifecycle contracts and helpers for the Reigh Editor SDK.
+ * Extension lifecycle contracts and helpers for the Astrid Editor SDK.
  *
  * Defines the public extension shape, activation contract, and
  * defineExtension() factory.  This module is free of host wiring —
@@ -25,7 +25,7 @@ import type { ExtensionManifest } from './manifest';
 export type ExtensionActivateFn = (ctx: ExtensionContext) => DisposeHandle | void;
 
 /** The public extension shape returned by defineExtension(). */
-export interface ReighExtension {
+export interface AstridExtension {
   readonly manifest: Readonly<ExtensionManifest>;
   readonly activate?: ExtensionActivateFn;
 }
@@ -57,11 +57,11 @@ function freezeManifestValue<T>(value: T): T {
 }
 
 /**
- * Create a frozen ReighExtension from a manifest and optional activate function.
+ * Create a frozen AstridExtension from a manifest and optional activate function.
  * Validates the extension ID and contribution IDs, and preserves literal IDs
  * through the returned object.
  */
-export function defineExtension(options: DefineExtensionOptions): ReighExtension {
+export function defineExtension(options: DefineExtensionOptions): AstridExtension {
   const { manifest, activate } = options;
 
   // Validate extension ID
@@ -105,7 +105,7 @@ export function defineExtension(options: DefineExtensionOptions): ReighExtension
     messages: manifest.messages ? freezeManifestValue(manifest.messages) : undefined,
   });
 
-  const extension: ReighExtension = Object.freeze({
+  const extension: AstridExtension = Object.freeze({
     manifest: frozenManifest,
     activate,
   });

@@ -45,16 +45,16 @@ describe('data bundle persistence (compat)', () => {
     shape: 'interval',
     domain: 'source_seconds',
     extent: { start: 0, end: 1.5 },
-    schemaRef: 'reigh.transcript_segment/v1',
+    schemaRef: 'astrid.transcript_segment/v1',
     payload: { text: 'hello' },
     sourceArtifactRef: { assetId: 'assetA' },
-    provenance: { adapterId: 'reigh.adaptTranscript', adapterVersion: '1' },
+    provenance: { adapterId: 'astrid.adaptTranscript', adapterVersion: '1' },
     ...overrides,
   });
   const makeEnvelope = () => ({
     schema_version: 1 as const,
     itemsBySchemaRef: {
-      'reigh.transcript_segment/v1': [makeItem()],
+      'astrid.transcript_segment/v1': [makeItem()],
     },
   });
   beforeEach(() => {

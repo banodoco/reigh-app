@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { RenderArtifact, TimelineShaderSummary, TimelineSnapshot } from '@reigh/editor-sdk';
+import type { RenderArtifact, TimelineShaderSummary, TimelineSnapshot } from '@astrid/editor-sdk';
 import type { ContributionIndex, ContributionIndexEntry } from '@/tools/video-editor/runtime/extensionSurface.ts';
 import type { ClipKeyframe } from '@/tools/video-editor/types/index.ts';
 import type { CompositionGraphInput } from '@/tools/video-editor/runtime/composition/graphProjector.ts';

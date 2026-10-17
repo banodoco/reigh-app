@@ -3,16 +3,16 @@
  * timeline identity, asset registry metadata, consent/provenance, deferred
  * enrichment records, and parser diagnostics into stable JSON.
  *
- * Demonstrates M6 compile-only output formats using only @reigh/editor-sdk:
+ * Demonstrates M6 compile-only output formats using only @astrid/editor-sdk:
  *   - An OutputFormatContribution with requiresRender: false
  *   - An OutputFormatHandler that produces deterministic metadata JSON
  *   - Stable key ordering for byte-identical output across executions
  *
  * This file must NOT import from editor internals (src/tools/video-editor/*).
- * It imports exclusively from @reigh/editor-sdk, the public SDK entrypoint.
+ * It imports exclusively from @astrid/editor-sdk, the public SDK entrypoint.
  */
 
-import { defineExtension } from '@reigh/editor-sdk';
+import { defineExtension } from '@astrid/editor-sdk';
 import type {
   AssetMetadata,
   CompileOnlyOutputResult,
@@ -22,14 +22,14 @@ import type {
   OutputFormatContribution,
   OutputFormatContext,
   OutputFormatHandler,
-  ReighExtension,
-} from '@reigh/editor-sdk';
+  AstridExtension,
+} from '@astrid/editor-sdk';
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
-const EXTENSION_ID = 'com.reigh.examples.metadata-json-output';
+const EXTENSION_ID = 'haus.astrid.examples.metadata-json-output';
 
 const FORMAT_ID = `${EXTENSION_ID}.metadata-json`;
 
@@ -347,7 +347,7 @@ const metadataJsonHandler: OutputFormatHandler = (
 // Extension definition
 // ---------------------------------------------------------------------------
 
-export const metadataJsonOutputExtension: ReighExtension = defineExtension({
+export const metadataJsonOutputExtension: AstridExtension = defineExtension({
   manifest: {
     id: EXTENSION_ID as any,
     version: '1.0.0',

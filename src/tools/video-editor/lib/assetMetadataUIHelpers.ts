@@ -4,7 +4,7 @@ import type {
   VideoEditorSearchProviderDescriptor,
   VideoEditorAssetDetailSectionDescriptor,
 } from '../runtime/extensionSurface';
-import type { MetadataFacetValueKind, ParserDiagnostic, SearchMatch, SearchProviderResult, SearchProviderHandler, SearchProviderContext } from '@reigh/editor-sdk';
+import type { MetadataFacetValueKind, ParserDiagnostic, SearchMatch, SearchProviderResult, SearchProviderHandler, SearchProviderContext } from '@astrid/editor-sdk';
 
 // ---------------------------------------------------------------------------
 // Dot-path resolution

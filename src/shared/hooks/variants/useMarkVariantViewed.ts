@@ -20,7 +20,7 @@ import type { DerivedCountsResult } from './variantBadgeTypes';
 import { queryKeys } from '@/shared/lib/queryKeys';
 import { withGenerationBadgeCount } from './variantBadgeCacheUtils';
 import { useRuntimeAuthority } from '@/app/runtime/runtimeAuthority';
-import { ReighRuntimeClient } from '@/integrations/runtime/client';
+import { AstridRuntimeClient } from '@/integrations/runtime/client';
 
 interface MarkViewedParams {
   variantId: string;
@@ -158,7 +158,7 @@ export function useMarkVariantViewed() {
   const mutation = useMutation({
     mutationFn: async ({ variantId, generationId }: MarkViewedParams) => {
       if (runtimeAuthority) {
-        const result = await new ReighRuntimeClient().markVariantViewed(variantId);
+        const result = await new AstridRuntimeClient().markVariantViewed(variantId);
         return { variantId, generationId, viewedAt: result.viewed_at ?? new Date().toISOString() };
       }
       const { error } = await supabase().from('generation_variants')
@@ -209,7 +209,7 @@ export function useMarkVariantViewed() {
   const bulkMutation = useMutation({
     mutationFn: async ({ generationId }: MarkAllViewedParams) => {
       if (runtimeAuthority) {
-        const result = await new ReighRuntimeClient().markGenerationVariantsViewed(generationId);
+        const result = await new AstridRuntimeClient().markGenerationVariantsViewed(generationId);
         return { generationId, viewedAt: result.viewed_at ?? new Date().toISOString() };
       }
       const { error } = await supabase().from('generation_variants')

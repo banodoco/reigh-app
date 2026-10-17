@@ -13,8 +13,8 @@ export function getPinnedTimelineElement(clip: Pick<ResolvedTimelineClip, 'eleme
 
 
 /** Catalog metadata from exact saved refs; never embeds source in the prompt. */
-export function getPinnedTimelineElementDescriptors(clips: readonly Pick<ResolvedTimelineClip, 'elementRef'>[], app: unknown): import('./element-contract.ts').ReighElementCatalogEntry[] {
-  const entries: import('./element-contract.ts').ReighElementCatalogEntry[] = [];
+export function getPinnedTimelineElementDescriptors(clips: readonly Pick<ResolvedTimelineClip, 'elementRef'>[], app: unknown): import('./element-contract.ts').AstridElementCatalogEntry[] {
+  const entries: import('./element-contract.ts').AstridElementCatalogEntry[] = [];
   for (const clip of clips) {
     const saved = getPinnedTimelineElement(clip, app); const ref = clip.elementRef;
     if (!saved || !ref || entries.some(e => e.id === ref.id && e.kind === ref.kind && e.revision === ref.revision && e.packId === ref.packId)) continue;

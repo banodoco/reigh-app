@@ -1,11 +1,11 @@
 import type {
-  ReighExtension,
+  AstridExtension,
   ExtensionManifestContribution,
   ExtensionDiagnostic,
   FamilyContributionRef,
   EffectContribution,
   TransitionContribution,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import type { InactiveReservedContribution } from '@/tools/video-editor/runtime/extensionSurface.ts';
 import { getContributionRuntimeStatus } from '@/tools/video-editor/runtime/families/FamilyProjectionPolicy.ts';
 import { VIDEO_EDITOR_FAMILY_ADAPTER_REGISTRY } from '@/tools/video-editor/runtime/families/familyAdapterRegistry.ts';
@@ -35,7 +35,7 @@ export interface FamilyContributionSequence {
   /** extensionId → insertion index (primary sort key) */
   extensionOrder: Map<string, number>;
   /** Unique, deduplicated extensions in order of first occurrence. */
-  uniqueExtensions: ReighExtension[];
+  uniqueExtensions: AstridExtension[];
   /** Bridged contributions sorted by extension-order → order → id. */
   sortedBridged: CollectedContribution[];
   /** Reserved M6 output-format contributions (may project when inactive). */
@@ -126,7 +126,7 @@ function contributionRenderId(contribution: ExtensionManifestContribution): stri
  * runtime descriptors or freeze anything.
  */
 export function buildFamilyContributionSequence(
-  extensions: readonly ReighExtension[],
+  extensions: readonly AstridExtension[],
 ): FamilyContributionSequence {
   // ---- Phase 1: validate extension IDs, detect duplicates ------------------
   const diagnostics: ExtensionDiagnostic[] = [];
@@ -136,7 +136,7 @@ export function buildFamilyContributionSequence(
    * Used as the primary sort key for deterministic contribution ordering.
    */
   const extensionOrder = new Map<string, number>();
-  const uniqueExtensions: ReighExtension[] = [];
+  const uniqueExtensions: AstridExtension[] = [];
 
   for (const ext of extensions) {
     const id = ext.manifest.id as string;

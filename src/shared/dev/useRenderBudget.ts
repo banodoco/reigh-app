@@ -24,7 +24,7 @@ const listeners = new Set<TelemetryListener>();
 let nextInstanceId = 1;
 
 export function isRenderBudgetRuntimeEnabled(): boolean {
-  const forceEnabled = (globalThis as { __REIGH_FORCE_RENDER_TELEMETRY__?: boolean }).__REIGH_FORCE_RENDER_TELEMETRY__ === true;
+  const forceEnabled = (globalThis as { __ASTRID_APP_FORCE_RENDER_TELEMETRY__?: boolean }).__ASTRID_APP_FORCE_RENDER_TELEMETRY__ === true;
   if (Boolean(import.meta.env.VITEST) || import.meta.env.MODE === 'test') {
     return forceEnabled;
   }

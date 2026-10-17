@@ -20,13 +20,13 @@ import { Slider } from '@/shared/components/ui/slider.tsx';
 import { Switch } from '@/shared/components/ui/switch.tsx';
 import { cn } from '@/shared/components/ui/contracts/cn.ts';
 import type { AudioBindingValue, ParameterDefinition, ParameterSchema } from '@/tools/video-editor/types/index.ts';
-import type { ShaderUniformSchema } from '@reigh/editor-sdk';
+import type { ShaderUniformSchema } from '@astrid/editor-sdk';
 import {
   createSchemaCapabilityRegistry,
   type SchemaCapabilityRegistry,
   type SchemaCapabilityEntry,
 } from '@/tools/video-editor/runtime/schemaCapabilityRegistry';
-import type { ExtensionDiagnostic } from '@reigh/editor-sdk';
+import type { ExtensionDiagnostic } from '@astrid/editor-sdk';
 
 // ---------------------------------------------------------------------------
 // Minimal StandardSchema subset

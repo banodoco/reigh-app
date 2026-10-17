@@ -8,28 +8,28 @@
  */
 
 import { createElement } from 'react';
-import { defineExtension } from '@reigh/editor-sdk';
+import { defineExtension } from '@astrid/editor-sdk';
 import type {
   CommandRunContext,
   ContributionId,
   DisposeHandle,
   ExtensionContext,
   ExtensionId,
-  ReighExtension,
+  AstridExtension,
   TimelineClipSummary,
   TimelineMarkerChange,
   TimelineOverlayRenderProps,
   TimelinePatch,
   TimelinePointMarker,
   TimelineSnapshot,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import {
   clusterTimelineMarkers,
   moveTimelineMarkerCluster,
   type ClusteredTimelineMarkerData,
 } from '../timelineMarkerClusters';
 
-export const PULSE_MAP_EXTENSION_ID = 'com.reigh.creative-lab.pulse-map' as ExtensionId;
+export const PULSE_MAP_EXTENSION_ID = 'haus.astrid.creative-lab.pulse-map' as ExtensionId;
 export const BUILD_PULSE_MAP_COMMAND = `${PULSE_MAP_EXTENSION_ID}.buildPulseMap`;
 export const PULSE_MAP_DATA_KEY = 'pulseMap';
 export const PULSE_MAP_OVERLAY_RENDER_ID = 'pulse-map/timeline-overlay';
@@ -334,7 +334,7 @@ function disposeTogether(ctx: ExtensionContext, handles: readonly DisposeHandle[
   }
 }
 
-export const pulseMapExtension: ReighExtension = defineExtension({
+export const pulseMapExtension: AstridExtension = defineExtension({
   manifest: {
     id: PULSE_MAP_EXTENSION_ID,
     version: '1.0.0',

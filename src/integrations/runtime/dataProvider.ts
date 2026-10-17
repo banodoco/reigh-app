@@ -1,7 +1,7 @@
 import { PROJECT_TRANSCRIPT_KIND, parseProjectTranscriptDocument, projectTranscriptSchema, transcriptDocumentId, type ProjectTranscriptRepository } from '@/tools/video-editor/data/typed/projectTranscript.ts';
 import { ApiError, type ByteResponse, type MediaImportOperation as MediaImport, type RequestBody } from './generated.ts';
 import {
-  ReighRuntimeClient,
+  AstridRuntimeClient,
   RuntimeAuthenticationError,
   RuntimeUnavailableError,
   isRuntimeCanonicalPayloadConflict,
@@ -82,7 +82,7 @@ export interface RuntimeDataProviderOptions {
 }
 
 /**
- * Reigh's neutral-runtime provider. It owns no storage: the generated
+ * Astrid's neutral-runtime provider. It owns no storage: the generated
  * WorkspaceClient is the only IO authority, and the Runtime's immutable
  * parent-composition head is the editor's config/registry record.
  */
@@ -317,7 +317,7 @@ export class RuntimeDataProvider implements DataProvider {
   };
 
   private readonly projectId: string;
-  private readonly client: ReighRuntimeClient;
+  private readonly client: AstridRuntimeClient;
   private readonly onRuntimeError?: (error: RuntimeConnectorError) => void;
   private activeRegistry: AssetRegistry | null = null;
   private readonly canonicalTimelineState = new Map<string, CanonicalTimelineState>();
@@ -357,7 +357,7 @@ export class RuntimeDataProvider implements DataProvider {
 
   constructor(options: RuntimeDataProviderOptions) {
     this.projectId = options.projectId;
-    this.client = new ReighRuntimeClient({ baseUrl: options.baseUrl, token: options.token, transport: options.transport });
+    this.client = new AstridRuntimeClient({ baseUrl: options.baseUrl, token: options.token, transport: options.transport });
     const documentListeners = new Set<() => void>();
     const notifyDocumentsChanged = () => {
       for (const listener of [...documentListeners]) listener();
@@ -1267,7 +1267,7 @@ function assertManagedObjectIdentity(
   }
 }
 
-const MEDIA_IMPORT_STORAGE_PREFIX = 'reigh.runtime.media-import.v1:';
+const MEDIA_IMPORT_STORAGE_PREFIX = 'astrid.runtime.media-import.v1:';
 
 function persistMediaImportOperation(
   projectId: string,
@@ -1287,7 +1287,7 @@ function persistMediaImportOperation(
 }
 
 async function recoverMediaImportAfterLostAck(
-  client: ReighRuntimeClient,
+  client: AstridRuntimeClient,
   projectId: string,
   data: RequestBody,
   mediaType: string,
@@ -1320,7 +1320,7 @@ async function recoverMediaImportAfterLostAck(
 }
 
 function toPreparedMediaImport(
-  client: ReighRuntimeClient,
+  client: AstridRuntimeClient,
   imported: MediaImport,
   fallbackMediaType: string,
   fallbackFilename: string,
@@ -1575,7 +1575,7 @@ async function stablePublicationKey(
   const bytes = new TextEncoder().encode(stableJson({ projectId, timelineId, expectedHead, graph }));
   const digest = await globalThis.crypto.subtle.digest('SHA-256', bytes);
   // Runtime's idempotency-key grammar accepts dots/dashes but not colons.
-  return `reigh.shot-composition.${Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('')}`;
+  return `astrid.shot-composition.${Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('')}`;
 }
 
 async function stableTimelinePublicationKey(
@@ -1592,7 +1592,7 @@ async function stableTimelinePublicationKey(
   }));
   const digest = await globalThis.crypto.subtle.digest('SHA-256', bytes);
   const hex = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
-  return `reigh.editor.timeline.${hex}`;
+  return `astrid.editor.timeline.${hex}`;
 }
 
 function publicationChangedIdentities(result: RuntimeRecord | null, parentRevisionId: string): string[] {

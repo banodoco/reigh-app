@@ -222,7 +222,7 @@ Captures with `determinism: 'process-dependent'` are accepted through validation
 
 ## 7. Public SDK boundary
 
-The public SDK (`@reigh/editor-sdk`) exposes only the minimal surface needed for extensions to target deterministic capture during live bake:
+The public SDK (`@astrid/editor-sdk`) exposes only the minimal surface needed for extensions to target deterministic capture during live bake:
 
 ```typescript
 // src/sdk/video/liveData.ts — public export

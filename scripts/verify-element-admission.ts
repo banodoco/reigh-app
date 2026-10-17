@@ -17,7 +17,7 @@ async function main() {
   // Detect files changed during compilation, including helpers/assets/schema resources.
   const confirmed = verifyElementAdmissions(manifest);
   if (confirmed.digest !== admission.digest) throw new Error('Element admission selection changed during build');
-  process.stdout.write(JSON.stringify({schema:'reigh.element-build/v1',selectionDigest:'sha256:' + admission.digest,
+  process.stdout.write(JSON.stringify({schema:'astrid.element-build/v1',selectionDigest:'sha256:' + admission.digest,
     elements:admission.elements.map(({projectId,descriptor})=>({projectId,packId:descriptor.packId,kind:descriptor.kind,id:descriptor.id,revision:descriptor.revision}))}) + '\n');
 }
 main().catch(error => {process.stderr.write((error instanceof Error ? error.message : String(error))+'\n');process.exitCode=1;});

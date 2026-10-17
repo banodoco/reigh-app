@@ -9,23 +9,23 @@
  * project data, and renders them on the host-owned timeline ruler.
  */
 
-import { combineDisposeHandles, defineExtension } from '@reigh/editor-sdk';
+import { combineDisposeHandles, defineExtension } from '@astrid/editor-sdk';
 import type {
   CommandRunContext,
   ContributionId,
   DisposeHandle,
   ExtensionContext,
   ExtensionId,
-  ReighExtension,
+  AstridExtension,
   TimelineClipSummary,
   TimelineOverlayRenderProps,
   TimelinePatch,
   TimelineSnapshot,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import { clusterTimelineMarkers } from '../timelineMarkerClusters';
 
 export const CAPTION_SAFE_ZONE_EXTENSION_ID =
-  'com.reigh.creative-lab.caption-safe-zone-orchestra' as ExtensionId;
+  'haus.astrid.creative-lab.caption-safe-zone-orchestra' as ExtensionId;
 export const BUILD_CAPTION_FINDINGS_COMMAND =
   `${CAPTION_SAFE_ZONE_EXTENSION_ID}.buildFindings`;
 export const CAPTION_FINDINGS_DATA_KEY = 'captionSafetyFindings';
@@ -277,7 +277,7 @@ function renderCaptionOverlay(
   });
 }
 
-export const captionSafeZoneOrchestraExtension: ReighExtension = defineExtension({
+export const captionSafeZoneOrchestraExtension: AstridExtension = defineExtension({
   manifest: {
     id: CAPTION_SAFE_ZONE_EXTENSION_ID,
     version: '1.0.0',

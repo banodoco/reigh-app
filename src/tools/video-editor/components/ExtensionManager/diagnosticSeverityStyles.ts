@@ -1,5 +1,5 @@
 import { AlertCircle, AlertTriangle, Info } from 'lucide-react';
-import type { DiagnosticSeverity } from '@reigh/editor-sdk';
+import type { DiagnosticSeverity } from '@astrid/editor-sdk';
 
 // ---------------------------------------------------------------------------
 // Diagnostic severity styling helpers

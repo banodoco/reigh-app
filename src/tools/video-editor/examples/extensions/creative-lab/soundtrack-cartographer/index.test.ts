@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import type {
   TimelineOverlayRenderProps,
   TimelineSnapshot,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import { createCreativeLabExtensionHarness } from '../testing/createCreativeLabHarness';
 import {
   BUILD_TERRAIN_COMMAND,
@@ -37,7 +37,7 @@ const visualTracks = [
 
 describe('Soundtrack Cartographer extension', () => {
   it('keeps the checked-in package manifest fully aligned with the public manifest', () => {
-    const packageManifest = JSON.parse(readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), 'reigh-extension.json'), 'utf8')).manifest;
+    const packageManifest = JSON.parse(readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), 'astrid-extension.json'), 'utf8')).manifest;
     expect(packageManifest).toEqual(soundtrackCartographerExtension.manifest);
   });
 

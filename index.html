@@ -138,7 +138,7 @@
                   .filter((registration) => [registration.active, registration.waiting, registration.installing]
                     .some((worker) => worker?.scriptURL === appWorkerUrl))
                   .map((registration) => registration.unregister()))),
-              'caches' in window ? caches.delete('reigh-v3') : Promise.resolve(),
+              'caches' in window ? caches.delete('astrid-app-v3') : Promise.resolve(),
             ]).catch(() => { /* dev cleanup is best effort */ });
             return;
           }

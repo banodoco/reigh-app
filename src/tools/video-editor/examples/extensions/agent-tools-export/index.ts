@@ -11,15 +11,15 @@
  *     the explicit serializable request context
  *
  * This file must NOT import from editor internals (src/tools/video-editor/*).
- * It imports exclusively from @reigh/editor-sdk, the public SDK entrypoint.
+ * It imports exclusively from @astrid/editor-sdk, the public SDK entrypoint.
  *
  * @publicContract
  * @milestone M10
  */
 
-import { defineExtension } from '@reigh/editor-sdk';
+import { defineExtension } from '@astrid/editor-sdk';
 import type {
-  ReighExtension,
+  AstridExtension,
   ExtensionContext,
   DisposeHandle,
   AgentToolContribution,
@@ -30,13 +30,13 @@ import type {
   ToolResultDiagnostic,
   AgentToolExportContext,
   TimelineSnapshot,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
-const EXPORT_EXTENSION_ID = 'com.reigh.examples.agent-tools-export';
+const EXPORT_EXTENSION_ID = 'haus.astrid.examples.agent-tools-export';
 const EXPORT_PLAN_TOOL_ID = 'canary.export.plan';
 const EXPORT_VALIDATE_TOOL_ID = 'canary.export.validate';
 
@@ -616,7 +616,7 @@ const exportValidateHandler: AgentToolHandler = (
 // Extension definition
 // ---------------------------------------------------------------------------
 
-export const agentToolsExportExtension: ReighExtension = defineExtension({
+export const agentToolsExportExtension: AstridExtension = defineExtension({
   manifest: {
     id: EXPORT_EXTENSION_ID as any,
     version: '1.0.0',

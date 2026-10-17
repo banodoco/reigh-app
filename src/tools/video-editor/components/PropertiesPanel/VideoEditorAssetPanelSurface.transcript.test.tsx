@@ -5,7 +5,7 @@ import type { TimelineStoreApi } from '../../hooks/timelineStore.ts';
 import type { TimelineViewStoreApi } from '../../lib/timeline-view-store.ts';
 import { setupTranscriptHost } from '../../lib/transcript-panel-binding.fixture.ts';
 import { TranscriptPanel } from '@astrid/packs/rendering/ui/transcript/TranscriptPanel';
-import type { ExtensionContext, PanelRenderProps } from '@reigh/editor-sdk';
+import type { ExtensionContext, PanelRenderProps } from '@astrid/editor-sdk';
 import { VideoEditorAssetPanelSurface } from './VideoEditorAssetPanelSurface';
 
 const state = vi.hoisted(() => ({ store: null as TimelineStoreApi | null, view: null as TimelineViewStoreApi | null }));

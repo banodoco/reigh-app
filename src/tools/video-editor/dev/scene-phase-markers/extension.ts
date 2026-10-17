@@ -33,20 +33,20 @@
  * (footer slot + timeline overlay) through the public `ctx.ui` service.
  */
 
-import { defineExtension } from '@reigh/editor-sdk';
+import { defineExtension } from '@astrid/editor-sdk';
 import type {
   CommandRunContext,
   ContributionId,
   DisposeHandle,
   ExtensionContext,
   ExtensionId,
-  ReighExtension,
+  AstridExtension,
   TimelineClipSummary,
   TimelineOverlayRenderProps,
   TimelinePatch,
   TimelineReader,
   TimelineSnapshot,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import type { TimelinePatchOperation } from '@/sdk/video/timeline/patch';
 import { createElement } from 'react';
 import { ScenePhaseMarkersOverlay } from './ScenePhaseMarkersOverlay';
@@ -56,7 +56,7 @@ import { ScenePhaseMarkersPanel } from './ScenePhaseMarkersPanel';
 // Identifiers
 // ---------------------------------------------------------------------------
 
-export const SCENE_PHASE_EXTENSION_ID = 'com.reigh.scene-phase-markers' as ExtensionId;
+export const SCENE_PHASE_EXTENSION_ID = 'haus.astrid.scene-phase-markers' as ExtensionId;
 export const MARK_PHASE_COMMAND = `${SCENE_PHASE_EXTENSION_ID}.markPhase`;
 export const MARKERS_DATA_KEY = 'sceneMarkers';
 export const FOOTER_RENDER_ID = 'scene-phase-markers/footer';
@@ -897,7 +897,7 @@ export function markPhaseAtPlayhead(ctx: ExtensionContext): void {
 // Extension definition
 // ---------------------------------------------------------------------------
 
-export const scenePhaseMarkersExtension: ReighExtension = defineExtension({
+export const scenePhaseMarkersExtension: AstridExtension = defineExtension({
   manifest: {
     id: SCENE_PHASE_EXTENSION_ID,
     version: '1.0.0',

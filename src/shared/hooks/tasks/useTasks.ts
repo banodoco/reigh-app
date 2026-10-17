@@ -19,7 +19,7 @@ import {
 } from '@/shared/state/realtimeStore';
 import { getRuntimeDocumentProjectId } from '@/app/runtime/runtimeDocument';
 import { useRuntimeAuthority, type RuntimeAuthority } from '@/app/runtime/runtimeAuthority';
-import { ReighRuntimeClient } from '@/integrations/runtime/client';
+import { AstridRuntimeClient } from '@/integrations/runtime/client';
 import type { Task as RuntimeTask } from '@/integrations/runtime/generated';
 
 // Types for API responses and request bodies
@@ -60,7 +60,7 @@ async function fetchSingleTask(
     ? authority.runtimeProjectId
     : getRuntimeDocumentProjectId();
   if (runtimeProjectId) {
-    const runtimeTask = await new ReighRuntimeClient().getTask(taskId);
+    const runtimeTask = await new AstridRuntimeClient().getTask(taskId);
     return runtimeTask.project_id === runtimeProjectId ? mapRuntimeTask(runtimeTask) : null;
   }
 

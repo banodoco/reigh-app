@@ -17,7 +17,7 @@ import {
 import {
   getConfigSignature as getSdkConfigSignature,
   getStableConfigSignature as getSdkStableConfigSignature,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import {
   canonicalizeTimelineConfigSnapshot,
   canonicalizeTimelinePair,

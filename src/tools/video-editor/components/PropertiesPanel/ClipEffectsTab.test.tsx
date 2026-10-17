@@ -102,12 +102,12 @@ describe('ClipEffectsTab effect creator loading', () => {
 
 function renderUnavailableClipEffects(isClipTypeRegistered: boolean) {
   const props = {
-    clip: { id: 'scene-1', clipType: 'com.reigh.astrid.livescene' },
+    clip: { id: 'scene-1', clipType: 'haus.astrid.livescene' },
     onChange: vi.fn(),
     effectResources: {},
     clipDescriptor: undefined,
     isClipTypeRegistered,
-    clipTypeResolution: { status: 'unknown', clipType: 'com.reigh.astrid.livescene' },
+    clipTypeResolution: { status: 'unknown', clipType: 'haus.astrid.livescene' },
     isEffectLayer: false,
     isSequenceClip: false,
     registry: {},
@@ -132,7 +132,7 @@ describe('ClipEffectsTab unavailable clip state', () => {
   it('keeps an availability warning for a clip type with no editor registration', () => {
     renderUnavailableClipEffects(false);
 
-    expect(screen.getByText('com.reigh.astrid.livescene is not available in this editor build.')).toBeInTheDocument();
+    expect(screen.getByText('haus.astrid.livescene is not available in this editor build.')).toBeInTheDocument();
   });
 });
 

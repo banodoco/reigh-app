@@ -254,7 +254,7 @@ export function deepCopyShotGroupInDocument(
 }
 
 function packKey(...parts: string[]): string {
-  return `reigh:shot-pack:v1:${parts.map((part) => encodeURIComponent(part)).join(':')}`;
+  return `astrid:shot-pack:v1:${parts.map((part) => encodeURIComponent(part)).join(':')}`;
 }
 
 export async function admitDuplicateShotGroupPackCommand(

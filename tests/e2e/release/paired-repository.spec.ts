@@ -319,76 +319,76 @@ type ExtensionProbe = {
  */
 const EXTENSION_PROBES: readonly ExtensionProbe[] = [
   {
-    id: 'com.reigh.scene-phase-markers',
-    commandId: 'com.reigh.scene-phase-markers.markPhase',
+    id: 'haus.astrid.scene-phase-markers',
+    commandId: 'haus.astrid.scene-phase-markers.markPhase',
     projectDataKey: 'sceneMarkers',
     contribution: 'command',
   },
   {
-    id: 'com.reigh.transcript-lane',
+    id: 'haus.astrid.transcript-lane',
     contribution: 'transcript-lane',
   },
   {
-    id: 'com.reigh.astrid-runaway-timeline',
+    id: 'haus.astrid-runaway-timeline',
     contribution: 'runaway-lane',
   },
   {
-    id: 'com.reigh.creative-lab.pulse-map',
-    commandId: 'com.reigh.creative-lab.pulse-map.buildPulseMap',
+    id: 'haus.astrid.creative-lab.pulse-map',
+    commandId: 'haus.astrid.creative-lab.pulse-map.buildPulseMap',
     projectDataKey: 'pulseMap',
     contribution: 'command',
   },
   {
-    id: 'com.reigh.creative-lab.soundtrack-cartographer',
-    commandId: 'com.reigh.creative-lab.soundtrack-cartographer.buildTerrain',
+    id: 'haus.astrid.creative-lab.soundtrack-cartographer',
+    commandId: 'haus.astrid.creative-lab.soundtrack-cartographer.buildTerrain',
     projectDataKey: 'terrainCues',
     contribution: 'command',
   },
   {
-    id: 'com.reigh.creative-lab.caption-safe-zone-orchestra',
-    commandId: 'com.reigh.creative-lab.caption-safe-zone-orchestra.buildFindings',
+    id: 'haus.astrid.creative-lab.caption-safe-zone-orchestra',
+    commandId: 'haus.astrid.creative-lab.caption-safe-zone-orchestra.buildFindings',
     projectDataKey: 'captionSafetyFindings',
     contribution: 'command',
   },
   {
-    id: 'com.reigh.creative-lab.emotional-weather-map',
-    commandId: 'com.reigh.creative-lab.emotional-weather-map.buildWeatherMap',
+    id: 'haus.astrid.creative-lab.emotional-weather-map',
+    commandId: 'haus.astrid.creative-lab.emotional-weather-map.buildWeatherMap',
     projectDataKey: 'weatherMap',
     contribution: 'command',
   },
   {
-    id: 'com.reigh.creative-lab.timeline-faultline',
-    commandId: 'com.reigh.creative-lab.timeline-faultline.buildFaultline',
+    id: 'haus.astrid.creative-lab.timeline-faultline',
+    commandId: 'haus.astrid.creative-lab.timeline-faultline.buildFaultline',
     projectDataKey: 'faultlineFindings',
     contribution: 'command',
   },
   {
-    id: 'com.reigh.creative-lab.foley-constellation',
-    commandId: 'com.reigh.creative-lab.foley-constellation.dropCues',
+    id: 'haus.astrid.creative-lab.foley-constellation',
+    commandId: 'haus.astrid.creative-lab.foley-constellation.dropCues',
     projectDataKey: 'foleyCues',
     contribution: 'command',
   },
   {
-    id: 'com.reigh.creative-lab.branching-cut',
-    commandId: 'com.reigh.creative-lab.branching-cut.buildChoiceGates',
+    id: 'haus.astrid.creative-lab.branching-cut',
+    commandId: 'haus.astrid.creative-lab.branching-cut.buildChoiceGates',
     projectDataKey: 'choiceGates',
     contribution: 'command',
   },
   {
-    id: 'com.reigh.creative-lab.chromatic-constellation',
-    commandId: 'com.reigh.creative-lab.chromatic-constellation.buildConstellation',
+    id: 'haus.astrid.creative-lab.chromatic-constellation',
+    commandId: 'haus.astrid.creative-lab.chromatic-constellation.buildConstellation',
     projectDataKey: 'constellation',
     contribution: 'command',
   },
   {
-    id: 'com.reigh.creative-lab.recall-pulse',
-    commandId: 'com.reigh.creative-lab.recall-pulse.buildRecallPulse',
+    id: 'haus.astrid.creative-lab.recall-pulse',
+    commandId: 'haus.astrid.creative-lab.recall-pulse.buildRecallPulse',
     projectDataKey: 'recallPulses',
     contribution: 'command',
   },
   {
-    id: 'com.reigh.creative-lab.lockline-inspector',
-    commandId: 'com.reigh.creative-lab.lockline-inspector.buildReport',
+    id: 'haus.astrid.creative-lab.lockline-inspector',
+    commandId: 'haus.astrid.creative-lab.lockline-inspector.buildReport',
     projectDataKey: 'locklineReport',
     contribution: 'command',
   },
@@ -406,7 +406,7 @@ async function openEditor(page: Page, timelineWireRef: string): Promise<string[]
   const expectedAudioMediaAborts: AudioTransportObservation[] = [];
   const audioTransportResponses: AudioTransportObservation[] = [];
   const capabilityProbeResponses: string[] = [];
-  const capabilityProbePath = `/api/astrid/projects/${encodeURIComponent(project!)}/media/__reigh_capability_probe__/content`;
+  const capabilityProbePath = `/api/astrid/projects/${encodeURIComponent(project!)}/media/__astrid_capability_probe__/content`;
   const audioAssetPath = `/api/astrid/projects/${encodeURIComponent(project!)}/timelines/${encodeURIComponent(timelineWireRef)}/assets/${encodeURIComponent(AUDIO_CARRIER_FILE)}`;
   const audioAssetUrl = new URL(audioAssetPath, `${baseUrl}/`).href;
   page.on('pageerror', (error) => issues.push(`[pageerror] ${error.message}`));
@@ -436,7 +436,7 @@ async function openEditor(page: Page, timelineWireRef: string): Promise<string[]
         contentType: headers['content-type'],
       });
     }
-    if (response.url().includes('__reigh_capability_probe__')) {
+    if (response.url().includes('__astrid_capability_probe__')) {
       const method = request.method();
       capabilityProbeResponses.push(`${method}:${response.status()}`);
       if (response.status() !== 404) {
@@ -470,8 +470,8 @@ async function openEditor(page: Page, timelineWireRef: string): Promise<string[]
     }
   });
   await page.addInitScript(() => {
-    window.localStorage.removeItem('reigh.dev-extensions.disabled');
-    window.localStorage.setItem('reigh.lastSelectedProjectId', 'stale-project-must-remain-isolated');
+    window.localStorage.removeItem('astrid.dev-extensions.disabled');
+    window.localStorage.setItem('astrid.lastSelectedProjectId', 'stale-project-must-remain-isolated');
   });
   const response = await page.goto(editorUrl, { waitUntil: 'domcontentloaded', timeout: 45_000 });
   expect(response?.ok()).toBe(true);
@@ -536,7 +536,7 @@ async function openEditor(page: Page, timelineWireRef: string): Promise<string[]
   expect(hasBoundedAudioMetadataAborts(expectedAudioMediaAborts, audioAssetUrl),
     `unbounded or duplicate Chromium audio metadata aborts: ${JSON.stringify(expectedAudioMediaAborts)}`)
     .toBe(true);
-  await expect(page.locator('[data-lane-kind="reigh.transcript"]')).toBeVisible();
+  await expect(page.locator('[data-lane-kind="astrid.transcript"]')).toBeVisible();
   expect(capabilityProbeResponses).toEqual(expect.arrayContaining(['HEAD:404', 'GET:404']));
   expect(expectedCapabilityFailures).toHaveLength(1);
   expect(failedRequests).toEqual([]);
@@ -586,7 +586,7 @@ async function proveRunawayLane(page: Page): Promise<RunawayUiProof> {
   // its early items are correctly virtualized out before any later helper
   // restores the viewport. Without this precondition, a destructive projection
   // bug could be hidden by remounting the transcript at time zero.
-  const transcriptLane = page.locator('[data-lane-kind="reigh.transcript"]');
+  const transcriptLane = page.locator('[data-lane-kind="astrid.transcript"]');
   await expect(transcriptLane).toHaveAttribute('data-total-items', '2', { timeout: 30_000 });
   await expect.poll(async () => Number(await transcriptLane.getAttribute('data-viewport-start')), {
     timeout: 30_000,
@@ -699,7 +699,7 @@ async function expectValidatedProjectData(
 async function assertPulseAudioBoundaries(request: APIRequestContext) {
   const value = await persistedProjectData(
     request,
-    'com.reigh.creative-lab.pulse-map',
+    'haus.astrid.creative-lab.pulse-map',
     'pulseMap',
   ) as { entries?: Array<Record<string, unknown>> } | undefined;
   const audioEntries = value?.entries?.filter((entry) => entry.sourceClipId === 'paired-release-audio') ?? [];
@@ -755,7 +755,7 @@ async function proveAllExtensionLifecycles(
             true,
           );
           fingerprints[probe.id] = after.fingerprint!;
-          if (probe.id === 'com.reigh.creative-lab.pulse-map') await assertPulseAudioBoundaries(request);
+          if (probe.id === 'haus.astrid.creative-lab.pulse-map') await assertPulseAudioBoundaries(request);
         } else if (phase === 'restart') {
           // The first phase deliberately edits the timeline after commands
           // run. Derived outputs may therefore be honestly stale on restart.
@@ -771,16 +771,16 @@ async function proveAllExtensionLifecycles(
           const persistedFingerprint = canonicalFingerprint(beforeValue);
           expect(persistedFingerprint).toBe(expectedFingerprint);
           fingerprints[probe.id] = persistedFingerprint;
-          if (probe.id === 'com.reigh.creative-lab.pulse-map') await assertPulseAudioBoundaries(request);
+          if (probe.id === 'haus.astrid.creative-lab.pulse-map') await assertPulseAudioBoundaries(request);
         }
       } else if (probe.contribution === 'transcript-lane') {
-        await expect(page.locator('[data-lane-kind="reigh.transcript"]')).toBeVisible({ timeout: 15_000 });
+        await expect(page.locator('[data-lane-kind="astrid.transcript"]')).toBeVisible({ timeout: 15_000 });
         if (executeActions || phase === 'restart') {
           const transcript = await materializeTranscript(page, request);
           fingerprints[probe.id] = transcript.fingerprint!;
         }
       } else {
-        const lane = page.locator('[data-lane-kind="reigh.runaway.transitions"]');
+        const lane = page.locator('[data-lane-kind="astrid.runaway.transitions"]');
         const chip = page.getByTestId('runaway-transition-chip').first();
         if (phase === 'restore') {
           // The backup predates the migration-created Runaway project. Restore
@@ -813,9 +813,9 @@ async function proveAllExtensionLifecycles(
       if (probe.contribution === 'command') {
         await expectCommandAvailability(page, probe.commandId!, false);
       } else if (probe.contribution === 'transcript-lane') {
-        await expect(page.locator('[data-lane-kind="reigh.transcript"]')).toHaveCount(0, { timeout: 15_000 });
+        await expect(page.locator('[data-lane-kind="astrid.transcript"]')).toHaveCount(0, { timeout: 15_000 });
       } else {
-        await expect(page.locator('[data-lane-kind="reigh.runaway.transitions"]')).toHaveCount(0, { timeout: 15_000 });
+        await expect(page.locator('[data-lane-kind="astrid.runaway.transitions"]')).toHaveCount(0, { timeout: 15_000 });
         await expect(page.getByTestId('runaway-transition-chip')).toHaveCount(0, { timeout: 15_000 });
       }
 
@@ -825,9 +825,9 @@ async function proveAllExtensionLifecycles(
       if (probe.contribution === 'command') {
         await expectCommandAvailability(page, probe.commandId!, true);
       } else if (probe.contribution === 'transcript-lane') {
-        await expect(page.locator('[data-lane-kind="reigh.transcript"]')).toBeVisible({ timeout: 15_000 });
+        await expect(page.locator('[data-lane-kind="astrid.transcript"]')).toBeVisible({ timeout: 15_000 });
       } else {
-        const lane = page.locator('[data-lane-kind="reigh.runaway.transitions"]');
+        const lane = page.locator('[data-lane-kind="astrid.runaway.transitions"]');
         if (phase === 'restore') {
           await expect(lane).toHaveCount(0);
           await expect(page.getByTestId('runaway-transition-chip')).toHaveCount(0);
@@ -865,7 +865,7 @@ async function waitForPersistedEdit(request: APIRequestContext, previousAt: numb
 }
 
 async function expectedTranscriptCaptions(page: Page): Promise<ExpectedCaption[]> {
-  const transcriptLane = page.locator('[data-lane-kind="reigh.transcript"]');
+  const transcriptLane = page.locator('[data-lane-kind="astrid.transcript"]');
   await expect(transcriptLane).toHaveAttribute('data-total-items', '2', { timeout: 30_000 });
 
   const scroller = page.locator('.timeline-canvas-edit-area');
@@ -1189,7 +1189,7 @@ test(`paired repository acceptance phase: ${phase}`, async ({ page, request }) =
       }, null, 2)}\n`,
       { encoding: 'utf8', flag: 'wx', mode: 0o600 },
     );
-    await expect(page.locator('[data-lane-kind="reigh.runaway.transitions"]')).toBeVisible();
+    await expect(page.locator('[data-lane-kind="astrid.runaway.transitions"]')).toBeVisible();
     await dragPrimaryClip(page);
     await waitForPersistedEdit(request, initialAt!);
     const saved = await readTimeline(request);

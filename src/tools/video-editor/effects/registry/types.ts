@@ -1,5 +1,5 @@
 import type { FC } from 'react';
-import type { DisposeHandle, ExtensionDiagnostic } from '@reigh/editor-sdk';
+import type { DisposeHandle, ExtensionDiagnostic } from '@astrid/editor-sdk';
 import type { EffectComponentProps } from '@/tools/video-editor/effects/entrances.tsx';
 import type { ContributionRenderability } from '@/tools/video-editor/runtime/renderability.ts';
 import type { ParameterSchema } from '@/tools/video-editor/types/index.ts';

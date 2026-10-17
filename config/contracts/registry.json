@@ -524,7 +524,7 @@
         "ProposalState",
         "RENDER_BLOCKER_REASONS",
         "RENDER_ROUTES",
-        "ReighExtension",
+        "AstridExtension",
         "RenderArtifact",
         "RenderArtifactManifest",
         "RenderArtifactSidecarDescriptor",
@@ -911,7 +911,7 @@
       ],
       "expectedExports": [
         "ExtensionActivateFn",
-        "ReighExtension",
+        "AstridExtension",
         "DefineExtensionOptions",
         "defineExtension"
       ]

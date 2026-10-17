@@ -6,7 +6,7 @@ import type {
   ShaderTextureSourceKind,
   ShaderTextureWrap,
   ShaderUniformType,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 
 export const SHADER_DIAGNOSTIC_CODES = {
   UNIFORM_UNSUPPORTED: 'shader/uniform-unsupported',

@@ -1,4 +1,4 @@
-# Extension Debugging — Reigh Video Editor V1
+# Extension Debugging — Astrid App Video Editor V1
 
 **Status:** Active (M15)
 **Last updated:** 2026-06-20
@@ -9,7 +9,7 @@
 
 ## 1. Purpose
 
-This document is a practical debugging reference for Reigh extension authors. Every workflow or limitation is linked to concrete repository evidence — tests, examples, matrix rows, absence checks, or blocker entries. No advice relies on aspirational prose.
+This document is a practical debugging reference for Astrid App extension authors. Every workflow or limitation is linked to concrete repository evidence — tests, examples, matrix rows, absence checks, or blocker entries. No advice relies on aspirational prose.
 
 ---
 
@@ -20,10 +20,10 @@ This document is a practical debugging reference for Reigh extension authors. Ev
 Every extension activation and deactivation is wrapped in `console.groupCollapsed` / `console.groupEnd` with the extension ID as the label. Open your browser DevTools Console and filter for `[Extension lifecycle]`:
 
 ```
-▼ [Extension lifecycle] com.reigh.examples.flagship-local
-    Activating extension "com.reigh.examples.flagship-local" (v1.0.0)
+▼ [Extension lifecycle] haus.astrid.examples.flagship-local
+    Activating extension "haus.astrid.examples.flagship-local" (v1.0.0)
     ... activation work ...
-    Extension "com.reigh.examples.flagship-local" activated successfully
+    Extension "haus.astrid.examples.flagship-local" activated successfully
 ```
 
 **Evidence:** [Trust Envelope §4](./extensions-trust-envelope.md#4-activation-lifecycle-visible-boundaries) (S-016). The trust envelope documents the exact console group format and lifecycle state transitions.
@@ -122,7 +122,7 @@ If `activate()` throws:
 **Evidence:** [Trust Envelope §4](./extensions-trust-envelope.md#4-activation-lifecycle-visible-boundaries) (S-016, S-017); [Contract-Recheck CR:M1-002](./extension-platform-contract-recheck.md#22-m1--sdk-kernel-and-trusted-local-extension-runtime).
 
 **Common causes:**
-- Importing from an internal path (`src/tools/video-editor/`) instead of `@reigh/editor-sdk`. Run `node scripts/quality/check-extension-example-readiness.mjs --audit` to verify.
+- Importing from an internal path (`src/tools/video-editor/`) instead of `@astrid/editor-sdk`. Run `node scripts/quality/check-extension-example-readiness.mjs --audit` to verify.
 - Returning a `DisposeHandle` that throws from `dispose()`.
 - Registering duplicate contribution IDs.
 - Invalid extension or contribution IDs (must match `/^[a-z][a-z0-9_-]*(\.[a-z][a-z0-9_-]*)*$/i`).
@@ -193,10 +193,10 @@ When a project references an extension that is not currently active, the export 
 
 ### 6.2 SupabaseDataProvider
 
-**Environment:** Requires `VITE_REIGH_APPEND_SERVICE_URL`, Supabase auth JWT, and network access.
+**Environment:** Requires `VITE_ASTRID_APP_APPEND_SERVICE_URL`, Supabase auth JWT, and network access.
 
 **Debugging notes:**
-- Provider throws at construction time if `VITE_REIGH_APPEND_SERVICE_URL` is not set.
+- Provider throws at construction time if `VITE_ASTRID_APP_APPEND_SERVICE_URL` is not set.
 - `saveTimeline` and `syncTimeline` require a valid user JWT — check authentication state.
 - `TimelineVersionConflictError` (409 Conflict) means another client wrote between your read and write. Re-read the snapshot and retry.
 - The sync protocol uses IndexedDB for bookmark persistence — if IndexedDB is unavailable (Node.js pre-21, some test runners), sync state is lost.
@@ -261,13 +261,13 @@ Overflow produces `ProjectDataLimitDetail` diagnostics with `extensionId`, `limi
 | Symptom | Likely cause | Debugging step | Evidence link |
 |---|---|---|---|
 | Extension doesn't appear in toolbar | Slot contribution not declared or `kind` mismatch | Check manifest `contributions` array; verify `slot` field matches `VideoEditorSlotName` | [Quickstart §3.1](./extensions-quickstart.md#31-slot-contributions-toolbar-statusbar-codepanel-etc) |
-| Activation throws; extension in `failed` state | `activate()` threw or invalid import path | Check console for `[Extension lifecycle]` group; verify `@reigh/editor-sdk` imports | [§4.1](#41-activation-failure) |
+| Activation throws; extension in `failed` state | `activate()` threw or invalid import path | Check console for `[Extension lifecycle]` group; verify `@astrid/editor-sdk` imports | [§4.1](#41-activation-failure) |
 | Diagnostic not appearing in panel | Diagnostic code not namespaced or contributionId missing | Add `contributionId`; use extension-scoped code (e.g. `myExt/validation-failed`) | [Author Contract §3.3](./extension-author-contract.md#33-diagnostic-conventions) |
 | Export blocked with `export/unknown-clip-type` | Clip type not declared in any active extension's manifest | Add `kind: 'clipType'` contribution to your manifest; ensure extension is active | [§5.1](#51-pre-render-scan) |
 | `TimelineVersionConflictError` on apply | Patch version doesn't match timeline | Re-read snapshot, update `patch.version` | [§7.1](#71-stale-base-version-errors) |
 | Settings not persisting across reloads | Using InMemory provider | Switch to Supabase or Astrid for persistence | [§6.1](#61-inmemorydataprovider) |
 | `AstridBridgeReadOnlyError` on upload | Astrid doesn't support `uploadAsset` | Use Supabase for uploads or bake to deterministic assets | [Provider Compatibility §4.3](./provider-compatibility-matrix.md#43-astridbridgedataprovider) |
-| `400 Bad Request` on Supabase save | `VITE_REIGH_APPEND_SERVICE_URL` not set | Set the env variable | [Provider Compatibility §10.1](./provider-compatibility-matrix.md#101-supabasedataprovider--environment-prerequisites) |
+| `400 Bad Request` on Supabase save | `VITE_ASTRID_APP_APPEND_SERVICE_URL` not set | Set the env variable | [Provider Compatibility §10.1](./provider-compatibility-matrix.md#101-supabasedataprovider--environment-prerequisites) |
 | Extension doesn't clean up on disable | `dispose()` not returning handles from service registrations | Return a `DisposeHandle` that calls `.dispose()` on all service handles | [Author Contract §5.4](./extension-author-contract.md#54-service-cleanup) |
 
 ---
@@ -280,7 +280,7 @@ Overflow produces `ProjectDataLimitDetail` diagnostics with `extensionId`, `limi
 node scripts/quality/check-extension-example-readiness.mjs --audit
 ```
 
-Verifies that every example imports exclusively from `@reigh/editor-sdk`. Run this before debugging — an internal import is the most common activation failure cause.
+Verifies that every example imports exclusively from `@astrid/editor-sdk`. Run this before debugging — an internal import is the most common activation failure cause.
 
 **Evidence:** [Quickstart §7](./extensions-quickstart.md#7-running-the-pre-doc-example-readiness-gate); [Contract-Recheck CR:X-001, CR:X-002](./extension-platform-contract-recheck.md#216-cross-milestone--structural-claims).
 

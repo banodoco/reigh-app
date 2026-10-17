@@ -14,17 +14,17 @@ import {
   createCreativeContextStubs,
   CREATIVE_MEMBER_MILESTONE,
   ExtensionNotImplementedError,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import type {
-  ReighExtension,
+  AstridExtension,
   ExtensionContext,
   DisposeHandle,
   CreativeContext,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 
-export const writingCanaryExample: ReighExtension = defineExtension({
+export const writingCanaryExample: AstridExtension = defineExtension({
   manifest: {
-    id: 'com.reigh.examples.writing-canary-m2' as any,
+    id: 'haus.astrid.examples.writing-canary-m2' as any,
     version: '1.0.0',
     label: 'Writing Canary M2 Example',
     description:

@@ -14,7 +14,7 @@
  *    (identified by __generated__ metadata)
  * 6. On cleanup, removes only its own generated objects from the timeline
  *
- * The canary uses ONLY public SDK types from @reigh/editor-sdk. It does not
+ * The canary uses ONLY public SDK types from @astrid/editor-sdk. It does not
  * import from video-editor internals (DataProvider, TimelineData, store, etc.).
  *
  * @publicContract
@@ -35,7 +35,7 @@ import type {
   SourceMapEntry,
   DisposeHandle,
   ExtensionContext,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 
 // ---------------------------------------------------------------------------
 // DSL types
@@ -527,7 +527,7 @@ export function createCompilerCanary(
 }
 
 /**
- * Create a ReighExtension that wraps the compiler canary.
+ * Create a AstridExtension that wraps the compiler canary.
  *
  * This is the standard defineExtension() shape consumed by the host
  * extension lifecycle.  The activate() function receives the live

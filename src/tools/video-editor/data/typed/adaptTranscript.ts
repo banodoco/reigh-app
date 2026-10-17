@@ -4,8 +4,8 @@
 
 import { freezeDataItem, freezeSourceDataItem, type FrozenDataItem, type SourceFrozenDataItem } from './envelope.ts';
 
-export const TRANSCRIPT_SCHEMA_REF = 'reigh.transcript_segment/v1';
-export const ADAPT_TRANSCRIPT_ADAPTER_ID = 'reigh.adaptTranscript';
+export const TRANSCRIPT_SCHEMA_REF = 'astrid.transcript_segment/v1';
+export const ADAPT_TRANSCRIPT_ADAPTER_ID = 'astrid.adaptTranscript';
 
 const ADAPTER_VERSION = '2';
 

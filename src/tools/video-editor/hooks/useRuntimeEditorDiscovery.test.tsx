@@ -5,7 +5,7 @@ import { renderHook, waitFor, act } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, describe, it, expect, vi } from "vitest";
 import type { ReactNode } from "react";
-import { ReighRuntimeClient } from "@/integrations/runtime/client.ts";
+import { AstridRuntimeClient } from "@/integrations/runtime/client.ts";
 import {
   useRuntimeEditorDiscovery,
   chooseRuntimeTimeline,
@@ -30,12 +30,12 @@ function wrapper() {
 afterEach(() => vi.restoreAllMocks());
 describe("native Runtime discovery", () => {
   it("discovers canonical projects, then scopes timeline reads to the selected real project", async () => {
-    vi.spyOn(ReighRuntimeClient.prototype, "listProjects").mockResolvedValue([
+    vi.spyOn(AstridRuntimeClient.prototype, "listProjects").mockResolvedValue([
       project("a"),
       project("b"),
     ]);
     const read = vi
-      .spyOn(ReighRuntimeClient.prototype, "listTimelines")
+      .spyOn(AstridRuntimeClient.prototype, "listTimelines")
       .mockImplementation(async (id) => [
         { project_id: id, timeline_id: `${id}-main`, name: "Main" },
       ]);
@@ -62,11 +62,11 @@ describe("native Runtime discovery", () => {
     expect(read).toHaveBeenCalledWith("b");
   });
   it("does not substitute a project for a missing explicit ID and rejects cross-project rows", async () => {
-    vi.spyOn(ReighRuntimeClient.prototype, "listProjects").mockResolvedValue([
+    vi.spyOn(AstridRuntimeClient.prototype, "listProjects").mockResolvedValue([
       project("a"),
     ]);
     const read = vi
-      .spyOn(ReighRuntimeClient.prototype, "listTimelines")
+      .spyOn(AstridRuntimeClient.prototype, "listTimelines")
       .mockResolvedValue([{ project_id: "other", timeline_id: "foreign" }]);
     const h = renderHook(
       ({ id }) =>
@@ -90,12 +90,12 @@ describe("native Runtime discovery", () => {
     expect(h.result.current.timelinesQuery.data).toBeUndefined();
   });
   it("fences late reads when project selection changes", async () => {
-    vi.spyOn(ReighRuntimeClient.prototype, "listProjects").mockResolvedValue([
+    vi.spyOn(AstridRuntimeClient.prototype, "listProjects").mockResolvedValue([
       project("a"),
       project("b"),
     ]);
     let release!: (v: Record<string, unknown>[]) => void;
-    vi.spyOn(ReighRuntimeClient.prototype, "listTimelines").mockImplementation(
+    vi.spyOn(AstridRuntimeClient.prototype, "listTimelines").mockImplementation(
       (id) =>
         id === "a"
           ? new Promise((resolve) => {
@@ -128,7 +128,7 @@ describe("native Runtime discovery", () => {
   });
   it("recovers from a single failed discovery request without a sticky error", async () => {
     const list = vi
-      .spyOn(ReighRuntimeClient.prototype, "listProjects")
+      .spyOn(AstridRuntimeClient.prototype, "listProjects")
       .mockRejectedValueOnce(new Error("Runtime busy"))
       .mockResolvedValue([project("a")]);
     const h = renderHook(

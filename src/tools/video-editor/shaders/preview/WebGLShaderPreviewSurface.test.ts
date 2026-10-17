@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { ShaderUniformSchema } from '@reigh/editor-sdk';
+import type { ShaderUniformSchema } from '@astrid/editor-sdk';
 import { createWebGLShaderPreviewSurface } from '@/tools/video-editor/shaders/preview/WebGLShaderPreviewSurface.ts';
 
 const VERTEX_SHADER = 0x8B31;

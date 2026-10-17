@@ -21,7 +21,7 @@ import type {
   ToolResultDiagnostic,
   TimelineProposalInput,
   TimelinePatch,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 
 // ---------------------------------------------------------------------------
 // Constants

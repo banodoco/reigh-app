@@ -16,7 +16,7 @@ import type {
   CommandHandler,
   CommandRunContext,
   TargetContextPayload,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -142,21 +142,21 @@ describe('normalizeKeybinding', () => {
 // ---------------------------------------------------------------------------
 
 describe('isReservedCommandId', () => {
-  it('returns true for reigh.* prefixed commands', () => {
-    expect(isReservedCommandId('reigh.test')).toBe(true);
-    expect(isReservedCommandId('reigh.editor.palette')).toBe(true);
-    expect(isReservedCommandId('reigh.internal')).toBe(true);
+  it('returns true for astrid.* prefixed commands', () => {
+    expect(isReservedCommandId('astrid.test')).toBe(true);
+    expect(isReservedCommandId('astrid.editor.palette')).toBe(true);
+    expect(isReservedCommandId('astrid.internal')).toBe(true);
   });
 
-  it('returns false for non-reigh prefixed commands', () => {
+  it('returns false for non-astrid prefixed commands', () => {
     expect(isReservedCommandId('test.doSomething')).toBe(false);
     expect(isReservedCommandId('com.ext.custom')).toBe(false);
-    expect(isReservedCommandId('Reigh.test')).toBe(false); // case-sensitive
+    expect(isReservedCommandId('Astrid.test')).toBe(false); // case-sensitive
   });
 
-  it('returns false for commands that contain reigh elsewhere', () => {
-    expect(isReservedCommandId('com.reighSomething.do')).toBe(false);
-    expect(isReservedCommandId('reighSomething.do')).toBe(false);
+  it('returns false for commands that contain astrid elsewhere', () => {
+    expect(isReservedCommandId('com.astridSomething.do')).toBe(false);
+    expect(isReservedCommandId('astridSomething.do')).toBe(false);
   });
 });
 
@@ -198,23 +198,23 @@ describe('isReservedKeybinding', () => {
 // ---------------------------------------------------------------------------
 
 describe('CommandRegistry — reserved command rejection', () => {
-  it('rejects reigh.* command contributions with an error diagnostic', () => {
+  it('rejects astrid.* command contributions with an error diagnostic', () => {
     const registry = createFreshRegistry();
-    registry.ingestCommandContribution('test.ext', makeCommandContribution({ command: 'reigh.internal' }));
+    registry.ingestCommandContribution('test.ext', makeCommandContribution({ command: 'astrid.internal' }));
 
     const diags = registry.diagnostics;
     const reservedDiag = diags.find((d) => d.code === 'command-registry/reserved-command');
     expect(reservedDiag).toBeDefined();
     expect(reservedDiag!.severity).toBe('error');
     expect(reservedDiag!.extensionId).toBe('test.ext');
-    expect(reservedDiag!.message).toContain('reigh.internal');
+    expect(reservedDiag!.message).toContain('astrid.internal');
   });
 
   it('does not add reserved commands to the registry', () => {
     const registry = createFreshRegistry();
-    registry.ingestCommandContribution('test.ext', makeCommandContribution({ command: 'reigh.internal' }));
+    registry.ingestCommandContribution('test.ext', makeCommandContribution({ command: 'astrid.internal' }));
 
-    expect(registry.getCommand('reigh.internal')).toBeUndefined();
+    expect(registry.getCommand('astrid.internal')).toBeUndefined();
   });
 
   it('calls onReservedCommand callback when callbacks are set', () => {
@@ -222,9 +222,9 @@ describe('CommandRegistry — reserved command rejection', () => {
     const cbs = createCallbacks();
     registry.setCallbacks(cbs);
 
-    registry.ingestCommandContribution('test.ext', makeCommandContribution({ command: 'reigh.internal' }));
+    registry.ingestCommandContribution('test.ext', makeCommandContribution({ command: 'astrid.internal' }));
 
-    expect(cbs.onReservedCommand).toHaveBeenCalledWith('reigh.internal', 'test.ext');
+    expect(cbs.onReservedCommand).toHaveBeenCalledWith('astrid.internal', 'test.ext');
   });
 });
 
@@ -896,14 +896,14 @@ describe('CommandRegistry — toast callback behavior', () => {
     await expect(registry.executeCommand('ext1.cmd')).resolves.toBe(true);
   });
 
-  it('onReservedCommand callback is called for reigh.* commands', () => {
+  it('onReservedCommand callback is called for astrid.* commands', () => {
     const registry = createFreshRegistry();
     const cbs = createCallbacks();
     registry.setCallbacks(cbs);
 
-    registry.ingestCommandContribution('ext1', makeCommandContribution({ command: 'reigh.test' }));
+    registry.ingestCommandContribution('ext1', makeCommandContribution({ command: 'astrid.test' }));
 
-    expect(cbs.onReservedCommand).toHaveBeenCalledWith('reigh.test', 'ext1');
+    expect(cbs.onReservedCommand).toHaveBeenCalledWith('astrid.test', 'ext1');
   });
 
   it('onReservedKeybinding callback is called for reserved shortcuts', () => {
@@ -956,7 +956,7 @@ describe('CommandRegistry — toast callback behavior', () => {
     registry.setCallbacks(cbs1);
     registry.setCallbacks(cbs2);
 
-    registry.ingestCommandContribution('ext1', makeCommandContribution({ command: 'reigh.test' }));
+    registry.ingestCommandContribution('ext1', makeCommandContribution({ command: 'astrid.test' }));
 
     expect(cbs1.onReservedCommand).not.toHaveBeenCalled();
     expect(cbs2.onReservedCommand).toHaveBeenCalled();

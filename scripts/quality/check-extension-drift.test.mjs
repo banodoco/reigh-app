@@ -68,7 +68,7 @@ function extractStringUnion(source, typeName) {
 }
 
 function loadCurrentSchema() {
-  return JSON.parse(readRepoFile('config/contracts/reigh-extension.schema.json'));
+  return JSON.parse(readRepoFile('config/contracts/astrid-extension.schema.json'));
 }
 
 function loadFamilyMatrixRows() {

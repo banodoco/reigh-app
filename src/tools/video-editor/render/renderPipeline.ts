@@ -1,7 +1,7 @@
 import type { TimelineRenderRequest } from '@/tools/video-editor/hooks/timeline-state-types.ts';
 import {
   buildRenderTimelinePayload,
-  enqueueBanodocoRenderTimeline,
+  enqueueAstridRuntimeRenderTimeline,
   type RenderProviderId,
   type RenderRouteDecision,
 } from '@/tools/video-editor/lib/renderRouter.ts';
@@ -93,7 +93,7 @@ async function executeProviderRoute({
         message: result.message,
       };
     }
-    case 'worker-banodoco': {
+    case 'worker-astrid-runtime': {
       const { payload, error } = buildRenderTimelinePayload({
         request,
       });
@@ -101,12 +101,12 @@ async function executeProviderRoute({
       if (!payload) {
         return {
           status: 'error',
-          providerId: 'worker-banodoco',
+          providerId: 'worker-astrid-runtime',
           message: error ?? `Worker render dispatch failed for route "${decision.reason}".`,
         };
       }
 
-      const enqueueResult = await enqueueBanodocoRenderTimeline(payload, {
+      const enqueueResult = await enqueueAstridRuntimeRenderTimeline(payload, {
         bridgeBaseUrl: request.renderRuntime.bridgeBaseUrl,
         destination: request.renderRuntime.destination,
       });
@@ -114,14 +114,14 @@ async function executeProviderRoute({
       if (enqueueResult.status === 'error') {
         return {
           status: 'error',
-          providerId: 'worker-banodoco',
+          providerId: 'worker-astrid-runtime',
           message: enqueueResult.message,
         };
       }
 
       return {
         status: 'queued',
-        providerId: 'worker-banodoco',
+        providerId: 'worker-astrid-runtime',
         taskId: enqueueResult.task_id,
         correlationId: enqueueResult.correlation_id,
         message: enqueueResult.message,

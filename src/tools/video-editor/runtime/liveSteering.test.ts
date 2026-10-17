@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { SteeringDecision, LiveChannelDescriptor } from '@reigh/editor-sdk';
+import type { SteeringDecision, LiveChannelDescriptor } from '@astrid/editor-sdk';
 import {
   evaluateGenerationSessionLiveDeliveryGate,
   resolveLiveSteering,
@@ -15,7 +15,7 @@ function baseRequest() {
     producerVersion: '1.2.3',
     provenance: {
       prompt: 'A slow pan across clouds',
-      model: 'reigh-gen-v1',
+      model: 'astrid-gen-v1',
       seed: 42,
       producerExtensionId: 'ext.generator',
       tags: ['user-approved'],
@@ -51,7 +51,7 @@ describe('resolveLiveSteering', () => {
     expect(result.decision.lineage.producerVersion).toBe('1.2.3');
     expect(result.decision.lineage.provenance).toMatchObject({
       prompt: 'A slow pan across clouds',
-      model: 'reigh-gen-v1',
+      model: 'astrid-gen-v1',
       seed: 42,
       producerExtensionId: 'ext.generator',
     });
@@ -60,7 +60,7 @@ describe('resolveLiveSteering', () => {
       expect.arrayContaining([
         'steering:supersede',
         'prior-samples:replace',
-        'model:reigh-gen-v1',
+        'model:astrid-gen-v1',
         'seed:42',
         'producer:ext.generator',
       ]),
@@ -73,8 +73,8 @@ describe('resolveLiveSteering', () => {
       changes: [
         {
           path: 'params.model',
-          previousValue: 'reigh-gen-v1',
-          nextValue: 'reigh-gen-v2',
+          previousValue: 'astrid-gen-v1',
+          nextValue: 'astrid-gen-v2',
         },
       ],
       priorSamplePolicy: 'fork',
@@ -123,7 +123,7 @@ describe('resolveLiveSteering', () => {
       ...baseRequest(),
       provenance: {
         prompt: '',
-        model: 'reigh-gen-v1',
+        model: 'astrid-gen-v1',
         seed: 42,
       },
     });

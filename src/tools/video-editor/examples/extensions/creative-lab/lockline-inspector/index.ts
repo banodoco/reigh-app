@@ -8,25 +8,25 @@
  */
 
 import { createElement } from 'react';
-import { computeHostFingerprint, defineExtension } from '@reigh/editor-sdk';
+import { computeHostFingerprint, defineExtension } from '@astrid/editor-sdk';
 import type {
   CommandRunContext,
   ContributionId,
   DisposeHandle,
   ExtensionContext,
   ExtensionId,
-  ReighExtension,
+  AstridExtension,
   TimelineClipSummary,
   TimelineOverlayRenderProps,
   TimelinePatch,
   TimelinePointMarker,
   TimelineSnapshot,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import { clusterTimelineMarkers } from '../timelineMarkerClusters';
 import type { ClusteredTimelineMarkerData } from '../timelineMarkerClusters';
 
 export const LOCKLINE_INSPECTOR_EXTENSION_ID =
-  'com.reigh.creative-lab.lockline-inspector' as ExtensionId;
+  'haus.astrid.creative-lab.lockline-inspector' as ExtensionId;
 export const BUILD_LOCKLINE_REPORT_COMMAND =
   `${LOCKLINE_INSPECTOR_EXTENSION_ID}.buildReport`;
 export const LOCKLINE_REPORT_DATA_KEY = 'locklineReport';
@@ -470,7 +470,7 @@ function disposeTogether(ctx: ExtensionContext, handles: readonly DisposeHandle[
   }
 }
 
-export const locklineInspectorExtension: ReighExtension = defineExtension({
+export const locklineInspectorExtension: AstridExtension = defineExtension({
   manifest: {
     id: LOCKLINE_INSPECTOR_EXTENSION_ID,
     version: '1.2.0',

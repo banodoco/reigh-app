@@ -255,7 +255,7 @@ describe('useTaskPlaceholder', () => {
       },
       storage_estimate: { scratch_bytes: 0, output_bytes: 0 },
       settlement_effect: {},
-    }, 'reigh.admit:placeholder-cancel');
+    }, 'astrid.admit:placeholder-cancel');
 
     mockWasCancelled.mockReturnValue(true);
     const { result } = renderHook(() => useTaskPlaceholder());

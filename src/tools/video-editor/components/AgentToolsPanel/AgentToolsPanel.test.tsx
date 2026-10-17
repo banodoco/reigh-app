@@ -33,7 +33,7 @@ import type {
   ToolResultDiagnostic,
   GenerationSession,
   TimelinePatch,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 
 // ---------------------------------------------------------------------------
 // Helpers

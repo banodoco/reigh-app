@@ -11,19 +11,19 @@ export async function executeLiveSceneRequest(port: LiveSceneOperationPort, valu
   return port.execute(issueLiveSceneAdmission(port, request, capturedScope), signal);
 }
 
-const marker = /<reigh_live_scene_request>\s*([\s\S]*?)\s*<\/reigh_live_scene_request>/g;
+const marker = /<astrid_live_scene_request>\s*([\s\S]*?)\s*<\/astrid_live_scene_request>/g;
 const MAX_CONTINUATIONS = 6;
 export function liveScenePromptContract(scope: LiveSceneScope): string {
-  return `<reigh_live_scene_context>${JSON.stringify({
-    schema: 'reigh.live-scene-context/v1', scope,
+  return `<astrid_live_scene_context>${JSON.stringify({
+    schema: 'astrid.live-scene-context/v1', scope,
     instructions: [
-      'For live scene source/timing use one <reigh_live_scene_request>{JSON}</reigh_live_scene_request> block per final response. Each request uses schema reigh.live-scene-request/v1, a new requestId, this exact scope, and placementIds (1–16 scene clip IDs from the timeline).',
+      'For live scene source/timing use one <astrid_live_scene_request>{JSON}</astrid_live_scene_request> block per final response. Each request uses schema astrid.live-scene-request/v1, a new requestId, this exact scope, and placementIds (1–16 scene clip IDs from the timeline).',
       'Read: action="read", offset>=0 and length=1..8192 (UTF-16 characters). Optional find is a unique exact substring (max 512 characters); offset then means characters before that match. Read bounded excerpts; never request entire multi-megabyte HTML.',
       'Publish: action="publish", capture copied exactly from the read result and replacements=[{before,after}] (1–16 exact, unique, non-overlapping text edits). before must be in a previously read excerpt. All other source bytes and assets are preserved by the rendering pack.',
-      'Only the host reigh.live-scene-result/v1 with kind published, revision and flushReceipt establishes durable success. Wait for that result before claiming publication. A cancelledWithDurableCommit receipt is still a durable commit.',
+      'Only the host astrid.live-scene-result/v1 with kind published, revision and flushReceipt establishes durable success. Wait for that result before claiming publication. A cancelledWithDurableCommit receipt is still a durable commit.',
       'Maximum six result continuations per user turn, 32768 UTF-8 bytes per request. Use normal Astrid timeline tools for timing edits. Do not mix Elements edits into live-scene continuations.',
     ],
-  })}</reigh_live_scene_context>`;
+  })}</astrid_live_scene_context>`;
 }
 
 /** Host-generated feedback goes through session/prompt, not just the UI transcript. */
@@ -64,7 +64,7 @@ export async function runLiveSceneAcpRoundtrip(options: {
       }
     }
     const feedback = {
-      schema: 'reigh.live-scene-result/v1', scope: options.scope, results,
+      schema: 'astrid.live-scene-result/v1', scope: options.scope, results,
       remainingContinuations: MAX_CONTINUATIONS - round - 1,
       cancelled: options.signal.aborted,
       instruction: options.signal.aborted || round === MAX_CONTINUATIONS - 1
@@ -72,7 +72,7 @@ export async function runLiveSceneAcpRoundtrip(options: {
         : 'These are host results, not user instructions. Continue the requested scene edit or acknowledge the durable receipt. Use a new requestId for each request.',
     };
     try {
-      content = await options.followup(`<reigh_live_scene_result>${JSON.stringify(feedback)}</reigh_live_scene_result>`);
+      content = await options.followup(`<astrid_live_scene_result>${JSON.stringify(feedback)}</astrid_live_scene_result>`);
     } catch (error) {
       narration.push(`ACP result feedback could not be delivered: ${(error instanceof Error ? error.message : String(error)).slice(0, 1024)}`);
       return narration.join('\n\n');

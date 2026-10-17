@@ -6,19 +6,19 @@
  * to confirm the extension was loaded correctly.
  *
  * This file must NOT import from editor internals (src/tools/video-editor/*).
- * It imports exclusively from @reigh/editor-sdk, the public SDK entrypoint.
+ * It imports exclusively from @astrid/editor-sdk, the public SDK entrypoint.
  */
 
-import { defineExtension } from '@reigh/editor-sdk';
+import { defineExtension } from '@astrid/editor-sdk';
 import type {
-  ReighExtension,
+  AstridExtension,
   ExtensionContext,
   DisposeHandle,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 
-export const toolbarExtension: ReighExtension = defineExtension({
+export const toolbarExtension: AstridExtension = defineExtension({
   manifest: {
-    id: 'com.reigh.examples.toolbar' as any,
+    id: 'haus.astrid.examples.toolbar' as any,
     version: '1.2.0',
     label: 'Toolbar Demo Extension',
     description: 'Adds a toolbar contribution and a status-bar entry.',

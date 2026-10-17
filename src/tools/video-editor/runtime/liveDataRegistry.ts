@@ -46,7 +46,7 @@ import type {
   LiveSessionsService,
   LiveSourceRef,
   ProcessLiveSourceBinding,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import type { ProcessLifecycleState, ProcessStatus } from '@/sdk/video/families/processes';
 import { bakeLiveSource } from './liveBake';
 import {

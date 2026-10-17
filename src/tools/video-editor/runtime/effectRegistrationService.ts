@@ -20,8 +20,8 @@ import type {
   EffectRegistrationService,
   ExtensionDiagnostic,
   ExtensionDiagnosticsService,
-  ReighExtension,
-} from '@reigh/editor-sdk';
+  AstridExtension,
+} from '@astrid/editor-sdk';
 import type { EffectRegistry } from '@/tools/video-editor/effects/registry/types.ts';
 import type {
   EffectRegistryRecord,
@@ -41,7 +41,7 @@ import type { ParameterDefinition, ParameterSchema } from '@/tools/video-editor/
 
 /** Extract `EffectContribution` entries from a frozen manifest. */
 function getEffectContributions(
-  manifest: ReighExtension['manifest'],
+  manifest: AstridExtension['manifest'],
 ): readonly EffectContribution[] {
   return (manifest.contributions?.filter(
     (c): c is EffectContribution => c.kind === 'effect',
@@ -377,7 +377,7 @@ function noopDisposeHandle(): DisposeHandle {
 
 export interface CreateEffectRegistrationServiceParams {
   /** The extension whose manifest declares EffectContributions. */
-  readonly extension: ReighExtension;
+  readonly extension: AstridExtension;
   /** The provider-scoped EffectRegistry. */
   readonly effectRegistry: EffectRegistry;
   /** Diagnostics service scoped to this extension's lifecycle. */

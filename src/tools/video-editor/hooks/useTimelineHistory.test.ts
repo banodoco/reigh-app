@@ -243,9 +243,9 @@ describe('useTimelineHistory', () => {
     const seed = makeTimelineData(0);
     const original = buildDataFromCurrentRegistry(seed.config, seed);
     const harness = setup({ initialData: original, providerOverrides: { saveCheckpoint } });
-    const sourceItemsBySchemaRef = { 'reigh.transcript_segment/v1': [{
+    const sourceItemsBySchemaRef = { 'astrid.transcript_segment/v1': [{
       id: 'source:segment', shape: 'interval' as const, domain: 'source_seconds' as const,
-      extent: { start: 0, end: 1 }, schemaRef: 'reigh.transcript_segment/v1',
+      extent: { start: 0, end: 1 }, schemaRef: 'astrid.transcript_segment/v1',
       sourceArtifactRef: { assetId: 'asset-1' }, provenance: { adapterId: 'test', adapterVersion: '1' },
       payload: { sourceId: 'source', segmentId: 'segment', text: 'Corrected', speaker: 'Alice', words: [{ id: 'word', start: 0, end: 1, text: 'Corrected' }] },
     }] };
@@ -806,7 +806,7 @@ describe('data lane row placement history', () => {
     const harness = setup();
     const before = buildDataFromCurrentRegistry(harness.dataRef.current.config, harness.dataRef.current);
     harness.dataRef.current = before;
-    const placement = { version: 1 as const, lanes: [{ laneId: 'reigh.transcript', beforeTrackId: 'V1' }] };
+    const placement = { version: 1 as const, lanes: [{ laneId: 'astrid.transcript', beforeTrackId: 'V1' }] };
     act(() => {
       harness.result.current.onBeforeCommit(before, { semantic: true });
       harness.dataRef.current = buildDataFromCurrentRegistry({

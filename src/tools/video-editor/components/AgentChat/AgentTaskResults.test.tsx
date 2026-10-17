@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { ReighRuntimeClient } from '@/integrations/runtime/client';
+import type { AstridRuntimeClient } from '@/integrations/runtime/client';
 import { loadLinkedTaskResults } from './AgentTaskResults';
 import { buildRenderedTurns } from './AgentChat';
 
@@ -35,11 +35,11 @@ describe('exact originating call result cards', () => {
       { ...ref, association_id: 'output', filename: 'clip.mp4', object_id: 'sha256:clip', media_type: 'video/mp4', state: 'available', role: 'result' },
       { ...ref, project_id: 'other', association_id: 'wrong', filename: 'wrong.mp4', object_id: 'sha256:wrong', media_type: 'video/mp4', state: 'available', role: 'result' },
     ] as never[], next_cursor: null });
-    expect(await loadLinkedTaskResults(ref, source as unknown as ReighRuntimeClient)).toEqual([
+    expect(await loadLinkedTaskResults(ref, source as unknown as AstridRuntimeClient)).toEqual([
       { id: 'output', name: 'clip.mp4', url: '/objects/sha256:clip', mediaType: 'video/mp4' },
     ]);
     source.getTask.mockResolvedValue({ ...ref, run_id: 'other-run' });
-    await expect(loadLinkedTaskResults(ref, source as unknown as ReighRuntimeClient)).rejects.toThrow('does not belong');
+    await expect(loadLinkedTaskResults(ref, source as unknown as AstridRuntimeClient)).rejects.toThrow('does not belong');
   });
 
   it('joins published generation results solely through source_task_id', async () => {
@@ -49,7 +49,7 @@ describe('exact originating call result cards', () => {
       { generation_id: 'unlinked', project_id: 'project', source_task_id: 'other', type: 'image', metadata: {} },
     ] as never[], next_cursor: null });
     source.listVariants.mockResolvedValue({ items: [{ variant_id: 'variant', generation_id: 'linked', object_id: 'sha256:image', variant_type: 'original', metadata: { media_type: 'image/png', is_primary: true } }] as never[], next_cursor: null });
-    const results = await loadLinkedTaskResults(ref, source as unknown as ReighRuntimeClient);
+    const results = await loadLinkedTaskResults(ref, source as unknown as AstridRuntimeClient);
     expect(results).toEqual([{ id: 'linked', generationId: 'linked', name: 'Real generated image', url: '/objects/sha256:image', mediaType: 'image/png' }]);
     expect(source.listVariants).toHaveBeenCalledTimes(1);
   });

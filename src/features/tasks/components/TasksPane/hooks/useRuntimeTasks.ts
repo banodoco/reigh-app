@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { QUERY_PRESETS } from '@/shared/lib/query/queryDefaults';
-import { ReighRuntimeClient } from '@/integrations/runtime/client.ts';
+import { AstridRuntimeClient } from '@/integrations/runtime/client.ts';
 import { readyRuntimeTaskEvents, runtimeTaskQueryKey, useRuntimeTaskEvents } from './useRuntimeTaskEvents';
 import type {
   ManagedOutput,
@@ -80,7 +80,7 @@ export function runtimeTaskStatusGroup(task: RuntimeTask): 'Processing' | 'Succe
 }
 
 export async function listAllRuntimeTasks(
-  client: Pick<ReighRuntimeClient, 'listProjectTasks'>,
+  client: Pick<AstridRuntimeClient, 'listProjectTasks'>,
   projectId: string,
 ): Promise<RuntimeTask[]> {
   const tasks: RuntimeTask[] = [];
@@ -109,7 +109,7 @@ export function refreshRuntimeTaskList(queryClient: QueryClient, projectId: stri
  * while this slower paginated request was in flight.
  */
 export async function pollRuntimeTasks(
-  client: Pick<ReighRuntimeClient, 'listProjectTasks'>,
+  client: Pick<AstridRuntimeClient, 'listProjectTasks'>,
   queryClient: QueryClient,
   projectId: string,
 ): Promise<RuntimeTask[]> {
@@ -139,11 +139,11 @@ function idempotencyKey(
   updatedAt: string,
 ): string {
   const revision = updatedAt.replace(/[^A-Za-z0-9._~-]/g, '-');
-  return `reigh.runtime.task.${action}.${projectId}.${taskId}.v${version}.${revision}`;
+  return `astrid.runtime.task.${action}.${projectId}.${taskId}.v${version}.${revision}`;
 }
 
 export async function transitionRuntimeTask(
-  client: Pick<ReighRuntimeClient, 'getTask' | 'cancelTask' | 'retryTask'>,
+  client: Pick<AstridRuntimeClient, 'getTask' | 'cancelTask' | 'retryTask'>,
   projectId: string,
   input: RuntimeTaskMutationInput,
 ): Promise<MutationResult<RuntimeTask>> {
@@ -170,7 +170,7 @@ export async function transitionRuntimeTask(
 }
 
 async function listAllRuntimeManagedOutputs(
-  client: Pick<ReighRuntimeClient, 'listManagedOutputs'>,
+  client: Pick<AstridRuntimeClient, 'listManagedOutputs'>,
   taskId: string,
 ): Promise<ManagedOutput[]> {
   const outputs: ManagedOutput[] = [];
@@ -225,7 +225,7 @@ function managedOutputExpectedIdentity(output: ManagedOutput): Record<string, un
 }
 
 export async function exportSelectedRuntimeTaskOutput(
-  client: Pick<ReighRuntimeClient, 'getTask' | 'listManagedOutputs' | 'exportManagedOutput'>,
+  client: Pick<AstridRuntimeClient, 'getTask' | 'listManagedOutputs' | 'exportManagedOutput'>,
   projectId: string,
   taskId: string,
   timelineId: string,
@@ -261,7 +261,7 @@ function mergeRuntimeTaskResults(
 }
 
 export function useRuntimeTasks(projectId: string | null) {
-  const client = useMemo(() => new ReighRuntimeClient(), []);
+  const client = useMemo(() => new AstridRuntimeClient(), []);
   const queryClient = useQueryClient();
   const queryKey = runtimeTaskQueryKey(projectId);
   useRuntimeTaskEvents(projectId);

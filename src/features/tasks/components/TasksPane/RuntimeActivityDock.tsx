@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom';
 import { Activity, ChevronDown, ChevronUp, CircleDot, Clock3, FileOutput, Film, Image as ImageIcon, Loader2, Lock, Music2, Pin, PinOff, RotateCcw, Square, Unlock, Video, X } from 'lucide-react';
 import type { Event, ManagedOutput, Task as RuntimeTask } from '@/integrations/runtime/generated.ts';
-import { ReighRuntimeClient } from '@/integrations/runtime/client.ts';
+import { AstridRuntimeClient } from '@/integrations/runtime/client.ts';
 import { Button } from '@/shared/components/ui/button';
 import { UI_Z_LAYERS } from '@/shared/lib/uiLayers';
 import { asRecord } from '@/shared/lib/typeCoercion';
@@ -167,7 +167,7 @@ function ActivityTaskInspector({
   onExportManagedOutput: RuntimeActivityDockProps['onExportManagedOutput'];
   isExportTaskPending: RuntimeActivityDockProps['isExportTaskPending'];
 }) {
-  const client = useMemo(() => new ReighRuntimeClient(), []);
+  const client = useMemo(() => new AstridRuntimeClient(), []);
   const [events, setEvents] = useState<Event[]>([]);
   const [outputs, setOutputs] = useState<ManagedOutput[]>([]);
   const [loading, setLoading] = useState(true);

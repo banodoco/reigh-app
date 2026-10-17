@@ -72,7 +72,7 @@ describe('useDataLanes', () => {
       id: 'shot-line', shape: 'interval', domain: 'source_seconds',
       extent: { start, end: start + 0.5 }, schemaRef: TRANSCRIPT_SCHEMA_REF,
       sourceArtifactRef: { assetId: child.asset! },
-      provenance: { adapterId: 'reigh.projectTranscript', adapterVersion: '1' },
+      provenance: { adapterId: 'astrid.projectTranscript', adapterVersion: '1' },
       payload: { sourceId: 'astrid.narration', segmentId: 'shot-line', text: 'inside shot' },
     });
     const withSource = { ...base, sourceItemsBySchemaRef: { [TRANSCRIPT_SCHEMA_REF]: [source] } };

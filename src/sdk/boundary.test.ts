@@ -2,9 +2,9 @@
  * SDK boundary and flagship example import compliance tests.
  *
  * Proves:
- *   1. The flagship example imports exclusively from @reigh/editor-sdk.
+ *   1. The flagship example imports exclusively from @astrid/editor-sdk.
  *   2. No internal video-editor imports leak into extension code.
- *   3. @reigh/editor-sdk exports are sufficient to write an extension.
+ *   3. @astrid/editor-sdk exports are sufficient to write an extension.
  *   4. ExtensionContext exposes no raw internal members (DataProvider,
  *      applyEdit, timeline store, internal mutation escape hatches).
  */
@@ -32,7 +32,7 @@ import { createExtensionContext } from '@/tools/video-editor/runtime/extensionCo
 import { INTERNAL_EXTENSION_RENDER_SURFACE } from '@/sdk/internalExtensionRenderSurface';
 import * as sdkStar from '@/sdk/index';
 import type {
-  ReighExtension,
+  AstridExtension,
   ExtensionManifest,
   ExtensionContribution,
   ExtensionContext,
@@ -225,25 +225,25 @@ describe('Flagship local extension — import boundary', () => {
       const specifiers = extractSpecifiers(content);
       const isTsxFile = filePath.endsWith('.tsx');
 
-      it('imports exclusively from @reigh/editor-sdk (no video-editor internals)', () => {
+      it('imports exclusively from @astrid/editor-sdk (no video-editor internals)', () => {
         for (const specifier of specifiers) {
           expect(isVideoEditorInternal(relativePath, specifier)).toBe(false);
         }
       });
 
-      it('imports from @reigh/editor-sdk', () => {
+      it('imports from @astrid/editor-sdk', () => {
         if (isTsxFile) return;
 
         const hasSdkImport = specifiers.some(
-          (s) => s === '@reigh/editor-sdk',
+          (s) => s === '@astrid/editor-sdk',
         );
         expect(hasSdkImport).toBe(true);
       });
 
-      it('has no bare-specifier imports other than @reigh/editor-sdk', () => {
+      it('has no bare-specifier imports other than @astrid/editor-sdk', () => {
         const allowedBareSpecifiers = isTsxFile
-          ? new Set(['@reigh/editor-sdk', 'react', 'remotion'])
-          : new Set(['@reigh/editor-sdk']);
+          ? new Set(['@astrid/editor-sdk', 'react', 'remotion'])
+          : new Set(['@astrid/editor-sdk']);
 
         for (const specifier of specifiers) {
           if (!specifier.startsWith('.') && !specifier.startsWith('@/')) {
@@ -259,7 +259,7 @@ describe('Flagship local extension — import boundary', () => {
 // 2. SDK sufficiency — every API the flagship uses is actually exported
 // ---------------------------------------------------------------------------
 
-describe('@reigh/editor-sdk sufficiency', () => {
+describe('@astrid/editor-sdk sufficiency', () => {
   // Value exports used by the flagship
   it('exports defineExtension (used by flagship)', () => {
     expect(typeof defineExtension).toBe('function');
@@ -1660,7 +1660,7 @@ describe('M13: shader contributions stay separate from component effects', () =>
 // ---------------------------------------------------------------------------
 
 describe('M10: Agent tool governance — no internal video-editor imports', () => {
-  it('AgentToolContribution is importable from @reigh/editor-sdk (public SDK only)', () => {
+  it('AgentToolContribution is importable from @astrid/editor-sdk (public SDK only)', () => {
     // Type-only check: AgentToolContribution resolves from the public SDK
     const ext = defineExtension({
       manifest: {
@@ -1742,7 +1742,7 @@ describe('M10: Agent tool governance — no internal video-editor imports', () =
 // M11: Live Data Bridge — boundary tests
 // ---------------------------------------------------------------------------
 
-describe('M11: live-data type interfaces are importable from @reigh/editor-sdk', () => {
+describe('M11: live-data type interfaces are importable from @astrid/editor-sdk', () => {
   it('LiveSourceKind sealed union covers all 10 documented values', () => {
     const kinds: LiveSourceKind[] = [
       'webcam', 'microphone', 'midi', 'serial', 'bluetooth',
@@ -2129,7 +2129,7 @@ describe('M11: CreativeContext sessions is typed as LiveSessionsService', () => 
   });
 });
 
-describe('M11: internal live-data types are NOT re-exported from @reigh/editor-sdk', () => {
+describe('M11: internal live-data types are NOT re-exported from @astrid/editor-sdk', () => {
   const M11_INTERNAL_FORBIDDEN = [
     // Live data registry internals
     'liveRegistry',

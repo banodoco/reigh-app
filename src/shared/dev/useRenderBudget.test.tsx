@@ -8,20 +8,20 @@ import {
 } from './useRenderBudget.ts';
 
 const renderTelemetryGlobal = globalThis as typeof globalThis & {
-  __REIGH_FORCE_RENDER_TELEMETRY__?: boolean;
+  __ASTRID_APP_FORCE_RENDER_TELEMETRY__?: boolean;
 };
 let previousForcedValue: boolean | undefined;
 
 describe('useRenderBudget telemetry notifications', () => {
   beforeEach(() => {
-    previousForcedValue = renderTelemetryGlobal.__REIGH_FORCE_RENDER_TELEMETRY__;
-    renderTelemetryGlobal.__REIGH_FORCE_RENDER_TELEMETRY__ = true;
+    previousForcedValue = renderTelemetryGlobal.__ASTRID_APP_FORCE_RENDER_TELEMETRY__;
+    renderTelemetryGlobal.__ASTRID_APP_FORCE_RENDER_TELEMETRY__ = true;
     resetRenderBudgetTelemetryForTests();
     vi.spyOn(console, 'warn').mockImplementation(() => undefined);
   });
 
   afterEach(() => {
-    renderTelemetryGlobal.__REIGH_FORCE_RENDER_TELEMETRY__ = previousForcedValue;
+    renderTelemetryGlobal.__ASTRID_APP_FORCE_RENDER_TELEMETRY__ = previousForcedValue;
     resetRenderBudgetTelemetryForTests();
     vi.restoreAllMocks();
   });

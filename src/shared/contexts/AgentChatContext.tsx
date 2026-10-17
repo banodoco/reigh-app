@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useMemo, useRef, useState, type
 import { requireContextValue } from '@/shared/contexts/contextGuard';
 import { useToolSettings } from '@/shared/hooks/settings/useToolSettings';
 import { videoEditorSettings } from '@/tools/video-editor/settings/videoEditorDefaults';
-import type { ReighAgentElementContext } from '@/tools/video-editor/runtime/element-contract.ts';
+import type { AstridAgentElementContext } from '@/tools/video-editor/runtime/element-contract.ts';
 import type { AstridElementOperationAdapter } from '@/tools/video-editor/runtime/element-adapter.ts';
 
 export type AgentChatEditorContext = {
@@ -21,7 +21,7 @@ export type AgentChatEditorContext = {
     duration: number;
   };
   /** Compact, serializable Elements catalog and selected-cut context. */
-  elementContext?: ReighAgentElementContext;
+  elementContext?: AstridAgentElementContext;
   /** Host-side execution boundary; deliberately omitted from serialized prompt context. */
   elementOperationAdapter?: AstridElementOperationAdapter;
   liveSceneOperationPort?: import('@/tools/video-editor/runtime/liveSceneOperationPort').LiveSceneOperationPort;

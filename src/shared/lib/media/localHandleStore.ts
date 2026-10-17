@@ -1,6 +1,6 @@
-const DATABASE_NAME = 'reigh.local-media';
+const DATABASE_NAME = 'astrid.local-media';
 const DATABASE_VERSION = 1;
-const OBJECT_STORE_NAME = 'reigh.local-media-handles';
+const OBJECT_STORE_NAME = 'astrid.local-media-handles';
 
 export type HandlePermissionMode = 'read' | 'readwrite';
 

@@ -7,12 +7,12 @@ import type {
   ExtensionCommandService,
   ExtensionRenderer,
   ExtensionUiService,
-  ReighExtension,
+  AstridExtension,
   TimelineDiff,
   TimelineOps,
   TimelinePatch,
   TimelineReader,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import { creativeLabExtensions } from './index';
 import { createCreativeLabSnapshot } from './testing/createCreativeLabHarness';
 import { clusterTimelineMarkers, getTimelineMarkerClusterEntries } from './timelineMarkerClusters';
@@ -22,7 +22,7 @@ describe('Creative Lab extension catalog', () => {
     expect(creativeLabExtensions).toHaveLength(10);
     const extensionIds = creativeLabExtensions.map((extension) => extension.manifest.id as string);
     expect(new Set(extensionIds).size).toBe(10);
-    expect(extensionIds.every((id) => id.startsWith('com.reigh.creative-lab.'))).toBe(true);
+    expect(extensionIds.every((id) => id.startsWith('haus.astrid.creative-lab.'))).toBe(true);
   });
 
   it('keeps command and renderer identities collision-free across the swarm', () => {
@@ -92,7 +92,7 @@ describe('Creative Lab extension catalog', () => {
         return { dispose: () => { if (renderers.get(id) === stored) renderers.delete(id); } };
       },
     };
-    const contextFactory = (extension: ReighExtension) => createExtensionContext(
+    const contextFactory = (extension: AstridExtension) => createExtensionContext(
       extension,
       { reader, timeline },
       commandService,

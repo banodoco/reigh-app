@@ -7,27 +7,27 @@ This runbook is for the video-editor developer-platform chain running in the Rai
 The local helper is:
 
 ```bash
-/Users/peteromalley/Documents/reigh-workspace/reigh-app/.megaplan/check-cloud-status.sh
+/Users/peteromalley/Documents/astrid-app-workspace/astrid-app/.megaplan/check-cloud-status.sh
 ```
 
 The two-hour watcher runs as a local background process and writes to:
 
 ```bash
-/Users/peteromalley/Documents/reigh-workspace/reigh-app/.megaplan/cloud-checkins.log
+/Users/peteromalley/Documents/astrid-app-workspace/astrid-app/.megaplan/cloud-checkins.log
 ```
 
 Check it locally:
 
 ```bash
-cat /Users/peteromalley/Documents/reigh-workspace/reigh-app/.megaplan/cloud-checkins.pid
-ps -p "$(cat /Users/peteromalley/Documents/reigh-workspace/reigh-app/.megaplan/cloud-checkins.pid)"
-tail -200 /Users/peteromalley/Documents/reigh-workspace/reigh-app/.megaplan/cloud-checkins.log
+cat /Users/peteromalley/Documents/astrid-app-workspace/astrid-app/.megaplan/cloud-checkins.pid
+ps -p "$(cat /Users/peteromalley/Documents/astrid-app-workspace/astrid-app/.megaplan/cloud-checkins.pid)"
+tail -200 /Users/peteromalley/Documents/astrid-app-workspace/astrid-app/.megaplan/cloud-checkins.log
 ```
 
 Restart it:
 
 ```bash
-cd /Users/peteromalley/Documents/reigh-workspace/reigh-app
+cd /Users/peteromalley/Documents/astrid-app-workspace/astrid-app
 if [ -f .megaplan/cloud-checkins.pid ]; then
   kill "$(cat .megaplan/cloud-checkins.pid)" 2>/dev/null || true
 fi
@@ -38,7 +38,7 @@ echo $! > .megaplan/cloud-checkins.pid
 Run a one-off check:
 
 ```bash
-cd /Users/peteromalley/Documents/reigh-workspace/reigh-app
+cd /Users/peteromalley/Documents/astrid-app-workspace/astrid-app
 ./.megaplan/check-cloud-status.sh
 ```
 
@@ -47,9 +47,9 @@ cd /Users/peteromalley/Documents/reigh-workspace/reigh-app
 Use the canonical local Megaplan checkout, not the old launcher clone:
 
 ```bash
-cd /Users/peteromalley/Documents/reigh-workspace/reigh-app
+cd /Users/peteromalley/Documents/astrid-app-workspace/astrid-app
 PYENV_VERSION=3.11.11 PYTHONPATH=/Users/peteromalley/Documents/megaplan \
-  python -m megaplan cloud exec 'cd /workspace/reigh-app; pwd; git status --short --branch' \
+  python -m megaplan cloud exec 'cd /workspace/astrid-app; pwd; git status --short --branch' \
   --cloud-yaml .megaplan/video-editor-cloud.yaml
 ```
 
@@ -63,7 +63,7 @@ PYENV_VERSION=3.11.11 PYTHONPATH=/Users/peteromalley/Documents/megaplan \
 Inside the cloud machine, the project is:
 
 ```bash
-cd /workspace/reigh-app
+cd /workspace/astrid-app
 ```
 
 The active chain tmux session is:
@@ -80,7 +80,7 @@ Detach from tmux with `Ctrl-b` then `d`.
 Chain progress:
 
 ```bash
-cd /workspace/reigh-app
+cd /workspace/astrid-app
 python -m megaplan chain status --spec chain.yaml
 ```
 

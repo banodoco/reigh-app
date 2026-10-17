@@ -10,7 +10,7 @@ import type {
   ContributionIndexEntry,
   VideoEditorPlannerBlockerDescriptor,
 } from '@/tools/video-editor/runtime/extensionSurface.ts';
-import type { CapabilityFinding } from '@reigh/editor-sdk';
+import type { CapabilityFinding } from '@astrid/editor-sdk';
 
 // ---------------------------------------------------------------------------
 // Test fixtures
@@ -650,7 +650,7 @@ describe('route-selection invariance with routeFit metadata', () => {
     };
 
     const decision = decideRenderRoute(timeline);
-    expect(decision.route).toBe('worker-banodoco');
+    expect(decision.route).toBe('worker-astrid-runtime');
     expect(decision.reason).toBe('themed_only');
     expect(decision.planner.selectedPlannerRoute).toBe('worker-export');
   });

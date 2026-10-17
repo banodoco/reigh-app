@@ -10,10 +10,10 @@ Pinned Astrid release: `fb152312d3cb9b7bed5f637bfdf6845e7d638739`
 
 ## Decision
 
-Reigh does not implement backup or restore browser hooks in this batch. The
+Astrid App does not implement backup or restore browser hooks in this batch. The
 pinned Astrid release has the operational CLI family (`astrid backup create`
 and `astrid backup restore`) but does not expose backup, restore, or full doctor
-operations through the HTTP editor bridge. Adding Reigh hooks or fake routes
+operations through the HTTP editor bridge. Adding Astrid App hooks or fake routes
 would invent a second, unratified contract and would make tests pass against a
 surface users cannot run.
 
@@ -25,7 +25,7 @@ Detailed diagnosis remains owned by the read-only
 
 Inspected in the pinned Astrid checkout:
 
-- `astrid/core/integrations/reigh/local_bridge_server.py`, handler
+- `astrid/core/integrations/app/local_bridge_server.py`, handler
   `do_GET`: `health`, `projects`, timeline discovery/load, Runaway reads, and
   timeline asset bytes.
 - The same handler's `do_HEAD`: timeline asset bytes only.
@@ -34,7 +34,7 @@ Inspected in the pinned Astrid checkout:
 - `astrid/core/gateway/dispatch.py` owns `doctor` and `backup` as CLI gateway
   families; it does not mount them as HTTP routes.
 
-Reigh's frozen client agrees with that boundary:
+Astrid App's frozen client agrees with that boundary:
 
 - `src/integrations/astrid/client.ts` exposes `tasks`, `gallery`, `media`, and
   `timelines`; it has no ops client.
@@ -44,18 +44,18 @@ Reigh's frozen client agrees with that boundary:
 Reproduction commands:
 
 ```bash
-git -C /Users/peteromalley/Documents/reigh-workspace/Astrid-extension-rc rev-parse HEAD
+git -C /Users/peteromalley/Documents/astrid-app-workspace/Astrid-extension-rc rev-parse HEAD
 rg -n "def do_GET|def do_HEAD|def do_POST|backup|restore|doctor" \
-  /Users/peteromalley/Documents/reigh-workspace/Astrid-extension-rc/astrid/core/integrations/reigh/local_bridge_server.py
+  /Users/peteromalley/Documents/astrid-app-workspace/Astrid-extension-rc/astrid/core/integrations/app/local_bridge_server.py
 rg -n '"doctor"|"backup"' \
-  /Users/peteromalley/Documents/reigh-workspace/Astrid-extension-rc/astrid/core/gateway/dispatch.py
+  /Users/peteromalley/Documents/astrid-app-workspace/Astrid-extension-rc/astrid/core/gateway/dispatch.py
 rg -n "backup|restore|doctor" \
   src/integrations/astrid src/tools/video-editor/data/bridgeContract.ts
 ```
 
 ## Unblock contract
 
-Before Reigh can add these hooks, an Astrid release must own and publish all of
+Before Astrid App can add these hooks, an Astrid release must own and publish all of
 the following:
 
 1. Explicit HTTP route names and methods for create, restore, and progress or
@@ -67,7 +67,7 @@ the following:
 4. A real bridge round-trip test against the pinned Astrid release.
 5. A shared fixture update only after the real endpoint exists.
 
-When those are committed upstream, Reigh can add an ops route group to
+When those are committed upstream, Astrid App can add an ops route group to
 `AstridLocalClient`, mirror the published schemas, and exercise the backup →
 restore round trip in Vitest and browser E2E. Until then, this blocked report is
 the required B7 acceptance evidence; no speculative code is present.

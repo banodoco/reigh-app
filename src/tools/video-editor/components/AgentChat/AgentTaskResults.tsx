@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ReighRuntimeClient } from '@/integrations/runtime/client';
+import { AstridRuntimeClient } from '@/integrations/runtime/client';
 import { runtimeGenerationToGalleryItem, listAllRuntimeVariants } from '@/integrations/runtime/generationAccess';
 import type { Generation, ManagedOutput, Page } from '@/integrations/runtime/generated';
 import type { AstridTaskRef } from '../../runtime/agentTaskLinks';
@@ -23,7 +23,7 @@ async function collectPages<T>(fetch: (cursor?: string) => Promise<Page<T>>): Pr
 }
 
 /** Verify the whole admitted identity before showing canonical Runtime output. */
-export async function loadLinkedTaskResults(ref: AstridTaskRef, client = new ReighRuntimeClient()): Promise<LinkedTaskResult[]> {
+export async function loadLinkedTaskResults(ref: AstridTaskRef, client = new AstridRuntimeClient()): Promise<LinkedTaskResult[]> {
   const task = await client.getTask(ref.task_id);
   if (task.project_id !== ref.project_id || task.run_id !== ref.run_id || task.capability_id !== ref.capability_id) {
     throw new Error('The linked task does not belong to this chat action.');

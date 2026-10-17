@@ -93,7 +93,7 @@ function parseArgs(argv: string[]): RunTestSuiteOptions | { help: true } {
 function printHelp(): void {
   console.log(
     [
-      "Usage: npx tsx reigh-app/supabase/functions/_tests/harness/runner.ts [options]",
+      "Usage: npx tsx astrid-app/supabase/functions/_tests/harness/runner.ts [options]",
       "",
       "Options:",
       "  --category <timeline-edit|generation|error-handling>",

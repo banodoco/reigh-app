@@ -20,7 +20,7 @@ import {
   DataKindRegistryProvider,
   useDataKindRegistryContext,
 } from '@/tools/video-editor/data-kinds/DataKindRegistryContext.tsx';
-import type { DataLaneRendererProps } from '@reigh/editor-sdk';
+import type { DataLaneRendererProps } from '@astrid/editor-sdk';
 import { DataLaneList, type DataLaneListProps } from './DataLaneList.tsx';
 import { VideoEditorRuntimeContext } from '@/tools/video-editor/contexts/VideoEditorRuntimeContext.tsx';
 import type { VideoEditorRuntimeContextValue } from '@/tools/video-editor/contexts/VideoEditorRuntimeContext.tsx';
@@ -41,16 +41,16 @@ const item = (id: string): FrozenDataItem =>
     shape: 'interval',
     domain: 'source_seconds',
     extent: { start: 0 },
-    schemaRef: 'reigh.transcript_segment/v1',
+    schemaRef: 'astrid.transcript_segment/v1',
     payload: { text: id },
-    provenance: { adapterId: 'reigh.adaptTranscript', adapterVersion: '1' },
+    provenance: { adapterId: 'astrid.adaptTranscript', adapterVersion: '1' },
   }) as unknown as FrozenDataItem;
 
 const laneView = (overrides: Record<string, unknown> = {}) => ({
   laneId: 'transcript',
   kindId: 'transcript',
   label: 'Transcript',
-  schemaRef: 'reigh.transcript_segment/v1',
+  schemaRef: 'astrid.transcript_segment/v1',
   shape: 'interval',
   domain: 'source_seconds',
   items: [],
@@ -95,7 +95,7 @@ function RegisterProbe({ record }: { record: DataKindRegistryRecord }) {
 const registryRecord = (overrides: Partial<DataKindRegistryRecord> = {}): DataKindRegistryRecord => ({
   kindId: 'transcript',
   contributionId: 'ext.transcript.contrib',
-  schemaRef: 'reigh.transcript_segment/v1',
+  schemaRef: 'astrid.transcript_segment/v1',
   shape: 'interval',
   domain: 'source_seconds',
   laneRenderer: (props) => props,
@@ -270,7 +270,7 @@ describe('DataLaneList', () => {
     expect(seen.length).toBeGreaterThanOrEqual(1);
     const props = seen[seen.length - 1];
     expect(props.kindId).toBe('transcript');
-    expect(props.schemaRef).toBe('reigh.transcript_segment/v1');
+    expect(props.schemaRef).toBe('astrid.transcript_segment/v1');
     expect(props.shape).toBe('interval');
     expect(props.items).toEqual([
       {
@@ -278,7 +278,7 @@ describe('DataLaneList', () => {
         timelineStart: 10,
         timelineEnd: 12,
         clipId: 'c1',
-        provenance: { adapterId: 'reigh.adaptTranscript', adapterVersion: '1' },
+        provenance: { adapterId: 'astrid.adaptTranscript', adapterVersion: '1' },
         payload: { text: 'a:c1:0' },
       },
     ]);
@@ -1353,7 +1353,7 @@ describe('DataLaneList', () => {
     const runaway = registryRecord({
       kindId: 'runaway',
       contributionId: 'ext.runaway.contrib',
-      schemaRef: 'reigh.runaway_transition/v1',
+      schemaRef: 'astrid.runaway_transition/v1',
       ownerExtensionId: 'ext.runaway',
       laneActions: [{ id: 'runaway-action', label: 'Runaway action', invoke: vi.fn() }],
     });
@@ -1363,7 +1363,7 @@ describe('DataLaneList', () => {
         laneId: 'runaway',
         kindId: 'runaway',
         label: 'Runaway',
-        schemaRef: 'reigh.runaway_transition/v1',
+        schemaRef: 'astrid.runaway_transition/v1',
         laneRenderer: () => null,
       }),
     ]);

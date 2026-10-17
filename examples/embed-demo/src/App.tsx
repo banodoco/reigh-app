@@ -31,7 +31,7 @@ export function App() {
             <span className="embed-demo-kicker">Public hooks only</span>
             <h2>Build a custom host around the supported browser provider.</h2>
             <p>
-              This embed demo skips the internal Reigh shell and drives the timeline through
+              This embed demo skips the internal Astrid shell and drives the timeline through
               <code> useVideoEditorTimeline()</code> and <code>useVideoEditorCommands()</code>.
             </p>
           </div>

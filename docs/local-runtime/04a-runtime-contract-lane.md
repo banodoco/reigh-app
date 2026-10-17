@@ -8,9 +8,9 @@
 
 ## Outcome
 
-The neutral Banodoco workspace runtime exposes the narrow generated-client-backed surface needed to stage large outputs under the exact attempt before atomically promoting them into runtime CAS and associating them with settlement. A stale, cancelled, duplicated, or runtime-epoch-invalid attempt cannot publish or settle.
+The neutral Astrid Runtime exposes the narrow generated-client-backed surface needed to stage large outputs under the exact attempt before atomically promoting them into runtime CAS and associating them with settlement. A stale, cancelled, duplicated, or runtime-epoch-invalid attempt cannot publish or settle.
 
-The existing inline-output path remains valid for the first tiny one-shot end-to-end proof. Staged output is the required path for a real Wan video and later VibeComfy media. Progress is conditional, but the decision is early: M0/packet 1 audits the existing task/run events and host heartbeats against the accepted Astrid journey and REIGH R3 progress-display need. Add no new progress protocol unless that evidence proves the current reads insufficient.
+The existing inline-output path remains valid for the first tiny one-shot end-to-end proof. Staged output is the required path for a real Wan video and later VibeComfy media. Progress is conditional, but the decision is early: M0/packet 1 audits the existing task/run events and host heartbeats against the accepted Astrid journey and Astrid App R3 progress-display need. Add no new progress protocol unless that evidence proves the current reads insufficient.
 
 M0 selects exactly one immutable runtime baseline: `7618aebb` or one explicitly reviewed Stage 2 successor (with Astrid `132b846b` as context). The current default checkout is dirty; do not treat it as a reviewable base or overwrite unrelated changes. This lane branches from or rebases once onto M0's chosen snapshot before implementation and never switches baselines later.
 
@@ -27,7 +27,7 @@ This lane does not own:
 
 - any host E2E, pack discovery, pack manifests, composite execution digests, process supervision, input materialization, heartbeat pumping, output collection, upload orchestration, or settlement invocation;
 - the persistent runner JSONL protocol, engine environment profiles, Wan2GP, VibeComfy, model warming, or cancellation process-group policy;
-- Reigh Worker startup, GPU telemetry, Worker route deletion, or any Worker claim loop;
+- Astrid App Worker startup, GPU telemetry, Worker route deletion, or any Worker claim loop;
 - UI progress design except for the conditional runtime field/event described above.
 
 There is one host for claim/materialize/heartbeat/upload/settle: Astrid's `GenericPackHost`. The runtime may expose the canonical claim and attempt operations, but it does not launch a Worker loop or authorize another executor implementation.
@@ -59,7 +59,7 @@ Every packet in this lane is evaluated against:
 - explicit state transitions for `staged`, `published`, `discarded`, and `settled`, including retry/reclaim and runtime restart behavior;
 - migration notes proving old inline settlement remains wire-compatible;
 - error taxonomy for wrong attempt, wrong fence, duplicate key, hash mismatch, path/byte mismatch, stale epoch, and publication conflict.
-- an M0 progress decision: either cite the existing durable event/read shape that supports Astrid and REIGH R3, or freeze one minimal bounded, engine-neutral, attempt-fenced progress shape for packet 6.
+- an M0 progress decision: either cite the existing durable event/read shape that supports Astrid and Astrid App R3, or freeze one minimal bounded, engine-neutral, attempt-fenced progress shape for packet 6.
 
 **Focused tests:** schema rejection matrix; canonicalization/digest fixtures; old inline settlement fixture replay; malformed descriptor and wrong-fence contract tests.
 
@@ -163,7 +163,7 @@ To the Worker cutover lane:
 4. **Generated gate:** packet 4 regenerates cleanly and Python/TypeScript clients agree on the same schema digest.
 5. **Neutral conformance gate:** packet 5 passes with a fake producer/second client. This is the runtime lane's mergeable release.
 6. **Host handoff gate:** packet 5's generated artifacts, staged descriptor, and conformance receipt are handed to lane 04b. Lane 04a does not run a host E2E.
-7. **Optional progress gate:** packet 6 is merged only if packet 1's M0 audit records a real observability deficiency against Astrid reads and REIGH R3; otherwise the deliberate deferral is part of the release receipt.
+7. **Optional progress gate:** packet 6 is merged only if packet 1's M0 audit records a real observability deficiency against Astrid reads and Astrid App R3; otherwise the deliberate deferral is part of the release receipt.
 
 This lane proceeds in parallel with the one-shot and persistent-host work. Its staged-output release gates M3 real video, not M1 first light or M2 warm reuse. It does not wait for VibeComfy or Worker deletion work.
 

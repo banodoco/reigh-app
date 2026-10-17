@@ -16,14 +16,14 @@
  * values. On failure, settings reset to manifest defaults.
  *
  * This file must NOT import from editor internals (src/tools/video-editor/*).
- * It imports exclusively from @reigh/editor-sdk, the public SDK entrypoint.
+ * It imports exclusively from @astrid/editor-sdk, the public SDK entrypoint.
  *
  * @publicContract
  */
 
-import { defineExtension, runSettingsMigration, getManifestSettingsSchemaVersion, createLifecycleEvent } from '@reigh/editor-sdk';
+import { defineExtension, runSettingsMigration, getManifestSettingsSchemaVersion, createLifecycleEvent } from '@astrid/editor-sdk';
 import type {
-  ReighExtension,
+  AstridExtension,
   ExtensionManifest,
   SettingsMigrationHandler,
   SettingsMigrationResult,
@@ -33,7 +33,7 @@ import type {
   StateRepository,
   LifecycleEvent,
   ExtensionSettingsService,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 
 // ---------------------------------------------------------------------------
 // Migration handler — migrates settings from v1 to v2
@@ -77,7 +77,7 @@ export const migrateV1ToV2: SettingsMigrationHandler = (
  * Declares settingsSchemaVersion: 2 and a migration from v1 to v2.
  */
 export const settingsMigrationManifest: ExtensionManifest = {
-  id: 'com.reigh.examples.settings-migration' as any,
+  id: 'haus.astrid.examples.settings-migration' as any,
   version: '2.0.0',
   label: 'Settings Migration Example',
   description: 'Demonstrates settings schema-version migration via T10 SDK surface.',
@@ -147,7 +147,7 @@ export async function runExampleMigration(): Promise<SettingsMigrationResult> {
 
   // Simulate a persisted snapshot from the older schema version
   const snapshot: SettingsSnapshot = {
-    extensionId: 'com.reigh.examples.settings-migration',
+    extensionId: 'haus.astrid.examples.settings-migration',
     schemaVersion: 1, // older version
     values: {
       volume: 0.5, // flat volume — will be migrated to audio.volume
@@ -166,7 +166,7 @@ export async function runExampleMigration(): Promise<SettingsMigrationResult> {
   };
 
   const result = await runSettingsMigration(
-    'com.reigh.examples.settings-migration',
+    'haus.astrid.examples.settings-migration',
     options,
   );
 
@@ -177,7 +177,7 @@ export async function runExampleMigration(): Promise<SettingsMigrationResult> {
 // Extension
 // ---------------------------------------------------------------------------
 
-export const settingsMigrationExample: ReighExtension = defineExtension({
+export const settingsMigrationExample: AstridExtension = defineExtension({
   manifest: settingsMigrationManifest,
 });
 

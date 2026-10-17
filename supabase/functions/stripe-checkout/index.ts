@@ -130,7 +130,7 @@ serve(async (req) => {
           price_data: {
             currency: "usd",
             product_data: {
-              name: "Reigh Credits",
+              name: "Astrid Credits",
               description: autoTopupEnabled
                 ? `${amount} credits + auto-top-up enabled`
                 : `${amount} credits for AI generation tasks`

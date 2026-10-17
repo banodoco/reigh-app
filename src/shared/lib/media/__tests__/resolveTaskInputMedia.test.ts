@@ -120,20 +120,20 @@ describe('resolveTaskInputMedia', () => {
     ensurePermissionMock.mockResolvedValue('granted');
     probeLocalWorkerMock.mockResolvedValue(true);
     ingestFileToLocalWorkerMock.mockResolvedValue({
-      fileUrl: 'file:///Users/me/.reigh-local-files/local-gen.png',
-      cleanupPath: '/Users/me/.reigh-local-files/local-gen.png',
+      fileUrl: 'file:///Users/me/.astrid-local-files/local-gen.png',
+      cleanupPath: '/Users/me/.astrid-local-files/local-gen.png',
     });
     const session = beginLocalWorkerSession();
 
     const result = await resolveTaskInputMedia({ generation_id: 'local-gen' }, session);
 
-    expect(result).toEqual({ url: 'file:///Users/me/.reigh-local-files/local-gen.png' });
+    expect(result).toEqual({ url: 'file:///Users/me/.astrid-local-files/local-gen.png' });
     expect(probeLocalWorkerMock).toHaveBeenCalledTimes(1);
     expect(ingestFileToLocalWorkerMock).toHaveBeenCalledTimes(1);
     expect(uploadImageToStorageWithPathMock).not.toHaveBeenCalled();
     expect(uploadVideoToStorageWithPathMock).not.toHaveBeenCalled();
     expect(session.records()).toEqual([
-      { generation_id: 'local-gen', kind: 'file', target: '/Users/me/.reigh-local-files/local-gen.png' },
+      { generation_id: 'local-gen', kind: 'file', target: '/Users/me/.astrid-local-files/local-gen.png' },
     ]);
     expect(generationUpdateSpy).not.toHaveBeenCalled();
   });

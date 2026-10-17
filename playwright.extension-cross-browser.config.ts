@@ -10,7 +10,7 @@ import {
 // Dedicated defaults keep this opt-in gate isolated from the ordinary timeline
 // suite and from hand-started acceptance servers.
 const allocatedPorts = new Set<number>();
-const inheritedRunPorts = process.env.REIGH_EXTENSION_PORTS_ALLOCATED === '1';
+const inheritedRunPorts = process.env.ASTRID_APP_EXTENSION_PORTS_ALLOCATED === '1';
 const configuredBaseURL = readCanonicalBaseUrl();
 if (configuredBaseURL && !process.env.PLAYWRIGHT_PORT) process.env.PLAYWRIGHT_PORT = String(configuredBaseURL.port);
 const port = inheritedRunPorts
@@ -25,7 +25,7 @@ const includeEdge = process.env.PLAYWRIGHT_INCLUDE_EDGE === '1';
 process.env.BASE_URL = baseURL;
 process.env.PLAYWRIGHT_BASE_URL = baseURL;
 process.env.ASTRID_BRIDGE_PORT = String(bridgePort);
-process.env.REIGH_EXTENSION_PORTS_ALLOCATED = '1';
+process.env.ASTRID_APP_EXTENSION_PORTS_ALLOCATED = '1';
 
 /**
  * Bounded, opt-in release gate for extension behavior in installed Chrome and

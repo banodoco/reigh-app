@@ -1,10 +1,10 @@
 # Task & Worker Lifecycle
 
-> **Current post-cutover boundary (2026-09-10).** The diagrams and historical implementation notes below describe the retired Reigh/Supabase task lifecycle. New work must follow the canonical Astrid path: Reigh producer → Astrid Runtime admission → Worker `GenericPackHost` execution → Runtime settlement → CAS/gallery/timeline readback. Runtime owns task, run, receipt, event-history, and publication authority; Reigh does not insert or complete legacy task rows. See [`unified_task_creation.md`](unified_task_creation.md) for the current contract. The historical details are retained as migration context and are not an acceptance path.
+> **Current post-cutover boundary (2026-09-10).** The diagrams and historical implementation notes below describe the retired Astrid/Supabase task lifecycle. New work must follow the canonical Astrid path: Astrid App producer → Astrid Runtime admission → Worker `GenericPackHost` execution → Runtime settlement → CAS/gallery/timeline readback. Runtime owns task, run, receipt, event-history, and publication authority; Astrid App does not insert or complete legacy task rows. See [`unified_task_creation.md`](unified_task_creation.md) for the current contract. The historical details are retained as migration context and are not an acceptance path.
 
 ## Overview
 
-Reigh uses an async task queue pattern for all AI generation workloads. This decouples the UI from long-running operations and enables distributed processing.
+Astrid App uses an async task queue pattern for all AI generation workloads. This decouples the UI from long-running operations and enables distributed processing.
 
 ## Flow Diagram
 
@@ -75,8 +75,8 @@ Reigh uses an async task queue pattern for all AI generation workloads. This dec
 **Local Deployment (GPU Required)**
 ```bash
 # Clone the worker repository where the Settings modal expects it
-git clone https://github.com/banodoco/Reigh-Worker.git ~/Documents/Reigh-Worker
-cd ~/Documents/Reigh-Worker
+git clone https://github.com/banodoco/astrid-app-Worker.git ~/Documents/Astrid-Worker
+cd ~/Documents/Astrid-Worker
 
 # Install uv once
 curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -87,7 +87,7 @@ export PATH="$HOME/.local/bin:$PATH"
 
 # Sync and run
 uv sync --locked --python 3.10 --extra cuda124
-uv run --python 3.10 python run_worker.py --reigh-access-token <PAT_TOKEN>
+uv run --python 3.10 python run_worker.py --astrid-access-token <PAT_TOKEN>
 ```
 
 The desktop Settings modal now stores a `Worker repo location` field. Both generated commands `cd` into that absolute path before any `uv` call, so users can paste them from a fresh shell in their home directory.
@@ -98,7 +98,7 @@ Workers run on RunPod GPU pods (RTX 4090). Code lives on a persistent network vo
 
 | Path | Contents |
 |------|----------|
-| `/workspace/Reigh-Worker/` | Canonical worker checkout used by the startup template |
+| `/workspace/Astrid-Worker/` | Canonical worker checkout used by the startup template |
 | `/workspace/Headless-Wan2GP/` | Legacy fallback checkout still supported during rollout |
 
 **Accessing pods:**
@@ -113,16 +113,16 @@ Workers run on RunPod GPU pods (RTX 4090). Code lives on a persistent network vo
 # Worker ID format: gpu-YYYYMMDD_HHMMSS-<hash>
 
 # Bootstrap / resync (also used for first install)
-cd /workspace/Reigh-Worker
+cd /workspace/Astrid-Worker
 curl -LsSf https://astral.sh/uv/install.sh | sh
 export PATH="$HOME/.local/bin:$PATH"
 uv sync --locked --python 3.10 --extra cuda124
 
 # Start (nohup so it survives SSH disconnect)
-nohup uv run --python 3.10 python run_worker.py --reigh-access-token <PAT_TOKEN> > /tmp/worker.log 2>&1 &
+nohup uv run --python 3.10 python run_worker.py --astrid-access-token <PAT_TOKEN> > /tmp/worker.log 2>&1 &
 
 # Restart after code change
-pkill -f 'python.*run_worker' && cd /workspace/Reigh-Worker && git pull --ff-only && uv sync --locked --python 3.10 --extra cuda124 && nohup uv run --python 3.10 python run_worker.py --reigh-access-token <PAT_TOKEN> > /tmp/worker.log 2>&1 &
+pkill -f 'python.*run_worker' && cd /workspace/Astrid-Worker && git pull --ff-only && uv sync --locked --python 3.10 --extra cuda124 && nohup uv run --python 3.10 python run_worker.py --astrid-access-token <PAT_TOKEN> > /tmp/worker.log 2>&1 &
 
 # Check status
 ps aux | grep python
@@ -131,9 +131,9 @@ nvidia-smi
 ```
 
 **Code change workflow:**
-1. Edit locally at `~/Documents/Reigh-Worker` (same repo: `banodoco/Reigh-Worker`)
+1. Edit locally at `~/Documents/Astrid-Worker` (same repo: `banodoco/Astrid-Worker`)
 2. `git add . && git commit -m "fix: ..." && git push`
-3. SSH to pod: `cd /workspace/Reigh-Worker && git pull --ff-only`
+3. SSH to pod: `cd /workspace/Astrid-Worker && git pull --ff-only`
 4. Kill + restart worker process (see above)
 
 **Multiple pods** share the same `/workspace/` volume, so `git pull` on one updates all. The startup template still accepts transient Wan2GP subtree drift during rollout, but the canonical runtime dependency set comes from the root `uv.lock`.

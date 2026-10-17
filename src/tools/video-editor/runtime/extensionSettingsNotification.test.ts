@@ -16,7 +16,7 @@ import {
   createExtensionSettingsService,
   getSettingsPrefix,
 } from '@/sdk/extensionSettingsService';
-import type { ExtensionManifest } from '@reigh/editor-sdk';
+import type { ExtensionManifest } from '@astrid/editor-sdk';
 
 // ---------------------------------------------------------------------------
 // Helpers

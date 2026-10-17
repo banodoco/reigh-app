@@ -1,28 +1,28 @@
-# Banodoco Workspace Runtime: Long-Term Product and Architecture Vision
+# Astrid Runtime: Long-Term Product and Architecture Vision
 
 **Status:** Long-term direction; local-v1 execution is specified separately
 **Date:** 2026-08-28
 **Scope revision:** 2026-08-29
-**Scope:** Astrid, Reigh, GPU workers, local/cloud deployment, SQLite/Turso, media, and task execution
+**Scope:** Astrid, Astrid App, GPU workers, local/cloud deployment, SQLite/Turso, media, and task execution
 
-**Working name:** Banodoco Workspace Runtime; naming may change, ownership may not
+**Working name:** Astrid Runtime; naming may change, ownership may not
 **Canonical execution strategy:** [Local Workspace Runtime — Overall Strategy and Roadmap](./00-overall-strategy.md)
 
-**Current sequencing note:** this document describes the long-term destination. Stage 1 Astrid, Stage 2 REIGH, and Stage 3 hardening are dependency and acceptance order—not a requirement to execute all preparation or implementation serially. The project is concurrency-first: once an input is frozen, every workstream depending only on that input should begin in parallel. Stage 2 discovery may overlap Stage 1, and Stage 3 harness/threat-model preparation may overlap Stages 1–2, but no later stage may claim acceptance against an unaccepted upstream candidate. The canonical strategy owns scope, workstream topology, and timing.
+**Current sequencing note:** this document describes the long-term destination. Stage 1 Astrid, Stage 2 Astrid App, and Stage 3 hardening are dependency and acceptance order—not a requirement to execute all preparation or implementation serially. The project is concurrency-first: once an input is frozen, every workstream depending only on that input should begin in parallel. Stage 2 discovery may overlap Stage 1, and Stage 3 harness/threat-model preparation may overlap Stages 1–2, but no later stage may claim acceptance against an unaccepted upstream candidate. The canonical strategy owns scope, workstream topology, and timing.
 
 ## 1. Executive thesis
 
-Astrid and Reigh should be independently useful products built on one neutral foundation:
+Astrid and Astrid App should be independently useful products built on one neutral foundation:
 
 - **Astrid** is the editable agent experience, planner, and source-authoring system for packs and skills.
-- **Reigh** is the visual creative interface.
-- **Banodoco Workspace Runtime** is the neutral, independently owned workspace control and data plane.
+- **Astrid App** is the visual creative interface.
+- **Astrid Runtime** is the neutral, independently owned workspace control and data plane.
 - **Executor workers** are replaceable execution engines for every durable capability, including CPU/GPU, Remotion/FFmpeg, agent/GPT, and configured-provider work.
 - **Runtime Supervisor / Connector** starts and connects local components but owns no creative data.
 
-The database and task queue do not belong to Astrid or Reigh conceptually or physically. They belong to the independently versioned Banodoco Workspace Runtime, which both products connect to as peer clients. All durable structured workspace state belongs in that database. Large immutable bytes belong in an object store referenced by database identity. Project directories, JSON sidecars, Markdown notes, run folders, and event-log files must not form parallel authorities.
+The database and task queue do not belong to Astrid or Astrid App conceptually or physically. They belong to the independently versioned Astrid Runtime, which both products connect to as peer clients. All durable structured workspace state belongs in that database. Large immutable bytes belong in an object store referenced by database identity. Project directories, JSON sidecars, Markdown notes, run folders, and event-log files must not form parallel authorities.
 
-The immediate goal is to ship the proper neutral architecture on one machine in stages: first Astrid from an editable checkout with its sole `GenericPackHost`, then Reigh as a peer protocol client and the Reigh Worker codebase as GPU process/environment substrate. One Banodoco Workspace Runtime is backed by SQLite and a local content-addressed object store. Proven kernel code currently inside Astrid should be extracted and generalized into the neutral runtime rather than making Astrid the runtime's temporary owner. Turso, remote workers, and hosted connectors follow as new placements of the same contracts—not as a rewrite of the local system.
+The immediate goal is to ship the proper neutral architecture on one machine in stages: first Astrid from an editable checkout with its sole `GenericPackHost`, then Astrid App as a peer protocol client and the Astrid App Worker codebase as GPU process/environment substrate. One Astrid Runtime is backed by SQLite and a local content-addressed object store. Proven kernel code currently inside Astrid should be extracted and generalized into the neutral runtime rather than making Astrid the runtime's temporary owner. Turso, remote workers, and hosted connectors follow as new placements of the same contracts—not as a rewrite of the local system.
 
 The cutover is intentionally absolute. A one-time offline importer may understand the old world, but the supported runtime and clients do not: no shims, legacy aliases, dual-write, fallback reads, backend-selection mode, schema compatibility views, or silent translation of old payloads. Active components use one compatible versioned protocol set or fail closed.
 
@@ -52,15 +52,15 @@ Astrid is the agent tool people talk to or invoke programmatically. It should wo
 - A cloud-hosted personal agent.
 - An orchestration layer embedded in another creative product.
 
-Astrid discovers capabilities, understands workspace state, converts intent into operations or task graphs, and explains or supervises the resulting work. Astrid plans and submits GPU, CPU, agent/GPT, render, analysis, and third-party-provider tasks; the sole `GenericPackHost` executes registered Astrid packs. Reigh's next agent-assisted workstream triggers or resumes Astrid Sessions on the user's machine through the supported local launcher/host-agent contract; it is not a custom hosted chat server or an assumption that the current Reigh UI already provides it.
+Astrid discovers capabilities, understands workspace state, converts intent into operations or task graphs, and explains or supervises the resulting work. Astrid plans and submits GPU, CPU, agent/GPT, render, analysis, and third-party-provider tasks; the sole `GenericPackHost` executes registered Astrid packs. Astrid App's next agent-assisted workstream triggers or resumes Astrid Sessions on the user's machine through the supported local launcher/host-agent contract; it is not a custom hosted chat server or an assumption that the current Astrid App UI already provides it.
 
 Astrid's repository is also its open creative-engine source. Packs remain the authoring and discovery namespace for executors, orchestrators, and elements; skills and per-capability `STAGE.md` files remain the agent-facing operating layer. Local v1 removes legacy package-manager authority, not the ability to inspect, edit, add, validate, or run pack and skill source from an editable checkout.
 
 Astrid is not required for every operation. A visual client or API caller must also be able to submit valid typed tasks directly.
 
-### 2.2 Reigh
+### 2.2 Astrid App
 
-Reigh is the visual creative application. It should also work independently:
+Astrid App is the visual creative application. It should also work independently:
 
 - Fully local through a neutral local runtime backed by SQLite, a local object store, and local processing.
 - Local UI with cloud processing.
@@ -68,9 +68,9 @@ Reigh is the visual creative application. It should also work independently:
 - Hosted UI connected securely to a user's local workspace and GPU.
 - Alongside Astrid, sharing exactly the same workspace authority.
 
-Reigh translates direct manipulation into commands: save a timeline, generate an image, travel between images, render a video, apply an extension, or inspect a generation. Reigh should not need to know whether the underlying database is a local file or Turso, or whether execution is local, RunPod, or another provider.
+Astrid App translates direct manipulation into commands: save a timeline, generate an image, travel between images, render a video, apply an extension, or inspect a generation. Astrid App should not need to know whether the underlying database is a local file or Turso, or whether execution is local, RunPod, or another provider.
 
-### 2.3 Banodoco Workspace Runtime
+### 2.3 Astrid Runtime
 
 The runtime is an independent product-neutral codebase, protocol, and daemon. It owns the durable meaning and lifecycle of creative work:
 
@@ -82,7 +82,7 @@ The runtime is an independent product-neutral codebase, protocol, and daemon. It
 - Human, agent, service, and worker actor identity.
 - Idempotency, receipts, audit history, recovery, and migrations.
 
-The runtime exposes commands and queries through a stable, language-neutral API. Clients never require raw database access. Its source and schema must not import or require Astrid agent concepts, Reigh UI concepts, pack code, or worker implementation concepts. It must start, operate, migrate, back up, restore, and pass conformance tests with those product checkouts absent from its import path.
+The runtime exposes commands and queries through a stable, language-neutral API. Clients never require raw database access. Its source and schema must not import or require Astrid agent concepts, Astrid App UI concepts, pack code, or worker implementation concepts. It must start, operate, migrate, back up, restore, and pass conformance tests with those product checkouts absent from its import path.
 
 Local v1 gives concrete runtime-owned tables only to the shared semantics already needed by two clients: identity, realm/project, media, timelines/revisions, minimal shots/references, tasks/runs/attempts/events, capabilities, relations, evidence, receipts, and storage accounting. Theme/style, experiment, and review state begin as schema-validated, versioned documents linked through generic relations and evidence; they earn dedicated neutral operations only when independent clients need shared behavior that documents cannot express. Rich galleries, generation/variant UX, extension state, and richer composition are specified in Stage 2 rather than guessed in Stage 1. The runtime uses one neutral migration stream and does not introduce a generic schema-pack/plugin mechanism merely to preserve current package ownership. It stores and pins neutral capability definitions and executor availability, while executable Astrid pack source remains outside it.
 
@@ -108,8 +108,8 @@ A thin operational component should:
 - Wait for readiness and migrations.
 - Mint or load scoped local credentials.
 - Start configured local workers.
-- Optionally start the local Reigh server.
-- Optionally maintain an outbound connection to a hosted Reigh relay.
+- Optionally start the local Astrid App server.
+- Optionally maintain an outbound connection to a hosted Astrid App relay.
 - Report health and shut components down in the correct order.
 
 It owns processes and connectivity, not projects, tasks, or media.
@@ -118,7 +118,7 @@ It owns processes and connectivity, not projects, tasks, or media.
 
 Local v1 runs Astrid from an explicit editable checkout. The neutral runtime runs from its own sibling checkout/environment and is something the bootstrap starts and discovers, not source that Astrid imports or owns. The beta proves independence with separate processes, separate import environments, generated clients, and runtime-only conformance—not with an installer or binary distribution. Compatibility has three layers: protocol/schema versions gate connections; each admitted task pins the implementing capability definition/source digest; whole-checkout commit, dirty state, and dependency-lock digests are recorded diagnostics and provenance, not a reason to reject an otherwise compatible connection.
 
-An Astrid-first and a later Reigh-first composition converge on the same runtime and realm. Worker-only compositions receive endpoint/realm/scoped registration credentials and never become a database owner. Removing or relinking an application checkout preserves shared realm data; explicit runtime data purge is a separate destructive operation. Future installers and signed artifacts may automate the same boundary, but they are post-beta lifecycle work and must not change its ownership.
+An Astrid-first and a later Astrid App-first composition converge on the same runtime and realm. Worker-only compositions receive endpoint/realm/scoped registration credentials and never become a database owner. Removing or relinking an application checkout preserves shared realm data; explicit runtime data purge is a separate destructive operation. Future installers and signed artifacts may automate the same boundary, but they are post-beta lifecycle work and must not change its ownership.
 
 ## 3. Architectural model
 
@@ -126,14 +126,14 @@ An Astrid-first and a later Reigh-first composition converge on the same runtime
                               Experiences
                   ┌────────────────┴────────────────┐
                   │                                 │
-             Astrid Agent                        Reigh
+             Astrid Agent                        Astrid App
         chat / CLI / automation          visual editor / gallery
         planning / orchestration          direct manipulation
                   │                                 │
                   └──────── Command/Query API ──────┘
                                     │
                                     ▼
-                       Banodoco Workspace Runtime
+                       Astrid Runtime
         ┌──────────────────────────────────────────────────┐
         │ Workspace kernel                                 │
         │ Task graph, claims, leases, retries, receipts    │
@@ -153,14 +153,14 @@ An Astrid-first and a later Reigh-first composition converge on the same runtime
 
 This separates four concerns:
 
-1. **Experience plane:** Astrid and Reigh.
+1. **Experience plane:** Astrid and Astrid App.
 2. **Control plane:** workspace authority and task lifecycle.
 3. **Data plane:** metadata database and artifact storage.
 4. **Execution plane:** workers and providers.
 
 ## 4. Why the database and queue belong to the runtime
 
-The database contains facts required by both Astrid and Reigh. Assigning it to either product would make the other an accidental dependent.
+The database contains facts required by both Astrid and Astrid App. Assigning it to either product would make the other an accidental dependent.
 
 The queue is not fundamentally separate from those facts. A durable task row plus dependency, availability, priority, attempt, and lease state is the local queue. A separate broker can be introduced later for wakeups or high throughput, but it must not become a second semantic authority.
 
@@ -286,7 +286,7 @@ A capability declaration should include:
 - Stable ID and semantic version.
 - Input and output schemas.
 - Human description and agent-facing semantics.
-- Optional client-neutral presentation metadata; Reigh-specific UI behavior remains in Reigh.
+- Optional client-neutral presentation metadata; Astrid App-specific UI behavior remains in Astrid App.
 - Resource requirements and execution environments.
 - Permission and network requirements.
 - Retry, timeout, cancellation, and determinism policy.
@@ -295,7 +295,7 @@ A capability declaration should include:
 - An allowlist of child capabilities and maximum graph depth/fan-out.
 - Immutable definition digests and mismatch-rejection rules; the runtime performs no payload translation.
 
-Astrid can inspect this registry to plan. Reigh can use it to drive controls. Workers advertise the capability versions they implement. The runtime performs admission and matching.
+Astrid can inspect this registry to plan. Astrid App can use it to drive controls. Workers advertise the capability versions they implement. The runtime performs admission and matching.
 
 ### Worker-created child tasks
 
@@ -319,28 +319,28 @@ Local v1 reserves only the resource semantics needed to run broadly on the suppo
 |---|---|---|---|---|
 | Astrid entirely local | Local | SQLite | Local CAS | Local CPU/GPU |
 | Astrid cloud-only | Cloud | Turso | Cloud objects | Shared GPU/RunPod |
-| Reigh entirely local | Local | SQLite | Local CAS | Local worker |
-| Reigh cloud-only | Cloud | Turso | Cloud objects | Shared cloud |
-| Reigh local, cloud GPU | Local or cloud, explicitly selected | SQLite or Turso | Hybrid | RunPod |
-| Reigh hosted, local files/GPU | Local via outbound connector | SQLite | Local CAS | Local worker |
-| Astrid + Reigh local | One shared local runtime | SQLite | Local CAS | Local/cloud |
-| Astrid + Reigh cloud | One shared cloud runtime | Turso | Cloud objects | Shared cloud/RunPod |
+| Astrid App entirely local | Local | SQLite | Local CAS | Local worker |
+| Astrid App cloud-only | Cloud | Turso | Cloud objects | Shared cloud |
+| Astrid App local, cloud GPU | Local or cloud, explicitly selected | SQLite or Turso | Hybrid | RunPod |
+| Astrid App hosted, local files/GPU | Local via outbound connector | SQLite | Local CAS | Local worker |
+| Astrid + Astrid App local | One shared local runtime | SQLite | Local CAS | Local/cloud |
+| Astrid + Astrid App cloud | One shared cloud runtime | Turso | Cloud objects | Shared cloud/RunPod |
 
 The command, query, worker, and artifact contracts should remain the same across these modes.
 
 ## 9. Current implementation reality and extraction seam
 
-The current repositories already contain much of the local control-plane foundation, but it is placed inside Astrid and exposed to Reigh as an Astrid integration. That is implementation source material, not the target ownership boundary:
+The current repositories already contain much of the local control-plane foundation, but it is placed inside Astrid and exposed to Astrid App as an Astrid integration. That is implementation source material, not the target ownership boundary:
 
 - Astrid currently contains a repository-backed SQLite kernel and single-writer composition that should be extracted into the neutral runtime.
-- The current Astrid bridge exposes task admission, capability-aware claims, heartbeats, failure, cancellation, and fenced multipart completion; those routes should become the versioned Banodoco Workspace protocol.
+- The current Astrid bridge exposes task admission, capability-aware claims, heartbeats, failure, cancellation, and fenced multipart completion; those routes should become the versioned Astrid Runtime Workspace protocol.
 - Bridge media routes can serve project-scoped, hash-verified content.
 - Astrid contains WGP and VibeComfy task-handler bindings.
 - Astrid contains a general execution service with staged output validation and atomic completion.
 - Astrid's serve composition currently demonstrates usable process and worker patterns, but the neutral runtime must not depend on Astrid to start.
-- Reigh can consume project, timeline, gallery, generation, and task state through an Astrid-named proxy that should become a neutral workspace client/proxy.
+- Astrid App can consume project, timeline, gallery, generation, and task state through an Astrid-named proxy that should become a neutral workspace client/proxy.
 
-The historical Reigh Worker remains materially coupled to Supabase, while the accepted local GPU direction treats its reusable code as substrate behind Astrid's host:
+The historical Astrid App Worker remains materially coupled to Supabase, while the accepted local GPU direction treats its reusable code as substrate behind Astrid's host:
 
 - Its database runtime is hard-coded to Supabase despite accepting a `--db-type` flag.
 - Claims use Supabase Edge Functions.
@@ -350,7 +350,7 @@ The historical Reigh Worker remains materially coupled to Supabase, while the ac
 
 The bounded replacement proof is deliberately narrower: `GenericPackHost` alone claims, heartbeats, materializes, supervises, uploads, and settles; Wan2GP and VibeComfy remain engine libraries behind typed Astrid pack adapters; the Worker codebase provides GPU environments, process supervision, and telemetry. No Worker plugin registry, queue, router, database writer, or second settlement path is introduced.
 
-The missing composition seam is an independently owned runtime repository/service and protocol, extracted from the reusable kernel pieces without importing Astrid product concepts. On top of that boundary, Stage 1 needs one generic Astrid pack-executor host using the neutral worker protocol and an explicit capability-parity map; Stage 2 later adapts functionality that still exists only in Reigh Worker.
+The missing composition seam is an independently owned runtime repository/service and protocol, extracted from the reusable kernel pieces without importing Astrid product concepts. On top of that boundary, Stage 1 needs one generic Astrid pack-executor host using the neutral worker protocol and an explicit capability-parity map; Stage 2 later adapts functionality that still exists only in Astrid App Worker.
 
 ## 10. Local-first implementation seam
 
@@ -359,7 +359,7 @@ The first implementation sequence is specified in the canonical [Overall Strateg
 - one local runtime process is the only SQLite writer;
 - Stage 1 supports the current Mac and one selected realm; multi-realm switching, named daemons, Linux certification, and polished lifecycle operations follow later;
 - Stage 1 runs Astrid from an editable checkout with one generic pack-executor host; rendering remains an Astrid pack capability behind the neutral worker contract, not a separately implemented neutral render component;
-- a narrow generated TypeScript second-client proof freezes only the REIGH seam needed for actor/handshake, project, managed media bytes, minimal timeline/shot/reference state, task/run/event observation, fake settlement, and render invocation; Stage 2 owns richer REIGH domains;
+- a narrow generated TypeScript second-client proof freezes only the Astrid App seam needed for actor/handshake, project, managed media bytes, minimal timeline/shot/reference state, task/run/event observation, fake settlement, and render invocation; Stage 2 owns richer Astrid App domains;
 - every durable structured workspace concept is migrated into SQLite;
 - immutable large bytes are settled into the local object store;
 - every capability advertised ready—including GPT/provider, CPU/analysis, generation, orchestration, and rendering—executes through the registered Astrid host and neutral protocol;
@@ -375,14 +375,14 @@ That plan has been ground-truthed through successive repository audits and now c
 This path reuses the strongest existing assets without preserving their current ownership:
 
 - Astrid contains proven SQLite authority and task-protocol code that can seed the neutral runtime.
-- Reigh already has bridge-backed visual surfaces.
+- Astrid App already has bridge-backed visual surfaces.
 - WGP and VibeComfy bindings already exist inside Astrid.
-- Reigh Worker already contains mature compute behavior that can be extracted or adapted.
+- Astrid App Worker already contains mature compute behavior that can be extracted or adapted.
 
 It avoids four expensive traps:
 
-1. Rebuilding the local queue in Reigh Worker.
-2. Making Reigh or Astrid directly depend on Turso before the runtime contract is stable.
+1. Rebuilding the local queue in Astrid App Worker.
+2. Making Astrid App or Astrid directly depend on Turso before the runtime contract is stable.
 3. Moving SQLite between machines or exposing it to RunPod.
 4. Letting editable-checkout convenience blur the independent daemon, process, and protocol boundary.
 
@@ -392,19 +392,19 @@ The local release validates the same command and worker protocols needed by the 
 
 ### 12.1 Independent runtime boundary from Stage 1
 
-The runtime is conceptually and physically independent from Stage 1. Local v1 creates a sibling neutral repository/service named `banodoco-workspace-runtime` (working product name), with its own schema migrations, OpenAPI/JSON Schema protocol specification, generated clients, conformance suite, compatibility version, and daemon entry point. It may run from its own editable checkout/environment during the beta. Existing code may be moved from Astrid, but Astrid must consume the result through generated protocol clients rather than remain its owner or import its storage internals.
+The runtime is conceptually and physically independent from Stage 1. Local v1 creates a sibling neutral repository/service named `astrid-runtime` (working product name), with its own schema migrations, OpenAPI/JSON Schema protocol specification, generated clients, conformance suite, compatibility version, and daemon entry point. It may run from its own editable checkout/environment during the beta. Existing code may be moved from Astrid, but Astrid must consume the result through generated protocol clients rather than remain its owner or import its storage internals.
 
 ```text
 Astrid ─────► Generated runtime client ─► daemon
-Reigh ──────► Runtime API/client
+Astrid App ──────► Runtime API/client
 Workers ────► Worker protocol
 
 Runtime ─X─► Astrid agent layer
-Runtime ─X─► Reigh UI
-Runtime ─X─► Reigh Worker implementation
+Runtime ─X─► Astrid App UI
+Runtime ─X─► Astrid App Worker implementation
 ```
 
-Stage 1 must prove independence by starting the runtime in its isolated environment, creating and editing workspace state, executing tasks through a protocol-only fake worker, backing up, and restoring with Astrid, Reigh, and Reigh Worker absent from its import path. Astrid and the narrow fake TypeScript client discover and use the same independently owned runtime, but neither may absorb its source, schema, database path, migrations, or daemon lifecycle authority. Astrid remains an editable checkout and proves separation through process/import boundaries rather than a packaged distribution. Stage 2 must prove that REIGH can start or reuse the same generic Astrid pack-executor host and invoke its registered render capability without starting or importing the Astrid agent. Product launchers converge on one compatible runtime owner rather than creating competing owners.
+Stage 1 must prove independence by starting the runtime in its isolated environment, creating and editing workspace state, executing tasks through a protocol-only fake worker, backing up, and restoring with Astrid, Astrid App, and Astrid App Worker absent from its import path. Astrid and the narrow fake TypeScript client discover and use the same independently owned runtime, but neither may absorb its source, schema, database path, migrations, or daemon lifecycle authority. Astrid remains an editable checkout and proves separation through process/import boundaries rather than a packaged distribution. Stage 2 must prove that Astrid App can start or reuse the same generic Astrid pack-executor host and invoke its registered render capability without starting or importing the Astrid agent. Product launchers converge on one compatible runtime owner rather than creating competing owners.
 
 ### 12.2 Cloud workspace runtime
 
@@ -416,7 +416,7 @@ Add:
 - Runtime event delivery suitable for hosted clients.
 - Backups, migration orchestration, quotas, and observability.
 
-### 12.3 Hosted Reigh with local resources
+### 12.3 Hosted Astrid App with local resources
 
 A hosted browser should connect through a same-origin relay to an outbound local connector. The connector authenticates the device and proxies only the runtime API/media operations allowed for that workspace. The laptop should not expose a raw unauthenticated bridge port.
 
@@ -454,12 +454,12 @@ Autoscaling reads queue summaries and executor registration from the runtime. It
 
 ## 14. Decisions recommended now
 
-1. Adopt the independently owned Banodoco Workspace Runtime boundary.
-2. Treat Astrid and Reigh as peer clients of that runtime.
+1. Adopt the independently owned Astrid Runtime boundary.
+2. Treat Astrid and Astrid App as peer clients of that runtime.
 3. Extract reusable kernel/bridge code from Astrid into the neutral runtime now; do not use Astrid as its temporary architectural home.
 4. Keep the task queue transactionally backed by runtime task state for the local release.
 5. Keep SQLite as the first store and make storage an adapter boundary.
-6. Make the neutral Banodoco Workspace API the only worker/client authority boundary.
+6. Make the neutral Astrid Runtime Workspace API the only worker/client authority boundary.
 7. Build the general local executor and supervisor before Turso or RunPod work.
 8. Move task-graph orchestration out of workers and into the runtime.
 9. Put all durable structured workspace state in the workspace database and only immutable large bytes in the object store.
@@ -474,15 +474,15 @@ Autoscaling reads queue summaries and executor registration from the runtime. It
 
 ### Product and naming
 
-- Should the neutral layer be called Creative Workspace Runtime, Banodoco Runtime, Astrid Runtime, or something else?
-- Should a Reigh-only user know that a shared runtime exists, or should it remain an implementation detail?
+- Should the neutral layer be called Creative Workspace Runtime, Astrid Runtime, Astrid Runtime, or something else?
+- Should a Astrid App-only user know that a shared runtime exists, or should it remain an implementation detail?
 - Is the primary isolation unit a user, workspace, team, or project?
 
 ### Post-beta packaging and ownership
 
 - The independent repository/process/protocol boundary is frozen for local v1; public artifact names, signing, release channels, and coordinated installers remain later lifecycle decisions.
 - Which future system package, Python, Node, and desktop distribution mechanisms should carry packaged components on macOS, Linux, and later Windows without creating private product-owned runtime copies or closing Astrid's editable pack/skill workflow?
-- What machine registry/socket/config mechanism lets Astrid and Reigh discover one compatible runtime and prevents duplicate owners for a realm?
+- What machine registry/socket/config mechanism lets Astrid and Astrid App discover one compatible runtime and prevents duplicate owners for a realm?
 - Local-v1 has no mixed-protocol/schema compatibility window; later finalize any coordinated artifact cadence and signing process.
 - How should future uninstall or current checkout removal preserve shared workspaces and a runtime still used by another active product?
 
@@ -499,7 +499,7 @@ Autoscaling reads queue summaries and executor registration from the runtime. It
 - Capability identity uses a stable semantic version plus an immutable definition/source digest; what compatibility promises later semantic versions make remains a post-beta policy question.
 - Which policies belong in a capability declaration versus runtime configuration?
 - Can third-party capability packages be trusted in-process, or must they execute out of process?
-- Which existing Reigh Worker task handlers contain hidden Supabase or child-task coupling?
+- Which existing Astrid App Worker task handlers contain hidden Supabase or child-task coupling?
 - What is the minimum parity set required for the first local release?
 
 ### Media
@@ -513,7 +513,7 @@ Autoscaling reads queue summaries and executor registration from the runtime. It
 
 - What signs worker, connector, user, and agent identities?
 - How are worker tokens scoped to task, capability, workspace, and time?
-- How does a hosted Reigh session authorize an outbound local connector without exposing the whole machine?
+- How does a hosted Astrid App session authorize an outbound local connector without exposing the whole machine?
 - How are untrusted third-party tasks sandboxed and network-restricted?
 
 ### Operations
@@ -527,17 +527,17 @@ Autoscaling reads queue summaries and executor registration from the runtime. It
 
 The oracle should review the vision adversarially and answer these questions with explicit reasoning and evidence from the current repositories where possible:
 
-1. **Boundary conformance:** Does the proposed first local composition make the Banodoco Workspace Runtime actually independent, or does any schema, source/import, startup, or protocol seam still make it Astrid-, Reigh-, or worker-owned?
+1. **Boundary conformance:** Does the proposed first local composition make the Astrid Runtime actually independent, or does any schema, source/import, startup, or protocol seam still make it Astrid-, Astrid-, or worker-owned?
 2. **Extraction path:** Which existing Astrid kernel and bridge modules can move into the neutral runtime unchanged, which require generalization, and which are product-specific and must stay behind?
-3. **Control-plane ownership:** Produce an exact move/retain/delete map across the neutral runtime, Astrid, Reigh, and Reigh Worker.
+3. **Control-plane ownership:** Produce an exact move/retain/delete map across the neutral runtime, Astrid, Astrid App, and Astrid App Worker.
 4. **Queue design:** Is the transactional task table adequate as the semantic queue locally and in the first cloud deployment? If a broker is needed, how does it remain a non-authoritative wakeup layer?
 5. **Split brain:** Is the proposed active coordinator epoch sufficient for local/cloud sync and failover? Specify the exact claim, handoff, and stale-completion fences.
 6. **Turso feasibility:** Audit the current kernel's SQLite usage against current Turso Database/Turso Sync behavior. Identify incompatible SQL, transaction, locking, migration, or concurrency assumptions.
 7. **Tenancy:** Recommend database-per-user, database-per-realm, or a hybrid, including collaboration, backup, token scope, cost, and deletion consequences.
 8. **Capability contract:** Propose the minimum complete capability schema and versioning model that supports agents, UI generation, local workers, third-party providers, and reproducible provenance.
-9. **Worker reuse:** Identify which Reigh Worker compute paths are safely reusable behind the neutral worker protocol and which are too coupled to Supabase or worker-owned orchestration.
+9. **Worker reuse:** Identify which Astrid App Worker compute paths are safely reusable behind the neutral worker protocol and which are too coupled to Supabase or worker-owned orchestration.
 10. **Media architecture:** Recommend the local/cloud artifact contract, upload policy, caching, verification, retention, and garbage-collection model.
-11. **Security:** Threat-model hosted Reigh → local connector, cloud runtime → RunPod, worker-created child tasks, and untrusted capability packages.
+11. **Security:** Threat-model hosted Astrid App → local connector, cloud runtime → RunPod, worker-created child tasks, and untrusted capability packages.
 12. **Migration seam:** Define the safest sequence from the current repositories to the target without breaking the already-working local timeline/gallery/editor integration.
 13. **Release scope:** State the smallest capability and user-journey set that makes the local release useful rather than merely architectural.
 14. **Kill criteria:** Identify any proposed abstraction that is premature and should be explicitly deferred.
@@ -563,7 +563,7 @@ Ask the oracle to return:
 The direction is successful when:
 
 - Astrid can operate independently with local or cloud workspace authority.
-- Reigh can operate independently against the same runtime contracts.
+- Astrid App can operate independently against the same runtime contracts.
 - Using both provides one coherent workspace rather than synchronized product silos.
 - Local SQLite/local GPU is the simplest supported deployment, not a test-only exception.
 - Cloud Turso/shared GPU is a placement and storage configuration, not a different product architecture.
@@ -574,4 +574,4 @@ The direction is successful when:
 
 The foundational judgment is therefore:
 
-> **Build one neutral creative workspace and execution runtime. Let Astrid be its intelligent agent interface, Reigh its visual interface, and workers its execution fabric. Ship the local composition first, then extend the same contracts to Turso, connectors, and RunPod.**
+> **Build one neutral creative workspace and execution runtime. Let Astrid be its intelligent agent interface, Astrid App its visual interface, and workers its execution fabric. Ship the local composition first, then extend the same contracts to Turso, connectors, and RunPod.**

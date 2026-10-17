@@ -1,6 +1,6 @@
 # Self-Hosting Exploration
 
-Goal: let someone clone the repos and run Reigh entirely off their own local Supabase instance, with their own GPU worker.
+Goal: let someone clone the repos and run Astrid entirely off their own local Supabase instance, with their own GPU worker.
 
 ## Current state
 
@@ -8,7 +8,7 @@ Goal: let someone clone the repos and run Reigh entirely off their own local Sup
 - `supabase/config.toml` already configured for local dev (ports, auth, storage, realtime)
 - ~90 migrations in `supabase/migrations/` cover full schema
 - Edge functions (32) all have `verify_jwt = false` for local
-- Worker (`Reigh-Worker`) connects via `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`, polls edge functions for tasks
+- Worker (`Astrid-Worker`) connects via `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`, polls edge functions for tasks
 - Worker has a CPU fallback mode (`HEADLESS_WAN2GP_FORCE_CPU=1`) but it's extremely slow
 
 ## What needs to be figured out
@@ -63,7 +63,7 @@ Goal: let someone clone the repos and run Reigh entirely off their own local Sup
 - [ ] **README rewrite**: Current README presumably assumes hosted Supabase. Need a "self-hosted" section or separate doc.
 - [ ] **`.env.example`**: Template with every var, marked required/optional, with descriptions.
 - [ ] **`scripts/setup-local.sh`**: One-command bootstrap: `supabase start` → capture keys → write `.env.local` → `supabase db push` → seed data → print "ready" message.
-- [ ] **Worker setup guide**: How to point `Reigh-Worker` at your local Supabase. Minimal command to start processing tasks.
+- [ ] **Worker setup guide**: How to point `Astrid-Worker` at your local Supabase. Minimal command to start processing tasks.
 
 ## Approach
 

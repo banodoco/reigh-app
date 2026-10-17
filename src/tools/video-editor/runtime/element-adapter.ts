@@ -2,11 +2,11 @@ import type { DataProvider, TimelineHeadRevision } from '@/tools/video-editor/da
 import type { AssetRegistry, TimelineClip, TimelineConfig } from '@/tools/video-editor/types/index.ts';
 import { getClipTimelineDuration } from '@/tools/video-editor/lib/config-utils.ts';
 import {
-  assertValidReighElementOperation,
-  type ReighAgentElementContext,
-  type ReighElementCatalogEntry,
-  type ReighElementOperation,
-  type ReighElementRef,
+  assertValidAstridElementOperation,
+  type AstridAgentElementContext,
+  type AstridElementCatalogEntry,
+  type AstridElementOperation,
+  type AstridElementRef,
 } from './element-contract.ts';
 import type { TimelineBundleEnvelope } from '@/tools/video-editor/data/typed/timelineBundle.ts';
 import { refreshAdmittedElements, refreshAdmittedElementRef, admittedCatalogEntries } from './admitted-elements';
@@ -19,14 +19,14 @@ type TimelineDocument = {
   bundle?: TimelineBundleEnvelope | null;
 };
 
-export type ReighElementOperationResult = {
-  operation: ReighElementOperation['name'];
+export type AstridElementOperationResult = {
+  operation: AstridElementOperation['name'];
   config_version?: number;
   head?: TimelineHeadRevision;
-  placements?: readonly {clip_id:string;at:number;duration:number;track:string;element:ReighElementRef;params?:Record<string,unknown>}[];
-  element?: ReighElementCatalogEntry;
-  elements?: readonly ReighElementCatalogEntry[];
-  draft?: ReighElementCatalogEntry;
+  placements?: readonly {clip_id:string;at:number;duration:number;track:string;element:AstridElementRef;params?:Record<string,unknown>}[];
+  element?: AstridElementCatalogEntry;
+  elements?: readonly AstridElementCatalogEntry[];
+  draft?: AstridElementCatalogEntry;
   config?: TimelineConfig;
   registry?: AssetRegistry;
   validation?: {
@@ -80,7 +80,7 @@ export function createElementTimelineRoutes(
       assertAuthority();
       if (confirmedTimeline.configVersion !== timeline.configVersion
         || JSON.stringify(confirmedTimeline.head) !== JSON.stringify(timeline.head)) {
-        throw new ReighElementOperationError(
+        throw new AstridElementOperationError(
           `Timeline changed while loading element operation data: ${timelineId}`,
         );
       }
@@ -97,7 +97,7 @@ export function createElementTimelineRoutes(
       const config = input.config as TimelineConfig;
       const registry = input.registry as AssetRegistry;
       if (provider.saveTimelineAtHead) {
-        if (!input.expectedHead) throw new ReighElementOperationError('Element save requires the original scoped timeline head');
+        if (!input.expectedHead) throw new AstridElementOperationError('Element save requires the original scoped timeline head');
         const receipt = await provider.saveTimelineAtHead(timelineId, config, input.expectedHead, registry, input.bundle);
         return { config, registry, config_version: receipt.configVersion, head: receipt.head, bundle: input.bundle };
       }
@@ -112,10 +112,10 @@ export function createElementTimelineRoutes(
   };
 }
 
-export class ReighElementOperationError extends Error {
+export class AstridElementOperationError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = 'ReighElementOperationError';
+    this.name = 'AstridElementOperationError';
   }
 }
 
@@ -125,7 +125,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function asTimelineConfig(value: unknown): TimelineConfig {
   if (!isRecord(value) || !Array.isArray(value.clips)) {
-    throw new ReighElementOperationError('Astrid returned a timeline without a clips array');
+    throw new AstridElementOperationError('Astrid returned a timeline without a clips array');
   }
   return value as unknown as TimelineConfig;
 }
@@ -135,29 +135,29 @@ function asAssetRegistry(value: unknown): AssetRegistry {
 }
 
 function findElement(
-  context: ReighAgentElementContext,
-  ref: ReighElementRef,
+  context: AstridAgentElementContext,
+  ref: AstridElementRef,
   options: { allowDraft?: boolean } = {},
-): ReighElementCatalogEntry {
+): AstridElementCatalogEntry {
   const entry = context.catalog.find((candidate) => candidate.id === ref.id && candidate.kind === ref.kind
     && candidate.packId === ref.packId && candidate.revision === ref.revision);
   if (!entry || !entry.admitted || entry.legacy || !ref.packId) {
-    throw new ReighElementOperationError(`Element is not registered in the Astrid catalog: ${ref.kind}/${ref.id}`);
+    throw new AstridElementOperationError(`Element is not registered in the Astrid catalog: ${ref.kind}/${ref.id}`);
   }
   if (entry.revision !== ref.revision) {
-    throw new ReighElementOperationError(
+    throw new AstridElementOperationError(
       `Element revision is stale for ${ref.id}: expected ${entry.revision}, received ${ref.revision}`,
     );
   }
   if (!options.allowDraft && entry.publication !== 'published') {
-    throw new ReighElementOperationError(`Element ${ref.id} is not published for timeline use`);
+    throw new AstridElementOperationError(`Element ${ref.id} is not published for timeline use`);
   }
   return entry;
 }
 
 function requireClip(config: TimelineConfig, clipId: string): TimelineClip {
   const clip = config.clips.find((candidate) => candidate.id === clipId);
-  if (!clip) throw new ReighElementOperationError(`Timeline clip not found: ${clipId}`);
+  if (!clip) throw new AstridElementOperationError(`Timeline clip not found: ${clipId}`);
   return clip;
 }
 
@@ -168,7 +168,7 @@ function replaceClip(config: TimelineConfig, clipId: string, update: (clip: Time
     found = true;
     return update(clip);
   });
-  if (!found) throw new ReighElementOperationError(`Timeline clip not found: ${clipId}`);
+  if (!found) throw new AstridElementOperationError(`Timeline clip not found: ${clipId}`);
   return { ...config, clips };
 }
 
@@ -177,7 +177,7 @@ function nextAdjacentClip(config: TimelineConfig, fromClipId: string, toClipId?:
   if (toClipId) {
     const explicit = requireClip(config, toClipId);
     if (explicit.track !== from.track || Math.abs((from.at + clipDuration(from)) - explicit.at) >= 0.001) {
-      throw new ReighElementOperationError('Transitions require adjacent clips on the same track');
+      throw new AstridElementOperationError('Transitions require adjacent clips on the same track');
     }
     return explicit;
   }
@@ -185,7 +185,7 @@ function nextAdjacentClip(config: TimelineConfig, fromClipId: string, toClipId?:
     .filter((clip) => clip.track === from.track && clip.id !== from.id)
     .sort((left, right) => left.at - right.at);
   const next = candidates.find((clip) => Math.abs((from.at + clipDuration(from)) - clip.at) < 0.001);
-  if (!next) throw new ReighElementOperationError(`No adjacent clip follows ${fromClipId}`);
+  if (!next) throw new AstridElementOperationError(`No adjacent clip follows ${fromClipId}`);
   return next;
 }
 
@@ -216,14 +216,14 @@ function transitionType(id: string): string {
 }
 
 function transitionDurationFrames(
-  entry: ReighElementCatalogEntry,
+  entry: AstridElementCatalogEntry,
   requested: number | undefined,
 ): number {
   const defaultFrames = entry.defaults?.durationFrames;
   const frames = requested
     ?? (typeof defaultFrames === 'number' && Number.isInteger(defaultFrames) ? defaultFrames : 8);
   if (!Number.isInteger(frames) || frames <= 0) {
-    throw new ReighElementOperationError('Transition duration must be a positive integer number of frames');
+    throw new AstridElementOperationError('Transition duration must be a positive integer number of frames');
   }
   return frames;
 }
@@ -236,28 +236,28 @@ function assertTransitionFits(
 ): void {
   const shortestClipFrames = Math.min(clipDuration(from), clipDuration(to)) * fps;
   if (shortestClipFrames <= 0 || durationFrames > shortestClipFrames + 0.0001) {
-    throw new ReighElementOperationError(
+    throw new AstridElementOperationError(
       `Transition duration ${durationFrames} frames exceeds the shorter adjacent clip (${Math.max(0, Math.floor(shortestClipFrames))} frames)`,
     );
   }
 }
 
 function applyTimelineOperation(
-  context: ReighAgentElementContext,
+  context: AstridAgentElementContext,
   config: TimelineConfig,
-  operation: Extract<ReighElementOperation, { name: `timeline.${string}` }>,
+  operation: Extract<AstridElementOperation, { name: `timeline.${string}` }>,
 ): TimelineConfig {
   switch (operation.name) {
     case 'timeline.apply_element': {
       const entry = findElement(context, operation.element, { allowDraft: true });
       if (operation.placement === 'between-clips' || entry.kind === 'transition') {
         if (entry.kind !== 'transition' || operation.placement !== 'between-clips') {
-          throw new ReighElementOperationError('Transitions must use placement between-clips and timeline.apply_transition');
+          throw new AstridElementOperationError('Transitions must use placement between-clips and timeline.apply_transition');
         }
-        throw new ReighElementOperationError('Use timeline.apply_transition for a between-clips element');
+        throw new AstridElementOperationError('Use timeline.apply_transition for a between-clips element');
       }
       if (operation.placement === 'clip') {
-        if (!operation.clip_id) throw new ReighElementOperationError('Clip placement requires clip_id');
+        if (!operation.clip_id) throw new AstridElementOperationError('Clip placement requires clip_id');
         return replaceClip(config, operation.clip_id, (clip) => {
           return {
             ...clip,
@@ -284,14 +284,14 @@ function applyTimelineOperation(
       const target = operation.clip_id ? requireClip(config, operation.clip_id) : undefined;
       const at = operation.at ?? target?.at ?? 0;
       const duration = operation.duration ?? (target ? clipDuration(target) : 1);
-      if (!Number.isFinite(at) || at < 0) throw new ReighElementOperationError('Overlay placement requires a non-negative at');
-      if (!Number.isFinite(duration) || duration <= 0) throw new ReighElementOperationError('Overlay placement requires a positive duration');
+      if (!Number.isFinite(at) || at < 0) throw new AstridElementOperationError('Overlay placement requires a non-negative at');
+      if (!Number.isFinite(duration) || duration <= 0) throw new AstridElementOperationError('Overlay placement requires a positive duration');
       const overlay: TimelineClip = {
         id: uniqueElementClipId(config, operation.element.id, at),
         at,
         track: visualTrackId(config, target?.track),
         // Keep the Astrid element id in the ordinary visual dispatch path.
-        // `effect-layer` is the legacy Reigh wrapper and cannot carry a
+        // `effect-layer` is the legacy Astrid App wrapper and cannot carry a
         // revision-pinned Astrid component by itself.
         clipType: entry.kind === 'effect' ? entry.id : 'effect-layer',
         hold: duration,
@@ -304,13 +304,13 @@ function applyTimelineOperation(
       if (operation.element) findElement(context, operation.element, { allowDraft: true });
       return replaceClip(config, operation.clip_id, (clip) => {
         const effectiveRef=operation.element??clip.elementRef;
-        if(!effectiveRef)throw new ReighElementOperationError('Element update requires an admitted exact ref');
+        if(!effectiveRef)throw new AstridElementOperationError('Element update requires an admitted exact ref');
         findElement(context,effectiveRef);
         if (operation.duration !== undefined && (
           !clip.elementRef || effectiveRef.kind !== 'effect' || effectiveRef.id !== clip.elementRef.id || clip.elementRef.kind !== 'effect'
           || clip.clipType !== clip.elementRef.id || typeof clip.hold !== 'number'
           || ['asset', 'file', 'src', 'source', 'from', 'to'].some((field) => field in clip)
-        )) throw new ReighElementOperationError('Duration updates require an existing strictly pinned generated hold effect without media trim fields');
+        )) throw new AstridElementOperationError('Duration updates require an existing strictly pinned generated hold effect without media trim fields');
         return {
           ...clip,
           ...(operation.element ? { elementRef: operation.element } : {}),
@@ -345,12 +345,12 @@ function applyTimelineOperation(
     case 'timeline.apply_transition': {
       const transitionEntry = findElement(context, operation.transition, { allowDraft: true });
       if (transitionEntry.kind !== 'transition') {
-        throw new ReighElementOperationError(`${operation.transition.id} is not a transition`);
+        throw new AstridElementOperationError(`${operation.transition.id} is not a transition`);
       }
       const from = requireClip(config, operation.from_clip);
       const to = nextAdjacentClip(config, operation.from_clip, operation.to_clip);
       if (from.track !== to.track || Math.abs((from.at + clipDuration(from)) - to.at) >= 0.001) {
-        throw new ReighElementOperationError('Transitions require adjacent clips on the same track');
+        throw new AstridElementOperationError('Transitions require adjacent clips on the same track');
       }
       const fps = config.output?.fps ?? 30;
       const durationFrames = transitionDurationFrames(transitionEntry, operation.duration_frames);
@@ -373,11 +373,11 @@ function applyTimelineOperation(
         ? findElement(context, operation.transition, { allowDraft: true })
         : undefined;
       if (transitionEntry && transitionEntry.kind !== 'transition') {
-        throw new ReighElementOperationError(`${operation.transition?.id} is not a transition`);
+        throw new AstridElementOperationError(`${operation.transition?.id} is not a transition`);
       }
       return replaceClip(config, to.id, (clip) => {
         if (!clip.transition && !operation.transition) {
-          throw new ReighElementOperationError(`No transition is applied to ${to.id}`);
+          throw new AstridElementOperationError(`No transition is applied to ${to.id}`);
         }
         const fps = config.output?.fps ?? 30;
         const durationFrames = transitionDurationFrames(
@@ -425,7 +425,7 @@ export class AstridElementOperationAdapter {
   private acknowledgedHead?: TimelineHeadRevision;
 
   constructor(
-    private context: ReighAgentElementContext,
+    private context: AstridAgentElementContext,
     private readonly routes: ElementTimelineRoutes,
     private readonly projectSlug: string,
     private readonly authority?: { timelineId: string; assertAuthority: () => void; getHead?: () => TimelineHeadRevision | undefined; capturedHead?: TimelineHeadRevision },
@@ -438,12 +438,12 @@ export class AstridElementOperationAdapter {
     return captured;
   }
 
-  updateContext(context: ReighAgentElementContext): void {
+  updateContext(context: AstridAgentElementContext): void {
     this.context = context;
   }
 
-  async execute(rawOperation: unknown): Promise<ReighElementOperationResult> {
-    assertValidReighElementOperation(rawOperation);
+  async execute(rawOperation: unknown): Promise<AstridElementOperationResult> {
+    assertValidAstridElementOperation(rawOperation);
     const operation = rawOperation;
     // Read-only catalog inspection remains available; draft creation,
     // validation/publication and timeline writes require the captured owner.
@@ -451,11 +451,11 @@ export class AstridElementOperationAdapter {
       this.authority?.assertAuthority();
     }
     if ('timeline' in operation && this.authority && operation.timeline !== this.authority.timelineId) {
-      throw new ReighElementOperationError(`Element operation timeline ${operation.timeline} does not match ${this.authority.timelineId}`);
+      throw new AstridElementOperationError(`Element operation timeline ${operation.timeline} does not match ${this.authority.timelineId}`);
     }
 
     if ('project' in operation && operation.project !== this.projectSlug) {
-      throw new ReighElementOperationError(
+      throw new AstridElementOperationError(
         `Element operation project ${operation.project} does not match ${this.projectSlug}`,
       );
     }
@@ -470,13 +470,13 @@ export class AstridElementOperationAdapter {
       case 'elements.create_draft':
       case 'elements.validate':
       case 'elements.publish':
-        throw new ReighElementOperationError('Custom element source must live in a project pack. Inspect/init the project-pack, edit its ordinary files, then validate/admit and apply an owner-qualified revision. Embedded source authoring is not supported.');
+        throw new AstridElementOperationError('Custom element source must live in a project pack. Inspect/init the project-pack, edit its ordinary files, then validate/admit and apply an owner-qualified revision. Embedded source authoring is not supported.');
       case 'elements.list':
         return { operation: operation.name, elements: this.context.catalog };
       case 'elements.describe': {
         const choices = this.context.catalog.filter(entry => entry.id === operation.element_id
           && (!operation.element || (entry.kind === operation.element.kind && entry.packId === operation.element.packId && entry.revision === operation.element.revision)));
-        if (choices.length !== 1) throw new ReighElementOperationError(choices.length ? 'Element identity is ambiguous; provide exact owner/kind/id/revision' : 'Element is not registered');
+        if (choices.length !== 1) throw new AstridElementOperationError(choices.length ? 'Element identity is ambiguous; provide exact owner/kind/id/revision' : 'Element is not registered');
         // Only path/ref/schema metadata. Read ordinary files through native tools; never return JSX through chat.
         return { operation: operation.name, element: choices[0] };
       }
@@ -485,18 +485,18 @@ export class AstridElementOperationAdapter {
   }
 
   private async executeTimelineMutation(
-    operation: Extract<ReighElementOperation, { name: `timeline.${string}` }>,
-  ): Promise<ReighElementOperationResult> {
+    operation: Extract<AstridElementOperation, { name: `timeline.${string}` }>,
+  ): Promise<AstridElementOperationResult> {
     const document = await this.routes.get(operation.timeline) as TimelineDocument;
     if (document.head) {
       const capturedHead = this.acknowledgedHead ?? this.authority?.capturedHead;
       if (!capturedHead || capturedHead.projectId !== document.head.projectId || capturedHead.timelineId !== document.head.timelineId
         || capturedHead.headRevisionId !== document.head.headRevisionId) {
-        throw new ReighElementOperationError('The captured timeline head changed or is missing. Inspect the current timeline before recovering this operation.');
+        throw new AstridElementOperationError('The captured timeline head changed or is missing. Inspect the current timeline before recovering this operation.');
       }
     }
     if (document.config_version !== operation.expected_version) {
-      throw new ReighElementOperationError(
+      throw new AstridElementOperationError(
         `Stale timeline version: expected ${operation.expected_version}, received ${document.config_version}`,
       );
     }

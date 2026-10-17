@@ -6,7 +6,7 @@ import {
   useTimelineEditorOps,
   useTimelinePlaybackContext,
 } from '@/tools/video-editor/hooks/timelineStore.ts';
-import type { ResolvedTimelineOverlayDescriptor } from '@reigh/editor-sdk';
+import type { ResolvedTimelineOverlayDescriptor } from '@astrid/editor-sdk';
 import type {
   ResolvedVideoEditorPanelRegistry,
   VideoEditorExtensionRuntimeConfig,

@@ -43,18 +43,18 @@ import type {
   ExtensionContext,
   ExtensionId,
   ExtensionManifest,
-  ReighExtension,
+  AstridExtension,
   TimelineMarkerChange,
   TimelineOverlayGeometry,
   TimelineOverlayRenderProps,
   TimelinePointMarker,
   TimelineViewportSnapshot,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import {
   createTimelineOverlayGeometry,
   defineExtension,
   validateManifest,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import { EditorRuntimeProvider } from '@/tools/video-editor/contexts/EditorRuntimeProvider.tsx';
 import {
   useVideoEditorRuntime,
@@ -84,12 +84,12 @@ const fixtureAstridElementHost: AstridElementHost = {
 };
 
 const REPO_ROOT = path.resolve(import.meta.dirname, '../../../../..');
-const SCHEMA_PATH = path.join(REPO_ROOT, 'config', 'contracts', 'reigh-extension.schema.json');
+const SCHEMA_PATH = path.join(REPO_ROOT, 'config', 'contracts', 'astrid-extension.schema.json');
 const schema = JSON.parse(fs.readFileSync(SCHEMA_PATH, 'utf-8')) as Record<string, unknown>;
 const validateAgainstSchema = new Ajv({ allErrors: true }).compile(schema);
 
-const EXTENSION_ID = 'com.reigh.timeline-overlay-integration';
-const FOREIGN_EXTENSION_ID = 'com.reigh.timeline-overlay-foreign';
+const EXTENSION_ID = 'haus.astrid.timeline-overlay-integration';
+const FOREIGN_EXTENSION_ID = 'haus.astrid.timeline-overlay-foreign';
 const CONTRIBUTION_ID = 'phase-markers';
 const RENDER_ID = 'phase-markers/render';
 const TIMELINE_ID = 'timeline-overlay-integration';
@@ -161,7 +161,7 @@ const makeMarkers = (count: number): readonly TimelinePointMarker[] =>
   }));
 
 interface ExtensionController {
-  readonly extension: ReighExtension;
+  readonly extension: AstridExtension;
   readonly context: ExtensionContext | null;
   readonly activationCount: number;
   readonly disposalCount: number;
@@ -287,7 +287,7 @@ interface OverlayHostHarnessOptions {
 }
 
 function renderOverlayHost(
-  initialExtensions: readonly ReighExtension[],
+  initialExtensions: readonly AstridExtension[],
   options: OverlayHostHarnessOptions = {},
 ) {
   const contentPortalRoot = document.createElement('div');
@@ -330,7 +330,7 @@ function renderOverlayHost(
     mountedExtensions,
     forcedOwner,
   }: {
-    mountedExtensions: readonly ReighExtension[];
+    mountedExtensions: readonly AstridExtension[];
     forcedOwner?: TimelineGestureOwner;
   }) {
     const [owner, setOwner] = useState<TimelineGestureOwner>(
@@ -390,7 +390,7 @@ function renderOverlayHost(
     get runtime() {
       return capturedRuntime;
     },
-    setExtensions(next: readonly ReighExtension[]) {
+    setExtensions(next: readonly AstridExtension[]) {
       extensions = next;
       view.rerender(renderHarness());
     },
@@ -697,7 +697,7 @@ describe('T5.1 — lifecycle through the real provider', () => {
     };
     const broken = controlledExtension(
       overlayManifest({
-        id: 'com.reigh.timeline-overlay-broken',
+        id: 'haus.astrid.timeline-overlay-broken',
         contributionId: 'broken-overlay',
         render: 'broken/render',
       }),
@@ -705,7 +705,7 @@ describe('T5.1 — lifecycle through the real provider', () => {
     );
     const healthy = markerExtension(
       overlayManifest({
-        id: 'com.reigh.timeline-overlay-healthy',
+        id: 'haus.astrid.timeline-overlay-healthy',
         contributionId: 'healthy-overlay',
         render: 'healthy/render',
       }),
@@ -725,10 +725,10 @@ describe('T5.1 — lifecycle through the real provider', () => {
 });
 
 describe('T5.1 — passive parity and ownership arbitration', () => {
-  function passiveAndMarkerExtensions(): readonly ReighExtension[] {
+  function passiveAndMarkerExtensions(): readonly AstridExtension[] {
     const passive = markerExtension(
       overlayManifest({
-        id: 'com.reigh.timeline-overlay-passive',
+        id: 'haus.astrid.timeline-overlay-passive',
         contributionId: 'passive-overlay',
         render: 'passive/render',
       }),
@@ -736,7 +736,7 @@ describe('T5.1 — passive parity and ownership arbitration', () => {
     );
     const marker = markerExtension(
       overlayManifest({
-        id: 'com.reigh.timeline-overlay-marker',
+        id: 'haus.astrid.timeline-overlay-marker',
         contributionId: 'marker-overlay',
         render: 'marker/render',
       }),
@@ -754,10 +754,10 @@ describe('T5.1 — passive parity and ownership arbitration', () => {
     expect(host.rulerStripRoot).toHaveStyle({ pointerEvents: 'none' });
 
     const passiveWrapper = screen.getByTestId(
-      'timeline-extension-overlay-com.reigh.timeline-overlay-passive-passive-overlay',
+      'timeline-extension-overlay-haus.astrid.timeline-overlay-passive-passive-overlay',
     );
     const markerWrapper = screen.getByTestId(
-      'timeline-extension-overlay-com.reigh.timeline-overlay-marker-marker-overlay',
+      'timeline-extension-overlay-haus.astrid.timeline-overlay-marker-marker-overlay',
     );
     expect(passiveWrapper).toHaveStyle({ pointerEvents: 'none' });
     expect(markerWrapper).toHaveStyle({ pointerEvents: 'none' });
@@ -938,7 +938,7 @@ describe('T5.1 — geometry and cadence through the real host', () => {
   it('pages ten coincident overlay layers through a bounded legend while keeping every target reachable', async () => {
     const controllers = Array.from({ length: 10 }, (_, index) => markerExtension(
       overlayManifest({
-        id: `com.reigh.timeline-overlay-layer-${index}`,
+        id: `haus.astrid.timeline-overlay-layer-${index}`,
         contributionId: `layer-${index}`,
       }),
       { markers: [{ id: `coincident-${index}`, time: 4, label: `Layer ${index}` }] },

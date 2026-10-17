@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { LiveChannelDescriptor, LiveSampleFormat } from '@reigh/editor-sdk';
+import type { LiveChannelDescriptor, LiveSampleFormat } from '@astrid/editor-sdk';
 import { createLiveDataRegistry } from '@/tools/video-editor/runtime/liveDataRegistry';
 import {
   createLiveMappingTable,

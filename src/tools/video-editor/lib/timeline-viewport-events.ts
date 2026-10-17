@@ -1,4 +1,4 @@
-export const TIMELINE_CENTER_CLIP_EVENT = 'reigh:timeline-center-clip';
+export const TIMELINE_CENTER_CLIP_EVENT = 'astrid:timeline-center-clip';
 
 export type TimelineCenterClipEventDetail = {
   clipId: string;
@@ -14,7 +14,7 @@ export const requestCenterTimelineClip = (clipId: string): void => {
 // ── M3: Source-map bidirectional navigation events ─────────────────────
 
 /** Event: navigate from a timeline object to its source range. */
-export const TIMELINE_NAVIGATE_TO_SOURCE_EVENT = 'reigh:timeline-navigate-to-source';
+export const TIMELINE_NAVIGATE_TO_SOURCE_EVENT = 'astrid:timeline-navigate-to-source';
 
 export interface TimelineNavigateToSourceDetail {
   /** Extension that owns the source map. */
@@ -51,7 +51,7 @@ export const requestNavigateTimelineToSource = (
 };
 
 /** Event: navigate from a source range to affected timeline objects. */
-export const SOURCE_NAVIGATE_TO_TIMELINE_EVENT = 'reigh:source-navigate-to-timeline';
+export const SOURCE_NAVIGATE_TO_TIMELINE_EVENT = 'astrid:source-navigate-to-timeline';
 
 export interface SourceNavigateToTimelineDetail {
   /** Extension that owns the source map. */

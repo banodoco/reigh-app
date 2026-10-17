@@ -7,28 +7,28 @@
  */
 
 import { createElement } from 'react';
-import { defineExtension } from '@reigh/editor-sdk';
+import { defineExtension } from '@astrid/editor-sdk';
 import type {
   CommandRunContext,
   ContributionId,
   DisposeHandle,
   ExtensionContext,
   ExtensionId,
-  ReighExtension,
+  AstridExtension,
   TimelineClipSummary,
   TimelineMarkerChange,
   TimelineOverlayRenderProps,
   TimelinePatch,
   TimelineSnapshot,
   TimelineTrackSummary,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import {
   clusterTimelineMarkers,
   moveTimelineMarkerCluster,
 } from '../timelineMarkerClusters';
 
 export const BRANCHING_CUT_EXTENSION_ID =
-  'com.reigh.creative-lab.branching-cut' as ExtensionId;
+  'haus.astrid.creative-lab.branching-cut' as ExtensionId;
 export const BUILD_CHOICE_GATES_COMMAND =
   `${BRANCHING_CUT_EXTENSION_ID}.buildChoiceGates`;
 /** Kept for project-data compatibility with the original creative-lab name. */
@@ -396,7 +396,7 @@ function disposeTogether(ctx: ExtensionContext, handles: readonly DisposeHandle[
   }
 }
 
-export const branchingCutExtension: ReighExtension = defineExtension({
+export const branchingCutExtension: AstridExtension = defineExtension({
   manifest: {
     id: BRANCHING_CUT_EXTENSION_ID,
     version: '1.0.0',

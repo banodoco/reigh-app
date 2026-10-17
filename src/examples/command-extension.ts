@@ -1,7 +1,7 @@
 /**
  * command-extension — Extension example with commands, keybindings, and menus.
  *
- * Demonstrates M4 command contributions using only @reigh/editor-sdk:
+ * Demonstrates M4 command contributions using only @astrid/editor-sdk:
  *   - A palette-visible command with category metadata
  *   - A keyboard shortcut contribution
  *   - A clip context-menu item contribution
@@ -10,10 +10,10 @@
  *     ctx.creative.timeline.apply()
  *
  * This file must NOT import from editor internals (src/tools/video-editor/*).
- * It imports exclusively from @reigh/editor-sdk, the public SDK entrypoint.
+ * It imports exclusively from @astrid/editor-sdk, the public SDK entrypoint.
  */
 
-import { defineExtension } from '@reigh/editor-sdk';
+import { defineExtension } from '@astrid/editor-sdk';
 import type {
   CommandHandler,
   CommandRunContext,
@@ -32,7 +32,7 @@ import type {
   ProposalPanelState,
   ProposalRuntime,
   ProposalState,
-  ReighExtension,
+  AstridExtension,
   ExtensionManifestContribution,
   SourceMapEntry,
   SourceMapRuntime,
@@ -59,9 +59,9 @@ import type {
   TimelineOps,
   CommandContribution,
   createCreativeContext,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 
-const EXTENSION_ID = 'com.reigh.examples.command-extension';
+const EXTENSION_ID = 'haus.astrid.examples.command-extension';
 const COMMAND_ID = `${EXTENSION_ID}.markClipReview`;
 
 function buildReviewMarkerPatch(
@@ -128,7 +128,7 @@ const contributions: readonly [
   },
 ];
 
-export const commandExtension: ReighExtension = defineExtension({
+export const commandExtension: AstridExtension = defineExtension({
   manifest: {
     id: EXTENSION_ID as any,
     version: '1.0.0',

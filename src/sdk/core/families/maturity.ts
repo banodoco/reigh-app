@@ -134,7 +134,7 @@ export interface FamilyDefinition<Kind extends string = string> {
   readonly requiresTrustedCode: boolean;
 
   /**
-   * The manifest schema definition name (in `config/contracts/reigh-extension.schema.json`)
+   * The manifest schema definition name (in `config/contracts/astrid-extension.schema.json`)
    * that corresponds to this family's contribution shape.
    */
   readonly manifestSchemaDefinition: string;

@@ -2,7 +2,7 @@ const VIDEO_EDITOR_ROUTE = '/tools/video-editor';
 
 /**
  * `dev:local` sets this client flag after verifying the Astrid workspace
- * runtime. In that product mode the Video Editor is the whole Reigh app
+ * runtime. In that product mode the Video Editor is the whole Astrid App app
  * surface; cloud builds and ordinary app routes keep their normal shell.
  */
 export function isAstridEditorOnlyWorkspace(): boolean {

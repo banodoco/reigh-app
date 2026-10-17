@@ -2,25 +2,25 @@
  * inspector-example — M2 inspectorSection contribution example.
  *
  * Demonstrates registering an inspector section contribution using only
- * the public @reigh/editor-sdk entrypoint.  Inspector sections render
+ * the public @astrid/editor-sdk entrypoint.  Inspector sections render
  * in the PropertiesPanel with host-supplied SelectionSnapshot.
  *
  * @publicContract
  */
 
-import { defineExtension } from '@reigh/editor-sdk';
+import { defineExtension } from '@astrid/editor-sdk';
 import type {
-  ReighExtension,
+  AstridExtension,
   ExtensionContext,
   DisposeHandle,
   ContributionKind,
   ExtensionContribution,
   VideoEditorSlotName,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 
-export const inspectorExample: ReighExtension = defineExtension({
+export const inspectorExample: AstridExtension = defineExtension({
   manifest: {
-    id: 'com.reigh.examples.inspector-m2' as any,
+    id: 'haus.astrid.examples.inspector-m2' as any,
     version: '1.0.0',
     label: 'Inspector M2 Example',
     description:

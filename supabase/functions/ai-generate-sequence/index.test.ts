@@ -403,7 +403,7 @@ ${JSON.stringify({
     });
     expect(globalThis.fetch).toHaveBeenCalledTimes(2);
     const repairBody = JSON.parse((globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[1][1].body as string);
-    expect(repairBody.system).toContain('repair malformed Reigh sequence draft responses');
+    expect(repairBody.system).toContain('repair malformed Astrid sequence draft responses');
   });
 
   it('returns a stable 422 when repair output still contains no JSON', async () => {

@@ -5,7 +5,7 @@
  * multi-turn conversations, and compound instructions.
  *
  * Run:
- *   cd reigh-app && npx tsx supabase/functions/_tests/harness/complex-scenarios-test.ts
+ *   cd astrid-app && npx tsx supabase/functions/_tests/harness/complex-scenarios-test.ts
  */
 
 import path from "node:path";

@@ -41,12 +41,12 @@
 --     -> restored 1-arg (text).
 --   The route-era backend/namespace overloads are DROPPED below so no ambiguity remains.
 --
--- REIGH-WORKER COMPATIBILITY
+-- ASTRID-WORKER COMPATIBILITY
 --   The restored claim function RETURNS the original 5-column shape
 --   (task_id, params, task_type, project_id, user_id). The route-era function returned
 --   22 columns incl. selected_backend / claimed_backend / claim_decision_reason. The
 --   claim-next-task edge fn only ever forwards { task_id, params, task_type, project_id }
---   to the worker, and reigh-worker's _claim_route_guard reads the route fields with
+--   to the worker, and astrid-worker's _claim_route_guard reads the route fields with
 --   dict.get(...) (NOT [key]); when claimed_backend / selected_backend /
 --   claim_decision_reason are all absent (== None) it treats the task as pre-route and
 --   lets it run. So dropping the route columns is safe -- no KeyError, no fail-closed.
@@ -153,7 +153,7 @@ BEGIN
         get_task_run_type(t.task_type) = p_run_type
       )
       AND (
-        -- Banodoco pool: only banodoco_* task types
+        -- Astrid Runtime pool: only banodoco_* task types
         (v_is_banodoco_pool AND t.task_type LIKE 'banodoco\_%' ESCAPE '\')
         OR
         -- Non-banodoco pool: exclude banodoco_* (they belong to dedicated workers)
@@ -201,7 +201,7 @@ BEGIN
         get_task_run_type(t.task_type) = p_run_type
       )
       AND (
-        -- Banodoco pool: only banodoco_* task types
+        -- Astrid Runtime pool: only banodoco_* task types
         (v_is_banodoco_pool AND t.task_type LIKE 'banodoco\_%' ESCAPE '\')
         OR
         -- Non-banodoco pool: exclude banodoco_* (dedicated workers handle these)

@@ -8,19 +8,19 @@
  * blockers.
  */
 
-import { defineExtension } from '@reigh/editor-sdk';
+import { defineExtension } from '@astrid/editor-sdk';
 import type {
   DisposeHandle,
   ExtensionContext,
-  ReighExtension,
+  AstridExtension,
   ShaderContribution,
   ShaderInlineSource,
   ShaderTextureSchema,
   ShaderUniformDefinition,
   ShaderUniformSchema,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 
-export const POSTPROCESS_SHADER_CANARY_EXTENSION_ID = 'com.reigh.examples.postprocess-shader-canary';
+export const POSTPROCESS_SHADER_CANARY_EXTENSION_ID = 'haus.astrid.examples.postprocess-shader-canary';
 export const POSTPROCESS_SHADER_CANARY_SHADER_ID = 'shader.postprocessCanary.scanline';
 export const POSTPROCESS_SHADER_CANARY_CONTRIBUTION_ID = 'postprocess-shader-canary';
 export const POSTPROCESS_SHADER_CANARY_DIAGNOSTIC_SHADER_ID = 'shader.postprocessCanary.diagnostic';
@@ -261,7 +261,7 @@ export function startPostprocessShaderCanary(
 
 export function createPostprocessShaderCanaryExtension(
   options: PostprocessShaderCanaryOptions = {},
-): ReighExtension {
+): AstridExtension {
   return defineExtension({
     manifest: {
       id: POSTPROCESS_SHADER_CANARY_EXTENSION_ID as any,

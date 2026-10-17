@@ -82,7 +82,7 @@ state:
 ```ts
 const repository = new LocalStorageExtensionStateRepository(
   window.localStorage,
-  'reigh:extension-state:v1:user:demo',
+  'astrid:extension-state:v1:user:demo',
 );
 
 repository.load();

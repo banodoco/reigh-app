@@ -16,8 +16,8 @@
  * @hostOwned — NOT exported through public SDK contracts.
  */
 
-import type { DiagnosticSeverity, ExtensionDiagnostic } from '@reigh/editor-sdk';
-import type { ReferenceState } from '@reigh/editor-sdk';
+import type { DiagnosticSeverity, ExtensionDiagnostic } from '@astrid/editor-sdk';
+import type { ReferenceState } from '@astrid/editor-sdk';
 
 // ---------------------------------------------------------------------------
 // Diagnostic codes

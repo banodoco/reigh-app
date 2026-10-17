@@ -534,7 +534,7 @@ describe('exact registry membership', () => {
 });
 
 // ---------------------------------------------------------------------------
-// manifestSchemaDefinition existence in reigh-extension.schema.json
+// manifestSchemaDefinition existence in astrid-extension.schema.json
 // ---------------------------------------------------------------------------
 
 import fs from 'node:fs';
@@ -545,7 +545,7 @@ const SCHEMA_PATH = path.join(
   REPO_ROOT,
   'config',
   'contracts',
-  'reigh-extension.schema.json',
+  'astrid-extension.schema.json',
 );
 const FAMILY_MATURITY_JSON_PATH = path.join(
   REPO_ROOT,

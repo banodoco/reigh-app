@@ -19,7 +19,7 @@
  */
 
 import type { ParameterDefinition, ParameterType } from '@/tools/video-editor/types';
-import type { DiagnosticSeverity, ExtensionDiagnostic } from '@reigh/editor-sdk';
+import type { DiagnosticSeverity, ExtensionDiagnostic } from '@astrid/editor-sdk';
 
 // ---------------------------------------------------------------------------
 // Widget type taxonomy

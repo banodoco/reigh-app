@@ -59,7 +59,7 @@ import type { ValidateFunction } from 'ajv';
 
 /** Build the localStorage key prefix for an extension's settings. */
 export function getSettingsPrefix(extensionId: string): string {
-  return `reigh.ext.${extensionId}.`;
+  return `astrid.ext.${extensionId}.`;
 }
 
 // ---------------------------------------------------------------------------
@@ -163,7 +163,7 @@ export interface ExtensionSettingsServiceFactoryResult {
  *     `migration_reset`.
  *
  * Legacy localStorage keys written by previous versions of the settings
- * service (or by direct localStorage writes using the reigh.ext.* prefix)
+ * service (or by direct localStorage writes using the astrid.ext.* prefix)
  * are always readable through `get()` regardless of repository presence.
  *
  * @param extensionId  The extension's unique identifier.

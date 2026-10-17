@@ -1,5 +1,5 @@
 /**
- * UI renderer contracts for the Reigh Editor SDK.
+ * UI renderer contracts for the Astrid Editor SDK.
  *
  * Hosts the generic {@link ExtensionRenderer} type and the {@link ExtensionUiService}
  * exposed as `ctx.ui` during extension activation. Render-backed contributions

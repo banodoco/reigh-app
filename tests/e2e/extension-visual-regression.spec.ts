@@ -36,7 +36,7 @@ test.describe.configure({ mode: 'serial' });
 
 async function initializeLocalMode(page: Page): Promise<void> {
   await page.addInitScript(() => {
-    localStorage.removeItem('reigh.dev-extensions.disabled');
+    localStorage.removeItem('astrid.dev-extensions.disabled');
   });
 }
 
@@ -92,7 +92,7 @@ async function openComposedEditor(page: Page): Promise<void> {
   await initializeLocalMode(page);
   const response = await page.goto(COMPOSED_URL, { waitUntil: 'domcontentloaded', timeout: 45_000 });
   expect(response?.ok()).toBe(true);
-  await expect(page.locator('[data-lane-kind="reigh.transcript"]')).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator('[data-lane-kind="astrid.transcript"]')).toBeVisible({ timeout: 30_000 });
   await expect(page.getByTestId('runaway-timeline-lane')).toHaveAttribute('data-total-items', '566');
   await expect.poll(() => page.getByTestId('runaway-transition-chip').count()).toBeGreaterThan(0);
   expect(await page.getByTestId('runaway-transition-chip').count()).toBeLessThanOrEqual(128);
@@ -100,7 +100,7 @@ async function openComposedEditor(page: Page): Promise<void> {
 }
 
 async function expectDensityLabelClearOfRunawayChips(page: Page): Promise<void> {
-  const intersections = await page.locator('[data-lane-kind="reigh.runaway.transitions"]').evaluate((lane) => {
+  const intersections = await page.locator('[data-lane-kind="astrid.runaway.transitions"]').evaluate((lane) => {
     const density = lane.querySelector('[data-testid="data-lane-density-summary"]');
     if (!density) return -1;
     const summary = density.getBoundingClientRect();

@@ -8,7 +8,7 @@ import type {
 } from '@/tools/video-editor/hooks/useTimelineState.types.ts';
 import type {
   CompositionGraph,
-  ReighExtension,
+  AstridExtension,
   ExtensionManifestContribution,
   ExtensionDiagnostic,
   ContributionKind,
@@ -32,7 +32,7 @@ import type {
   CapabilitySourceRef,
   ProjectExtensionRequirement,
   PanelRenderProps,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import type { ProcessOperationSpec, ProcessSpec } from '@/sdk/video/families/processes';
 import { buildFamilyContributionSequence } from '@/tools/video-editor/runtime/families/FamilyContributionSequence.ts';
 import { assembleExtensionRuntime } from '@/tools/video-editor/runtime/families/FamilyRuntimeAssembly.ts';
@@ -577,7 +577,7 @@ export interface ExtensionRuntime {
   /** The rendered runtime config consumed by shell chrome and slots. */
   readonly config: VideoEditorExtensionRuntimeConfig;
   /** All enabled extensions in deterministic order. */
-  readonly extensions: readonly ReighExtension[];
+  readonly extensions: readonly AstridExtension[];
   /** Structured diagnostics from registration (duplicates, validation, etc.). */
   readonly diagnostics: readonly ExtensionDiagnostic[];
   /** Contributions whose kind is not yet bridged in this runtime. */
@@ -672,7 +672,7 @@ export interface PackageStateInventoryEntry {
 }
 
 /** Signature for host-owned runtime normalization. */
-export type ExtensionHost = (extensions: readonly ReighExtension[]) => ExtensionRuntime;
+export type ExtensionHost = (extensions: readonly AstridExtension[]) => ExtensionRuntime;
 
 const EMPTY_SLOTS: Partial<Record<VideoEditorSlotName, VideoEditorSlotRenderer>> = Object.freeze({});
 const EMPTY_DIALOGS: readonly VideoEditorDialogDescriptor[] = Object.freeze([]);
@@ -736,7 +736,7 @@ const EMPTY_RUNTIME_COMPOSITION_GRAPH: CompositionGraph = Object.freeze({
 });
 
 /**
- * Host-owned runtime normalization: converts a list of ReighExtension objects
+ * Host-owned runtime normalization: converts a list of AstridExtension objects
  * into a frozen, deterministic, provider-scoped {@link ExtensionRuntime}.
  *
  * - Preserves {@link DEFAULT_VIDEO_EDITOR_EXTENSION_RUNTIME} identity when
@@ -754,7 +754,7 @@ const EMPTY_RUNTIME_COMPOSITION_GRAPH: CompositionGraph = Object.freeze({
  * - Freezes the returned runtime and all nested objects.
  */
 export function normalizeExtensionRuntime(
-  extensions: readonly ReighExtension[],
+  extensions: readonly AstridExtension[],
   packageStateEntries?: readonly PackageStateInventoryEntry[],
 ): ExtensionRuntime {
   // ---- Empty fast path: preserve the default empty identity ----------------
@@ -954,7 +954,7 @@ const EMPTY_INSPECTOR_CONTRIBUTIONS: readonly InspectorContribution[] = Object.f
 // `TimelineOverlayDescriptor`, resolved descriptor, render props, geometry,
 // stores, and primitives) are owned by the SDK in
 // `src/sdk/video/families/timelineOverlays.ts` and re-exported through
-// `@reigh/editor-sdk`. Runtime projection of `timelineOverlay` contributions
+// `@astrid/editor-sdk`. Runtime projection of `timelineOverlay` contributions
 // lives in `families/projectors/timelineOverlayProjector.ts` and produces
 // SDK-owned unresolved descriptors (`config.overlays`); renderers are resolved
 // only after the owning extension registers them via `ctx.ui`, so no callable

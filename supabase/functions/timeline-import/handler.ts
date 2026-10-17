@@ -11,8 +11,8 @@ import {
 import {
   appendTimelineConfigViaService,
   createTimelineViaService,
-  ReighAppendServiceError,
-} from "../_shared/reighAppendService.ts";
+  AstridAppendServiceError,
+} from "../_shared/astridAppendService.ts";
 import { validateTimelinePayload } from "./validate.ts";
 import type {
   TimelineImportBody,
@@ -98,7 +98,7 @@ export async function handleTimelineImport(
       : null;
 
   // Shape-validate the timeline against the canonical Zod schema before
-  // doing anything else. Reigh's runtime treats unknown clipTypes with the
+  // doing anything else. Astrid's runtime treats unknown clipTypes with the
   // loud-placeholder fallback, so we purposely do NOT enforce the strict
   // effect-id registry here — that's the authoring surface's job.
   const parsed = TimelineConfigSchema.safeParse(body.timeline);
@@ -245,7 +245,7 @@ async function insertNewTimeline(
       },
     };
   } catch (error) {
-    const message = error instanceof ReighAppendServiceError
+    const message = error instanceof AstridAppendServiceError
       ? error.detail ?? error.message
       : error instanceof Error
       ? error.message
@@ -292,13 +292,13 @@ async function callVersionedRpc(
       body: { ok: true, config_version: configVersion, created: false },
     };
   } catch (error) {
-    if (error instanceof ReighAppendServiceError && error.status === 409) {
+    if (error instanceof AstridAppendServiceError && error.status === 409) {
       return {
         status: 409,
         body: { ok: false, error: "version_mismatch", current_version: currentVersion },
       };
     }
-    const message = error instanceof ReighAppendServiceError
+    const message = error instanceof AstridAppendServiceError
       ? error.detail ?? error.message
       : error instanceof Error
       ? error.message

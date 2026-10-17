@@ -19,7 +19,7 @@ import {
   assertCleanReleaseCheckout,
   inspectCandidateController,
   resolveAnnotatedCandidateTag,
-} from './reigh-release-provenance.mjs';
+} from './astrid-release-provenance.mjs';
 import { runBoundedCommand } from './bounded-command.mjs';
 import {
   assertPinnedPlatform,
@@ -53,8 +53,8 @@ export const EXPECTED_REQUIRED_GATES = Object.freeze([
  * from environment variables: a release verifier must not turn mutable input
  * into shell execution.
  */
-export const REIGH_GATE_PROFILE = Object.freeze([
-  { id: 'dependencies', label: 'install locked Reigh dependencies', command: 'npm', args: ['ci', '--no-audit', '--no-fund'] },
+export const ASTRID_APP_GATE_PROFILE = Object.freeze([
+  { id: 'dependencies', label: 'install locked Astrid App dependencies', command: 'npm', args: ['ci', '--no-audit', '--no-fund'] },
   { id: 'contract-recheck', label: 'release contract recheck', command: 'npm', args: ['run', 'check:contract-recheck:release'] },
   { id: 'deferred-claims', label: 'release deferred-claims gate', command: 'npm', args: ['run', 'check:deferred-claims:release'] },
   { id: 'docs-maturity', label: 'release documentation maturity gate', command: 'npm', args: ['run', 'check:docs-maturity-sync:release'] },
@@ -68,9 +68,9 @@ export const REIGH_GATE_PROFILE = Object.freeze([
   { id: 'ship-evidence', label: 'ship-quality immutable evidence gate', command: 'npm', args: ['run', 'check:extension-ship-evidence:release'] },
   // Its fixed argument vector intentionally has no snapshot-update switch.
   { id: 'visual-e2e', label: 'extension visual regression gate', command: 'npm', args: ['run', 'test:e2e:extension-visual'] },
-  { id: 'lint', label: 'Reigh lint', command: 'npm', args: ['run', 'lint'] },
-  { id: 'typecheck', label: 'Reigh strict-island typecheck', command: 'npm', args: ['run', 'typecheck:strict-probe'] },
-  { id: 'unit', label: 'complete Reigh unit suite', command: 'npm', args: ['test'] },
+  { id: 'lint', label: 'Astrid App lint', command: 'npm', args: ['run', 'lint'] },
+  { id: 'typecheck', label: 'Astrid App strict-island typecheck', command: 'npm', args: ['run', 'typecheck:strict-probe'] },
+  { id: 'unit', label: 'complete Astrid App unit suite', command: 'npm', args: ['test'] },
   { id: 'extension-tests', label: 'extension contract suite', command: 'npm', args: ['run', 'test:extensions'] },
   { id: 'creative-lab', label: 'Creative Lab extension suite', command: 'npm', args: ['run', 'test:creative-extension'] },
   { id: 'compatibility', label: 'extension compatibility matrix', command: 'npm', args: ['run', 'test:extension-compatibility'] },
@@ -78,13 +78,13 @@ export const REIGH_GATE_PROFILE = Object.freeze([
   { id: 'production-smoke', label: 'production extension smoke suite', command: 'npm', args: ['run', 'test:extensions:production-smoke'] },
   { id: 'runtime-rollout', label: 'runtime extension rollout suite', command: 'npm', args: ['run', 'test:extensions:runtime-rollout'] },
   { id: 'container-runtime', label: 'production container smoke and rollback', command: 'npm', args: ['run', 'verify:extension-container'] },
-  { id: 'paired-release-e2e', label: 'paired Reigh/Astrid production-like release acceptance', command: 'npm', args: ['run', 'verify:paired-release-e2e'] },
+  { id: 'paired-release-e2e', label: 'paired Astrid/Astrid production-like release acceptance', command: 'npm', args: ['run', 'verify:paired-release-e2e'] },
   { id: 'readiness', label: 'extension readiness suite', command: 'npm', args: ['run', 'test:readiness'] },
   { id: 'readiness-e2e', label: 'extension harness browser suite', command: 'npm', args: ['run', 'test:readiness:e2e'] },
   { id: 'cross-browser-e2e', label: 'Chrome Firefox WebKit extension suite', command: 'npm', args: ['run', 'test:e2e:extension-cross-browser'] },
   { id: 'accessibility-e2e', label: 'extension accessibility and responsive suite', command: 'npm', args: ['run', 'test:e2e:extension-accessibility'] },
   { id: 'timeline-e2e', label: 'timeline browser/device suite', command: 'npm', args: ['run', 'test:e2e:timeline'] },
-  { id: 'build', label: 'reproducible Reigh production build', command: 'npm', args: ['run', 'build'] },
+  { id: 'build', label: 'reproducible Astrid App production build', command: 'npm', args: ['run', 'build'] },
 ]);
 
 export const ASTRID_GATE_PROFILE = Object.freeze([
@@ -129,9 +129,9 @@ export const HEAVY_STEP_MIN_FREE_BYTES = Object.freeze({
 const RELEASE_TMPDIR = realpathSync(tmpdir());
 const RELEASE_HOME = resolve(
   RELEASE_TMPDIR,
-  `reigh-extension-ship-home-${process.pid}`,
+  `app-extension-ship-home-${process.pid}`,
 );
-const RELEASE_REIGH_WORKTREE = resolve(RELEASE_HOME, 'reigh-controller');
+const RELEASE_ASTRID_APP_WORKTREE = resolve(RELEASE_HOME, 'app-controller');
 const RELEASE_NPM_USERCONFIG = resolve(RELEASE_HOME, 'npm-userconfig');
 const RELEASE_NPM_GLOBALCONFIG = resolve(RELEASE_HOME, 'npm-globalconfig');
 const RELEASE_PATH = [
@@ -145,12 +145,12 @@ const ALLOWED_STEP_ENV = new Set([
   'ASTRID_CHECKOUT',
   'ASTRID_NODE_EXECUTABLE',
   'ASTRID_PYTHON',
-  'ASTRID_REIGH_CHECKOUT',
+  'ASTRID_APP_RELEASE_CHECKOUT',
   'ASTRID_REF',
   'PY',
   'PYTHON_BIN',
   'PYTHONPATH',
-  'REIGH_REF',
+  'ASTRID_APP_REF',
 ]);
 
 export const isMakeRecipeSafeExecutablePath = (value) => (
@@ -224,21 +224,21 @@ export function measureCommitTreeBytes(checkout, commit) {
 }
 
 export function calculateReleaseRequiredBytes({
-  reighTreeBytes,
+  appTreeBytes,
   astridTreeBytes,
   operationalAllowanceBytes = RELEASE_OPERATIONAL_ALLOWANCE_BYTES,
 }) {
   for (const [name, value] of Object.entries({
-    reighTreeBytes,
+    appTreeBytes,
     astridTreeBytes,
     operationalAllowanceBytes,
   })) {
     if (typeof value !== 'bigint' || value < 0n) fail(`${name} must be a non-negative bigint`);
   }
-  // At peak the outer Reigh worktree overlaps with the paired gate's tar and
+  // At peak the outer Astrid App worktree overlaps with the paired gate's tar and
   // extracted snapshot. The Astrid archive has the same tar/extract overlap.
-  const archivePeak = 3n * reighTreeBytes;
-  const mixedPeak = 2n * reighTreeBytes + 2n * astridTreeBytes;
+  const archivePeak = 3n * appTreeBytes;
+  const mixedPeak = 2n * appTreeBytes + 2n * astridTreeBytes;
   const treePeak = archivePeak > mixedPeak ? archivePeak : mixedPeak;
   return roundUp(treePeak + operationalAllowanceBytes, GIB);
 }
@@ -325,13 +325,13 @@ export function assertDiskRequirements(requirements, dependencies = {}) {
 }
 
 export function assertReleaseDiskCapacity({
-  reighTreeBytes,
+  appTreeBytes,
   astridTreeBytes,
   astridCheckout,
   env = process.env,
   tempPath = RELEASE_TMPDIR,
 }, dependencies = {}) {
-  const calculatedBytes = calculateReleaseRequiredBytes({ reighTreeBytes, astridTreeBytes });
+  const calculatedBytes = calculateReleaseRequiredBytes({ appTreeBytes, astridTreeBytes });
   const overrideBytes = parseDiskBudgetOverride(env);
   const requiredBytes = overrideBytes !== null && overrideBytes > calculatedBytes
     ? overrideBytes
@@ -378,7 +378,7 @@ function isPlainObject(value) {
 
 export function validateReleaseManifest(manifest) {
   const errors = [];
-  const reigh = isPlainObject(manifest?.reigh) ? manifest.reigh : {};
+  const app = isPlainObject(manifest?.app) ? manifest.app : {};
   const astrid = isPlainObject(manifest?.astrid) ? manifest.astrid : {};
   const verification = isPlainObject(manifest?.verification)
     ? manifest.verification
@@ -391,21 +391,21 @@ export function validateReleaseManifest(manifest) {
   if (manifest?.status !== 'integration' && manifest?.status !== 'frozen') {
     errors.push('status must be integration or frozen');
   }
-  if (typeof reigh.branch !== 'string' || reigh.branch.trim() === '') {
-    errors.push('reigh.branch must be a non-empty string');
+  if (typeof app.branch !== 'string' || app.branch.trim() === '') {
+    errors.push('app.branch must be a non-empty string');
   }
   if (
-    typeof reigh.releaseTag !== 'string'
-    || !/^[A-Za-z0-9][A-Za-z0-9._/-]{0,127}$/.test(reigh.releaseTag)
-    || reigh.releaseTag.includes('..')
-    || reigh.releaseTag.includes('//')
-    || reigh.releaseTag.endsWith('/')
-    || reigh.releaseTag.endsWith('.')
+    typeof app.releaseTag !== 'string'
+    || !/^[A-Za-z0-9][A-Za-z0-9._/-]{0,127}$/.test(app.releaseTag)
+    || app.releaseTag.includes('..')
+    || app.releaseTag.includes('//')
+    || app.releaseTag.endsWith('/')
+    || app.releaseTag.endsWith('.')
   ) {
-    errors.push('reigh.releaseTag must be a safe annotated-tag name');
+    errors.push('app.releaseTag must be a safe annotated-tag name');
   }
-  if (!/^[0-9a-f]{40}$/.test(reigh.baseCommit ?? '')) {
-    errors.push('reigh.baseCommit must be a full 40-character lowercase commit');
+  if (!/^[0-9a-f]{40}$/.test(app.baseCommit ?? '')) {
+    errors.push('app.baseCommit must be a full 40-character lowercase commit');
   }
   if (typeof astrid.branch !== 'string' || astrid.branch.trim() === '') {
     errors.push('astrid.branch must be a non-empty string');
@@ -489,7 +489,7 @@ export function validatePackageJson(packageJson, manifest) {
   }
 
   const scripts = isPlainObject(packageJson.scripts) ? packageJson.scripts : {};
-  for (const gate of REIGH_GATE_PROFILE) {
+  for (const gate of ASTRID_APP_GATE_PROFILE) {
     if (gate.command !== 'npm' || gate.args[0] !== 'run') continue;
     const scriptName = gate.args[1];
     if (typeof scripts[scriptName] !== 'string' || scripts[scriptName].trim() === '') {
@@ -527,13 +527,13 @@ export function buildExecutionPlan({
   nodeExecutable,
   astridPython,
   astridRef,
-  reighRef,
+  appRef,
 }) {
   const astridCwd = astridCheckout || '<ASTRID_CHECKOUT required for execution>';
   const node = nodeExecutable || '<PINNED_NODE required for execution>';
   const python = astridPython || '<ASTRID_PYTHON required for execution>';
   return [
-    ...REIGH_GATE_PROFILE.map((gate) => ({
+    ...ASTRID_APP_GATE_PROFILE.map((gate) => ({
       ...gate,
       timeoutMs: RELEASE_PHASE_TIMEOUT_MS,
       maxBuffer: RELEASE_COMMAND_MAX_BUFFER_BYTES,
@@ -543,7 +543,7 @@ export function buildExecutionPlan({
             ASTRID_CHECKOUT: astridCheckout || '<ASTRID_CHECKOUT required for execution>',
             ASTRID_PYTHON: astridPython || '<ASTRID_PYTHON required for execution>',
             ASTRID_REF: astridRef || '<ASTRID_REF required for execution>',
-            REIGH_REF: reighRef || '<REIGH_REF required for execution>',
+            ASTRID_APP_REF: appRef || '<ASTRID_APP_REF required for execution>',
           }
         : undefined,
     })),
@@ -554,7 +554,7 @@ export function buildExecutionPlan({
       env: gate.id === 'astrid-ci'
         ? {
             ASTRID_NODE_EXECUTABLE: node,
-            ASTRID_REIGH_CHECKOUT: repoRoot,
+            ASTRID_APP_RELEASE_CHECKOUT: repoRoot,
             PY: python,
             PYTHON_BIN: python,
             PYTHONPATH: resolve(repoRoot, 'vendor/timeline-schema/python'),
@@ -683,24 +683,24 @@ function resolveCommit(checkout, ref, name) {
   );
 }
 
-export function assertReighCheckout(manifest, env) {
+export function assertAppCheckout(manifest, env) {
   const branch = outputOf('git', ['branch', '--show-current'], REPO_ROOT);
-  if (branch !== manifest.reigh.branch) {
-    fail(`Reigh branch mismatch: expected ${manifest.reigh.branch}, got ${branch || '<detached>'}`);
+  if (branch !== manifest.app.branch) {
+    fail(`Astrid App branch mismatch: expected ${manifest.app.branch}, got ${branch || '<detached>'}`);
   }
 
   const baseCommit = resolveCommit(
     REPO_ROOT,
-    manifest.reigh.baseCommit,
-    'manifest reigh.baseCommit',
+    manifest.app.baseCommit,
+    'manifest app.baseCommit',
   );
-  if (!/^[0-9a-f]{40}$/.test(env.REIGH_REF ?? '')) {
-    fail('REIGH_REF is required and must be a full 40-character lowercase commit');
+  if (!/^[0-9a-f]{40}$/.test(env.ASTRID_APP_REF ?? '')) {
+    fail('ASTRID_APP_REF is required and must be a full 40-character lowercase commit');
   }
   const candidateCommit = resolveCommit(
     REPO_ROOT,
-    env.REIGH_REF,
-    'REIGH_REF',
+    env.ASTRID_APP_REF,
+    'ASTRID_APP_REF',
   );
   const head = outputOf('git', ['rev-parse', 'HEAD'], REPO_ROOT);
   const candidateAncestry = runCaptured(
@@ -710,16 +710,16 @@ export function assertReighCheckout(manifest, env) {
     { allowFailure: true },
   );
   if (candidateAncestry.error || candidateAncestry.status !== 0) {
-    fail(`Reigh candidate is not descended from pinned base ${manifest.reigh.baseCommit}`);
+    fail(`Astrid App candidate is not descended from pinned base ${manifest.app.baseCommit}`);
   }
   const tag = resolveAnnotatedCandidateTag({
     repoRoot: REPO_ROOT,
-    releaseTag: manifest.reigh.releaseTag,
+    releaseTag: manifest.app.releaseTag,
   });
   if (tag.candidateCommit !== candidateCommit) {
     fail(
-      `Reigh release tag ${manifest.reigh.releaseTag} resolves to ${tag.candidateCommit}, `
-      + `not REIGH_REF candidate ${candidateCommit}`,
+      `Astrid App release tag ${manifest.app.releaseTag} resolves to ${tag.candidateCommit}, `
+      + `not ASTRID_APP_REF candidate ${candidateCommit}`,
     );
   }
   const provenance = inspectCandidateController({
@@ -728,14 +728,14 @@ export function assertReighCheckout(manifest, env) {
     headCommit: head,
     release: manifest.release,
   });
-  assertClean(REPO_ROOT, 'Reigh');
+  assertClean(REPO_ROOT, 'Astrid App');
   return {
     baseCommit,
     branch,
     candidateCommit,
     head,
     provenance,
-    releaseTag: manifest.reigh.releaseTag,
+    releaseTag: manifest.app.releaseTag,
     tagObject: tag.tagObject,
   };
 }
@@ -798,34 +798,34 @@ function prepareReleaseHome() {
   mkdirSync(RELEASE_HOME, { mode: 0o700 });
 }
 
-function createReleaseReighWorktree(headCommit) {
+function createReleaseAppWorktree(headCommit) {
   const result = runCaptured(
     'git',
-    ['worktree', 'add', '--detach', RELEASE_REIGH_WORKTREE, headCommit],
+    ['worktree', 'add', '--detach', RELEASE_ASTRID_APP_WORKTREE, headCommit],
     REPO_ROOT,
     { allowFailure: true },
   );
   if (result.error || result.status !== 0) {
-    fail(`could not create isolated Reigh release worktree: ${formatFailure(result)}`);
+    fail(`could not create isolated Astrid App release worktree: ${formatFailure(result)}`);
   }
-  const isolatedHead = outputOf('git', ['rev-parse', 'HEAD'], RELEASE_REIGH_WORKTREE);
+  const isolatedHead = outputOf('git', ['rev-parse', 'HEAD'], RELEASE_ASTRID_APP_WORKTREE);
   if (isolatedHead !== headCommit) {
-    fail(`isolated Reigh worktree resolved to ${isolatedHead}, expected ${headCommit}`);
+    fail(`isolated Astrid App worktree resolved to ${isolatedHead}, expected ${headCommit}`);
   }
-  assertClean(RELEASE_REIGH_WORKTREE, 'isolated Reigh evidence controller');
-  return RELEASE_REIGH_WORKTREE;
+  assertClean(RELEASE_ASTRID_APP_WORKTREE, 'isolated Astrid App evidence controller');
+  return RELEASE_ASTRID_APP_WORKTREE;
 }
 
-function removeReleaseReighWorktree() {
-  if (!existsSync(RELEASE_REIGH_WORKTREE)) return;
+function removeReleaseAppWorktree() {
+  if (!existsSync(RELEASE_ASTRID_APP_WORKTREE)) return;
   const result = runCaptured(
     'git',
-    ['worktree', 'remove', '--force', RELEASE_REIGH_WORKTREE],
+    ['worktree', 'remove', '--force', RELEASE_ASTRID_APP_WORKTREE],
     REPO_ROOT,
     { allowFailure: true },
   );
   if (result.error || result.status !== 0) {
-    fail(`could not remove isolated Reigh release worktree: ${formatFailure(result)}`);
+    fail(`could not remove isolated Astrid App release worktree: ${formatFailure(result)}`);
   }
 }
 
@@ -975,11 +975,11 @@ function printHelp() {
 
 Verify the frozen extension ship-quality release candidate. The run mode:
   1. requires a frozen release manifest and pinned Node/npm toolchain;
-  2. requires an annotated Reigh tag and REIGH_REF resolving to the exact code
+  2. requires an annotated Astrid App tag and ASTRID_APP_REF resolving to the exact code
      candidate, plus a clean evidence-only controller descendant;
   3. fails before creating its isolated HOME unless commit-sized disk capacity
      is available, and rechecks capacity before every allocation-heavy gate;
-  4. runs the code-owned Reigh release gate profile from a fresh detached
+  4. runs the code-owned Astrid App release gate profile from a fresh detached
      worktree at the verified controller commit; and
   5. runs \`make ci\` in the pinned Astrid checkout.
 
@@ -988,7 +988,7 @@ Options:
   -h, --help         Show this help.
 
 Required environment for run mode:
-  REIGH_REF         Full 40-character commit equal to the annotated candidate tag.
+  ASTRID_APP_REF         Full 40-character commit equal to the annotated candidate tag.
   ASTRID_CHECKOUT    Absolute path to the clean Astrid checkout.
   ASTRID_REF         Full 40-character commit equal to the manifest Astrid pin.
   ASTRID_PYTHON      Absolute executable matching the manifest Python pin.
@@ -998,7 +998,7 @@ Optional environment for run mode:
                                the code-calculated disk requirement.
 
 The verifier never fetches, checks out, resets, cleans, migrates production data,
-or rolls back a repository. Reigh HEAD must be a strict descendant whose entire
+or rolls back a repository. Astrid App HEAD must be a strict descendant whose entire
 candidate..HEAD history changes only the ledger, the manifest status, and the
 manifest release's evidence-directory artifacts. It stops at the first mismatch
 or failed gate.`);
@@ -1007,21 +1007,21 @@ or failed gate.`);
 function printPlan(manifest, packageJson, env) {
   validatePackageJson(packageJson, manifest);
   const steps = buildExecutionPlan({
-    repoRoot: RELEASE_REIGH_WORKTREE,
+    repoRoot: RELEASE_ASTRID_APP_WORKTREE,
     astridCheckout: env.ASTRID_CHECKOUT,
     nodeExecutable: realpathSync(process.execPath),
     astridPython: env.ASTRID_PYTHON,
     astridRef: env.ASTRID_REF,
-    reighRef: env.REIGH_REF,
+    appRef: env.ASTRID_APP_REF,
   });
 
   console.log(`${LABEL} PLAN ONLY — no commands will execute`);
   console.log(`${LABEL} release: ${manifest.release}`);
   console.log(`${LABEL} manifest status: ${manifest.status}`);
-  console.log(`${LABEL} Reigh branch: ${manifest.reigh.branch}`);
-  console.log(`${LABEL} Reigh annotated release tag: ${manifest.reigh.releaseTag}`);
-  console.log(`${LABEL} Reigh base: ${manifest.reigh.baseCommit}`);
-  console.log(`${LABEL} Reigh env ref: ${env.REIGH_REF || '<required for execution>'}`);
+  console.log(`${LABEL} Astrid App branch: ${manifest.app.branch}`);
+  console.log(`${LABEL} Astrid App annotated release tag: ${manifest.app.releaseTag}`);
+  console.log(`${LABEL} Astrid App base: ${manifest.app.baseCommit}`);
+  console.log(`${LABEL} Astrid App env ref: ${env.ASTRID_APP_REF || '<required for execution>'}`);
   console.log(`${LABEL} Astrid manifest pin: ${manifest.astrid.commit}`);
   console.log(`${LABEL} Astrid checkout: ${env.ASTRID_CHECKOUT || '<required for execution>'}`);
   console.log(`${LABEL} Astrid env ref: ${env.ASTRID_REF || '<required for execution>'}`);
@@ -1039,7 +1039,7 @@ function printPlan(manifest, packageJson, env) {
     `${LABEL} disk preflight: commit-tree archive peak + ${RELEASE_OPERATIONAL_ALLOWANCE_BYTES / GIB} GiB `
     + `operational allowance; ${DISK_BUDGET_OVERRIDE_ENV} may only raise it`,
   );
-  console.log(`${LABEL} Reigh execution root: fresh detached worktree ${RELEASE_REIGH_WORKTREE}`);
+  console.log(`${LABEL} Astrid App execution root: fresh detached worktree ${RELEASE_ASTRID_APP_WORKTREE}`);
 
   for (let index = 0; index < steps.length; index += 1) {
     const step = steps[index];
@@ -1078,57 +1078,57 @@ export function main(argv = process.argv.slice(2), env = process.env) {
     );
   }
   let releaseHomePrepared = false;
-  let releaseReighWorktree;
+  let releaseAppWorktree;
   try {
     const astridPython = assertToolchain(manifest, env);
-    const reigh = assertReighCheckout(manifest, env);
+    const app = assertAppCheckout(manifest, env);
     const astrid = resolveAstridCheckout(manifest, env);
-    console.log(`${LABEL} Reigh candidate: ${reigh.candidateCommit}`);
-    console.log(`${LABEL} Reigh HEAD: ${reigh.head}`);
-    console.log(`${LABEL} Reigh annotated tag object: ${reigh.tagObject}`);
-    console.log(`${LABEL} Reigh evidence directory: ${reigh.provenance.evidenceDirectory}`);
+    console.log(`${LABEL} Astrid App candidate: ${app.candidateCommit}`);
+    console.log(`${LABEL} Astrid App HEAD: ${app.head}`);
+    console.log(`${LABEL} Astrid App annotated tag object: ${app.tagObject}`);
+    console.log(`${LABEL} Astrid App evidence directory: ${app.provenance.evidenceDirectory}`);
     console.log(`${LABEL} Astrid HEAD: ${astrid.commit}`);
-    const reighTreeBytes = measureCommitTreeBytes(REPO_ROOT, reigh.head);
+    const appTreeBytes = measureCommitTreeBytes(REPO_ROOT, app.head);
     const astridTreeBytes = measureCommitTreeBytes(astrid.checkout, astrid.commit);
     const diskBudget = assertReleaseDiskCapacity({
-      reighTreeBytes,
+      appTreeBytes,
       astridTreeBytes,
       astridCheckout: astrid.checkout,
       env,
     });
     console.log(
       `${LABEL} disk capacity: requires ${formatBytes(diskBudget.requiredBytes)}; `
-      + `Reigh tree ${formatBytes(reighTreeBytes)}; Astrid tree ${formatBytes(astridTreeBytes)}`,
+      + `Astrid App tree ${formatBytes(appTreeBytes)}; Astrid tree ${formatBytes(astridTreeBytes)}`,
     );
     prepareReleaseHome();
     releaseHomePrepared = true;
-    releaseReighWorktree = RELEASE_REIGH_WORKTREE;
-    createReleaseReighWorktree(reigh.head);
-    console.log(`${LABEL} isolated Reigh controller: ${releaseReighWorktree}`);
+    releaseAppWorktree = RELEASE_ASTRID_APP_WORKTREE;
+    createReleaseAppWorktree(app.head);
+    console.log(`${LABEL} isolated Astrid App controller: ${releaseAppWorktree}`);
 
     const steps = buildExecutionPlan({
-      repoRoot: releaseReighWorktree,
+      repoRoot: releaseAppWorktree,
       astridCheckout: astrid.checkout,
       nodeExecutable: realpathSync(process.execPath),
       astridPython,
       astridRef: env.ASTRID_REF,
-      reighRef: env.REIGH_REF,
+      appRef: env.ASTRID_APP_REF,
     });
     executeSteps(steps, runBoundedCommand, {
       diskRecheck: (step) => assertHeavyStepDiskCapacity(step, {
         astridCheckout: astrid.checkout,
       }),
     });
-    assertClean(releaseReighWorktree, 'isolated Reigh evidence controller after gates');
+    assertClean(releaseAppWorktree, 'isolated Astrid App evidence controller after gates');
 
     // Gates must not leave tracked or untracked release inputs behind.
-    const finalReigh = assertReighCheckout(manifest, env);
+    const finalApp = assertAppCheckout(manifest, env);
     if (
-      finalReigh.head !== reigh.head
-      || finalReigh.candidateCommit !== reigh.candidateCommit
-      || finalReigh.tagObject !== reigh.tagObject
+      finalApp.head !== app.head
+      || finalApp.candidateCommit !== app.candidateCommit
+      || finalApp.tagObject !== app.tagObject
     ) {
-      fail('Reigh controller HEAD, candidate commit, or annotated tag changed during verification');
+      fail('Astrid App controller HEAD, candidate commit, or annotated tag changed during verification');
     }
     const finalAstrid = resolveAstridCheckout(manifest, env);
     if (finalAstrid.commit !== astrid.commit) {
@@ -1138,7 +1138,7 @@ export function main(argv = process.argv.slice(2), env = process.env) {
     console.log(`\n${LABEL} PASS: ${manifest.release} passed all ${steps.length} pinned gates`);
   } finally {
     try {
-      if (releaseReighWorktree) removeReleaseReighWorktree();
+      if (releaseAppWorktree) removeReleaseAppWorktree();
     } finally {
       if (releaseHomePrepared) cleanupReleaseHome();
     }

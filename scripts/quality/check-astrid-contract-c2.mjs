@@ -67,7 +67,7 @@ function validateC1(contract, errors) {
 }
 
 function validateSourceApplicability(contract, repoRoots, errors, verification) {
-  const roots = { 'reigh-app': REPO_ROOT, ...repoRoots };
+  const roots = { 'astrid-app': REPO_ROOT, ...repoRoots };
   for (const source of contract.sourceApplicability ?? []) {
     const root = roots[source.repository];
     if (!root) {
@@ -113,7 +113,7 @@ export function validateContract(contract, { repoRoots = {} } = {}) {
   require(contract.predecessor?.immutable === true, 'predecessor: C1 must be immutable');
   require(contract.predecessor?.path === 'config/contracts/astrid-plan-a-c1.json', 'predecessor.path: expected C1 path');
   require(contract.authority?.runtimeWire === 'workspace.v1', 'authority.runtimeWire: Runtime authority changed');
-  require(contract.authority?.runtimeWireOwner === 'banodoco-workspace-runtime', 'authority.runtimeWireOwner: duplicate Runtime authority');
+  require(contract.authority?.runtimeWireOwner === 'astrid-runtime', 'authority.runtimeWireOwner: duplicate Runtime authority');
   require(contract.diagnostic?.totalObservationDeadlineMs === 5000, 'diagnostic.totalObservationDeadlineMs: expected exactly 5000');
   require(contract.diagnostic?.deadlineScope === 'total-including-all-helpers', 'diagnostic.deadlineScope: expected total deadline');
   require(sameSequence(contract.diagnostic?.collectionEffects, ['observe']), 'diagnostic.collectionEffects: diagnostic collection must only observe');
@@ -288,10 +288,10 @@ function main(argv) {
   const json = argv.includes('--json');
   const roots = {};
   const flags = {
-    '--app-root': 'reigh-app',
-    '--astrid-root': 'Astrid',
-    '--runtime-root': 'banodoco-workspace-runtime',
-    '--worker-root': 'reigh-worker',
+    '--app-root': 'astrid-app',
+    '--astrid-root': 'astrid-agent',
+    '--runtime-root': 'astrid-runtime',
+    '--worker-root': 'astrid-worker',
   };
   try {
     for (let index = 0; index < argv.length; index += 1) {

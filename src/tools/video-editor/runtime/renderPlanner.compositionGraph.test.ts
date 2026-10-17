@@ -4,7 +4,7 @@ import type {
   ExtensionDiagnostic,
   TimelineShaderSummary,
   TimelineSnapshot,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import { decideRenderRoute } from '@/tools/video-editor/lib/renderRouter.ts';
 import { planRender } from '@/tools/video-editor/runtime/renderPlanner.ts';
 import type { VideoEditorShaderDescriptor } from '@/tools/video-editor/runtime/extensionSurface.ts';

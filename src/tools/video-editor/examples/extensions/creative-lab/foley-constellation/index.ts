@@ -7,28 +7,28 @@
  */
 
 import { createElement } from 'react';
-import { defineExtension } from '@reigh/editor-sdk';
+import { defineExtension } from '@astrid/editor-sdk';
 import type {
   CommandRunContext,
   ContributionId,
   DisposeHandle,
   ExtensionContext,
   ExtensionId,
-  ReighExtension,
+  AstridExtension,
   TimelineClipSummary,
   TimelineMarkerChange,
   TimelineOverlayRenderProps,
   TimelinePatch,
   TimelineSnapshot,
   TimelineTrackSummary,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import {
   clusterTimelineMarkers,
   moveTimelineMarkerCluster,
 } from '../timelineMarkerClusters';
 
 export const FOLEY_CONSTELLATION_EXTENSION_ID =
-  'com.reigh.creative-lab.foley-constellation' as ExtensionId;
+  'haus.astrid.creative-lab.foley-constellation' as ExtensionId;
 export const DROP_FOLEY_CUES_COMMAND =
   `${FOLEY_CONSTELLATION_EXTENSION_ID}.dropCues`;
 export const FOLEY_CUES_DATA_KEY = 'foleyCues';
@@ -434,7 +434,7 @@ function disposeTogether(ctx: ExtensionContext, handles: readonly DisposeHandle[
   }
 }
 
-export const foleyConstellationExtension: ReighExtension = defineExtension({
+export const foleyConstellationExtension: AstridExtension = defineExtension({
   manifest: {
     id: FOLEY_CONSTELLATION_EXTENSION_ID,
     version: '1.0.0',

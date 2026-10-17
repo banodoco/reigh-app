@@ -179,7 +179,7 @@ describe('CachedExtensionStateRepository write-failure recovery', () => {
       await repo.initialize();
 
       const proposalId = await repo.createProposal({
-        extensionId: 'com.reigh.transcript-lane',
+        extensionId: 'haus.astrid.transcript-lane',
         status: 'pending',
         payload: { proposedText: 'private caption' },
       });

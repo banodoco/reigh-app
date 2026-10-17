@@ -37,16 +37,16 @@ describe('useEditorPreferences right panel state', () => {
     expect(result.current.preferences.showTranscriptLane).toBe(true);
 
     act(() => {
-      result.current.setSelectedRightPanelId('com.reigh.transcript-lane:transcript-lane-panel');
-      result.current.setRightPanelLayoutSlot('com.reigh.transcript-lane:transcript-lane-panel', 'compact');
+      result.current.setSelectedRightPanelId('haus.astrid.transcript-lane:transcript-lane-panel');
+      result.current.setRightPanelLayoutSlot('haus.astrid.transcript-lane:transcript-lane-panel', 'compact');
       result.current.setShowDataLanes(true);
     });
     act(() => vi.advanceTimersByTime(250));
 
     const saved = JSON.parse(localStorage.getItem('video-editor:preferences:legacy') ?? '{}');
-    expect(saved.selectedRightPanelId).toBe('com.reigh.transcript-lane:transcript-lane-panel');
+    expect(saved.selectedRightPanelId).toBe('haus.astrid.transcript-lane:transcript-lane-panel');
     expect(saved.rightPanelLayoutSlotsByPanelId).toEqual({
-      'com.reigh.transcript-lane:transcript-lane-panel': 'compact',
+      'haus.astrid.transcript-lane:transcript-lane-panel': 'compact',
     });
     expect(saved.showDataLanes).toBe(true);
     expect(saved.scaleWidth).toBe(190);
@@ -58,7 +58,7 @@ describe('useEditorPreferences right panel state', () => {
 
     act(() => {
       first.result.current.setSelectedRightPanelId(null);
-      first.result.current.setRightPanelLayoutSlot('com.reigh.transcript-lane:transcript-lane-panel', 'compact');
+      first.result.current.setRightPanelLayoutSlot('haus.astrid.transcript-lane:transcript-lane-panel', 'compact');
       first.result.current.setShowDataLanes(true);
     });
 
@@ -91,10 +91,10 @@ describe('useEditorPreferences right panel state', () => {
     localStorage.setItem('video-editor:preferences:per-kind', JSON.stringify({ ...defaultPreferences,
       showTranscriptLane: false, showDataLanes: true }));
     const { result } = renderHook(() => useEditorPreferences('per-kind'));
-    expect(result.current.preferences.showDataLanesByKind?.['reigh.transcript']).toBe(false);
-    act(() => result.current.setDataKindLaneVisible('reigh.marker', false));
-    expect(result.current.preferences.showDataLanesByKind?.['reigh.marker']).toBe(false);
-    expect(result.current.preferences.showDataLanesByKind?.['reigh.transcript']).toBe(false);
+    expect(result.current.preferences.showDataLanesByKind?.['astrid.transcript']).toBe(false);
+    act(() => result.current.setDataKindLaneVisible('astrid.marker', false));
+    expect(result.current.preferences.showDataLanesByKind?.['astrid.marker']).toBe(false);
+    expect(result.current.preferences.showDataLanesByKind?.['astrid.transcript']).toBe(false);
   });
 
 });

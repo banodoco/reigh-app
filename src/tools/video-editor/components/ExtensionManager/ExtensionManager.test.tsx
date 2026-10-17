@@ -7,7 +7,7 @@ import {
   ManagerLoadingState,
   ManagerRenderErrorState,
 } from '@/tools/video-editor/components/ExtensionManager/ExtensionManagerErrorBoundary';
-import type { Diagnostic, DiagnosticCollection, DisposeHandle } from '@reigh/editor-sdk';
+import type { Diagnostic, DiagnosticCollection, DisposeHandle } from '@astrid/editor-sdk';
 
 // ---------------------------------------------------------------------------
 // Mock dependencies
@@ -3503,9 +3503,9 @@ describe('ExtensionManager — empty, error, and mixed states (T11)', () => {
 // ---------------------------------------------------------------------------
 
 describe('ExtensionManager — dev-local extensions section (T2.4)', () => {
-  const LOCAL_ID = 'com.reigh.dev.local-fixture';
-  const DISABLED_LOCAL_ID = 'com.reigh.dev.local-disabled';
-  const DISABLED_STORAGE_KEY = 'reigh.dev-extensions.disabled';
+  const LOCAL_ID = 'haus.astrid.dev.local-fixture';
+  const DISABLED_LOCAL_ID = 'haus.astrid.dev.local-disabled';
+  const DISABLED_STORAGE_KEY = 'astrid.dev-extensions.disabled';
   const originalDEV = import.meta.env.DEV;
 
   function makeLocalExtension(id: string, label: string, description?: string) {
@@ -3571,7 +3571,7 @@ describe('ExtensionManager — dev-local extensions section (T2.4)', () => {
 
     // Active state derives from the runtime's enabled-extension list.
     const toggle = screen.getByRole('button', {
-      name: /disable com\.reigh\.dev\.local-fixture/i,
+      name: /disable haus\.astrid\.dev\.local-fixture/i,
     });
     expect(toggle).toHaveTextContent('Enabled');
     expect(toggle).toHaveAttribute('aria-pressed', 'true');
@@ -3590,7 +3590,7 @@ describe('ExtensionManager — dev-local extensions section (T2.4)', () => {
 
     render(<div onKeyDown={outerKeyDown}><ExtensionManager /></div>);
     fireEvent.keyDown(screen.getByRole('button', {
-      name: /disable com\.reigh\.dev\.local-fixture/i,
+      name: /disable haus\.astrid\.dev\.local-fixture/i,
     }), { key: ' ', code: 'Space' });
 
     expect(outerKeyDown).not.toHaveBeenCalled();
@@ -3640,7 +3640,7 @@ describe('ExtensionManager — dev-local extensions section (T2.4)', () => {
     expect(disabledRow).toHaveTextContent('Inactive (disabled)');
 
     const enableToggle = screen.getByRole('button', {
-      name: /enable com\.reigh\.dev\.local-disabled/i,
+      name: /enable haus\.astrid\.dev\.local-disabled/i,
     });
     expect(enableToggle).toHaveTextContent('Disabled');
 
@@ -3654,7 +3654,7 @@ describe('ExtensionManager — dev-local extensions section (T2.4)', () => {
       // The store no longer marks it disabled, so the toggle flips to "Disable".
       expect(
         screen.getByRole('button', {
-          name: /disable com\.reigh\.dev\.local-disabled/i,
+          name: /disable haus\.astrid\.dev\.local-disabled/i,
         }),
       ).toBeInTheDocument();
     });
@@ -3677,14 +3677,14 @@ describe('ExtensionManager — dev-local extensions section (T2.4)', () => {
     render(<ExtensionManager />);
 
     const disableToggle = screen.getByRole('button', {
-      name: /disable com\.reigh\.dev\.local-fixture/i,
+      name: /disable haus\.astrid\.dev\.local-fixture/i,
     });
     await user.click(disableToggle);
 
     await waitFor(() => {
       expect(
         screen.getByRole('button', {
-          name: /enable com\.reigh\.dev\.local-fixture/i,
+          name: /enable haus\.astrid\.dev\.local-fixture/i,
         }),
       ).toBeInTheDocument();
     });

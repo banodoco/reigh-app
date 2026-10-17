@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { TimelineOverlayRenderProps } from '@reigh/editor-sdk';
+import type { TimelineOverlayRenderProps } from '@astrid/editor-sdk';
 import {
   BUILD_RECALL_PULSE_COMMAND,
   RECALL_PULSE_DATA_KEY,
@@ -32,7 +32,7 @@ function clip(
 
 describe('Structural Learning-Review Scaffold', () => {
   it('keeps the JSON manifest aligned and states the read-only structural scope', async () => {
-    const manifestModule = await import('./reigh-extension.json');
+    const manifestModule = await import('./astrid-extension.json');
     expect(manifestModule.default.manifest).toEqual(recallPulseExtension.manifest);
     expect(recallPulseExtension.manifest.label).toBe('Structural Learning-Review Scaffold');
     expect(recallPulseExtension.manifest.description).toContain('read-only');
@@ -183,7 +183,7 @@ describe('Structural Learning-Review Scaffold', () => {
     };
     const markers = deriveRecallPulseMarkers(source);
     const sourceSignature = computeRecallPulseSourceSignature(source);
-    expect(sourceSignature).toMatch(/^reigh-fnv1a64-v1:[0-9a-f]{16}$/);
+    expect(sourceSignature).toMatch(/^astrid-fnv1a64-v1:[0-9a-f]{16}$/);
     const patch = buildRecallPulsePatch(
       RECALL_PULSE_EXTENSION_ID,
       createCreativeLabSnapshot({ baseVersion: 3 }),

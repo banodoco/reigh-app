@@ -122,16 +122,16 @@ describe('paired release semantic validators', () => {
   });
 
   it('rejects null, empty and malformed command output', () => {
-    expect(validateExtensionOutput('com.reigh.creative-lab.pulse-map', null, timeline).valid).toBe(false);
-    expect(validateExtensionOutput('com.reigh.creative-lab.pulse-map', { schemaVersion: 1, generatedFromVersion: 1, entries: [] }, timeline).valid).toBe(false);
-    expect(validateExtensionOutput('com.reigh.creative-lab.pulse-map', {
+    expect(validateExtensionOutput('haus.astrid.creative-lab.pulse-map', null, timeline).valid).toBe(false);
+    expect(validateExtensionOutput('haus.astrid.creative-lab.pulse-map', { schemaVersion: 1, generatedFromVersion: 1, entries: [] }, timeline).valid).toBe(false);
+    expect(validateExtensionOutput('haus.astrid.creative-lab.pulse-map', {
       schemaVersion: 1,
       generatedFromVersion: 1,
       entries: [{ id: 'pulse-clip-a-start', sourceClipId: 'clip-a', edge: 'start', time: 1, offset: 0, intensity: 0.4, color: '#fff' }],
     }, timeline).valid).toBe(false);
-    expect(validateExtensionOutput('com.reigh.creative-lab.timeline-faultline', [], timeline))
+    expect(validateExtensionOutput('haus.astrid.creative-lab.timeline-faultline', [], timeline))
       .toMatchObject({ valid: false, reason: 'expected an envelope object' });
-    expect(validateExtensionOutput('com.reigh.creative-lab.timeline-faultline', {
+    expect(validateExtensionOutput('haus.astrid.creative-lab.timeline-faultline', {
       schemaVersion: 1,
       generatedFromVersion: -1,
       entries: [],
@@ -161,7 +161,7 @@ describe('paired release semantic validators', () => {
     };
 
     const result = validateExtensionOutput(
-      'com.reigh.creative-lab.pulse-map',
+      'haus.astrid.creative-lab.pulse-map',
       pulseMap,
       persistedTimeline,
     );
@@ -169,7 +169,7 @@ describe('paired release semantic validators', () => {
     expect(result.count).toBe(4);
 
     expect(validateExtensionOutput(
-      'com.reigh.creative-lab.pulse-map',
+      'haus.astrid.creative-lab.pulse-map',
       {
         ...pulseMap,
         entries: pulseMap.entries.map((entry, index) => (
@@ -180,7 +180,7 @@ describe('paired release semantic validators', () => {
     )).toMatchObject({ valid: false, reason: expect.stringContaining('does not match boundary') });
 
     expect(validateExtensionOutput(
-      'com.reigh.creative-lab.pulse-map',
+      'haus.astrid.creative-lab.pulse-map',
       { ...pulseMap, entries: [...pulseMap.entries.slice(0, 3), pulseMap.entries[0]] },
       persistedTimeline,
     )).toMatchObject({ valid: false, reason: expect.stringContaining('duplicate id') });
@@ -209,12 +209,12 @@ describe('paired release semantic validators', () => {
       }],
     };
     expect(validateExtensionOutput(
-      'com.reigh.creative-lab.timeline-faultline',
+      'haus.astrid.creative-lab.timeline-faultline',
       faultline,
       anomalousTimeline,
     )).toMatchObject({ valid: true, count: 1 });
     expect(validateExtensionOutput(
-      'com.reigh.creative-lab.timeline-faultline',
+      'haus.astrid.creative-lab.timeline-faultline',
       faultline,
       {
         ...anomalousTimeline,
@@ -222,7 +222,7 @@ describe('paired release semantic validators', () => {
       },
     )).toMatchObject({ valid: true, count: 1 });
     expect(validateExtensionOutput(
-      'com.reigh.creative-lab.timeline-faultline',
+      'haus.astrid.creative-lab.timeline-faultline',
       faultline,
       {
         ...anomalousTimeline,
@@ -233,7 +233,7 @@ describe('paired release semantic validators', () => {
       reason: 'expected 0 entries, got 1',
     });
     expect(validateExtensionOutput(
-      'com.reigh.creative-lab.timeline-faultline',
+      'haus.astrid.creative-lab.timeline-faultline',
       { ...faultline, entries: [{ ...faultline.entries[0], time: 2 }] },
       anomalousTimeline,
     )).toMatchObject({
@@ -262,39 +262,39 @@ describe('paired release semantic validators', () => {
       }],
     });
     const outputs: Record<string, unknown> = {
-      'com.reigh.scene-phase-markers': [{ id: 'marker-1', time: 1 }],
-      'com.reigh.creative-lab.pulse-map': { schemaVersion: 1, generatedFromVersion: 1, entries: [
+      'haus.astrid.scene-phase-markers': [{ id: 'marker-1', time: 1 }],
+      'haus.astrid.creative-lab.pulse-map': { schemaVersion: 1, generatedFromVersion: 1, entries: [
         { id: 'pulse-clip-a-start', sourceClipId: 'clip-a', edge: 'start', time: 1, offset: 0, intensity: 0.4, color: '#ff4d8d' },
         { id: 'pulse-clip-a-end', sourceClipId: 'clip-a', edge: 'end', time: 3, offset: 0, intensity: 0.4, color: '#ff4d8d' },
       ] },
-      'com.reigh.creative-lab.soundtrack-cartographer': { schemaVersion: 1, generatedFromVersion: 1, entries: [
+      'haus.astrid.creative-lab.soundtrack-cartographer': { schemaVersion: 1, generatedFromVersion: 1, entries: [
         { id: 'terrain-clip-a-start', sourceClipId: 'clip-a', edge: 'start', kind: 'rise', time: 1, offset: 0, intensity: 0.4, color: '#fff', label: 'rise' },
         { id: 'terrain-clip-a-release', sourceClipId: 'clip-a', edge: 'release', kind: 'release', time: 3, offset: 0, intensity: 0.4, color: '#fff', label: 'release' },
       ] },
-      'com.reigh.creative-lab.caption-safe-zone-orchestra': [],
-      'com.reigh.creative-lab.emotional-weather-map': [{ id: 'weather-clip-a', sourceClipId: 'clip-a', kind: 'breeze', time: 1, intensity: 0.4, color: '#fff', label: 'breeze' }],
-      'com.reigh.creative-lab.timeline-faultline': { schemaVersion: 1, generatedFromVersion: 1, entries: [] },
-      'com.reigh.creative-lab.foley-constellation': { schemaVersion: 1, generatedFromVersion: 1, entries: [
+      'haus.astrid.creative-lab.caption-safe-zone-orchestra': [],
+      'haus.astrid.creative-lab.emotional-weather-map': [{ id: 'weather-clip-a', sourceClipId: 'clip-a', kind: 'breeze', time: 1, intensity: 0.4, color: '#fff', label: 'breeze' }],
+      'haus.astrid.creative-lab.timeline-faultline': { schemaVersion: 1, generatedFromVersion: 1, entries: [] },
+      'haus.astrid.creative-lab.foley-constellation': { schemaVersion: 1, generatedFromVersion: 1, entries: [
         { id: 'foley-clip-a-start', sourceClipId: 'clip-a', boundary: 'start', time: 1, category: 'unassigned', offset: 0, pan: 0, distance: 0.5, intensity: 0.45, label: 'Unassigned Foley cue · clip-a · start' },
         { id: 'foley-clip-a-end', sourceClipId: 'clip-a', boundary: 'end', time: 3, category: 'unassigned', offset: 0, pan: 0, distance: 0.5, intensity: 0.45, label: 'Unassigned Foley cue · clip-a · end' },
       ] },
-      'com.reigh.creative-lab.branching-cut': { schemaVersion: 1, generatedFromVersion: 1, entries: [] },
-      'com.reigh.creative-lab.chromatic-constellation': { schemaVersion: 1, generatedFromVersion: 1, coverage: { totalCandidates: 1, persistedCount: 1, displayLimit: 128, displayedCount: 1, omittedCount: 0, sourceTrackId: 'V1', sourceTrackLabel: 'Video', status: 'complete' }, entries: [{ id: 'constellation-clip-a', sourceClipId: 'clip-a', trackId: 'V1', trackLabel: 'Video', trackOrder: 0, pacingClass: 'steady', time: 1, duration: 2, intensity: 0.5, color: '#52e8d4', label: 'Pacing steady · Video · steady pacing (structural fallback)' }] },
-      'com.reigh.creative-lab.recall-pulse': { schemaVersion: 3, generatedFromVersion: 1, sourceSignature: recallSourceSignature, stale: false, suggestions: [{ id: 'recall-suggestion-clip-a', sourceClipId: 'clip-a', checkpointId: 'recall-checkpoint-clip-a', trackId: 'V1', category: 'concept', assignment: 'unassigned', time: 1, duration: 2, intensity: 0.8, prompt: 'What is the central idea introduced at this point?', label: 'Unassigned review question · What is the central idea introduced at this point?', color: '#52e8ff', heuristic: 'ordered-clip:concept; duration-proxy:2.000s', method: 'timeline-structure:v2; first-unmuted-visual-track; no semantic/audio analysis' }] },
-      'com.reigh.creative-lab.lockline-inspector': { schemaVersion: 2, generatedFromVersion: 1, sourceSignature: locklineSourceSignature, coverage: { totalClips: 1, scannedClips: 1, eligibleClips: 1, skippedInvalidClips: 0, candidateFindings: 0, persistedFindings: 0, omittedFindings: 0, omittedClips: 0 }, entries: [] },
+      'haus.astrid.creative-lab.branching-cut': { schemaVersion: 1, generatedFromVersion: 1, entries: [] },
+      'haus.astrid.creative-lab.chromatic-constellation': { schemaVersion: 1, generatedFromVersion: 1, coverage: { totalCandidates: 1, persistedCount: 1, displayLimit: 128, displayedCount: 1, omittedCount: 0, sourceTrackId: 'V1', sourceTrackLabel: 'Video', status: 'complete' }, entries: [{ id: 'constellation-clip-a', sourceClipId: 'clip-a', trackId: 'V1', trackLabel: 'Video', trackOrder: 0, pacingClass: 'steady', time: 1, duration: 2, intensity: 0.5, color: '#52e8d4', label: 'Pacing steady · Video · steady pacing (structural fallback)' }] },
+      'haus.astrid.creative-lab.recall-pulse': { schemaVersion: 3, generatedFromVersion: 1, sourceSignature: recallSourceSignature, stale: false, suggestions: [{ id: 'recall-suggestion-clip-a', sourceClipId: 'clip-a', checkpointId: 'recall-checkpoint-clip-a', trackId: 'V1', category: 'concept', assignment: 'unassigned', time: 1, duration: 2, intensity: 0.8, prompt: 'What is the central idea introduced at this point?', label: 'Unassigned review question · What is the central idea introduced at this point?', color: '#52e8ff', heuristic: 'ordered-clip:concept; duration-proxy:2.000s', method: 'timeline-structure:v2; first-unmuted-visual-track; no semantic/audio analysis' }] },
+      'haus.astrid.creative-lab.lockline-inspector': { schemaVersion: 2, generatedFromVersion: 1, sourceSignature: locklineSourceSignature, coverage: { totalClips: 1, scannedClips: 1, eligibleClips: 1, skippedInvalidClips: 0, candidateFindings: 0, persistedFindings: 0, omittedFindings: 0, omittedClips: 0 }, entries: [] },
     };
     for (const [extensionId, output] of Object.entries(outputs)) {
       const result = validateExtensionOutput(extensionId, output, timeline);
       expect(result.valid, `${extensionId}: ${result.reason}`).toBe(true);
       expect(result.fingerprint).toMatch(/^[a-f0-9]{64}$/);
     }
-    const foley = outputs['com.reigh.creative-lab.foley-constellation'] as {
+    const foley = outputs['haus.astrid.creative-lab.foley-constellation'] as {
       schemaVersion: number;
       generatedFromVersion: number;
       entries: Array<Record<string, unknown>>;
     };
     expect(validateExtensionOutput(
-      'com.reigh.creative-lab.foley-constellation',
+      'haus.astrid.creative-lab.foley-constellation',
       { ...foley, entries: foley.entries.map((entry, index) => (
         index === 0 ? { ...entry, intensity: 0.46 } : entry
       )) },
@@ -303,12 +303,12 @@ describe('paired release semantic validators', () => {
       valid: false,
       reason: 'foley entries do not match the current timeline',
     });
-    const recall = outputs['com.reigh.creative-lab.recall-pulse'] as {
+    const recall = outputs['haus.astrid.creative-lab.recall-pulse'] as {
       suggestions: Array<Record<string, unknown>>;
     };
     expect(validateExtensionOutput(
-      'com.reigh.creative-lab.recall-pulse',
-      { ...outputs['com.reigh.creative-lab.recall-pulse'] as object, suggestions: [
+      'haus.astrid.creative-lab.recall-pulse',
+      { ...outputs['haus.astrid.creative-lab.recall-pulse'] as object, suggestions: [
         ...recall.suggestions,
         { ...recall.suggestions[0], id: 'unexpected-extra' },
       ] },
@@ -339,12 +339,12 @@ describe('paired release semantic validators', () => {
       ],
     };
     expect(validateExtensionOutput(
-      'com.reigh.creative-lab.foley-constellation',
+      'haus.astrid.creative-lab.foley-constellation',
       output,
       captionTimeline,
     )).toMatchObject({ valid: true, count: 2 });
     expect(validateExtensionOutput(
-      'com.reigh.creative-lab.foley-constellation',
+      'haus.astrid.creative-lab.foley-constellation',
       output,
       { ...captionTimeline, tracks: [{ id: 'captions', kind: 'visual', muted: true }] },
     )).toMatchObject({ valid: false, reason: 'expected 0 entries, got 2' });
@@ -376,12 +376,12 @@ describe('paired release semantic validators', () => {
       }],
     };
     expect(validateExtensionOutput(
-      'com.reigh.creative-lab.branching-cut',
+      'haus.astrid.creative-lab.branching-cut',
       output,
       captionTimeline,
     )).toMatchObject({ valid: true, count: 1 });
     expect(validateExtensionOutput(
-      'com.reigh.creative-lab.branching-cut',
+      'haus.astrid.creative-lab.branching-cut',
       { ...output, entries: [{ ...output.entries[0], targetClipId: 'media-a' }] },
       captionTimeline,
     )).toMatchObject({
@@ -413,7 +413,7 @@ describe('paired release semantic validators', () => {
       label: 'Pacing steady · Captions · steady pacing (structural fallback)',
     }));
     expect(validateExtensionOutput(
-      'com.reigh.creative-lab.chromatic-constellation',
+      'haus.astrid.creative-lab.chromatic-constellation',
       {
         schemaVersion: 1,
         generatedFromVersion: 5,
@@ -479,7 +479,7 @@ describe('paired release semantic validators', () => {
       };
     });
     const recallResult = validateExtensionOutput(
-      'com.reigh.creative-lab.recall-pulse',
+      'haus.astrid.creative-lab.recall-pulse',
       { schemaVersion: 3, generatedFromVersion: 6, sourceSignature, stale: false, suggestions: recallEntries },
       { tracks, clips },
     );
@@ -491,14 +491,14 @@ describe('paired release semantic validators', () => {
     const locklineTimeline = {
       tracks: [{ id: 'V1', kind: 'visual', label: 'Video', muted: false }],
       assetKeys: ['online.mov'],
-      knownExtensionIds: ['com.reigh.transcript-lane'],
+      knownExtensionIds: ['haus.astrid.transcript-lane'],
       clips: [{
         id: 'asset-clip',
         track: 'V1',
         at: 12.25,
         duration: 2,
         asset: 'missing.mov',
-        source_uuid: 'com.reigh.transcript-lane',
+        source_uuid: 'haus.astrid.transcript-lane',
       }],
     };
     const sourceSignature = releaseHostFingerprint({
@@ -512,12 +512,12 @@ describe('paired release semantic validators', () => {
         duration: '2',
         materialRefs: [['material.asset.missing.mov.asset-clip', 'asset-clip', 'missing.mov']],
         sourceRefs: [[
-          'source.com.reigh.transcript-lane.asset-clip',
+          'source.haus.astrid.transcript-lane.asset-clip',
           'asset-clip',
           'extension',
-          'com.reigh.transcript-lane',
+          'haus.astrid.transcript-lane',
           '',
-          'com.reigh.transcript-lane',
+          'haus.astrid.transcript-lane',
         ]],
       }],
     });
@@ -534,12 +534,12 @@ describe('paired release semantic validators', () => {
       ],
     };
     expect(validateExtensionOutput(
-      'com.reigh.creative-lab.lockline-inspector',
+      'haus.astrid.creative-lab.lockline-inspector',
       output,
       locklineTimeline,
     )).toMatchObject({ valid: true, count: 1 });
     expect(validateExtensionOutput(
-      'com.reigh.creative-lab.lockline-inspector',
+      'haus.astrid.creative-lab.lockline-inspector',
       { ...output, sourceSignature: `${sourceSignature}drift` },
       locklineTimeline,
     )).toMatchObject({

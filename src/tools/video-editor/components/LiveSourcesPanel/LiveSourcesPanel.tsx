@@ -48,7 +48,7 @@ import type {
   LiveSource,
   LiveSourceDiagnostic,
   LiveSourceStatus,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 
 type LiveTimelineConfig = TimelineConfig | ResolvedTimelineConfig;
 

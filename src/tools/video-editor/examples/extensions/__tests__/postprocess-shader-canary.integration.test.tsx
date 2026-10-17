@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   type ExtensionDiagnostic,
   type ExtensionDiagnosticsService,
-  type ReighExtension,
+  type AstridExtension,
   type TimelineSnapshot,
 } from '@/sdk/index';
 import { createExtensionContext } from '@/tools/video-editor/runtime/extensionContextFactory';
@@ -207,7 +207,7 @@ function createMockWebGL(): WebGLRenderingContext & { readonly __state: MockWebG
 function activateCanary(options: {
   includeDiagnosticShader?: boolean;
 } = {}): {
-  extension: ReighExtension;
+  extension: AstridExtension;
   registry: ShaderEffectRegistry;
   snapshot: ShaderEffectRegistrySnapshot;
   diagnosticsService: ExtensionDiagnosticsService;

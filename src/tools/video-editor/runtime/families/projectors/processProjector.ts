@@ -11,7 +11,7 @@ import type {
   ProcessContribution,
   ProcessOperationSpec,
   RenderRoute,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import type {
   VideoEditorProcessDescriptor,
   VideoEditorProcessOperationDescriptor,

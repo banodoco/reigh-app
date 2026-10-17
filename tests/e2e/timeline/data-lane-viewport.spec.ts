@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import { BASE_URL, PROJECT_SLUG, TIMELINE_SLUG } from './support';
 
 const EDITOR_URL = `${BASE_URL}/tools/video-editor?localProject=${PROJECT_SLUG}&localTimeline=${TIMELINE_SLUG}&localTest=1&transcriptLaneFixture=dense`;
-const CAPABILITY_PROBE_PATH = `/api/astrid/projects/${PROJECT_SLUG}/media/__reigh_capability_probe__/content`;
+const CAPABILITY_PROBE_PATH = `/api/astrid/projects/${PROJECT_SLUG}/media/__astrid_capability_probe__/content`;
 
 test.setTimeout(60_000);
 
@@ -35,7 +35,7 @@ async function collectWheelTrajectory(
   const durationMs = Math.max(500, deltas.length * 24 + 250);
   const tracePromise = page.evaluate(async ({ phase: samplePhase, durationMs: sampleDuration }) => {
     const editArea = document.querySelector<HTMLElement>('.timeline-canvas-edit-area');
-    const row = document.querySelector<HTMLElement>('[data-lane-kind="reigh.runaway.transitions"]');
+    const row = document.querySelector<HTMLElement>('[data-lane-kind="astrid.runaway.transitions"]');
     if (!editArea || !row) throw new Error('Runaway lane trajectory requires a mounted editor row');
     const label = row.querySelector<HTMLElement>('[title="Runaway transitions"]')?.parentElement;
     const samples: DataLaneTrajectorySample[] = [];
@@ -116,10 +116,10 @@ test('dense data lane paints late viewport items with bounded DOM and real geome
       issues.push(`[requestfailed] ${request.url()} — ${failure}`);
     }
   });
-  await page.addInitScript(() => localStorage.removeItem('reigh.dev-extensions.disabled'));
+  await page.addInitScript(() => localStorage.removeItem('astrid.dev-extensions.disabled'));
   await page.goto(EDITOR_URL, { waitUntil: 'domcontentloaded', timeout: 45_000 });
 
-  const row = page.locator('[data-lane-kind="reigh.transcript"]');
+  const row = page.locator('[data-lane-kind="astrid.transcript"]');
   await expect(row).toBeVisible({ timeout: 20_000 });
   const scroller = page.locator('.timeline-canvas-edit-area');
   const zoomIn = page.getByRole('button', { name: 'Zoom in timeline' }).first();
@@ -169,7 +169,7 @@ test('dense data lane paints late viewport items with bounded DOM and real geome
 
   const geometry = await page.evaluate(() => {
     const editArea = document.querySelector<HTMLElement>('.timeline-canvas-edit-area');
-    const lane = document.querySelector<HTMLElement>('[data-lane-kind="reigh.transcript"]');
+    const lane = document.querySelector<HTMLElement>('[data-lane-kind="astrid.transcript"]');
     const label = lane?.querySelector<HTMLElement>('[title="Transcript"]')?.parentElement;
     const itemRects = Array.from(
       lane?.querySelectorAll<HTMLElement>('[data-testid="transcript-lane-chip"]') ?? [],
@@ -202,14 +202,14 @@ test('dense data lane paints late viewport items with bounded DOM and real geome
 test('keeps Runaway data visible on every frame of fast, edge, reverse, and slow wheel trajectories', async ({ page }, testInfo) => {
   test.setTimeout(120_000);
   await page.setViewportSize({ width: 1_280, height: 800 });
-  await page.addInitScript(() => localStorage.removeItem('reigh.dev-extensions.disabled'));
+  await page.addInitScript(() => localStorage.removeItem('astrid.dev-extensions.disabled'));
   await page.goto(
     `${BASE_URL}/tools/video-editor?localProject=${PROJECT_SLUG}&localTimeline=${TIMELINE_SLUG}`
       + '&localTest=1&timelineOverlayCanary=1&transcriptLaneFixture=1&runawayTimelineProject=runaway-8085',
     { waitUntil: 'domcontentloaded', timeout: 45_000 },
   );
 
-  const row = page.locator('[data-lane-kind="reigh.runaway.transitions"]');
+  const row = page.locator('[data-lane-kind="astrid.runaway.transitions"]');
   await expect(row).toBeVisible({ timeout: 30_000 });
   await expect(row).toHaveAttribute('data-total-items', '566', { timeout: 30_000 });
   const scroller = page.locator('.timeline-canvas-edit-area');
@@ -337,7 +337,7 @@ test.describe('Runaway extension interval scale gate', () => {
         }
       });
 
-      await page.addInitScript(() => localStorage.removeItem('reigh.dev-extensions.disabled'));
+      await page.addInitScript(() => localStorage.removeItem('astrid.dev-extensions.disabled'));
       await page.goto(
         `${BASE_URL}/tools/video-editor?localProject=${PROJECT_SLUG}&localTimeline=${TIMELINE_SLUG}`
           + `&localTest=1&timelineOverlayCanary=1&transcriptLaneFixture=1`
@@ -345,7 +345,7 @@ test.describe('Runaway extension interval scale gate', () => {
         { waitUntil: 'domcontentloaded', timeout: 45_000 },
       );
 
-      const row = page.locator('[data-lane-kind="reigh.runaway.transitions"]');
+      const row = page.locator('[data-lane-kind="astrid.runaway.transitions"]');
       await expect(row).toBeVisible({ timeout: 30_000 });
       await expect(row).toHaveAttribute('data-total-items', String(count), { timeout: 30_000 });
       const lane = row.getByTestId('runaway-timeline-lane');

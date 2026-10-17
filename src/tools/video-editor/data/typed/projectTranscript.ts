@@ -193,7 +193,7 @@ export function projectTranscriptItems(
       extent: { start: s.start, end: s.end },
       schemaRef: TRANSCRIPT_SCHEMA_REF,
       sourceArtifactRef: { assetId },
-      provenance: { adapterId: "reigh.projectTranscript", adapterVersion: "1" },
+      provenance: { adapterId: "astrid.projectTranscript", adapterVersion: "1" },
       payload: {
         sourceId: d.content.source_id,
         segmentId: s.id,
@@ -214,7 +214,7 @@ export function persistedTranscriptItems(
     Object.entries(items).map(([key, values]) => [
       key,
       values.filter(
-        (i) => i.provenance.adapterId !== "reigh.projectTranscript",
+        (i) => i.provenance.adapterId !== "astrid.projectTranscript",
       ),
     ]),
   );

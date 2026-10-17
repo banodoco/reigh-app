@@ -93,10 +93,10 @@ describe('AcpProcessHost', () => {
     respond(process, initializeRequest.id, { agentCapabilities: { loadSession: true } });
     await expect(initializePromise).resolves.toEqual({ agentCapabilities: { loadSession: true } });
 
-    const newSessionPromise = host.newSession<{ sessionId: string }>({ cwd: '/tmp/reigh', mcpServers: [] });
+    const newSessionPromise = host.newSession<{ sessionId: string }>({ cwd: '/tmp/astrid', mcpServers: [] });
     await flush();
     const newSessionRequest = lastRequest(process);
-    expect(newSessionRequest).toMatchObject({ method: 'session/new', params: { cwd: '/tmp/reigh' } });
+    expect(newSessionRequest).toMatchObject({ method: 'session/new', params: { cwd: '/tmp/astrid' } });
     respond(process, newSessionRequest.id, { sessionId: 'omp-owned-session-opaque' });
     await expect(newSessionPromise).resolves.toEqual({ sessionId: 'omp-owned-session-opaque' });
 
@@ -181,9 +181,9 @@ describe('AcpProcessHost', () => {
     let spawnOptions: AcpProcessSpawnOptions | undefined;
     const host = new AcpProcessHost({
       command: '/Users/hannahomalley/.bun/bin/omp',
-      cwd: '/tmp/reigh-project',
-      profile: 'reigh-profile',
-      sessionDir: '/tmp/reigh-sessions',
+      cwd: '/tmp/astrid-project',
+      profile: 'astrid-profile',
+      sessionDir: '/tmp/astrid-sessions',
       spawnProcess: (options) => {
         spawnOptions = options;
         return process.asProcess();
@@ -194,8 +194,8 @@ describe('AcpProcessHost', () => {
     await flush();
     expect(spawnOptions).toEqual({
       command: '/Users/hannahomalley/.bun/bin/omp',
-      args: ['acp', '--profile', 'reigh-profile', '--session-dir', '/tmp/reigh-sessions'],
-      cwd: '/tmp/reigh-project',
+      args: ['acp', '--profile', 'astrid-profile', '--session-dir', '/tmp/astrid-sessions'],
+      cwd: '/tmp/astrid-project',
       env: undefined,
     });
     process.emit('exit', 1, null);
@@ -207,9 +207,9 @@ describe('AcpProcessHost', () => {
     const process = new FakeProcess();
     let spawnOptions: AcpProcessSpawnOptions | undefined;
     const host = createAstridAcpProcessHost({
-      cwd: '/tmp/reigh-project',
+      cwd: '/tmp/astrid-project',
       profile: 'astrid',
-      sessionDir: '/tmp/reigh-sessions',
+      sessionDir: '/tmp/astrid-sessions',
       systemPromptFile: '/tmp/astrid.md',
       profileFileForCommand:()=>'/tmp/astrid.md',
       fileIsRegularFile: () => true,
@@ -227,9 +227,9 @@ describe('AcpProcessHost', () => {
       args: [
         '--mode=acp',
         '--profile', 'astrid',
-        '--session-dir', '/tmp/reigh-sessions',
+        '--session-dir', '/tmp/astrid-sessions',
       ],
-      cwd: '/tmp/reigh-project',
+      cwd: '/tmp/astrid-project',
       env: {
         ASTRID_HOST_EXECUTION_PROFILE: 'installed',
         OMP_AGENT_IDENTITY: ASTRID_ACP_AGENT_IDENTITY,
@@ -277,7 +277,7 @@ describe('AcpProcessHost', () => {
     const process = new FakeProcess();
     let spawnOptions: AcpProcessSpawnOptions | undefined;
     const host = createAstridAcpProcessHost({
-      cwd: '/tmp/reigh-canonical-project',
+      cwd: '/tmp/astrid-canonical-project',
       profile: 'astrid',
       systemPromptFile: '/tmp/astrid.md',
       profileFileForCommand:()=>'/tmp/astrid.md',
@@ -294,7 +294,7 @@ describe('AcpProcessHost', () => {
     expect(spawnOptions).toEqual({
       command: ASTRID_ACP_COMMAND,
       args: ['--mode=acp', '--profile', 'astrid'],
-      cwd: '/tmp/reigh-canonical-project',
+      cwd: '/tmp/astrid-canonical-project',
       env: {
         ASTRID_HOST_EXECUTION_PROFILE: 'installed',
         OMP_AGENT_IDENTITY: ASTRID_ACP_AGENT_IDENTITY,
@@ -325,9 +325,9 @@ describe('AcpProcessHost', () => {
   it('fails closed before spawn when the canonical prompt file is unavailable', () => {
     let spawned = false;
     expect(() => createAstridAcpProcessHost({
-      cwd: '/tmp/reigh-project',
+      cwd: '/tmp/astrid-project',
       profile: 'astrid',
-      sessionDir: '/tmp/reigh-sessions',
+      sessionDir: '/tmp/astrid-sessions',
       systemPromptFile: '/tmp/missing-astrid.md',
       profileFileForCommand:()=>'/tmp/missing-astrid.md',
       fileIsRegularFile: () => false,

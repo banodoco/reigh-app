@@ -115,7 +115,7 @@ describe('runBoundedCommand', () => {
   it('reaps repeated broker-election candidates on macOS', { skip: process.platform !== 'darwin' || !existsSync('/usr/bin/lockf') }, () => {
     const moduleUrl = new URL('./bounded-command.mjs', import.meta.url).href;
     const childSource = [
-      `process.env.REIGH_BOUNDED_BROKER_SESSION = ${JSON.stringify('c'.repeat(32))};`,
+      `process.env.ASTRID_APP_BOUNDED_BROKER_SESSION = ${JSON.stringify('c'.repeat(32))};`,
       `const { runBoundedCommand } = await import(${JSON.stringify(moduleUrl)});`,
       'for (let index = 0; index < 12; index += 1) {',
       "  const result = runBoundedCommand(process.execPath, ['-e', \"process.stdout.write('reap-ok')\"], { timeoutMs: 2_000, maxBuffer: 64 * 1024, killSignal: 'SIGKILL' });",
@@ -439,7 +439,7 @@ describe('runBoundedCommand', () => {
       "const parentParts = parentRow.trim().split(/\\s+/);",
       'const wrapper = Number(parentParts[1]);',
       "const relevant = rows.filter((row) => Number(row.trim().split(/\\s+/, 1)[0]) !== process.pid && (row.includes('bounded-command-wrapper.mjs') || row.includes('bounded-command-target-gate.mjs')));",
-      "const leaked = relevant.some((row) => row.includes(process.env.BOUNDED_PARENT_SECRET)) || Boolean(process.env.REIGH_BOUNDED_BROKER_SESSION);",
+      "const leaked = relevant.some((row) => row.includes(process.env.BOUNDED_PARENT_SECRET)) || Boolean(process.env.ASTRID_APP_BOUNDED_BROKER_SESSION);",
       "process.stdout.write(leaked ? 'leaked' : 'safe');",
     ].join('');
     const previous = process.env.BOUNDED_PARENT_SECRET;
@@ -521,7 +521,7 @@ describe('runBoundedCommand', () => {
     const childSource = [
       "import { mkdirSync, rmSync, writeFileSync } from 'node:fs';",
       "import { join } from 'node:path';",
-      `process.env.REIGH_BOUNDED_BROKER_SESSION = ${JSON.stringify(session)};`,
+      `process.env.ASTRID_APP_BOUNDED_BROKER_SESSION = ${JSON.stringify(session)};`,
       `const root = join(${JSON.stringify(process.platform === 'darwin' ? '/tmp' : tmpdir())}, \`rb-\${process.pid}-${session.slice(0, 12)}\`);`,
       "mkdirSync(root, { mode: 0o700 });",
       "const socket = join(root, 'broker.sock');",
@@ -590,7 +590,7 @@ describe('runBoundedCommand', () => {
       "import { mkdirSync, rmSync, writeFileSync } from 'node:fs';",
       "import { join } from 'node:path';",
       "import { Worker } from 'node:worker_threads';",
-      `process.env.REIGH_BOUNDED_BROKER_SESSION = ${JSON.stringify(session)};`,
+      `process.env.ASTRID_APP_BOUNDED_BROKER_SESSION = ${JSON.stringify(session)};`,
       `const root = join(${JSON.stringify(process.platform === 'darwin' ? '/tmp' : tmpdir())}, \`rb-\${process.pid}-${session.slice(0, 12)}\`);`,
       "mkdirSync(root, { mode: 0o700 });",
       "const socket = join(root, 'broker.sock');",
@@ -632,7 +632,7 @@ describe('runBoundedCommand', () => {
       "const { writeFileSync } = require('node:fs');",
       `const wrapper = spawn(process.execPath, [${JSON.stringify(wrapperPath)}], { stdio: ['pipe', 'ignore', 'ignore'] });`,
       `writeFileSync(${JSON.stringify(wrapperPidFile)}, String(wrapper.pid));`,
-      `wrapper.stdin.end(JSON.stringify({ command: process.execPath, args: ['-e', ${JSON.stringify(`require('node:fs').writeFileSync(${JSON.stringify(targetStarted)}, 'started'); setTimeout(() => {}, 30000)`)}], timeoutMs: 30000, maxBuffer: 65536, killSignal: 'SIGKILL', scopeKey: 'REIGH_BOUNDED_PROCESS_SCOPE_pre_target', scopeToken: 'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd', parentPid: process.pid, brokerSocket: ${JSON.stringify(deadSocket)} }));`,
+      `wrapper.stdin.end(JSON.stringify({ command: process.execPath, args: ['-e', ${JSON.stringify(`require('node:fs').writeFileSync(${JSON.stringify(targetStarted)}, 'started'); setTimeout(() => {}, 30000)`)}], timeoutMs: 30000, maxBuffer: 65536, killSignal: 'SIGKILL', scopeKey: 'ASTRID_APP_BOUNDED_PROCESS_SCOPE_pre_target', scopeToken: 'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd', parentPid: process.pid, brokerSocket: ${JSON.stringify(deadSocket)} }));`,
       'setInterval(() => {}, 1000);',
     ].join('');
     const caller = spawn(NODE, ['-e', callerSource], { stdio: 'ignore' });

@@ -6,7 +6,7 @@ vi.mock('@/app/runtime/runtimeDocument', () => ({
   getRuntimeDocumentProjectId: () => 'runtime-project',
 }));
 vi.mock('@/integrations/runtime/client', () => ({
-  ReighRuntimeClient: class {
+  AstridRuntimeClient: class {
     getGeneration = (...args: unknown[]) => getGenerationMock(...args);
   },
 }));

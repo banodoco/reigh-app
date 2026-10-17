@@ -55,7 +55,7 @@ function usage() {
   return `Usage:
   node scripts/quality/capture-extension-external-evidence.mjs init
     --type <type> --output <draft.json> --release <release>
-    --reigh-commit <sha> --astrid-commit <sha> --environment <id>
+    --app-commit <sha> --astrid-commit <sha> --environment <id>
     --tool <name=version> [--tool <name=version> ...]
     [--persona <persona>] [--slot <A|B>] [--drill-type <type>]
 
@@ -89,7 +89,7 @@ export function parseArgs(argv) {
   if (argv.length === 0 || argv.includes('--help') || argv.includes('-h')) return { help: true };
   const [command, ...rest] = argv;
   const allowedByCommand = new Map([
-    ['init', new Set(['type', 'output', 'release', 'reigh-commit', 'astrid-commit', 'environment', 'tool', 'persona', 'slot', 'drill-type'])],
+    ['init', new Set(['type', 'output', 'release', 'app-commit', 'astrid-commit', 'environment', 'tool', 'persona', 'slot', 'drill-type'])],
     ['capture', new Set(['input', 'output'])],
     ['validate', new Set(['artifact'])],
     ['hash', new Set(['artifact'])],
@@ -211,7 +211,7 @@ function normalizedPublicKey(path) {
 }
 
 function init(options) {
-  requireOptions(options, ['type', 'output', 'release', 'reigh-commit', 'astrid-commit', 'environment']);
+  requireOptions(options, ['type', 'output', 'release', 'app-commit', 'astrid-commit', 'environment']);
   if (!EXTERNAL_EVIDENCE_TYPES.includes(options.type)) {
     throw new Error(`--type must be one of ${EXTERNAL_EVIDENCE_TYPES.join(', ')}`);
   }
@@ -238,7 +238,7 @@ function init(options) {
   const document = readJson(resolve(TEMPLATE_ROOT, `${options.type}.json`));
   document.release = options.release;
   document.candidate = {
-    reighCommit: options['reigh-commit'],
+    appCommit: options['app-commit'],
     astridCommit: options['astrid-commit'],
   };
   document.environment = { id: options.environment, toolVersions: parseTools(options.tool) };
@@ -334,15 +334,15 @@ function receipt(options) {
   assertValid(document, {
     evidenceType: EXTERNAL_EVIDENCE_TYPE_BY_WORKSTREAM.get(number),
     release: ledger.release,
-    reighCommit: ledger.candidate?.reighCommit,
+    appCommit: ledger.candidate?.appCommit,
     astridCommit: ledger.candidate?.astridCommit,
   });
   const manual = number === 22 || number === 23;
   const generated = {
     id: options.id,
     kind: KIND_BY_WORKSTREAM.get(number),
-    repository: 'reigh',
-    commit: document.candidate.reighCommit,
+    repository: 'app',
+    commit: document.candidate.appCommit,
     capturedAt: document.capturedAt,
     action: `Captured and validated ${document.evidenceType} evidence`,
     environment: document.environment,

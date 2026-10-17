@@ -1,7 +1,7 @@
 import type { GeneratedImageWithMetadata } from '@/shared/components/MediaGallery/types';
 import type { Generation, GenerationVariant } from './generated';
 import type { BridgeGenerationDetailPayload } from '@/tools/video-editor/data/bridgeContract';
-import { ReighRuntimeClient } from './client';
+import { AstridRuntimeClient } from './client';
 import {
   runtimeThumbnailObjectId,
   selectRuntimePrimaryVariant,
@@ -70,7 +70,7 @@ function stringValue(value: unknown): string | null {
 }
 
 export async function listAllRuntimeVariants(
-  client: ReighRuntimeClient,
+  client: AstridRuntimeClient,
   generationId: string,
   limit = 200,
 ): Promise<GenerationVariant[]> {
@@ -89,7 +89,7 @@ export async function listAllRuntimeVariants(
 }
 
 export function runtimeGenerationToGalleryItem(
-  client: Pick<ReighRuntimeClient, 'objectContentUrl'>,
+  client: Pick<AstridRuntimeClient, 'objectContentUrl'>,
   generation: Generation,
   variants: GenerationVariant[],
 ): GeneratedImageWithMetadata {
@@ -137,7 +137,7 @@ export function runtimeGenerationToGalleryItem(
 
 export async function fetchRuntimeGenerationSnapshot(
   generationId: string,
-  client = new ReighRuntimeClient(),
+  client = new AstridRuntimeClient(),
 ): Promise<{ generation: Generation; variants: GenerationVariant[] } | null> {
   try {
     const generation = await client.getGeneration(generationId);
@@ -153,7 +153,7 @@ export async function fetchRuntimeGenerationSnapshot(
 
 export function runtimeSnapshotToDetail(
   snapshot: { generation: Generation; variants: GenerationVariant[] },
-  client: Pick<ReighRuntimeClient, 'objectContentUrl'> = new ReighRuntimeClient(),
+  client: Pick<AstridRuntimeClient, 'objectContentUrl'> = new AstridRuntimeClient(),
 ): RuntimeGenerationDetail {
   const { generation, variants } = snapshot;
   const metadata = asRecord(generation.metadata);

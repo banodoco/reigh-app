@@ -183,7 +183,7 @@ function makeRejectingSettingsRepository(error: unknown): {
 
 describe('getSettingsPrefix', () => {
   it('returns the correct prefix for an extension ID', () => {
-    expect(getSettingsPrefix('com.example.test')).toBe('reigh.ext.com.example.test.');
+    expect(getSettingsPrefix('com.example.test')).toBe('astrid.ext.com.example.test.');
   });
 
   it('prefixes are unique per extension', () => {

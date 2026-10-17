@@ -97,7 +97,7 @@ export function buildBatchTaskParams(input: BuildBatchTaskParamsInput): BatchIma
     shot_id: input.shotId || undefined,
     model_name: input.modelName,
     ...(resolution ? { resolution } : {}),
-    // Astrid's current Reigh admission route is cloud-backed. Keep the old
+    // Astrid's current Astrid App admission route is cloud-backed. Keep the old
     // local-generation input in the builder signature for compatibility with
     // form state migrations, but never emit a legacy local execution request.
     execution: 'cloud',

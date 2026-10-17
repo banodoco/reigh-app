@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   type ExtensionDiagnostic,
   type ExtensionDiagnosticsService,
-  type ReighExtension,
+  type AstridExtension,
   type TimelineSnapshot,
 } from '@/sdk/index';
 import { createExtensionContext } from '@/tools/video-editor/runtime/extensionContextFactory';
@@ -152,7 +152,7 @@ function makeDiagnosticsService(extensionId = CLIP_LOCAL_SHADER_CANARY_EXTENSION
 function activateCanary(options: {
   includeDiagnosticShader?: boolean;
 } = {}): {
-  extension: ReighExtension;
+  extension: AstridExtension;
   registry: ShaderEffectRegistry;
   snapshot: ShaderEffectRegistrySnapshot;
   diagnosticsService: ExtensionDiagnosticsService;

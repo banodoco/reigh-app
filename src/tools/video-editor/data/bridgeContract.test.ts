@@ -18,17 +18,17 @@ const makeItem = (overrides: Record<string, unknown> = {}) => ({
   shape: 'interval',
   domain: 'source_seconds',
   extent: { start: 0, end: 1.5 },
-  schemaRef: 'reigh.transcript_segment/v1',
+  schemaRef: 'astrid.transcript_segment/v1',
   payload: { text: 'hello' },
   sourceArtifactRef: { assetId: 'assetA' },
-  provenance: { adapterId: 'reigh.adaptTranscript', adapterVersion: '1' },
+  provenance: { adapterId: 'astrid.adaptTranscript', adapterVersion: '1' },
   ...overrides,
 });
 
 const makeBundle = (overrides: Record<string, unknown> = {}) => ({
   schema_version: TIMELINE_BUNDLE_SCHEMA_VERSION,
   itemsBySchemaRef: {
-    'reigh.transcript_segment/v1': [makeItem()],
+    'astrid.transcript_segment/v1': [makeItem()],
   },
   ...overrides,
 });
@@ -87,7 +87,7 @@ describe('bridgeTimelinePayloadSchema: optional bundle', () => {
       makePayload({
         bundle: makeBundle({
           itemsBySchemaRef: {
-            'reigh.transcript_segment/v1': [makeItem({ entityRef: { clipId: 'c1' } })],
+            'astrid.transcript_segment/v1': [makeItem({ entityRef: { clipId: 'c1' } })],
           },
         }),
       }),
@@ -112,7 +112,7 @@ describe('bridgeTimelinePayloadSchema: optional bundle', () => {
     const error = catchParseError(() => parseBridgePayload(
       bridgeTimelinePayloadSchema,
       makePayload({
-        bundle: makeBundle({ itemsBySchemaRef: { 'reigh.transcript_segment/v1': [item] } }),
+        bundle: makeBundle({ itemsBySchemaRef: { 'astrid.transcript_segment/v1': [item] } }),
       }),
       'timeline payload',
     ));

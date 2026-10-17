@@ -14,7 +14,7 @@
  * @module families/projectors/timelineOverlayProjector
  */
 
-import type { TimelineOverlayDescriptor, ContributionId } from '@reigh/editor-sdk';
+import type { TimelineOverlayDescriptor, ContributionId } from '@astrid/editor-sdk';
 import type { CollectedContribution } from '../FamilyContributionSequence';
 import { sortFamilyContributions, freezeDescriptor } from '../familyAdapterUtils';
 

@@ -388,8 +388,8 @@ describe('collapsed action groups', () => {
 
 describe('saved editor request presentation', () => {
   const scope = { sessionId: 's', turnId: 't', projectId: 'p', timelineId: 'timeline', capturedTimelineVersion: 7 };
-  const request = { schema: 'reigh.live-scene-request/v1', requestId: 'request', action: 'read', scope, placementIds: ['scene'] };
-  const content = `Before prose.\n<reigh_live_scene_request>${JSON.stringify(request)}</reigh_live_scene_request>\nAfter prose.`;
+  const request = { schema: 'astrid.live-scene-request/v1', requestId: 'request', action: 'read', scope, placementIds: ['scene'] };
+  const content = `Before prose.\n<astrid_live_scene_request>${JSON.stringify(request)}</astrid_live_scene_request>\nAfter prose.`;
   const turn = { role: 'assistant' as const, timestamp: '2026-10-15T12:00:00Z', content };
   it('keeps prose visible and collapses a valid unhandled envelope as an unconfirmed action without executing it', () => {
     render(<AgentChatMessage turn={turn} />);
@@ -405,8 +405,8 @@ describe('saved editor request presentation', () => {
     expect(screen.getByText(/"placementIds"/)).toBeInTheDocument();
   });
   it('uses an exact persisted scope/request result and preserves failure details, never a different scope', () => {
-    const feedback = (changedScope = scope) => `<reigh_live_scene_result>${JSON.stringify({ schema: 'reigh.live-scene-result/v1', scope: changedScope,
-      results: [{ requestId: 'request', ok: false, error: 'Scene does not exist' }] })}</reigh_live_scene_result>`;
+    const feedback = (changedScope = scope) => `<astrid_live_scene_result>${JSON.stringify({ schema: 'astrid.live-scene-result/v1', scope: changedScope,
+      results: [{ requestId: 'request', ok: false, error: 'Scene does not exist' }] })}</astrid_live_scene_result>`;
     const recorded = recordedEditorResults([feedback()], 'p', 's');
     const view = render(<AgentChatMessage turn={turn} recordedResults={recorded} />);
     expect(screen.getByText('1 failed')).toBeInTheDocument();
@@ -417,7 +417,7 @@ describe('saved editor request presentation', () => {
     expect(recordedEditorResults([feedback()], 'wrong-project', 's')).toEqual([]);
   });
   it('leaves malformed or unrelated envelopes visible for diagnosis', () => {
-    render(<AgentChatMessage turn={{ ...turn, content: 'Visible <reigh_live_scene_request>{broken}</reigh_live_scene_request>' }} />);
+    render(<AgentChatMessage turn={{ ...turn, content: 'Visible <astrid_live_scene_request>{broken}</astrid_live_scene_request>' }} />);
     expect(screen.getByText(/broken/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /actions?/ })).not.toBeInTheDocument();
   });
@@ -432,7 +432,7 @@ describe('saved Elements operation presentation', () => {
         element: { id: 'blocks', kind: 'effect', revision: 'draft-blocks' }, placement: 'overlay', at: 0, duration: 2 },
     ];
     render(<AgentChatMessage turn={{ role: 'assistant', timestamp: '2026-10-15T12:00:00Z',
-      content: 'Done. ' + operations.map(operation => `<reigh_element_operation>${JSON.stringify(operation)}</reigh_element_operation>`).join('\n') }} />);
+      content: 'Done. ' + operations.map(operation => `<astrid_element_operation>${JSON.stringify(operation)}</astrid_element_operation>`).join('\n') }} />);
     expect(screen.getByText('Done.')).toBeInTheDocument();
     expect(screen.getByText('3 unconfirmed')).toBeInTheDocument();
     expect(screen.queryByText(/const Blocks/)).not.toBeInTheDocument();

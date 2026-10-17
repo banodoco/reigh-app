@@ -15,7 +15,7 @@ interface ValidationFailure {
 /**
  * Body-level validation that complements the Zod TimelineConfig parse in
  * `handler.ts`. We separate the timeline schema (which the Zod parse owns)
- * from the asset_registry envelope (which is Reigh-specific).
+ * from the asset_registry envelope (which is Astrid-specific).
  */
 export function validateTimelinePayload(
   body: TimelineImportBody,

@@ -31,7 +31,7 @@ For an optional read-only comparison with the inspected external declarations:
 ```sh
 npm run check:astrid-contract-freeze -- \
   --astrid-root /path/to/Astrid \
-  --runtime-root /path/to/banodoco-workspace-runtime --json
+  --runtime-root /path/to/astrid-runtime --json
 ```
 
 The checker reads declaration files only. It does not inspect credential files,
@@ -75,7 +75,7 @@ Source inspection found real migration gaps: `setup` is not reserved before
 prompt/dynamic-pack fallback; wrapper and gateway help differ; top-level status
 still means contributor auth. `AstridClient.open_from_launcher` can start Runtime
 even with `start_pack_host=False`, so current Astrid doctor/task inspection is
-not evidence of nonstarting observation. Neutral `banodoco-local connect` may
+not evidence of nonstarting observation. Neutral `astrid-runtime connect` may
 provision connection state. These are downstream implementation obligations.
 
 ## Composition and unresolved inputs

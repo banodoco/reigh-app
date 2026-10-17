@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { RouteCompletionDashboard } from '@/tools/video-editor/components/RouteCompletionDashboard/RouteCompletionDashboard.tsx';
 import type { RouteCompletionDashboardProps } from '@/tools/video-editor/components/RouteCompletionDashboard/RouteCompletionDashboard.tsx';
 import type { RenderArtifact } from '@/sdk/video/rendering/artifacts.ts';
-import type { RenderRoute, RenderBlocker } from '@reigh/editor-sdk';
+import type { RenderRoute, RenderBlocker } from '@astrid/editor-sdk';
 import type {
   VideoEditorPlannerNextActionDescriptor,
   VideoEditorProcessDescriptor,
@@ -29,7 +29,7 @@ function makeArtifact(overrides: Partial<RenderArtifact> = {}): RenderArtifact {
       contentSha256: 'a'.repeat(64),
     },
     mediaKind: 'json',
-    producerExtensionId: 'com.reigh.test',
+    producerExtensionId: 'haus.astrid.test',
     consumedMaterialRefs: [],
     determinism: 'process-dependent',
     boundary: {
@@ -45,7 +45,7 @@ function makeArtifact(overrides: Partial<RenderArtifact> = {}): RenderArtifact {
       artifactId: 'artifact.test.metadata-json',
       route: SIDECAR_ROUTE,
       determinism: 'process-dependent',
-      producerExtensionId: 'com.reigh.test',
+      producerExtensionId: 'haus.astrid.test',
       locator: {
         kind: 'artifact-store',
         uri: 'artifact://exports/test/metadata.json',
@@ -94,7 +94,7 @@ function makeRoutePlan(overrides: Partial<RenderRoutePlan> = {}): RenderRoutePla
     diagnostics: [],
     outputFormatIds: ['metadata-json-sidecar'],
     processRequirements: [{
-      processId: 'com.reigh.test.example-analyzer',
+      processId: 'haus.astrid.test.example-analyzer',
       operationId: 'exportMetadataJson',
       routeScope: {
         source: 'process-operation',
@@ -113,14 +113,14 @@ function makeProcessDescriptor(
   overrides: Partial<VideoEditorProcessDescriptor> = {},
 ): VideoEditorProcessDescriptor {
   return {
-    id: 'com.reigh.test.example-analyzer',
-    processId: 'com.reigh.test.example-analyzer',
-    extensionId: 'com.reigh.test',
+    id: 'haus.astrid.test.example-analyzer',
+    processId: 'haus.astrid.test.example-analyzer',
+    extensionId: 'haus.astrid.test',
     contributionId: 'example-analyzer',
     label: 'Example Analyzer',
     protocol: 'stdio-jsonrpc',
     spec: {
-      id: 'com.reigh.test.example-analyzer',
+      id: 'haus.astrid.test.example-analyzer',
       label: 'Example Analyzer',
       version: '1.0.0',
       spawn: { command: 'example-analyzer' },
@@ -149,7 +149,7 @@ function makeProcessDescriptor(
         routes: [SIDECAR_ROUTE],
       },
       requiredCapabilities: [],
-      processId: 'com.reigh.test.example-analyzer',
+      processId: 'haus.astrid.test.example-analyzer',
       operationId: 'exportMetadataJson',
       determinism: 'process-dependent',
     }],
@@ -250,7 +250,7 @@ describe('RouteCompletionDashboard', () => {
         routePlan={makeRoutePlan()}
         extensionRuntime={makeExtensionRuntime()}
         processStatuses={[{
-          processId: 'com.reigh.test.example-analyzer',
+          processId: 'haus.astrid.test.example-analyzer',
           state: 'ready',
           label: 'Example Analyzer',
           message: 'Process is ready.',
@@ -258,8 +258,8 @@ describe('RouteCompletionDashboard', () => {
       />,
     );
 
-    expect(screen.getByTestId('route-completion-process-com.reigh.test.example-analyzer')).toBeDefined();
-    expect(screen.getByTestId('route-completion-process-status-com.reigh.test.example-analyzer')).toHaveTextContent('ready');
+    expect(screen.getByTestId('route-completion-process-haus.astrid.test.example-analyzer')).toBeDefined();
+    expect(screen.getByTestId('route-completion-process-status-haus.astrid.test.example-analyzer')).toHaveTextContent('ready');
   });
 
   // -----------------------------------------------------------------------
@@ -412,7 +412,7 @@ describe('RouteCompletionDashboard', () => {
     const action: VideoEditorPlannerNextActionDescriptor = {
       kind: 'start-process',
       route: SIDECAR_ROUTE,
-      processId: 'com.reigh.test.example-analyzer',
+      processId: 'haus.astrid.test.example-analyzer',
       label: 'Start Example Analyzer',
       message: 'Start the trusted local process.',
     };
@@ -476,7 +476,7 @@ describe('RouteCompletionDashboard', () => {
     const sidecarAction: VideoEditorPlannerNextActionDescriptor = {
       kind: 'start-process',
       route: SIDECAR_ROUTE,
-      processId: 'com.reigh.test.example-analyzer',
+      processId: 'haus.astrid.test.example-analyzer',
       label: 'Start Process for Sidecar',
       message: 'Start sidecar process.',
     };
@@ -525,8 +525,8 @@ describe('RouteCompletionDashboard', () => {
 
   it('filters process entries to only those scoped to the selected route', () => {
     const otherProcessDescriptor = makeProcessDescriptor({
-      id: 'com.reigh.test.other-process',
-      processId: 'com.reigh.test.other-process',
+      id: 'haus.astrid.test.other-process',
+      processId: 'haus.astrid.test.other-process',
       label: 'Other Process',
       operations: [{
         id: 'otherOp',
@@ -546,7 +546,7 @@ describe('RouteCompletionDashboard', () => {
           routes: [BROWSER_ROUTE],
         },
         requiredCapabilities: [],
-        processId: 'com.reigh.test.other-process',
+        processId: 'haus.astrid.test.other-process',
         operationId: 'otherOp',
         determinism: 'deterministic',
       }],
@@ -559,7 +559,7 @@ describe('RouteCompletionDashboard', () => {
       <RouteCompletionDashboard
         routePlan={makeRoutePlan({
           processRequirements: [{
-            processId: 'com.reigh.test.example-analyzer',
+            processId: 'haus.astrid.test.example-analyzer',
             operationId: 'exportMetadataJson',
             routeScope: {
               source: 'process-operation',
@@ -572,13 +572,13 @@ describe('RouteCompletionDashboard', () => {
         extensionRuntime={{ ...runtime, processes }}
         processStatuses={[
           {
-            processId: 'com.reigh.test.example-analyzer',
+            processId: 'haus.astrid.test.example-analyzer',
             state: 'ready',
             label: 'Example Analyzer',
             message: 'Ready.',
           },
           {
-            processId: 'com.reigh.test.other-process',
+            processId: 'haus.astrid.test.other-process',
             state: 'ready',
             label: 'Other Process',
             message: 'Ready.',
@@ -588,9 +588,9 @@ describe('RouteCompletionDashboard', () => {
     );
 
     // Sidecar-scoped process should be visible
-    expect(screen.getByTestId('route-completion-process-com.reigh.test.example-analyzer')).toBeDefined();
+    expect(screen.getByTestId('route-completion-process-haus.astrid.test.example-analyzer')).toBeDefined();
     // Browser-scoped process should be filtered out
-    expect(screen.queryByTestId('route-completion-process-com.reigh.test.other-process')).toBeNull();
+    expect(screen.queryByTestId('route-completion-process-haus.astrid.test.other-process')).toBeNull();
   });
 
   // -----------------------------------------------------------------------
@@ -610,7 +610,7 @@ describe('RouteCompletionDashboard', () => {
         nextAction: {
           kind: 'start-process',
           route: SIDECAR_ROUTE,
-          processId: 'com.reigh.test.example-analyzer',
+          processId: 'haus.astrid.test.example-analyzer',
           label: 'Start Process',
           message: 'Start the process.',
         },

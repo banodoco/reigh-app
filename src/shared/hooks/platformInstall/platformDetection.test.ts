@@ -151,7 +151,7 @@ describe('platformDetection', () => {
       promptTimedOut: false,
       isDesktopChromium: true,
       platform: 'windows',
-    })).toBe('Open Reigh App');
+    })).toBe('Open Astrid App');
 
     expect(getCtaText({
       isStandalone: false,

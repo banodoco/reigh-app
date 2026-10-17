@@ -250,7 +250,7 @@ describe('check-sdk-no-barrel-imports — Barrel Detection', () => {
   });
 
   // -----------------------------------------------------------------------
-  // 6. @/sdk and @reigh/editor-sdk alias coverage
+  // 6. @/sdk and @astrid/editor-sdk alias coverage
   // NOTE: These alias-based barrel imports are caught by the TypeScript
   // resolution layer in the real gate run against the real repo.  They
   // cannot be tested in a temp directory because tsconfig paths alias

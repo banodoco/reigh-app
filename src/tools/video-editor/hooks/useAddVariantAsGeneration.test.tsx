@@ -50,7 +50,7 @@ vi.mock('@/tools/video-editor/hooks/timelineStore.ts', () => ({
   }),
 }));
 
-vi.mock('@/tools/video-editor/adapters/reigh/variantPromotionLookup.ts', () => ({
+vi.mock('@/tools/video-editor/adapters/app/variantPromotionLookup.ts', () => ({
   loadPrimaryVariantForGeneration: (...args: unknown[]) => mocks.loadPrimaryVariantForGeneration(...args),
 }));
 

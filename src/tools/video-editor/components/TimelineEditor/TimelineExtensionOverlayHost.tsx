@@ -16,7 +16,7 @@ import type {
   TimelineOverlayPrimitives,
   TimelineOverlayRenderProps,
   TimelineOverlaySelection,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import { OVERLAY_INTERACTIVE_ATTR } from '@/tools/video-editor/lib/timeline-dom.ts';
 import type {
   TimelineContextTarget,

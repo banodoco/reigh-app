@@ -5,7 +5,7 @@ import { PixelCheckIcon, PixelCopyIcon } from './PublicAstridPixelIcons';
 import type { PublicAstridAudience } from './publicAstridMotion';
 
 // Placeholder until the agent has a published installer; replace with the real one-line install.
-const AGENT_INSTALL_COMMAND = 'git clone https://github.com/banodoco/reigh-app.git';
+const AGENT_INSTALL_COMMAND = 'git clone https://github.com/banodoco/astrid-app.git';
 
 function AgentInstallCommand({ active, pixelIcons }: { active: boolean; pixelIcons: boolean }) {
   const [copied, setCopied] = useState(false);

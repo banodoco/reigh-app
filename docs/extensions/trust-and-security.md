@@ -1,4 +1,4 @@
-# Trust And Security Posture — Reigh Video Editor V1
+# Trust And Security Posture — Astrid Video Editor V1
 
 **Status:** Active (M5)
 **Last updated:** 2026-06-24
@@ -32,12 +32,12 @@ Extensions execute as **trusted, unsandboxed code** in the host browser environm
 
 | Property | V1 Reality |
 |---|---|
-| Execution context | Same-thread, same-origin JavaScript as the Reigh editor |
+| Execution context | Same-thread, same-origin JavaScript as the Astrid editor |
 | Process isolation | None — no Worker, no iframe, no ShadowRealm boundary |
 | DOM access | Full same-origin DOM access |
 | Network access | Full same-origin `fetch`, `XMLHttpRequest`, `WebSocket`, `EventSource` |
 | Browser APIs | Unrestricted access to all browser APIs available to the host origin |
-| Storage | `localStorage` (scoped to `reigh.ext.<id>.*` keys), `sessionStorage`, IndexedDB |
+| Storage | `localStorage` (scoped to `astrid.ext.<id>.*` keys), `sessionStorage`, IndexedDB |
 | Package loading | Extensions are statically bundled with the host Vite/TypeScript build; no dynamic `import()`, no CDN fetches |
 
 There is **no sandbox, no iframe isolation, no CSP subdivision, and no process boundary** between extensions and the host.
@@ -48,7 +48,7 @@ There is **no sandbox, no iframe isolation, no CSP subdivision, and no process b
 
 ### 2.1 Manifest permissions are descriptive only
 
-The `permissions` field in `reigh-extension.json` is validated and frozen by `defineExtension()`, but it is **purely descriptive metadata**. An extension that declares `network: false` can still call `fetch()`. The field exists so extension authors can document their intent today, and so the schema is stable when capability enforcement is introduced in a later milestone.
+The `permissions` field in `astrid-extension.json` is validated and frozen by `defineExtension()`, but it is **purely descriptive metadata**. An extension that declares `network: false` can still call `fetch()`. The field exists so extension authors can document their intent today, and so the schema is stable when capability enforcement is introduced in a later milestone.
 
 **There is no runtime permission enforcement, no permission broker, and no capability-based gating in V1.**
 
@@ -192,7 +192,7 @@ Sandboxing, permission enforcement, integrity verification, and user-facing perm
 3. Integrity verification (content hashing and signature verification for remote sources).
 4. User-facing permission prompts (host presents permission dialog before granting capabilities).
 
-Until then, the posture is explicit: **every extension is trusted code with the same privileges as the Reigh editor itself.**
+Until then, the posture is explicit: **every extension is trusted code with the same privileges as the Astrid editor itself.**
 
 ---
 

@@ -63,7 +63,7 @@ function readBoundFile(packRoot: string, relativePath: unknown, expectedSha256: 
   return bytes;
 }
 
-/** Fail the Reigh build before the Video Editor can launch against stale Astrid inputs. */
+/** Fail the Astrid App build before the Video Editor can launch against stale Astrid inputs. */
 export function validateAstridToolCatalog(sourceRoot: string): ValidatedAstridToolCatalog {
   const catalogPath = path.join(sourceRoot, 'tools', 'catalog.json');
   if (!fs.existsSync(catalogPath) || !fs.lstatSync(catalogPath).isFile() || fs.lstatSync(catalogPath).isSymbolicLink()) {
@@ -91,8 +91,8 @@ export function validateAstridToolCatalog(sourceRoot: string): ValidatedAstridTo
     }
     if (ids.has(tool.id)) throw new Error(`Astrid whole-Tool catalog duplicates host Tool ID ${tool.id}`);
     ids.add(tool.id);
-    if (tool.target !== 'reigh' || tool.compatibility?.host !== '1') {
-      throw new Error(`Astrid Tool ${tool.id} is incompatible with Reigh host 1`);
+    if (tool.target !== 'astrid' || tool.compatibility?.host !== '1') {
+      throw new Error(`Astrid Tool ${tool.id} is incompatible with Astrid App host 1`);
     }
     const packRoot = path.join(sourceRoot, 'packs', tool.pack_id);
     const manifestBytes = readBoundFile(packRoot, tool.manifest?.path, tool.manifest?.sha256);
@@ -123,7 +123,7 @@ export function validateAstridToolCatalog(sourceRoot: string): ValidatedAstridTo
     }
   }
   if (!ids.has('video-editor')) {
-    throw new Error('Astrid whole-Tool catalog does not admit video-editor for this Reigh host');
+    throw new Error('Astrid whole-Tool catalog does not admit video-editor for this Astrid App host');
   }
   return { catalogPath, catalogSha256: sha256(catalogBytes), toolIds: [...ids].sort() };
 }

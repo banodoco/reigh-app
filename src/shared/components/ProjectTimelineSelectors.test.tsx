@@ -198,7 +198,7 @@ describe('ProjectTimelineSelectors', () => {
     const user = userEvent.setup();
     await user.click(screen.getByRole('combobox', { name: 'Select project' }));
     expect(await screen.findByText('Projects')).toBeInTheDocument();
-    expect(screen.queryByText('Reigh projects')).toBeNull();
+    expect(screen.queryByText('Astrid App projects')).toBeNull();
     await user.click(await screen.findByText('Other Project'));
 
     expect(onSelectProject).toHaveBeenCalledWith('other-project');
@@ -347,7 +347,7 @@ describe('ProjectTimelineSelectors', () => {
     const user = userEvent.setup();
     await user.click(screen.getByRole('combobox', { name: 'Select project' }));
 
-    expect(screen.queryByText('Reigh projects')).toBeNull();
+    expect(screen.queryByText('Astrid App projects')).toBeNull();
     expect(screen.getByText('Projects')).toBeInTheDocument();
     expect(screen.queryByRole('option', { name: /Project One/ })).toBeNull();
     expect(screen.getByRole('option', { name: /Ados Talks/ })).toBeInTheDocument();

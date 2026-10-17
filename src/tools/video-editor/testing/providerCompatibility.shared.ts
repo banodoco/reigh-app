@@ -22,7 +22,7 @@ import { describe, expect, it } from 'vitest';
 import {
   TimelineVersionConflictError,
   isTimelineVersionConflictError,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import type {
   DataProvider,
   LoadedTimeline,
@@ -501,10 +501,10 @@ export function runProviderCompatibilitySuite(
       shape: 'interval',
       domain: 'source_seconds',
       extent: { start: 0, end: 1.5 },
-      schemaRef: 'reigh.transcript_segment/v1',
+      schemaRef: 'astrid.transcript_segment/v1',
       payload: { text: 'hello' },
       sourceArtifactRef: { assetId: 'assetA' },
-      provenance: { adapterId: 'reigh.adaptTranscript', adapterVersion: '1' },
+      provenance: { adapterId: 'astrid.adaptTranscript', adapterVersion: '1' },
       ...overrides,
     });
     const makeBundleEnvelope = (
@@ -512,7 +512,7 @@ export function runProviderCompatibilitySuite(
     ): TimelineBundleEnvelope => ({
       schema_version: 1,
       itemsBySchemaRef: {
-        'reigh.transcript_segment/v1': [makeBundleItem()],
+        'astrid.transcript_segment/v1': [makeBundleItem()],
       },
       ...overrides,
     }) as TimelineBundleEnvelope;
@@ -520,7 +520,7 @@ export function runProviderCompatibilitySuite(
     const bundleA = makeBundleEnvelope();
     const bundleB = makeBundleEnvelope({
       itemsBySchemaRef: {
-        'reigh.transcript_segment/v1': [
+        'astrid.transcript_segment/v1': [
           makeBundleItem({ payload: { text: 'second' } }),
         ],
       },

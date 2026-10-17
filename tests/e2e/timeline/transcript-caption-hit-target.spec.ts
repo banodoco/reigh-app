@@ -20,10 +20,10 @@ test.describe('materialized transcript caption clip hit targets', () => {
 
   test('selects every generated caption and shows its exact text in the Inspector', async ({ page }) => {
     test.setTimeout(90_000);
-    await page.addInitScript(() => localStorage.removeItem('reigh.dev-extensions.disabled'));
+    await page.addInitScript(() => localStorage.removeItem('astrid.dev-extensions.disabled'));
     await page.goto(EDITOR_URL, { waitUntil: 'domcontentloaded', timeout: 45_000 });
 
-    const transcriptRow = page.locator('[data-lane-kind="reigh.transcript"]');
+    const transcriptRow = page.locator('[data-lane-kind="astrid.transcript"]');
     await expect(transcriptRow).toBeVisible({ timeout: 30_000 });
     await page.locator('.timeline-canvas-edit-area').evaluate((scroller) => {
       scroller.scrollTop = scroller.scrollHeight;

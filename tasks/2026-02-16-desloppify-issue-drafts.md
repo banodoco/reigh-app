@@ -5,9 +5,9 @@ Method: `gh issue list/view` against open+closed issues.
 
 ## Quick conclusion
 
-Most scanner-behavior findings should be filed in `desloppify`, not `Reigh`.
+Most scanner-behavior findings should be filed in `desloppify`, not `Astrid`.
 
-`Reigh` currently has no GitHub issues, while `desloppify` has active issues that already cover part of this:
+`Astrid` currently has no GitHub issues, while `desloppify` has active issues that already cover part of this:
 
 - `#82` TypeScript edge functions coverage gap
 - `#100` runtime entrypoint test_coverage false positives
@@ -23,7 +23,7 @@ Issue: `https://github.com/peteromallet/desloppify/issues/82`
 Paste as comment:
 
 ```md
-Fresh data point from `reigh` (2026-02-16):
+Fresh data point from `astrid` (2026-02-16):
 
 Even with full scan scope (`desloppify scan --path .`), edge-function type-safety debt is under-represented in persisted findings.
 
@@ -57,7 +57,7 @@ Issue: `https://github.com/peteromallet/desloppify/issues/106`
 Paste as comment:
 
 ```md
-Additional real-project evidence (`reigh`, 2026-02-16):
+Additional real-project evidence (`astrid`, 2026-02-16):
 
 `desloppify scan --path .` reports:
 - raw findings this run: **1314**
@@ -79,7 +79,7 @@ Issue: `https://github.com/peteromallet/desloppify/issues/100`
 Paste as comment:
 
 ```md
-Confirmed on `reigh` full scan:
+Confirmed on `astrid` full scan:
 
 `supabase/functions/update-task-status/index.ts` has two coverage findings:
 - `test_coverage::supabase/functions/update-task-status/index.ts`
@@ -104,7 +104,7 @@ Body:
 Desloppify does not currently surface React hook correctness violations comparable to ESLint's `react-hooks/rules-of-hooks` and `react-hooks/exhaustive-deps`.
 
 ## Repro
-In `reigh`:
+In `astrid`:
 
 ```bash
 npm run lint
@@ -143,7 +143,7 @@ Body:
 `desloppify detect smells` reports `any_type` in files that do not receive corresponding persisted `smells::...::any_type` findings after full `scan`.
 
 ## Repro
-Project: `reigh`
+Project: `astrid`
 
 ```bash
 desloppify scan --path .
@@ -198,7 +198,7 @@ Scope ambiguity leads to false confidence ("all clear") when entire subtrees are
 
 ## Optional repo-local issue (not desloppify)
 
-If desired, create a `Reigh` issue for repository hygiene:
+If desired, create a `Astrid` issue for repository hygiene:
 
 - Control-character filename under `src/pages` (newline in path) can poison tooling output.
 - This is a project content issue, not a scanner-engine issue.

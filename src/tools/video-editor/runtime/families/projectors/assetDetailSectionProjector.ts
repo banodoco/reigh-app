@@ -7,7 +7,7 @@
  * @module families/projectors/assetDetailSectionProjector
  */
 
-import type { AssetDetailSectionContribution } from '@reigh/editor-sdk';
+import type { AssetDetailSectionContribution } from '@astrid/editor-sdk';
 import type { VideoEditorAssetDetailSectionDescriptor } from '../../extensionSurface';
 import type { CollectedContribution } from '../FamilyContributionSequence';
 import { sortFamilyContributions, freezeDescriptor } from '../familyAdapterUtils';

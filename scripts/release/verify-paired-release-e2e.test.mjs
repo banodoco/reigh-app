@@ -58,7 +58,7 @@ import {
   validateRenderedMediaFrame,
   verifyBridgeMediaContent,
   waitForUrl,
-  waitForReighReadiness,
+  waitForAstridReadiness,
   waitForViteReadiness,
   waitForRenderWorkerReadiness,
   assertRenderWorkerCompleted,
@@ -111,9 +111,9 @@ describe('paired repository release E2E gate', () => {
 
   it('preserves the failed browser setup and retries once in an isolated output directory', () => {
     const root = mkdtempSync(resolve(tmpdir(), 'paired-context-retry-'));
-    const reighSnapshot = resolve(root, 'reigh');
+    const appSnapshot = resolve(root, 'app');
     const evidenceRoot = resolve(root, 'evidence');
-    const cli = resolve(reighSnapshot, 'node_modules/@playwright/test/cli.js');
+    const cli = resolve(appSnapshot, 'node_modules/@playwright/test/cli.js');
     mkdirSync(resolve(cli, '..'), { recursive: true });
     mkdirSync(evidenceRoot, { recursive: true });
     writeFileSync(cli, `
@@ -127,7 +127,7 @@ if (!output.endsWith('playwright-first-context-retry-1')) process.exit(2);
 `);
     try {
       const result = runPlaywright({
-        reighSnapshot,
+        appSnapshot,
         evidenceRoot,
         browserExecutable: process.execPath,
         browserRoot: '/tmp',
@@ -153,9 +153,9 @@ if (!output.endsWith('playwright-first-context-retry-1')) process.exit(2);
 
   it('does not retry a context failure after any phase-owned state exists', () => {
     const root = mkdtempSync(resolve(tmpdir(), 'paired-context-no-retry-'));
-    const reighSnapshot = resolve(root, 'reigh');
+    const appSnapshot = resolve(root, 'app');
     const evidenceRoot = resolve(root, 'evidence');
-    const cli = resolve(reighSnapshot, 'node_modules/@playwright/test/cli.js');
+    const cli = resolve(appSnapshot, 'node_modules/@playwright/test/cli.js');
     mkdirSync(resolve(cli, '..'), { recursive: true });
     mkdirSync(evidenceRoot, { recursive: true });
     writeFileSync(cli, `
@@ -166,7 +166,7 @@ process.exit(1);
     writeFileSync(resolve(evidenceRoot, 'browser-first-state.json'), '{}\n');
     try {
       assert.throws(() => runPlaywright({
-        reighSnapshot,
+        appSnapshot,
         evidenceRoot,
         browserExecutable: process.execPath,
         browserRoot: '/tmp',
@@ -856,13 +856,13 @@ process.exit(1);
       assert.equal(typeof address, 'object');
       const baseUrl = `http://127.0.0.1:${address.port}`;
       const child = { exitCode: null, signalCode: null };
-      await waitForReighReadiness(baseUrl, {
+      await waitForAstridReadiness(baseUrl, {
         mode: 'preview',
         expectedIdentity,
         process: child,
         timeoutMs: 1_000,
       });
-      await waitForReighReadiness(baseUrl, {
+      await waitForAstridReadiness(baseUrl, {
         mode: 'development',
         expectedIdentity: 'must-not-be-probed-in-development',
         process: child,
@@ -872,8 +872,8 @@ process.exit(1);
       assert.match(requests[0], /^\/runtime-config\/v1\/extensions\.json\?readiness=/);
       assert.equal(requests[1], '/');
       await assert.rejects(
-        waitForReighReadiness(baseUrl, { mode: 'unsupported', process: child, timeoutMs: 1_000 }),
-        /unsupported Reigh readiness mode/,
+        waitForAstridReadiness(baseUrl, { mode: 'unsupported', process: child, timeoutMs: 1_000 }),
+        /unsupported Astrid App readiness mode/,
       );
     } finally {
       await new Promise((resolvePromise, reject) => server.close((error) => (error ? reject(error) : resolvePromise())));
@@ -1349,7 +1349,7 @@ process.exit(1);
       });
       assert.equal(tree.status, 0, tree.stderr);
 
-      const archivePath = resolve(runtimeRoot, 'reigh.tar');
+      const archivePath = resolve(runtimeRoot, 'app.tar');
       const archive = runTestCommand('git', [
         'archive', '--format=tar', `--output=${archivePath}`, tree.stdout.trim(),
         'scripts/release/paired-python-build-tools.lock',
@@ -1423,10 +1423,10 @@ process.exit(1);
         '  "clips": [{',
         '    "id": "caption-1", "at": 1, "track": "captions",',
         '    "clipType": "text", "label": "Human-readable caption",',
-        '    "app": {"__generated__": {"extensionId": "com.reigh.transcript-lane"}},',
+        '    "app": {"__generated__": {"extensionId": "haus.astrid.transcript-lane"}},',
         '    "keyframes": {"opacity": [{"time": 0, "value": 1, "interpolation": "linear"}]}',
         '  }],',
-        '  "app": {"com.reigh.scene-phase-markers": {"sceneMarkers": []}}',
+        '  "app": {"haus.astrid.scene-phase-markers": {"sceneMarkers": []}}',
         '})',
       ].join('\n')]);
       assert.equal(schemaAcceptance.status, 0, schemaAcceptance.stderr);
@@ -1455,7 +1455,7 @@ process.exit(1);
   it('requires the exact per-run candidate identity for Vite readiness', () => {
     const identity = buildReadinessIdentity({
       nonce: 'deadbeef',
-      reighCommit: 'a'.repeat(40),
+      appCommit: 'a'.repeat(40),
     });
     const expected = {
       schemaVersion: 1,
@@ -1469,7 +1469,7 @@ process.exit(1);
     assert.equal(isExactViteReadiness(expected, identity), true);
     assert.equal(isExactViteReadiness({ ...expected, revision: 'paired-preview' }, identity), false);
     assert.equal(isExactViteReadiness({ status: 200 }, identity), false);
-    assert.throws(() => buildReadinessIdentity({ nonce: 'ambient', reighCommit: 'a'.repeat(40) }), /nonce/);
+    assert.throws(() => buildReadinessIdentity({ nonce: 'ambient', appCommit: 'a'.repeat(40) }), /nonce/);
   });
 
   it('passes strictPort for both Vite dev and preview servers', () => {
@@ -1726,8 +1726,8 @@ process.exit(1);
         pythonPath: '/tmp/paired-astrid',
         bridgePort: 21001,
         token: 'generated-server-secret',
-        reighMode: 'development',
-        reighPort: 21002,
+        astridMode: 'development',
+        astridPort: 21002,
       });
       assert.equal(development.VITE_DISABLE_REMOTE_FONTS, '1');
 
@@ -1737,8 +1737,8 @@ process.exit(1);
         pythonPath: '/tmp/paired-astrid',
         bridgePort: 21001,
         token: 'generated-server-secret',
-        reighMode: 'preview',
-        reighPort: 21003,
+        astridMode: 'preview',
+        astridPort: 21003,
       });
       assert.equal(preview.VITE_DISABLE_REMOTE_FONTS, '0');
     } finally {
@@ -1753,12 +1753,12 @@ process.exit(1);
     assert.deepEqual(PAIRED_RELEASE_PHASES, [
       'exact-ref capability preflight',
       'clean archive materialization',
-      'locked Reigh, Playwright, paired Python, and archived Astrid Remotion runtime (attested Node/npm) provisioning plus production build',
+      'locked Astrid App, Playwright, paired Python, and archived Astrid Remotion runtime (attested Node/npm) provisioning plus production build',
       'Astrid database initialization and pre-migration backup',
       'Runaway migration first apply and idempotent second apply',
-      'authenticated Astrid release bridge plus built Reigh preview smoke',
+      'authenticated Astrid release bridge plus built Astrid App preview smoke',
       'development-only local-editor paired acceptance (current production bridge limitation)',
-      'Reigh and Astrid restart plus persisted-state/render acceptance',
+      'Astrid App and Astrid restart plus persisted-state/render acceptance',
       'backup restore, second restart, and rollback-state acceptance',
       'immutable receipt and artifact hash index publication',
     ]);
@@ -1879,8 +1879,8 @@ process.exit(1);
     assert.match(source, /astrid-restored-media-snapshot\.json/);
     assert.match(source, /Promise\.allSettled/);
     assert.match(source, /inspectCandidateController/);
-    assert.match(source, /reighControllerHead: pins\.reighControllerHead/);
-    assert.match(source, /archiveCommit\(REPO_ROOT, pins\.reighCommit/);
+    assert.match(source, /astridControllerHead: pins\.astridControllerHead/);
+    assert.match(source, /archiveCommit\(REPO_ROOT, pins\.appCommit/);
     assert.ok(source.indexOf("'receipt.json'") < source.indexOf("'artifact-index.json'"));
   });
 

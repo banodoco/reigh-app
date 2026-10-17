@@ -103,7 +103,7 @@ class ValidateTimelineTests(unittest.TestCase):
             "tracks": [],
             "generation_defaults": {
                 "model": "sequence-v1",
-                "image": {"quality": "high", "provider": "reigh"},
+                "image": {"quality": "high", "provider": "astrid"},
                 "provider_settings": {"seed": 1234, "flags": ["keep", "open"]},
             },
         }

@@ -16,7 +16,7 @@ import type {
   ParserInput,
   ParserResult,
   ParserDiagnostic,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import type {
   AssetRegistryEntry,
 } from '../types/index.ts';

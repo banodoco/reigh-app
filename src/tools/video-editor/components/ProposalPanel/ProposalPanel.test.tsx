@@ -12,7 +12,7 @@ import type {
   DisposeHandle,
   ProposalState,
   ProposalImportDiagnostic,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import type { ProposalImportDiagnosticsState } from '@/tools/video-editor/hooks/timelineStore';
 
 // ---------------------------------------------------------------------------

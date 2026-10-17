@@ -10,7 +10,7 @@
 import type {
   ExtensionManifestContribution,
   FamilyContributionRef,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import type { CollectedContribution } from './FamilyContributionSequence';
 
 interface CollectionMetadata {

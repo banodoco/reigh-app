@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 const state = vi.hoisted(() => ({ sessions: vi.fn(), projects: vi.fn() }));
 vi.mock("@/integrations/runtime/client.ts", () => ({
-  ReighRuntimeClient: class {
+  AstridRuntimeClient: class {
     constructor(readonly options?: { baseUrl?: string }) {}
     ensureSession() {
       return state.sessions(this.options?.baseUrl ?? "/api/runtime");

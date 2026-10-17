@@ -34,8 +34,8 @@ describe('useProjectCRUD local workspace project creation', () => {
     mocks.createProject.mockReset().mockResolvedValue({
       data: {
         project_id: 'project-canonical-id',
-        slug: 'reigh-local-launch-smoke-2026-10-14',
-        name: 'Reigh local launch smoke 2026-10-14',
+        slug: 'astrid-local-launch-smoke-2026-10-14',
+        name: 'Astrid local launch smoke 2026-10-14',
         metadata: { aspect_ratio: '16:9' },
         created_at: '2026-10-14T00:00:00.000Z',
       },
@@ -59,21 +59,21 @@ describe('useProjectCRUD local workspace project creation', () => {
     let createdProject;
     await act(async () => {
       createdProject = await result.current.addNewProject({
-        name: 'Reigh local launch smoke 2026-10-14',
+        name: 'Astrid local launch smoke 2026-10-14',
         aspectRatio: '16:9',
       });
     });
 
     expect(mocks.clientOptions).toEqual([{ projectSlug: '__discovery__' }]);
     expect(mocks.createProject).toHaveBeenCalledWith({
-      name: 'Reigh local launch smoke 2026-10-14',
-      slug: 'reigh-local-launch-smoke-2026-10-14',
+      name: 'Astrid local launch smoke 2026-10-14',
+      slug: 'astrid-local-launch-smoke-2026-10-14',
       metadata: { aspect_ratio: '16:9' },
     });
     expect(mocks.ensureProjectHasTimeline).toHaveBeenCalledWith('project-canonical-id');
     expect(createdProject).toMatchObject({
-      id: 'reigh-local-launch-smoke-2026-10-14',
-      name: 'Reigh local launch smoke 2026-10-14',
+      id: 'astrid-local-launch-smoke-2026-10-14',
+      name: 'Astrid local launch smoke 2026-10-14',
       user_id: 'local-user',
       aspectRatio: '16:9',
     });
@@ -96,12 +96,12 @@ describe('useProjectCRUD local workspace project creation', () => {
     let createdProject;
     await act(async () => {
       createdProject = await result.current.addNewProject({
-        name: 'Reigh local launch smoke 2026-10-14',
+        name: 'Astrid local launch smoke 2026-10-14',
         aspectRatio: '16:9',
       });
     });
 
-    expect(createdProject).toMatchObject({ id: 'reigh-local-launch-smoke-2026-10-14' });
+    expect(createdProject).toMatchObject({ id: 'astrid-local-launch-smoke-2026-10-14' });
     expect(onProjectCreated).toHaveBeenCalledWith(createdProject);
   });
 });

@@ -39,7 +39,7 @@ export function sessionIdsFromListResult(value: unknown): string[] {
 }
 
 export function AstridAcpSessionControls({ enabled }: { enabled: boolean }) {
-  const client = useMemo(() => new AstridLocalClient({ projectSlug: 'reigh-acp' }), []);
+  const client = useMemo(() => new AstridLocalClient({ projectSlug: 'astrid-acp' }), []);
   const [connectionId, setConnectionId] = useState<string | null>(null);
   const [sessionId, setSessionId] = useState('');
   const [sessionIds, setSessionIds] = useState<string[]>([]);

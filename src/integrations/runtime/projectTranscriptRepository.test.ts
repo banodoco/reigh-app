@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ReighRuntimeClient } from './client.ts';
+import { AstridRuntimeClient } from './client.ts';
 import { RuntimeDataProvider } from './dataProvider.ts';
 import {
   transcriptDocumentId,
@@ -30,14 +30,14 @@ afterEach(() => vi.restoreAllMocks());
 describe('Runtime project transcript repository', () => {
   it('exposes generic kind-filtered documents with own-write notifications', async () => {
     const d = await document();
-    const list = vi.spyOn(ReighRuntimeClient.prototype, 'listDocuments').mockResolvedValue({
+    const list = vi.spyOn(AstridRuntimeClient.prototype, 'listDocuments').mockResolvedValue({
       items: [d], next_cursor: null,
     });
-    vi.spyOn(ReighRuntimeClient.prototype, 'getDocument').mockResolvedValue(d);
-    vi.spyOn(ReighRuntimeClient.prototype, 'createDocument').mockResolvedValue({ ...d, receipt: {} as any });
-    vi.spyOn(ReighRuntimeClient.prototype, 'updateDocument').mockResolvedValue({ ...d, version: 2, receipt: {} as any });
+    vi.spyOn(AstridRuntimeClient.prototype, 'getDocument').mockResolvedValue(d);
+    vi.spyOn(AstridRuntimeClient.prototype, 'createDocument').mockResolvedValue({ ...d, receipt: {} as any });
+    vi.spyOn(AstridRuntimeClient.prototype, 'updateDocument').mockResolvedValue({ ...d, version: 2, receipt: {} as any });
     const docs = new RuntimeDataProvider({ projectId: 'p' }).documents;
-    const create = vi.spyOn(ReighRuntimeClient.prototype, 'createDocument').mockResolvedValue({ ...d, receipt: {} as any });
+    const create = vi.spyOn(AstridRuntimeClient.prototype, 'createDocument').mockResolvedValue({ ...d, receipt: {} as any });
     const changed = vi.fn();
     const unsubscribe = docs.onChange(changed);
     expect(await docs.list('media.transcript', { limit: 12 })).toMatchObject({ items: [d], next_cursor: null });
@@ -57,7 +57,7 @@ describe('Runtime project transcript repository', () => {
     const a = await document(),
       b = await document('other');
     const list = vi
-      .spyOn(ReighRuntimeClient.prototype, 'listDocuments')
+      .spyOn(AstridRuntimeClient.prototype, 'listDocuments')
       .mockResolvedValueOnce({ items: [a], next_cursor: 'page-2' })
       .mockResolvedValueOnce({ items: [b], next_cursor: null });
     const port = new RuntimeDataProvider({ projectId: 'p' }).projectTranscripts;
@@ -71,10 +71,10 @@ describe('Runtime project transcript repository', () => {
   it('passes expected document version and a stable attempt key using ordinary document transport', async () => {
     const d = await document();
     const create = vi
-      .spyOn(ReighRuntimeClient.prototype, 'createDocument')
+      .spyOn(AstridRuntimeClient.prototype, 'createDocument')
       .mockResolvedValue({ ...d, receipt: {} as any });
     const update = vi
-      .spyOn(ReighRuntimeClient.prototype, 'updateDocument')
+      .spyOn(AstridRuntimeClient.prototype, 'updateDocument')
       .mockResolvedValue({ ...d, version: 2, receipt: {} as any });
     const port = new RuntimeDataProvider({ projectId: 'p' }).projectTranscripts;
     await port.create(content, 'create-key');
@@ -96,7 +96,7 @@ describe('Runtime project transcript repository', () => {
   });
   it('fails closed on wrong project, identity, malformed rich content and repeated pagination', async () => {
     const d = await document();
-    const get = vi.spyOn(ReighRuntimeClient.prototype, 'getDocument');
+    const get = vi.spyOn(AstridRuntimeClient.prototype, 'getDocument');
     const port = new RuntimeDataProvider({ projectId: 'p' }).projectTranscripts;
     get.mockResolvedValueOnce({ ...d, project_id: 'other' });
     await expect(port.get(d.document_id)).rejects.toThrow('authority');
@@ -110,7 +110,7 @@ describe('Runtime project transcript repository', () => {
       },
     });
     await expect(port.get(d.document_id)).rejects.toThrow();
-    vi.spyOn(ReighRuntimeClient.prototype, 'listDocuments').mockResolvedValue({
+    vi.spyOn(AstridRuntimeClient.prototype, 'listDocuments').mockResolvedValue({
       items: [d],
       next_cursor: 'same',
     });

@@ -43,16 +43,16 @@ import type {
   PackageState,
   PackageMetadata,
 } from '@/tools/video-editor/runtime/extensionLoader';
-import { defineExtension } from '@reigh/editor-sdk';
+import { defineExtension } from '@astrid/editor-sdk';
 import type {
-  ReighExtension,
+  AstridExtension,
   ExtensionManifest,
   InstalledExtensionMetadata,
   InstalledExtensionPackage,
   IntegrityHash,
   ExtensionDependency,
   DependencyPosture,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import type {
   ExtensionStateRepository,
   ExtensionPackRecord,
@@ -71,8 +71,8 @@ import type {
 // Fixtures
 // ---------------------------------------------------------------------------
 
-/** Create a minimal valid ReighExtension for testing. */
-function makeExtension(overrides?: Partial<ExtensionManifest>): ReighExtension {
+/** Create a minimal valid AstridExtension for testing. */
+function makeExtension(overrides?: Partial<ExtensionManifest>): AstridExtension {
   return defineExtension({
     manifest: {
       id: 'com.test.fixture' as any,
@@ -90,7 +90,7 @@ function makeExtension(overrides?: Partial<ExtensionManifest>): ReighExtension {
 }
 
 /** Create a minimal valid extension with a specific ID. */
-function makeExtensionWithId(id: string, overrides?: Partial<ExtensionManifest>): ReighExtension {
+function makeExtensionWithId(id: string, overrides?: Partial<ExtensionManifest>): AstridExtension {
   return defineExtension({
     manifest: {
       id: id as any,
@@ -108,11 +108,11 @@ function makeExtensionWithId(id: string, overrides?: Partial<ExtensionManifest>)
 }
 
 /**
- * Create a ReighExtension with a potentially invalid manifest without going
+ * Create a AstridExtension with a potentially invalid manifest without going
  * through defineExtension (which validates IDs and throws on invalid ones).
  */
-function rawExtension(manifest: Record<string, unknown>): ReighExtension {
-  return { manifest: manifest as unknown as ExtensionManifest } as ReighExtension;
+function rawExtension(manifest: Record<string, unknown>): AstridExtension {
+  return { manifest: manifest as unknown as ExtensionManifest } as AstridExtension;
 }
 
 /** Create a valid integrity hash for a given bundle content. */
@@ -151,7 +151,7 @@ async function makePackRecord(
 }
 
 /** Build a direct validated package from an extension (bypassing validate). */
-function directValidatedPackage(ext: ReighExtension): ValidatedPackage {
+function directValidatedPackage(ext: AstridExtension): ValidatedPackage {
   return {
     form: 'workspace-source',
     manifest: ext.manifest,

@@ -24,15 +24,15 @@ npm run check:extension-ship-evidence:release
 
 The audit exits successfully when the ledger structure is sound and every
 claimed `pass` has valid receipts. It still prints every open workstream. The
-release gate requires 23/23 `pass`, frozen Reigh and Astrid commits, and evidence
+release gate requires 23/23 `pass`, frozen Astrid App and Astrid commits, and evidence
 receipts bound to those exact candidate commits.
 
 ## Candidate and evidence controller
 
-The Reigh candidate commit (`C`) is the immutable product/source revision. The
-annotated tag named by the release manifest and `REIGH_REF` must both resolve
+The Astrid App candidate commit (`C`) is the immutable product/source revision. The
+annotated tag named by the release manifest and `ASTRID_APP_REF` must both resolve
 exactly to `C`. The candidate ledger is still `integration` and leaves
-`candidate.reighCommit` null because a tracked file cannot contain the hash of
+`candidate.appCommit` null because a tracked file cannot contain the hash of
 the commit that contains it.
 
 Release evidence is finalized in a clean controller commit (`H`) that is a
@@ -60,7 +60,7 @@ Every passed workstream needs at least one receipt of the code-owned evidence
 kind required by the gate. Each receipt records:
 
 - a globally unique ID and evidence kind;
-- `reigh` or `astrid` plus the exact 40-character commit;
+- `astrid` or `astrid` plus the exact 40-character commit;
 - an exact UTC capture time;
 - the command or human action and either exit code zero or an explicit signed
   approval;
@@ -71,7 +71,7 @@ The gate resolves the artifact without following an escape outside the
 repository and recomputes its hash from both the worktree and committed `H`
 blob. Any edited, uncommitted, missing, external, symlinked, executable, or
 non-zero receipt fails. In release mode, every receipt commit must equal the
-frozen paired candidate (`C` for Reigh), never the evidence controller `H`.
+frozen paired candidate (`C` for Astrid App), never the evidence controller `H`.
 
 Human acceptance cannot be replaced by agent or browser automation. Workstream
 22 requires four separately identified receipts: working video editor,
@@ -112,7 +112,7 @@ those values below. Do not copy an RC number or tool version from an older run.
 npm run extension:evidence -- init \
   --type rollout-stage --output /tmp/rollout-stage.json \
   --release "$RELEASE_ID" \
-  --reigh-commit <candidate-C> --astrid-commit <astrid-commit> \
+  --app-commit <candidate-C> --astrid-commit <astrid-commit> \
   --environment production-stage-0 --tool "node=$NODE_VERSION"
 ```
 

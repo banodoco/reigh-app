@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useQueryClient, type QueryClient } from '@tanstack/react-query';
-import { ReighRuntimeClient } from '@/integrations/runtime/client.ts';
+import { AstridRuntimeClient } from '@/integrations/runtime/client.ts';
 import type { Task as RuntimeTask } from '@/integrations/runtime/generated.ts';
 import { mapWithConcurrency } from '@/shared/lib/async/mapWithConcurrency';
 
@@ -14,7 +14,7 @@ const FULL_LIST_RESYNC_MS = 5 * 60_000;
 export const runtimeTaskQueryKey = (projectId: string | null) =>
   ['runtime-tasks', projectId ?? '__no-project__'] as const;
 
-type EventClient = Pick<ReighRuntimeClient, 'listEvents' | 'getTask'>;
+type EventClient = Pick<AstridRuntimeClient, 'listEvents' | 'getTask'>;
 type Timer = ReturnType<typeof setTimeout>;
 
 interface TaskEventPoller {
@@ -193,7 +193,7 @@ function taskEventPoller(queryClient: QueryClient, projectId: string): TaskEvent
   }
   let poller = byProject.get(projectId);
   if (!poller) {
-    poller = createTaskEventPoller(queryClient, projectId, new ReighRuntimeClient());
+    poller = createTaskEventPoller(queryClient, projectId, new AstridRuntimeClient());
     byProject.set(projectId, poller);
   }
   return poller;

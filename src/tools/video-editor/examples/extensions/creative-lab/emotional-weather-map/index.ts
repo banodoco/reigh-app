@@ -7,23 +7,23 @@
  * project-data namespace and are rendered as host-owned ruler markers.
  */
 
-import { combineDisposeHandles, defineExtension } from '@reigh/editor-sdk';
+import { combineDisposeHandles, defineExtension } from '@astrid/editor-sdk';
 import type {
   CommandRunContext,
   ContributionId,
   DisposeHandle,
   ExtensionContext,
   ExtensionId,
-  ReighExtension,
+  AstridExtension,
   TimelineClipSummary,
   TimelineOverlayRenderProps,
   TimelinePatch,
   TimelineSnapshot,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import { clusterTimelineMarkers } from '../timelineMarkerClusters';
 
 export const EMOTIONAL_WEATHER_MAP_EXTENSION_ID =
-  'com.reigh.creative-lab.emotional-weather-map' as ExtensionId;
+  'haus.astrid.creative-lab.emotional-weather-map' as ExtensionId;
 export const BUILD_EMOTIONAL_WEATHER_MAP_COMMAND =
   `${EMOTIONAL_WEATHER_MAP_EXTENSION_ID}.buildWeatherMap`;
 export const EMOTIONAL_WEATHER_MAP_DATA_KEY = 'weatherMap';
@@ -241,7 +241,7 @@ function renderWeatherMapOverlay(
   });
 }
 
-export const emotionalWeatherMapExtension: ReighExtension = defineExtension({
+export const emotionalWeatherMapExtension: AstridExtension = defineExtension({
   manifest: {
     id: EMOTIONAL_WEATHER_MAP_EXTENSION_ID,
     version: '1.0.0',

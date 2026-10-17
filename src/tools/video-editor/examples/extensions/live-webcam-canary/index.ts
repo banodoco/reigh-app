@@ -7,7 +7,7 @@
  * This file must not import editor internals. It uses only the public SDK.
  */
 
-import { defineExtension } from '@reigh/editor-sdk';
+import { defineExtension } from '@astrid/editor-sdk';
 import type {
   DisposeHandle,
   ExtensionContext,
@@ -15,10 +15,10 @@ import type {
   LiveChannelDescriptor,
   LiveSampleFrame,
   LiveSourceDiagnostic,
-  ReighExtension,
-} from '@reigh/editor-sdk';
+  AstridExtension,
+} from '@astrid/editor-sdk';
 
-const EXTENSION_ID = 'com.reigh.examples.live-webcam-canary';
+const EXTENSION_ID = 'haus.astrid.examples.live-webcam-canary';
 const SOURCE_ID = `${EXTENSION_ID}:webcam`;
 const BINDING_ID = `${EXTENSION_ID}:preview-binding`;
 const PREVIEW_CLIP_ID = `${EXTENSION_ID}:preview`;
@@ -424,7 +424,7 @@ export function startLiveWebcamCanary(
 
 export function createLiveWebcamCanaryExtension(
   options: LiveWebcamCanaryOptions = {},
-): ReighExtension {
+): AstridExtension {
   return defineExtension({
     manifest: {
       id: EXTENSION_ID as any,

@@ -12,13 +12,13 @@ slots, overlays).
 Extensions import everything from the public SDK entrypoint:
 
 ```ts
-import { defineExtension } from '@reigh/editor-sdk';
+import { defineExtension } from '@astrid/editor-sdk';
 import type {
   ContributionId,
   ExtensionContext,
   ExtensionId,
-  ReighExtension,
-} from '@reigh/editor-sdk';
+  AstridExtension,
+} from '@astrid/editor-sdk';
 ```
 
 Do not import from `runtime/*`, `contexts/*`, `components/*`, or other
@@ -32,16 +32,16 @@ contribution-family metadata, and validation helpers.
 An extension is a frozen manifest plus an optional activation function:
 
 ```ts
-import { defineExtension } from '@reigh/editor-sdk';
+import { defineExtension } from '@astrid/editor-sdk';
 import type {
   ContributionId,
   DisposeHandle,
   ExtensionContext,
   ExtensionId,
-  ReighExtension,
-} from '@reigh/editor-sdk';
+  AstridExtension,
+} from '@astrid/editor-sdk';
 
-export const myExtension: ReighExtension = defineExtension({
+export const myExtension: AstridExtension = defineExtension({
   manifest: {
     id: 'com.example.my-extension' as ExtensionId,
     version: '1.0.0',
@@ -117,12 +117,12 @@ telemetry intervals, annotations — as duration-neutral lanes under the timelin
 tracks. One kind, three steps:
 
 ```ts
-export const TRANSCRIPT_KIND_ID = 'reigh.transcript';
-export const TRANSCRIPT_SCHEMA_REF = 'reigh.transcript_segment/v1';
+export const TRANSCRIPT_KIND_ID = 'astrid.transcript';
+export const TRANSCRIPT_SCHEMA_REF = 'astrid.transcript_segment/v1';
 
-export const transcriptLaneExtension: ReighExtension = defineExtension({
+export const transcriptLaneExtension: AstridExtension = defineExtension({
   manifest: {
-    id: 'com.reigh.transcript-lane' as ExtensionId,
+    id: 'haus.astrid.transcript-lane' as ExtensionId,
     version: '1.0.0',
     label: 'Transcript Lane',
     apiVersion: 1,
@@ -298,7 +298,7 @@ third-party declarations. Unknown kinds never validate.
 
 Extension code uses:
 
-- `@reigh/editor-sdk` for manifests, types, `defineExtension`,
+- `@astrid/editor-sdk` for manifests, types, `defineExtension`,
   `validateManifest`, settings helpers, and family metadata.
 
 Extension code does not use:

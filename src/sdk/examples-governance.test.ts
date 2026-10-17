@@ -2,7 +2,7 @@
  * SDK import governance test for extension examples.
  *
  * Verifies that every TypeScript file under src/examples/:
- *   1. Imports from @reigh/editor-sdk (the public SDK entrypoint)
+ *   1. Imports from @astrid/editor-sdk (the public SDK entrypoint)
  *   2. Does NOT deep-import from src/tools/video-editor/* internals
  *   3. Examples collectively cover every supported public SDK surface class
  *
@@ -39,7 +39,7 @@ import { stageCanaryExample } from '../examples/stage-canary-example';
 import {
   createTimelineOverlayGeometry,
   validateManifest,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import type {
   AssetMetadata,
   AutomationClipParams,
@@ -61,12 +61,12 @@ import type {
   OutputFormatHandler,
   ParserContribution,
   ParserInput,
-  ReighExtension,
+  AstridExtension,
   TimelineOps,
   TimelineOverlayManifestContribution,
   TimelineOverlayRenderProps,
   TimelineProposalInput,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -209,16 +209,16 @@ function extractSdkExports(): Set<string> {
 }
 
 /**
- * Extract all names imported from @reigh/editor-sdk in a given file.
- * Handles both `import { A, B } from '@reigh/editor-sdk'` and
- * `import type { C } from '@reigh/editor-sdk'` forms.
+ * Extract all names imported from @astrid/editor-sdk in a given file.
+ * Handles both `import { A, B } from '@astrid/editor-sdk'` and
+ * `import type { C } from '@astrid/editor-sdk'` forms.
  */
 function extractSdkImports(filePath: string): Set<string> {
   const content = fs.readFileSync(filePath, 'utf8');
   const names = new Set<string>();
 
-  // Match import { ... } from '@reigh/editor-sdk' (value + type imports, multiline)
-  const importBlockRe = /import\s+(?:type\s+)?\{([\s\S]*?)\}\s+from\s+['"]@reigh\/editor-sdk['"]/g;
+  // Match import { ... } from '@astrid/editor-sdk' (value + type imports, multiline)
+  const importBlockRe = /import\s+(?:type\s+)?\{([\s\S]*?)\}\s+from\s+['"]@astrid\/editor-sdk['"]/g;
   for (const match of content.matchAll(importBlockRe)) {
     const block = match[1];
     // Split on commas, handle `as` aliases
@@ -233,8 +233,8 @@ function extractSdkImports(filePath: string): Set<string> {
     }
   }
 
-  // Match default imports: import Name from '@reigh/editor-sdk'
-  const defaultImportRe = /import\s+([A-Za-z_$][\w$]*)\s+from\s+['"]@reigh\/editor-sdk['"]/g;
+  // Match default imports: import Name from '@astrid/editor-sdk'
+  const defaultImportRe = /import\s+([A-Za-z_$][\w$]*)\s+from\s+['"]@astrid\/editor-sdk['"]/g;
   for (const match of content.matchAll(defaultImportRe)) {
     names.add(match[1]);
   }
@@ -411,22 +411,22 @@ describe('Extension example import governance', () => {
       const content = fs.readFileSync(filePath, 'utf8');
       const specifiers = extractSpecifiers(content);
 
-      it('imports only from @reigh/editor-sdk (no video-editor internals)', () => {
+      it('imports only from @astrid/editor-sdk (no video-editor internals)', () => {
         for (const specifier of specifiers) {
           expect(isVideoEditorInternal(relativePath, specifier)).toBe(false);
         }
       });
 
-      it('imports from @reigh/editor-sdk', () => {
-        const hasSdkImport = specifiers.some((s) => s === '@reigh/editor-sdk');
+      it('imports from @astrid/editor-sdk', () => {
+        const hasSdkImport = specifiers.some((s) => s === '@astrid/editor-sdk');
         expect(hasSdkImport).toBe(true);
       });
 
-      it('has no bare-specifier imports other than @reigh/editor-sdk', () => {
-        // Every non-relative import must be @reigh/editor-sdk
+      it('has no bare-specifier imports other than @astrid/editor-sdk', () => {
+        // Every non-relative import must be @astrid/editor-sdk
         for (const specifier of specifiers) {
           if (!specifier.startsWith('.') && !specifier.startsWith('@/')) {
-            expect(specifier).toBe('@reigh/editor-sdk');
+            expect(specifier).toBe('@astrid/editor-sdk');
           }
         }
       });
@@ -436,7 +436,7 @@ describe('Extension example import governance', () => {
   describe('Public surface class coverage', () => {
     const sdkExports = extractSdkExports();
 
-    // Collect all names imported from @reigh/editor-sdk across all examples
+    // Collect all names imported from @astrid/editor-sdk across all examples
     const allSdkImports = new Set<string>();
     for (const filePath of exampleFiles) {
       const imports = extractSdkImports(filePath);
@@ -537,7 +537,7 @@ describe('M4 command extension example contract', () => {
     'command-extension.ts',
   );
   const source = fs.readFileSync(COMMAND_EXAMPLE_PATH, 'utf8');
-  const extension: ReighExtension = commandExtension;
+  const extension: AstridExtension = commandExtension;
   const contributions = extension.manifest.contributions ?? [];
 
   const commandContribution = contributions.find(
@@ -554,7 +554,7 @@ describe('M4 command extension example contract', () => {
   );
 
   it('compiles through public SDK command exports', () => {
-    expect(extension.manifest.id).toBe('com.reigh.examples.command-extension');
+    expect(extension.manifest.id).toBe('haus.astrid.examples.command-extension');
     expect(typeof extension.activate).toBe('function');
 
     expect(commandContribution?.kind).toBe('command');
@@ -569,7 +569,7 @@ describe('M4 command extension example contract', () => {
 
   it('contributes palette, keybinding, and clip context-menu metadata', () => {
     expect(commandContribution).toMatchObject({
-      command: 'com.reigh.examples.command-extension.markClipReview',
+      command: 'haus.astrid.examples.command-extension.markClipReview',
       label: 'Mark Clip for Review',
       category: 'Examples',
       order: 10,
@@ -589,7 +589,7 @@ describe('M4 command extension example contract', () => {
   });
 
   it('mutates through creative timeline/proposal APIs instead of editor internals', () => {
-    expect(source).toContain("from '@reigh/editor-sdk'");
+    expect(source).toContain("from '@astrid/editor-sdk'");
     expect(source).toContain('ctx.creative.reader.snapshot()');
     expect(source).toMatch(
       /ctx\.creative\.(?:timeline\.apply|proposals\.create)\s*\(/,
@@ -610,7 +610,7 @@ describe('M4 command extension example contract', () => {
 
 describe('M2 stage and overlay example contract', () => {
   it('stage canary compiles against registry-derived family helpers', () => {
-    expect(stageCanaryExample.manifest.id).toBe('com.reigh.examples.stage-canary-m2');
+    expect(stageCanaryExample.manifest.id).toBe('haus.astrid.examples.stage-canary-m2');
     expect(typeof stageCanaryExample.activate).toBe('function');
 
     const source = fs.readFileSync(
@@ -671,7 +671,7 @@ describe('M2 stage and overlay example contract', () => {
     );
 
     it('declares a timelineOverlay contribution with a non-blank render id', () => {
-      expect(overlayExample.manifest.id).toBe('com.reigh.examples.overlay-m2');
+      expect(overlayExample.manifest.id).toBe('haus.astrid.examples.overlay-m2');
       expect(typeof overlayExample.activate).toBe('function');
 
       expect(overlayContribution).toBeDefined();
@@ -763,7 +763,7 @@ describe('M2 stage and overlay example contract', () => {
 
     it('rejects the old placeholder pattern: timelineOverlay without render fails validation', () => {
       const placeholderManifest = {
-        id: 'com.reigh.examples.placeholder-overlay' as any,
+        id: 'haus.astrid.examples.placeholder-overlay' as any,
         version: '1.0.0',
         label: 'Placeholder Overlay',
         apiVersion: 1,
@@ -826,7 +826,7 @@ describe('M6 integrity hash parser example contract', () => {
   )!;
 
   it('compiles through public SDK parser exports', () => {
-    expect(extension.manifest.id).toBe('com.reigh.examples.integrity-hash-parser');
+    expect(extension.manifest.id).toBe('haus.astrid.examples.integrity-hash-parser');
     expect(typeof extension.activate).toBe('function');
 
     // Verify parser contribution shape
@@ -943,7 +943,7 @@ describe('M6 integrity hash parser example contract', () => {
   it('does not import from video-editor internals (governance)', () => {
     expect(integrityHashParserExtension).toBeDefined();
     // The governance import check at the top of this file already verifies
-    // that every example file imports only from @reigh/editor-sdk.
+    // that every example file imports only from @astrid/editor-sdk.
   });
 });
 
@@ -961,7 +961,7 @@ describe('M6 metadata-json output example contract', () => {
   )!;
 
   it('compiles through public SDK output format exports', () => {
-    expect(extension.manifest.id).toBe('com.reigh.examples.metadata-json-output');
+    expect(extension.manifest.id).toBe('haus.astrid.examples.metadata-json-output');
     expect(typeof extension.activate).toBe('function');
 
     expect(outputFormatContribution).toBeDefined();
@@ -1076,8 +1076,8 @@ describe('M6 metadata-json output example contract', () => {
           } as AssetMetadata,
         ],
       ]),
-      extensionId: 'com.reigh.examples.metadata-json-output',
-      contributionId: 'com.reigh.examples.metadata-json-output.metadata-json',
+      extensionId: 'haus.astrid.examples.metadata-json-output',
+      contributionId: 'haus.astrid.examples.metadata-json-output.metadata-json',
     };
 
     const result = metadataJsonHandler(context);
@@ -1397,12 +1397,12 @@ describe('M9 clip-type-keyframed example contract', () => {
   )!;
 
   it('compiles through public SDK clip-type exports', () => {
-    expect(extension.manifest.id).toBe('com.reigh.examples.clip-type-keyframed');
+    expect(extension.manifest.id).toBe('haus.astrid.examples.clip-type-keyframed');
     expect(typeof extension.activate).toBe('function');
 
     expect(clipTypeContribution).toBeDefined();
     expect(clipTypeContribution.kind).toBe('clipType');
-    expect(clipTypeContribution.clipTypeId).toBe('com.reigh.examples.clipType.keyframed');
+    expect(clipTypeContribution.clipTypeId).toBe('haus.astrid.examples.clipType.keyframed');
   });
 
   it('declares a ClipTypeContribution in the manifest', () => {
@@ -1425,7 +1425,7 @@ describe('M9 automation-recording canary example contract', () => {
   const extension = automationRecordingCanaryExample;
 
   it('compiles through public SDK keyframe and automation exports', () => {
-    expect(extension.manifest.id).toBe('com.reigh.examples.automation-recording-canary');
+    expect(extension.manifest.id).toBe('haus.astrid.examples.automation-recording-canary');
     expect(typeof extension.activate).toBe('function');
   });
 
@@ -1533,13 +1533,13 @@ describe('M9 automation-recording canary example contract', () => {
 
     it('constructs valid AutomationClipParams with target, keyframes, and enabled flag', () => {
       const params = buildAutomationClipParams(
-        'com.reigh.examples.clipType.keyframed',
+        'haus.astrid.examples.clipType.keyframed',
         'intensity',
         keyframes,
         true,
       );
 
-      expect(params.target.contributionId).toBe('com.reigh.examples.clipType.keyframed');
+      expect(params.target.contributionId).toBe('haus.astrid.examples.clipType.keyframed');
       expect(params.target.parameterPath).toBe('intensity');
       expect(params.keyframes).toEqual(keyframes);
       expect(params.enabled).toBe(true);
@@ -1574,7 +1574,7 @@ describe('M9 automation-recording canary example contract', () => {
     ];
 
     const automationParams = buildAutomationClipParams(
-      'com.reigh.target.clip',
+      'haus.astrid.target.clip',
       'intensity',
       keyframes,
       true,
@@ -1589,7 +1589,7 @@ describe('M9 automation-recording canary example contract', () => {
       const targetParams = { intensity: 0.5, mode: 'auto' };
       const result = canaryApplyAutomationOverrides(
         [automationClip],
-        'com.reigh.target.clip',
+        'haus.astrid.target.clip',
         targetParams,
         1.0,
       );
@@ -1614,7 +1614,7 @@ describe('M9 automation-recording canary example contract', () => {
       const targetParams = { intensity: 0.5 };
       const result = canaryApplyAutomationOverrides(
         [],
-        'com.reigh.target.clip',
+        'haus.astrid.target.clip',
         targetParams,
         0,
       );
@@ -1624,7 +1624,7 @@ describe('M9 automation-recording canary example contract', () => {
 
     it('ignores disabled automation clips', () => {
       const disabledParams = buildAutomationClipParams(
-        'com.reigh.target.clip',
+        'haus.astrid.target.clip',
         'intensity',
         keyframes,
         false,
@@ -1638,7 +1638,7 @@ describe('M9 automation-recording canary example contract', () => {
       const targetParams = { intensity: 0.5 };
       const result = canaryApplyAutomationOverrides(
         [disabledClip],
-        'com.reigh.target.clip',
+        'haus.astrid.target.clip',
         targetParams,
         1.0,
       );
@@ -1656,8 +1656,8 @@ describe('M9 automation-recording canary example contract', () => {
         { time: 2, value: 0.9, interpolation: 'hold' },
       ];
 
-      const firstParams = buildAutomationClipParams('com.reigh.target.clip', 'intensity', firstKeyframes, true);
-      const secondParams = buildAutomationClipParams('com.reigh.target.clip', 'intensity', secondKeyframes, true);
+      const firstParams = buildAutomationClipParams('haus.astrid.target.clip', 'intensity', firstKeyframes, true);
+      const secondParams = buildAutomationClipParams('haus.astrid.target.clip', 'intensity', secondKeyframes, true);
 
       const clips = [
         { clipType: 'automation', params: firstParams as unknown as Record<string, unknown> },
@@ -1666,7 +1666,7 @@ describe('M9 automation-recording canary example contract', () => {
 
       const result = canaryApplyAutomationOverrides(
         clips,
-        'com.reigh.target.clip',
+        'haus.astrid.target.clip',
         { intensity: 0 },
         0,
       );
@@ -1678,7 +1678,7 @@ describe('M9 automation-recording canary example contract', () => {
     it('clamps time before first keyframe to first value', () => {
       const result = canaryApplyAutomationOverrides(
         [automationClip],
-        'com.reigh.target.clip',
+        'haus.astrid.target.clip',
         { intensity: 0 },
         -1,
       );
@@ -1689,7 +1689,7 @@ describe('M9 automation-recording canary example contract', () => {
     it('clamps time after last keyframe to last value', () => {
       const result = canaryApplyAutomationOverrides(
         [automationClip],
-        'com.reigh.target.clip',
+        'haus.astrid.target.clip',
         { intensity: 0 },
         10,
       );

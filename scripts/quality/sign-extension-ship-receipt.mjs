@@ -99,7 +99,7 @@ export function signLedgerReceipt({
     principal,
     signature: '',
   };
-  const directory = mkdtempSync(resolve(tmpdir(), 'reigh-extension-signing-'));
+  const directory = mkdtempSync(resolve(tmpdir(), 'astrid-extension-signing-'));
   const payloadPath = resolve(directory, 'receipt.json');
   try {
     const payload = canonicalReceiptPayload({

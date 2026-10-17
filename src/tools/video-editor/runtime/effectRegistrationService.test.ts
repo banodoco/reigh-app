@@ -30,8 +30,8 @@ import type {
   EffectParameterSchema,
   ExtensionDiagnostic,
   ExtensionDiagnosticsService,
-  ReighExtension,
-} from '@reigh/editor-sdk';
+  AstridExtension,
+} from '@astrid/editor-sdk';
 
 // ---------------------------------------------------------------------------
 // Test component
@@ -69,7 +69,7 @@ function makeEffectRegistry(): EffectRegistry {
 function makeExtension(
   id: string,
   contributions?: readonly EffectContribution[],
-): ReighExtension {
+): AstridExtension {
   return {
     manifest: {
       id: id as never,
@@ -78,7 +78,7 @@ function makeExtension(
       contributions: contributions as never,
     },
     activate: undefined,
-  } as unknown as ReighExtension;
+  } as unknown as AstridExtension;
 }
 
 /** A sample valid EffectContribution. */

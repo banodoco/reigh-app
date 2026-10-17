@@ -9,7 +9,7 @@
  * diagnosed with clear, actionable messages.
  */
 
-import type { IntegrityHash, ExtensionDiagnostic } from '@reigh/editor-sdk';
+import type { IntegrityHash, ExtensionDiagnostic } from '@astrid/editor-sdk';
 
 // ---------------------------------------------------------------------------
 // Constants

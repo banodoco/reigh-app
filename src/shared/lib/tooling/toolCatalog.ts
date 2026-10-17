@@ -45,7 +45,7 @@ export function resolveToolLaunch(
     || entry.pack_id !== 'video_editing') {
     return { available: false, reason: 'unsupported-canonical-tool-binding' };
   }
-  if (entry.target !== 'reigh' || entry.compatibility?.host !== '1') {
+  if (entry.target !== 'astrid' || entry.compatibility?.host !== '1') {
     return { available: false, reason: 'incompatible-host' };
   }
   if (entry.entry?.host_entry !== TOOL_IDS.VIDEO_EDITOR

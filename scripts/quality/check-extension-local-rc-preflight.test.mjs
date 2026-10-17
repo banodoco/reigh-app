@@ -69,7 +69,7 @@ describe('local RC readiness preflight', () => {
 
     assert.equal(report.phase, 'integration');
     // The fixture intentionally omits Astrid, so this local blocker is stable
-    // across branches. Do not assert a Reigh branch mismatch: the test must
+    // across branches. Do not assert a Astrid App branch mismatch: the test must
     // remain valid when run from the release branch itself.
     assert.ok(report.local.blockers.some((blocker) => blocker.startsWith('astrid-branch-commit:')));
     assert.ok(report.blockers.external.some((blocker) => blocker.startsWith('workstream-19:')));
@@ -107,7 +107,7 @@ describe('local RC readiness preflight', () => {
   });
 
   it('resolves the annotated tag to the frozen ledger candidate', () => {
-    const fixture = mkdtempSync(join(tmpdir(), 'reigh-local-rc-tag-'));
+    const fixture = mkdtempSync(join(tmpdir(), 'astrid-local-rc-tag-'));
     try {
       execFileSync('git', ['init', '-q', fixture]);
       writeFileSync(join(fixture, 'fixture.txt'), 'fixture\n');
@@ -116,8 +116,8 @@ describe('local RC readiness preflight', () => {
       const candidate = execFileSync('git', ['-C', fixture, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
       execFileSync('git', ['-C', fixture, 'tag', '-a', 'rc-test', '-m', 'rc-test', candidate]);
       const detail = checkTagState(
-        { ...manifest, status: 'frozen', reigh: { ...manifest.reigh, releaseTag: 'rc-test' } },
-        { candidate: { reighCommit: candidate } },
+        { ...manifest, status: 'frozen', app: { ...manifest.app, releaseTag: 'rc-test' } },
+        { candidate: { appCommit: candidate } },
         fixture,
       );
       assert.match(detail, new RegExp(candidate));

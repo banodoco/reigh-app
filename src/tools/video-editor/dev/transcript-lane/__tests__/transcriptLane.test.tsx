@@ -45,7 +45,7 @@ import {
   type DataLaneRendererProps,
   type ExtensionContext,
   type TimelinePatch,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import { createExtensionContext } from '@/tools/video-editor/runtime/extensionContextFactory';
 import { createDataKindRegistrationService } from '@/tools/video-editor/runtime/dataKindRegistrationService';
 import {
@@ -383,7 +383,7 @@ describe('transcript-lane dev example (dataKind V1 done-4)', () => {
 
     const record = assemblyRegistry.getSnapshot().records.find((r) => r.kindId === TRANSCRIPT_KIND_ID);
     expect(record).toBeDefined();
-    expect(record?.ownerExtensionId).toBe('com.reigh.transcript-lane');
+    expect(record?.ownerExtensionId).toBe('haus.astrid.transcript-lane');
     expect(record?.schemaRef).toBe(TRANSCRIPT_SCHEMA_REF);
     expect(record?.provenance).toBe('bundled-extension');
     expect(record?.supportsSparseItemWindows).toBe(true);

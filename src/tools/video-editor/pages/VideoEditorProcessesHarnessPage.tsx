@@ -5,7 +5,7 @@ import type {
   RenderArtifactSidecarDescriptor,
   RenderMaterial,
   RenderRoute,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import type { DataProvider } from '@/tools/video-editor/data/DataProvider.ts';
 import type { ProcessRoundtripRequest, ProcessRoundtripResult } from '@/sdk/capabilities';
 import type { ProcessStatus } from '@/sdk/video/families/processes';

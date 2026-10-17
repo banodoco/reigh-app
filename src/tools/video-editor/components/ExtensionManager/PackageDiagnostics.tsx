@@ -1,5 +1,5 @@
 import { AlertCircle, AlertTriangle, ChevronDown, ChevronRight, Info } from 'lucide-react';
-import type { Diagnostic } from '@reigh/editor-sdk';
+import type { Diagnostic } from '@astrid/editor-sdk';
 import {
   DIAG_SEVERITY_BG,
   DIAG_SEVERITY_COLOR,

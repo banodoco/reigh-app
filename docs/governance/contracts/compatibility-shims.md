@@ -22,7 +22,7 @@ choose it instead of the canonical import or API.
 
 ## Invariants
 
-1. New author-facing extension code imports `@reigh/editor-sdk` or another
+1. New author-facing extension code imports `@astrid/editor-sdk` or another
    documented public entrypoint. It never deep-imports host-owned
    `src/tools/video-editor/**` modules.
 2. A compatibility path has one canonical replacement, a subsystem owner, a

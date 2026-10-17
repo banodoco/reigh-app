@@ -1,7 +1,7 @@
 -- Sprint 9: Section 3A mode-aware route selector/capability seed data.
 --
 -- The executable Section 3A fixture is synchronized with docs in
--- reigh-worker/scripts/dual_run_compare/fixtures/section3a_matrix.fixture.
+-- astrid-worker/scripts/dual_run_compare/fixtures/section3a_matrix.fixture.
 -- Keep this SQL in sync with that fixture: capabilities are explicit for every
 -- non-FALL-BACK row, while selectors are seeded only for canary-promoted rows.
 
@@ -22,8 +22,8 @@ WITH section3a_routes (
     (4, 'travel_segment__model-wan22_vace__guidance-vace_depth__continuity-first_last__profile-default', 'NEW', 'wgp', 'vibecomfy_unsupported', 'Requires the NEW Wan 2.2 VACE cocktail template and depth guide handling before promotion.'),
     (5, 'travel_segment__model-wan22_vace__guidance-vace_raw__continuity-first_last__profile-default', 'NEW', 'wgp', 'vibecomfy_unsupported', 'Requires the NEW Wan 2.2 VACE cocktail template and raw guide-video passthrough before promotion.'),
     (6, 'travel_segment__model-wan22_vace__guidance-uni3c__continuity-first_last__profile-default', 'NEW', 'wgp', 'vibecomfy_unsupported', 'Requires the NEW Wan 2.2 VACE cocktail template and Uni3C patch before promotion.'),
-    (7, 'travel_segment__model-ltx2__guidance-none__continuity-first_last__profile-default', 'BLOCKED', 'wgp', 'vibecomfy_unsupported', 'The LTX first/last ready template is not yet wired through the Reigh travel child adapter with first/last image inputs and completion semantics.'),
-    (8, 'travel_segment__model-ltx2_distilled__guidance-none__continuity-first_last__profile-default', 'BLOCKED', 'wgp', 'vibecomfy_unsupported', 'The LTX first/last ready template is not yet wired through the Reigh travel child adapter with first/last image inputs and completion semantics.'),
+    (7, 'travel_segment__model-ltx2__guidance-none__continuity-first_last__profile-default', 'BLOCKED', 'wgp', 'vibecomfy_unsupported', 'The LTX first/last ready template is not yet wired through the Astrid travel child adapter with first/last image inputs and completion semantics.'),
+    (8, 'travel_segment__model-ltx2_distilled__guidance-none__continuity-first_last__profile-default', 'BLOCKED', 'wgp', 'vibecomfy_unsupported', 'The LTX first/last ready template is not yet wired through the Astrid travel child adapter with first/last image inputs and completion semantics.'),
     (9, 'travel_segment__model-ltx2_distilled__guidance-ltx_control_video__continuity-first_last__profile-default', 'BLOCKED', 'wgp', 'vibecomfy_unsupported', 'The pinned LTX first/last template is not yet proven control-capable for a full-length control guide.'),
     (10, 'travel_segment__model-ltx2_distilled__guidance-ltx_control_pose__continuity-first_last__profile-default', 'BLOCKED', 'wgp', 'vibecomfy_unsupported', 'The pinned LTX first/last template is not yet proven control-capable for pose-preprocessed full-length guides.'),
     (11, 'travel_segment__model-ltx2_distilled__guidance-ltx_control_depth__continuity-first_last__profile-default', 'BLOCKED', 'wgp', 'vibecomfy_unsupported', 'The pinned LTX first/last template is not yet proven control-capable for depth-preprocessed full-length guides.'),
@@ -76,8 +76,8 @@ WITH section3a_routes (
     (4, 'travel_segment__model-wan22_vace__guidance-vace_depth__continuity-first_last__profile-default', 'NEW', 'wgp', 'vibecomfy_unsupported', 'Requires the NEW Wan 2.2 VACE cocktail template and depth guide handling before promotion.'),
     (5, 'travel_segment__model-wan22_vace__guidance-vace_raw__continuity-first_last__profile-default', 'NEW', 'wgp', 'vibecomfy_unsupported', 'Requires the NEW Wan 2.2 VACE cocktail template and raw guide-video passthrough before promotion.'),
     (6, 'travel_segment__model-wan22_vace__guidance-uni3c__continuity-first_last__profile-default', 'NEW', 'wgp', 'vibecomfy_unsupported', 'Requires the NEW Wan 2.2 VACE cocktail template and Uni3C patch before promotion.'),
-    (7, 'travel_segment__model-ltx2__guidance-none__continuity-first_last__profile-default', 'BLOCKED', 'wgp', 'vibecomfy_unsupported', 'The LTX first/last ready template is not yet wired through the Reigh travel child adapter with first/last image inputs and completion semantics.'),
-    (8, 'travel_segment__model-ltx2_distilled__guidance-none__continuity-first_last__profile-default', 'BLOCKED', 'wgp', 'vibecomfy_unsupported', 'The LTX first/last ready template is not yet wired through the Reigh travel child adapter with first/last image inputs and completion semantics.'),
+    (7, 'travel_segment__model-ltx2__guidance-none__continuity-first_last__profile-default', 'BLOCKED', 'wgp', 'vibecomfy_unsupported', 'The LTX first/last ready template is not yet wired through the Astrid travel child adapter with first/last image inputs and completion semantics.'),
+    (8, 'travel_segment__model-ltx2_distilled__guidance-none__continuity-first_last__profile-default', 'BLOCKED', 'wgp', 'vibecomfy_unsupported', 'The LTX first/last ready template is not yet wired through the Astrid travel child adapter with first/last image inputs and completion semantics.'),
     (9, 'travel_segment__model-ltx2_distilled__guidance-ltx_control_video__continuity-first_last__profile-default', 'BLOCKED', 'wgp', 'vibecomfy_unsupported', 'The pinned LTX first/last template is not yet proven control-capable for a full-length control guide.'),
     (10, 'travel_segment__model-ltx2_distilled__guidance-ltx_control_pose__continuity-first_last__profile-default', 'BLOCKED', 'wgp', 'vibecomfy_unsupported', 'The pinned LTX first/last template is not yet proven control-capable for pose-preprocessed full-length guides.'),
     (11, 'travel_segment__model-ltx2_distilled__guidance-ltx_control_depth__continuity-first_last__profile-default', 'BLOCKED', 'wgp', 'vibecomfy_unsupported', 'The pinned LTX first/last template is not yet proven control-capable for depth-preprocessed full-length guides.'),

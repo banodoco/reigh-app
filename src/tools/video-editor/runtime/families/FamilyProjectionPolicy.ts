@@ -16,11 +16,11 @@
  * @module families/FamilyProjectionPolicy
  */
 
-import type { ContributionKind } from '@reigh/editor-sdk';
+import type { ContributionKind } from '@astrid/editor-sdk';
 import {
   getVideoFamilyDefinition,
   getVideoFamilyLegacyBridgeStatus,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import type { FamilyAdapterRegistry } from '@/sdk/core/families/familyAdapter';
 
 // ---------------------------------------------------------------------------

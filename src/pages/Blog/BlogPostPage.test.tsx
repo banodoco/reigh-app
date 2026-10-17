@@ -46,7 +46,7 @@ describe('BlogPostPage', () => {
     getPostBySlugMock.mockReturnValue({
       slug: 'post-1',
       date: '2026-02-18',
-      author: 'Reigh Team',
+      author: 'Astrid Team',
       content: '# Markdown Title',
     });
 

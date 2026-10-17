@@ -23,8 +23,8 @@ import type {
   DisposeHandle,
   ExtensionDiagnostic,
   ExtensionDiagnosticsService,
-  ReighExtension,
-} from '@reigh/editor-sdk';
+  AstridExtension,
+} from '@astrid/editor-sdk';
 import { KNOWN_DATA_SHAPES, KNOWN_DATA_DOMAINS } from '@/sdk/video/families/dataKind';
 import type { DataKindRegistry } from '@/tools/video-editor/data-kinds/DataKindRegistry.ts';
 import type { DataKindItemsHost } from '@/tools/video-editor/data-kinds/dataKindItems.ts';
@@ -87,7 +87,7 @@ function buildDataKindRenderability(): ContributionRenderability {
 
 export interface CreateDataKindRegistrationServiceParams {
   /** The activating extension (manifest supplies the declared contributions). */
-  readonly extension: ReighExtension;
+  readonly extension: AstridExtension;
   /** Shared provider-scoped data-kind registry. */
   readonly dataKindRegistry: DataKindRegistry;
   /** Per-extension diagnostics service for gate/validation diagnostics. */

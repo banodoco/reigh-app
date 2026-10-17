@@ -52,7 +52,7 @@ describe('bootstrap.renderApp', () => {
     initializeToolSettingsWriteRuntimeMock.mockClear();
     initializeNetworkStatusManagerMock.mockClear();
     window.history.replaceState({}, '', '/');
-    delete window.__REIGH_LOCAL_TEST__;
+    delete window.__ASTRID_APP_LOCAL_TEST__;
     localStorage.clear();
     document.documentElement.classList.remove('dark');
   });
@@ -85,7 +85,7 @@ describe('bootstrap.renderApp', () => {
 
     initializeAppEnvironment();
 
-    expect(window.__REIGH_LOCAL_TEST__).toEqual({
+    expect(window.__ASTRID_APP_LOCAL_TEST__).toEqual({
       enabled: true,
       diagnostics: { loader: [], runtime: [] },
     });

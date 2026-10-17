@@ -645,10 +645,10 @@ describe('TimelineEditorShellCore surface slots', () => {
 
   it.each([
     { selectedRightPanelId: 'host:properties', shared: 'dock' as const, legacy: 'compact' as const, expected: 'full-height-grid' },
-    { selectedRightPanelId: 'com.reigh.transcript-lane:transcript-lane-panel', shared: 'compact' as const, legacy: 'dock' as const, expected: 'upper-right-grid' },
+    { selectedRightPanelId: 'haus.astrid.transcript-lane:transcript-lane-panel', shared: 'compact' as const, legacy: 'dock' as const, expected: 'upper-right-grid' },
   ])('uses the shared display mode for $selectedRightPanelId even when legacy panel slots disagree', ({ selectedRightPanelId, shared, legacy, expected }) => {
-    const panelId = 'com.reigh.transcript-lane:transcript-lane-panel';
-    __assetPanels = [{ id: 'transcript-lane-panel', extensionId: 'com.reigh.transcript-lane', label: 'Transcript', placement: 'asset-panel', render: () => null }];
+    const panelId = 'haus.astrid.transcript-lane:transcript-lane-panel';
+    __assetPanels = [{ id: 'transcript-lane-panel', extensionId: 'haus.astrid.transcript-lane', label: 'Transcript', placement: 'asset-panel', render: () => null }];
     __editorPreferences = {
       selectedRightPanelId,
       rightPanelLayoutSlotsByPanelId: { 'host:properties': shared, [panelId]: legacy },
@@ -753,8 +753,8 @@ describe('TimelineEditorShellCore surface slots', () => {
     expect(screen.getByRole('button', { name: 'Render' }).nextElementSibling).toBe(screen.getByRole('button', { name: 'Panel display' }));
   });
   it('keeps the retained extension dock across condensed and desktop layouts', () => {
-    const panelId = 'com.reigh.transcript-lane:transcript-lane-panel';
-    __assetPanels = [{ id: 'transcript-lane-panel', extensionId: 'com.reigh.transcript-lane', label: 'Transcript', placement: 'asset-panel', render: () => null }];
+    const panelId = 'haus.astrid.transcript-lane:transcript-lane-panel';
+    __assetPanels = [{ id: 'transcript-lane-panel', extensionId: 'haus.astrid.transcript-lane', label: 'Transcript', placement: 'asset-panel', render: () => null }];
     __editorPreferences = { selectedRightPanelId: panelId, rightPanelLayoutSlotsByPanelId: { [panelId]: 'compact' }, showDataLanes: false };
     const { rerender } = render(<TimelineEditorShellCore timelineId="test-timeline" forceCondensed />);
     const dock = screen.getByRole('region', { name: 'Video editor right panel' });
@@ -781,12 +781,12 @@ describe('TimelineEditorShellCore surface slots', () => {
     } finally { Object.defineProperty(window, 'innerWidth', { configurable: true, value: originalWidth }); }
   });
   it('keeps Inspector selected when a new admitted extension becomes available', () => {
-    __assetPanels = [{ id: 'transcript-lane-panel', extensionId: 'com.reigh.transcript-lane', label: 'Transcript', placement: 'asset-panel', render: () => null }];
+    __assetPanels = [{ id: 'transcript-lane-panel', extensionId: 'haus.astrid.transcript-lane', label: 'Transcript', placement: 'asset-panel', render: () => null }];
     render(<TimelineEditorShellCore timelineId="test-timeline" />);
     expect(screen.getByRole('tab', { name: 'Inspector' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByTestId('properties-panel')).toBeVisible();
     expect(screen.queryByRole('button', { name: 'Active extension' })).toBeNull();
-    fireEvent.click(screen.getByRole('tab', { name: 'Extensions' })); expect(__editorOps.setSelectedRightPanelId).toHaveBeenCalledWith('com.reigh.transcript-lane:transcript-lane-panel');
+    fireEvent.click(screen.getByRole('tab', { name: 'Extensions' })); expect(__editorOps.setSelectedRightPanelId).toHaveBeenCalledWith('haus.astrid.transcript-lane:transcript-lane-panel');
   });
 
   // ---- Force condensed mode also stays clean -------------------------------

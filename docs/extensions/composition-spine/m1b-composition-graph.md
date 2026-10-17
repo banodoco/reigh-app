@@ -6,7 +6,7 @@ Status: implemented
 ## Purpose
 
 M1b makes `CompositionGraph` projection the **authoritative** source for shader/ref
-facts and contribution-index lookups in the Reigh extension composition spine. When
+facts and contribution-index lookups in the Astrid extension composition spine. When
 a `CompositionGraph` is present on `ExtensionRuntime`, it replaces — not supplements
 — legacy shader summaries and direct contribution-index access for all M1b-owned
 fact families.
@@ -75,7 +75,7 @@ later milestones or are excluded from the entire epic:
 ### Node Kinds
 
 M1b supports exactly three node kinds, available as the `COMPOSITION_NODE_KINDS`
-constant from `@reigh/editor-sdk`:
+constant from `@astrid/editor-sdk`:
 
 | Kind | Description |
 |------|-------------|
@@ -240,7 +240,7 @@ When a `CompositionGraph` is present:
 
 ## SDK Exports
 
-M1b exports from `@reigh/editor-sdk` (`src/sdk/index.ts`):
+M1b exports from `@astrid/editor-sdk` (`src/sdk/index.ts`):
 
 | Export | Kind | Description |
 |--------|------|-------------|
@@ -285,7 +285,7 @@ M1b enforces the following guardrails:
 ## Related Documents
 
 - [V8 Architecture Baseline](./v8-architecture-baseline.md) — Full epic architecture, constraints, and milestone chain.
-- [Composition-spine chain entry](../../../.megaplan/initiatives/reigh-extension-composition-spine-epic/chain.yaml) — Records the M1b brief identifier and its place in the milestone chain; the generated brief itself is not tracked in this repository.
+- [Composition-spine chain entry](../../../.megaplan/initiatives/astrid-extension-composition-spine-epic/chain.yaml) — Records the M1b brief identifier and its place in the milestone chain; the generated brief itself is not tracked in this repository.
 - [CompositionGraph SDK Contracts](../../../src/sdk/video/composition/graph.ts) — Public SDK type definitions.
 - [Graph Projector](../../../src/tools/video-editor/runtime/composition/graphProjector.ts) — Host projection logic.
 - [Reference Resolver](../../../src/tools/video-editor/runtime/composition/referenceResolver.ts) — Host resolver with locked precedence.

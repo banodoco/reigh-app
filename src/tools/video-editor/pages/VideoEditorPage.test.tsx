@@ -415,8 +415,8 @@ vi.mock("@/tools/video-editor/dev/localExtensions.ts", () => ({
   devLocalExtensions: state.devLocalExtensions,
 }));
 
-vi.mock("@/tools/video-editor/components/ReighVideoEditorShell.tsx", () => ({
-  ReighVideoEditorShell: ({
+vi.mock("@/tools/video-editor/components/AstridVideoEditorShell.tsx", () => ({
+  AstridVideoEditorShell: ({
     timelineId,
     headerNavigationControls,
     previewNavigationControls,
@@ -681,7 +681,7 @@ function makeL04Transport() {
           protocol: "workspace.v1",
           schema_digest: RUNTIME_SCHEMA_DIGEST,
           session_id: "l04-session",
-          actor_id: "reigh-product-connector",
+          actor_id: "astrid-product-connector",
           realm_id: "l04-realm",
           scopes: RUNTIME_CLIENT_SCOPES,
           capabilities: [RUNTIME_TARGETED_EXECUTION_CAPABILITY],
@@ -1624,7 +1624,7 @@ describe("VideoEditorPage", () => {
     const user = userEvent.setup();
     await user.click(screen.getByRole("combobox", { name: "Select project" }));
 
-    expect(screen.queryByText("Reigh projects")).toBeNull();
+    expect(screen.queryByText("Astrid App projects")).toBeNull();
     expect(screen.getByText("Projects")).toBeInTheDocument();
     expect(screen.queryByRole("option", { name: /Project One/ })).toBeNull();
     expect(
@@ -1834,7 +1834,7 @@ describe("VideoEditorPage", () => {
 
     const user = userEvent.setup();
     await user.click(screen.getByRole("combobox", { name: "Select project" }));
-    expect(screen.queryByText("Reigh projects")).toBeNull();
+    expect(screen.queryByText("Astrid App projects")).toBeNull();
     expect(screen.queryByRole("option", { name: /Project One/ })).toBeNull();
     expect(
       screen.getByRole("option", { name: /Ados Talks/ }),
@@ -2332,7 +2332,7 @@ describe("VideoEditorPage", () => {
   // ---------------------------------------------------------------------------
 
   describe("timelineOverlay host gate via enabled dev-local extension (DEV)", () => {
-    const OVERLAY_EXT_ID = "com.reigh.dev.overlay-fixture";
+    const OVERLAY_EXT_ID = "haus.astrid.dev.overlay-fixture";
 
     function makeOverlayDevLocalExtension() {
       return {
@@ -2374,17 +2374,17 @@ describe("VideoEditorPage", () => {
     it("keeps the host dark when the enabled dev-local extension has no timelineOverlay contribution", async () => {
       state.devLocalExtensions.push({
         manifest: {
-          id: "com.reigh.dev.slot-only-fixture",
+          id: "haus.astrid.dev.slot-only-fixture",
           version: "0.1.0",
           label: "Local Slot Fixture",
           description: "A dev-local slot-only extension for host-gate tests.",
           apiVersion: 1,
           contributions: [
             {
-              id: "com.reigh.dev.slot-only-fixture-status",
+              id: "haus.astrid.dev.slot-only-fixture-status",
               kind: "slot",
               slot: "statusBar",
-              render: "com.reigh.dev.slot-only-fixture-status",
+              render: "haus.astrid.dev.slot-only-fixture-status",
               label: "Local Slot Fixture Status",
             },
           ],
@@ -2439,7 +2439,7 @@ describe("VideoEditorPage", () => {
   });
 
   describe("dev-local extension enablement (external store)", () => {
-    const DEV_LOCAL_ID = "com.reigh.dev.local-fixture";
+    const DEV_LOCAL_ID = "haus.astrid.dev.local-fixture";
 
     function makeDevLocalExtension() {
       return {

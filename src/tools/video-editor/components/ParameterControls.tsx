@@ -1,5 +1,5 @@
 import type { AudioBindingValue, ParameterDefinition, ParameterSchema } from '@/tools/video-editor/types/index.ts';
-import type { ExtensionDiagnostic } from '@reigh/editor-sdk';
+import type { ExtensionDiagnostic } from '@astrid/editor-sdk';
 import { SchemaForm } from '@/tools/video-editor/components/SchemaForm/SchemaForm';
 
 export interface ParameterControlsProps {

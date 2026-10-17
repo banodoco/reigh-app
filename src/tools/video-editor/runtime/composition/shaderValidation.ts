@@ -4,7 +4,7 @@ import {
   type CompositionGraphNode,
   type ReferenceState,
   type TimelineShaderSummary,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import type { ContributionIndex } from '@/tools/video-editor/runtime/extensionSurface.ts';
 import type { TimelineShaderScope } from '@/tools/video-editor/types/index.ts';
 

@@ -37,7 +37,7 @@ import type {
   Diagnostic,
   DiagnosticSeverity,
   DiagnosticSourceRange,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 
 // ---------------------------------------------------------------------------
 // Types

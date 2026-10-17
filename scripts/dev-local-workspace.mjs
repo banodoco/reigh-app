@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Start Reigh against the already-managed neutral workspace.v1 runtime.
+ * Start Astrid App against the already-managed neutral workspace.v1 runtime.
  *
  * The runtime owns its endpoint and credential; this launcher only reads the
  * published profile and validates its product-scoped credential before passing
@@ -33,7 +33,7 @@ try {
   discoveryPath = resolveWorkspaceDiscoveryPath({
     discovery: process.env.ASTRID_WORKSPACE_DISCOVERY,
     supportRoot: process.env.ASTRID_SUPPORT_ROOT,
-    dataRoot: process.env.BANODOCO_LOCAL_DATA_ROOT,
+    dataRoot: process.env.ASTRID_RUNTIME_DATA_ROOT,
     home: homedir(),
   });
 } catch (error) {
@@ -61,12 +61,12 @@ if (launcherOptions.preview) {
     process.exit(fail(error instanceof Error ? error.message : String(error)) ? 1 : 1);
   }
 }
-const pairedRelayOrigin = process.env.REIGH_PAIRED_RELAY_ORIGIN?.trim();
+const pairedRelayOrigin = process.env.ASTRID_APP_PAIRED_RELAY_ORIGIN?.trim();
 const hostedOriginArgumentIndex = process.argv.indexOf('--hosted-origin');
 const hostedOriginArgument = hostedOriginArgumentIndex >= 0
   ? process.argv[hostedOriginArgumentIndex + 1]?.trim()
   : undefined;
-const hostedOrigin = process.env.REIGH_LOOPBACK_ORIGIN?.trim() || hostedOriginArgument;
+const hostedOrigin = process.env.ASTRID_APP_LOOPBACK_ORIGIN?.trim() || hostedOriginArgument;
 if (hostedOriginArgumentIndex >= 0 && (!hostedOriginArgument || hostedOriginArgument.startsWith('--'))) {
   console.error('dev:local: --hosted-origin requires an exact HTTPS origin');
   process.exit(1);
@@ -84,7 +84,7 @@ if (hostedOrigin) {
     process.exit(1);
   }
 }
-const loopbackPort = process.env.REIGH_LOOPBACK_PORT?.trim() || '0';
+const loopbackPort = process.env.ASTRID_APP_LOOPBACK_PORT?.trim() || '0';
 const generatedMetadataPath = resolve(process.cwd(), 'src/integrations/runtime/generated-contract-metadata.ts');
 
 function fail(message) {
@@ -219,7 +219,7 @@ async function verifyRuntime(endpoint, token, expectedIdentity) {
       headers: { Authorization: `Bearer ${token}`, Accept: 'application/json', 'Content-Type': 'application/json' },
       body: JSON.stringify({
         protocol: 'workspace.v1',
-        client_name: 'reigh-local-launcher',
+        client_name: 'astrid-local-launcher',
         client_version: '1',
         requested_scopes: RUNTIME_SCOPES,
       }),
@@ -248,7 +248,7 @@ async function verifyRuntime(endpoint, token, expectedIdentity) {
     }
     return true;
   } catch (error) {
-    return fail(`runtime is unavailable at ${endpoint.origin} (run banodoco-local up --profile astrid): ${error instanceof Error ? error.message : String(error)}`);
+    return fail(`runtime is unavailable at ${endpoint.origin} (run astrid-runtime up --profile astrid): ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
@@ -263,7 +263,7 @@ if (!credential) process.exit(process.exitCode ?? 1);
 const expectedIdentity = requireIdentity(discovery, discoveryPath, credential);
 if (!expectedIdentity) process.exit(process.exitCode ?? 1);
 if (!(await verifyRuntime(endpoint, credential.token, expectedIdentity))) process.exit(process.exitCode ?? 1);
-if (paired && !pairedRelayOrigin) process.exit(fail('--paired requires REIGH_PAIRED_RELAY_ORIGIN') ? 1 : 1);
+if (paired && !pairedRelayOrigin) process.exit(fail('--paired requires ASTRID_APP_PAIRED_RELAY_ORIGIN') ? 1 : 1);
 
 const acpToken = process.env.ASTRID_ACP_BRIDGE_TOKEN?.trim() || randomBytes(32).toString('base64url');
 const acpPort = process.env.VITE_ASTRID_ACP_BRIDGE_PORT ?? '17335';
@@ -328,7 +328,7 @@ const env = {
   ASTRID_ACP_BRIDGE_PORT: acpPort,
 };
 
-console.log(`workspace.v1 runtime healthy at ${endpoint.origin}; Reigh will use ${launcherOptions.preview ? `preview output ${previewDirectory} on port ${port}` : `port ${port}`}`);
+console.log(`workspace.v1 runtime healthy at ${endpoint.origin}; Astrid App will use ${launcherOptions.preview ? `preview output ${previewDirectory} on port ${port}` : `port ${port}`}`);
 if (checkOnly) process.exit(0);
 
 // The build retains this identity for hosted/paired fallback. Local preview
@@ -337,7 +337,7 @@ if (buildOnly) {
   const build = spawn('npm', ['run', 'build'], { stdio: 'inherit', env });
   process.on('SIGINT', () => build.kill('SIGINT'));
   process.on('SIGTERM', () => build.kill('SIGTERM'));
-  build.on('error', (error) => { fail(`could not build Reigh: ${error.message}`); process.exitCode = 1; });
+  build.on('error', (error) => { fail(`could not build Astrid App: ${error.message}`); process.exitCode = 1; });
   build.on('exit', async (code, signal) => {
     if (code === 0 && !signal && !(await verifyRuntime(endpoint, credential.token, expectedIdentity))) {
       process.exitCode = 1;
@@ -368,19 +368,19 @@ const acpBridge = spawn('npm', ['run', 'dev:astrid-acp'], {
 const gateway = hostedOrigin
   ? spawn(process.execPath, [
     '--import', 'tsx',
-    'scripts/reigh-loopback-gateway.ts',
+    'scripts/astrid-loopback-gateway.ts',
     '--discovery', discoveryPath,
     '--token-file', credentialPath,
     '--origin', hostedOrigin,
     '--acp-endpoint', `http://127.0.0.1:${acpPort}`,
     '--port', loopbackPort,
-    ...(process.env.REIGH_LOOPBACK_AUDIT_LOG?.trim() ? ['--audit-log', process.env.REIGH_LOOPBACK_AUDIT_LOG.trim()] : []),
-    ...(process.env.REIGH_PAIRED_PRODUCT_ACTOR?.trim() ? ['--actor', process.env.REIGH_PAIRED_PRODUCT_ACTOR.trim()] : []),
+    ...(process.env.ASTRID_APP_LOOPBACK_AUDIT_LOG?.trim() ? ['--audit-log', process.env.ASTRID_APP_LOOPBACK_AUDIT_LOG.trim()] : []),
+    ...(process.env.ASTRID_APP_PAIRED_PRODUCT_ACTOR?.trim() ? ['--actor', process.env.ASTRID_APP_PAIRED_PRODUCT_ACTOR.trim()] : []),
   ], { stdio: 'inherit', env })
   : null;
 if (hostedOrigin) console.log(`loopback gateway starting for ${hostedOrigin}; it will print the hosted session link when ready`);
 if (paired) {
-  connector = spawn('npx', ['tsx', 'scripts/reigh-local-connector.ts', '--discovery', discoveryPath, '--relay-origin', pairedRelayOrigin, ...(resetPairing ? ['--reset-pairing'] : [])], {
+  connector = spawn('npx', ['tsx', 'scripts/astrid-local-connector.ts', '--discovery', discoveryPath, '--relay-origin', pairedRelayOrigin, ...(resetPairing ? ['--reset-pairing'] : [])], {
     stdio: 'inherit',
     env,
   });
@@ -393,7 +393,7 @@ const child = spawn('npm', viteChildArgs({
   stdio: 'inherit',
   // The local Vite process is the connector's fixed compose/ACP destination;
   // it must not install another relay and accidentally loop back to itself.
-  env: paired ? { ...env, REIGH_PAIRED_RELAY_ENABLED: '0', ASTRID_LOCAL_COMPOSE_URL: `http://127.0.0.1:${port}/api/astrid/generation/compose` } : env,
+  env: paired ? { ...env, ASTRID_APP_PAIRED_RELAY_ENABLED: '0', ASTRID_LOCAL_COMPOSE_URL: `http://127.0.0.1:${port}/api/astrid/generation/compose` } : env,
 });
 let shuttingDown = false;
 const shutdown = (signal) => {

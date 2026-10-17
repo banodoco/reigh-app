@@ -9,8 +9,8 @@ and the executable clean-machine gate is
 [`scripts/release/verify-extension-ship.mjs`](../../scripts/release/verify-extension-ship.mjs).
 
 The verifier is intentionally conservative. It requires the manifest-pinned
-Node/npm versions, the configured Reigh branch, an annotated tag and
-`REIGH_REF` resolving to the exact product candidate (`C`), and a clean Reigh
+Node/npm versions, the configured Astrid App branch, an annotated tag and
+`ASTRID_APP_REF` resolving to the exact product candidate (`C`), and a clean Astrid App
 controller `HEAD` (`H`) that is a strict evidence-only descendant of `C`. It
 also requires an exact clean Astrid checkout supplied by commit through the
 environment. It never fetches, changes a Git ref, resets, cleans, or applies a
@@ -18,7 +18,7 @@ production migration. A mismatch or failed command stops the run.
 
 Before the 40+ minute verifier, run the cheap local readiness probe. It checks
 the documented 11 GiB free-space floor, pinned Node/npm/Python/native tools,
-the exact Reigh and explicitly supplied Astrid checkout, clean worktrees,
+the exact Astrid App and explicitly supplied Astrid checkout, clean worktrees,
 manifest/ledger pin agreement, and phase-appropriate release-tag state. The
 Astrid path is mandatory; the probe never guesses a sibling directory:
 
@@ -67,7 +67,7 @@ external evidence prerequisites are represented in the local ledger; it does
 not replace participant approval, production observation, or the blocking
 ship verifier.
 
-After preflight, every Reigh gate runs from a newly created detached worktree at
+After preflight, every Astrid App gate runs from a newly created detached worktree at
 the verified evidence-controller commit, never from the operator checkout. This
 keeps Git ancestry available to evidence gates while excluding ignored local
 inputs such as `.env.production`, `public/files/`, and `public/uploads/`. The
@@ -75,8 +75,8 @@ temporary worktree is removed after the run; any tracked mutation fails the
 post-gate clean check.
 
 The Astrid `make ci` gate receives that same fresh detached path in the
-verifier-owned `ASTRID_REIGH_CHECKOUT` environment variable. Astrid SQL-contract
-tests must resolve Reigh migrations through this explicit path; operators must
+verifier-owned `ASTRID_APP_RELEASE_CHECKOUT` environment variable. Astrid SQL-contract
+tests must resolve Astrid App migrations through this explicit path; operators must
 not provide or substitute an ambient sibling checkout.
 
 Candidate identity is deliberately deferred during integration. Compute `C`
@@ -89,7 +89,7 @@ head is not a candidate and no final SHA should be recorded early.
 ### Local browser-gate provisioning
 
 The local readiness, compatibility, accessibility, and timeline commands use
-the Playwright package installed by the Reigh lockfile, but `npm ci` does not
+the Playwright package installed by the Astrid App lockfile, but `npm ci` does not
 install its browser executables. Provision the matching engines once after a
 fresh install or Playwright version change:
 
@@ -115,7 +115,7 @@ setup project opens the real local-test harness and waits for
 begin in parallel. This warms the lazy route and complete Vite module graph
 without increasing the ordinary 30-second test budget or retrying failures.
 
-Prepare fresh, separate Reigh and Astrid checkouts. Install the exact Node, npm,
+Prepare fresh, separate Astrid App and Astrid checkouts. Install the exact Node, npm,
 Astrid Python, and native-tool versions recorded in the verification block of
 `config/releases/extension-ship-quality.json`, plus the dev tooling required by
 the manifest-pinned Astrid revision, GNU Make, and the host libraries required
@@ -144,26 +144,26 @@ For the blocking run, pass an absolute checkout path and an immutable commit.
 The ref must resolve to the Astrid commit in the paired manifest, and Astrid
 must be on the configured branch with `HEAD` equal to it. First commit all
 source, scripts, documentation, pins, and gate configuration. Create the
-annotated Reigh tag named by `reigh.releaseTag` at that candidate `C`; both the
-tag and `REIGH_REF` must resolve to `C`. Then commit the frozen ledger, the
+annotated Astrid App tag named by `astrid.releaseTag` at that candidate `C`; both the
+tag and `ASTRID_APP_REF` must resolve to `C`. Then commit the frozen ledger, the
 manifest's status-only freeze, and artifacts under
 `docs/extensions/ship-evidence/releases/<manifest.release>/` to produce the clean
 controller `H`. The verifier captures `C`, `H`, and the annotated tag-object
-hash. Resolve `<manifest.release>`, `reigh.releaseTag`, and `astrid.commit`
+hash. Resolve `<manifest.release>`, `astrid.releaseTag`, and `astrid.commit`
 from the manifest for every run; do not reuse values from an older candidate:
 
 ```sh
-REIGH_REF=<full-40-character-Reigh-candidate-C> \
+ASTRID_APP_REF=<full-40-character-Astrid-candidate-C> \
 ASTRID_CHECKOUT=/absolute/path/to/clean/Astrid \
 ASTRID_REF=<manifest.astrid.commit> \
 ASTRID_PYTHON=/absolute/path/to/pinned/venv/bin/python \
 npm run verify:extension-ship
 ```
 
-Capture complete stdout/stderr, exit status, Reigh `git rev-parse HEAD`, Reigh
-candidate `git rev-parse REIGH_REF`, the tag named by
-`manifest.reigh.releaseTag` via `git rev-parse
-refs/tags/<manifest.reigh.releaseTag>^{tag}`, Astrid
+Capture complete stdout/stderr, exit status, Astrid App `git rev-parse HEAD`, Astrid App
+candidate `git rev-parse ASTRID_APP_REF`, the tag named by
+`manifest.app.releaseTag` via `git rev-parse
+refs/tags/<manifest.app.releaseTag>^{tag}`, Astrid
 `git rev-parse HEAD`, UTC start/end times, and hashes of retained test/render
 artifacts. An exit code of zero is necessary, not sufficient: every frozen-RC
 item and both independent review slots below must also be complete.
@@ -227,14 +227,14 @@ bridge selection is intentionally unavailable today.
 
 After that pin is available, the gate rejects dirty controller/source trees,
 validates every `C..H` history edge against the same release-evidence allowlist,
-archives the exact candidate Reigh and Astrid commits into private temporary trees,
-installs/builds Reigh from its lockfile, creates a private Astrid virtual
+archives the exact candidate Astrid App and Astrid commits into private temporary trees,
+installs/builds Astrid App from its lockfile, creates a private Astrid virtual
 environment from `requirements/runtime.lock` with `pip --require-hashes`,
 `--no-deps`, and binary-only packages, provisions Chromium with the exact
 lockfile-installed Playwright CLI into that same private runtime, and records
 the dependency-lock, normalized package-inventory, and Playwright-browser
 binary hashes.
-It also installs Reigh's archived `vendor/timeline-schema/python` distribution
+It also installs Astrid App's archived `vendor/timeline-schema/python` distribution
 with dependency/build isolation disabled after installing the separately
 hash-locked build tools. The gate records the complete source-tree hash and
 proves that `banodoco_timeline_schema` resolves from the private virtualenv,
@@ -245,8 +245,8 @@ applies the Runaway migration twice. Both applications must report 566 stored
 transitions, one migration evidence receipt, and identical project/run
 identity. The 566-row migration uses Astrid's independently reviewed, tracked
 release fixtures under `tests/fixtures/runaway_release/`; both inputs are
-SHA-256 pinned by Astrid and Reigh, and the exact hashes are recorded in the
-paired receipt. It then proves the built Reigh preview's enabled runtime document and
+SHA-256 pinned by Astrid and Astrid App, and the exact hashes are recorded in the
+paired receipt. It then proves the built Astrid App preview's enabled runtime document and
 same-origin authenticated proxy (including replacement of hostile client auth
 and protocol headers), runs the real browser editing lane, and captures
 canonical hashes plus complete copies of the timeline config/registry and
@@ -289,11 +289,11 @@ Vite server environments. The Playwright process receives an allowlisted
 environment without the token and fails if one is present. Runtime trees are
 removed under bounded process cleanup. Logs, screenshots, state receipts,
 render output, and a SHA-256 artifact index are retained under
-`/tmp/reigh-paired-release-evidence/`. The receipt is written before the index,
+`/tmp/astrid-paired-release-evidence/`. The receipt is written before the index,
 so it is covered by the externally retained printed index hash; the complete
 evidence directory is made read-only before the command returns.
 
-All ports are allocated at runtime for each Astrid/Reigh phase and passed through
+All ports are allocated at runtime for each Astrid/Astrid phase and passed through
 the readiness identity; `strictPort` and the full commit/nonce prevent a healthy
 stale server from satisfying a new run. No fixed developer port is admissible.
 Every external command runs through a phase budget (fast probes 30 s, Git 60 s,
@@ -312,11 +312,11 @@ labelled development-only in the receipt. This is maximum real coverage of the
 current product boundary, not evidence that production local editing exists.
 PostgreSQL is not an authority in this local-bridge journey: Astrid's real
 managed SQLite database and pack SQL migrations own the timeline and Runaway
-rows, while the built Reigh preview only exercises its static/runtime and
-server-proxy boundaries. A future acceptance path that enters Reigh's app-mode
+rows, while the built Astrid App preview only exercises its static/runtime and
+server-proxy boundaries. A future acceptance path that enters Astrid App's app-mode
 Supabase provider must add a real PostgreSQL/Supabase migration lane rather
 than reusing this receipt. This local-bridge boundary is not a claim that
-Supabase is removed: ordinary cloud and legacy Reigh routes retain their
+Supabase is removed: ordinary cloud and legacy Astrid App routes retain their
 existing provider and auth behavior.
 
 ## Production release controls
@@ -331,9 +331,9 @@ with the RC. A child flag never bypasses its parent.
 | --- | --- | --- | --- |
 | `EXTENSION_HOST_ENABLED` | Activation and rendering of the bundled extension host | None | Prevent new extension activation and remove host surfaces after a safe reload |
 | `TRANSCRIPT_CAPTION_FOUNDRY_ENABLED` | Transcript Caption Foundry registration, commands, and writes | `EXTENSION_HOST_ENABLED` | Stop Foundry commands/writes while leaving unrelated host extensions available |
-| `RUNAWAY_TYPED_TIMELINE_ENABLED` | Reigh-side Astrid Runaway source request/projection, commands, and viewer registration | `EXTENSION_HOST_ENABLED` | Stop new editor-side Runaway bridge requests, projection, commands, and viewer activation while leaving unrelated host extensions available |
+| `RUNAWAY_TYPED_TIMELINE_ENABLED` | Astrid App-side Astrid Runaway source request/projection, commands, and viewer registration | `EXTENSION_HOST_ENABLED` | Stop new editor-side Runaway bridge requests, projection, commands, and viewer activation while leaving unrelated host extensions available |
 
-The Reigh server-side proxy and `astrid serve` must share one randomly generated
+The Astrid App server-side proxy and `astrid serve` must share one randomly generated
 `ASTRID_BRIDGE_TOKEN`; never expose it through a `VITE_` variable or browser
 code. Start Astrid with `--release-mode`, which requires bearer authentication
 and the version handshake. Both Vite dev and preview fail closed with `503` when
@@ -347,19 +347,19 @@ enabled explicitly by its owning test/dev launcher.
 reviewed 13-extension release inventory. Production selection fails closed for
 any ID not in this list:
 
-- `com.reigh.scene-phase-markers`
-- `com.reigh.transcript-lane` (also gated by the Transcript child switch)
-- `com.reigh.astrid-runaway-timeline` (also gated by the Runaway child switch)
-- `com.reigh.creative-lab.pulse-map`
-- `com.reigh.creative-lab.soundtrack-cartographer`
-- `com.reigh.creative-lab.caption-safe-zone-orchestra`
-- `com.reigh.creative-lab.emotional-weather-map`
-- `com.reigh.creative-lab.timeline-faultline`
-- `com.reigh.creative-lab.foley-constellation`
-- `com.reigh.creative-lab.branching-cut`
-- `com.reigh.creative-lab.chromatic-constellation`
-- `com.reigh.creative-lab.recall-pulse`
-- `com.reigh.creative-lab.lockline-inspector`
+- `haus.astrid.scene-phase-markers`
+- `haus.astrid.transcript-lane` (also gated by the Transcript child switch)
+- `haus.astrid-runaway-timeline` (also gated by the Runaway child switch)
+- `haus.astrid.creative-lab.pulse-map`
+- `haus.astrid.creative-lab.soundtrack-cartographer`
+- `haus.astrid.creative-lab.caption-safe-zone-orchestra`
+- `haus.astrid.creative-lab.emotional-weather-map`
+- `haus.astrid.creative-lab.timeline-faultline`
+- `haus.astrid.creative-lab.foley-constellation`
+- `haus.astrid.creative-lab.branching-cut`
+- `haus.astrid.creative-lab.chromatic-constellation`
+- `haus.astrid.creative-lab.recall-pulse`
+- `haus.astrid.creative-lab.lockline-inspector`
 
 The ten Luna-originated Creative Lab extensions and Scene Markers do not have
 independent production switches in this candidate. Enabling the parent enables
@@ -411,7 +411,7 @@ to client-side identity targeting.
 
 ## Staged rollout
 
-The Release DRI owns stage changes. Reigh on-call, Astrid on-call, the Data
+The Release DRI owns stage changes. Astrid App on-call, Astrid on-call, the Data
 Migration DRI, and Observability on-call must be reachable before any increase.
 Advance one flag at a time in dependency order: host, Foundry, then Runaway.
 
@@ -435,7 +435,7 @@ The minimum event families required before Stage 1 are host activation,
 extension activation/disposal, command outcome, bridge request outcome/latency,
 persistence conflict, migration outcome, render/export outcome, and
 lane-density/performance budget outcome. All of those sources are now wired
-locally through the bounded `reigh:extension-operational-event` browser
+locally through the bounded `astrid:extension-operational-event` browser
 boundary. This includes page-level bridge health/project/timeline discovery,
 core Astrid timeline load/save, Runaway-source requests, terminal
 local-to-installed migration outcomes, and browser render/export completion.
@@ -500,11 +500,11 @@ instead of paging on-call.
    implicated. Confirm effective values from two independent reads.
 3. Stop new writes for the affected surface. Do not delete records, migration
    receipts, backups, or failed payloads.
-4. Capture Reigh/Astrid commits, deployment/config revisions, typed error and
+4. Capture Astrid/Astrid commits, deployment/config revisions, typed error and
    aggregate counters, database/schema/receipt versions, and hashes of affected
    artifacts without copying creative content into telemetry or the ticket.
 5. Roll application code back to the last verified paired revisions. Never mix
-   an old Reigh host with an unapproved Astrid revision.
+   an old Astrid App host with an unapproved Astrid revision.
 6. Run read-only health and compatibility checks, then verify representative
    existing projects, persistence after restart, and render/export.
 7. If data was written or migrated, follow the recovery procedures below before
@@ -548,7 +548,7 @@ field, or silently regenerate user-edited content.
    or receipt present with invalid state. Do not guess from UI appearance.
 3. For any partial/ambiguous state, restore the verified pre-migration backup.
    Do not hand-edit production tables or mark the migration complete.
-4. Reproduce on an isolated copy at the same Reigh/Astrid commits. Capture the
+4. Reproduce on an isolated copy at the same Astrid/Astrid commits. Capture the
    typed failure, correct the migration at its source, and run upgrade, restart,
    reload, render/export, rollback/restore, and a second upgrade.
 5. Prove receipt idempotency and zero duplicates on the second run. Compare the
@@ -563,11 +563,11 @@ field, or silently regenerate user-edited content.
 | Severity | Examples | Response target | Primary ownership |
 | --- | --- | --- | --- |
 | SEV-0 | Confirmed cross-project exposure, credential leakage, widespread irreversible data loss | Page immediately; containment starts within 5 minutes | Incident Commander + Security on-call; Release DRI and both service owners engaged |
-| SEV-1 | Corruption with a viable backup, failed/duplicate migration, widespread activation/render failure, rollback failure | Acknowledge within 10 minutes; contain within 30 | Release DRI + Data Migration DRI or affected Reigh/Astrid on-call |
-| SEV-2 | Limited cohort failure, sustained budget breach, recoverable persistence conflict, broken required telemetry | Acknowledge within 30 minutes; no stage advancement | Owning Reigh/Astrid team; Observability on-call for telemetry |
+| SEV-1 | Corruption with a viable backup, failed/duplicate migration, widespread activation/render failure, rollback failure | Acknowledge within 10 minutes; contain within 30 | Release DRI + Data Migration DRI or affected Astrid/Astrid on-call |
+| SEV-2 | Limited cohort failure, sustained budget breach, recoverable persistence conflict, broken required telemetry | Acknowledge within 30 minutes; no stage advancement | Owning Astrid/Astrid team; Observability on-call for telemetry |
 | SEV-3 | Cosmetic or low-impact issue with a documented workaround and no data/accessibility risk | Triage next business day | Feature owner |
 
-The Release DRI decides rollout state and owns this runbook. Reigh on-call owns
+The Release DRI decides rollout state and owns this runbook. Astrid App on-call owns
 host, Foundry, browser, persistence, and render symptoms. Astrid on-call owns the
 bridge, Runaway source, and Astrid CI symptoms. The Data Migration DRI alone
 authorizes restore/migration execution. Security on-call owns privacy or access
@@ -582,7 +582,7 @@ from `integration` to `frozen` immediately before the blocking verifier run.
 Complete every item before Stage 1. Any code, lock, manifest, gate-profile, or
 paired-revision change after freezing invalidates the run and requires a new RC.
 
-- [ ] Reigh and Astrid worktrees are clean; the exact `HEAD` commits and expected
+- [ ] Astrid App and Astrid worktrees are clean; the exact `HEAD` commits and expected
   branches/tags are recorded in the RC evidence.
 - [ ] `config/releases/extension-ship-quality.json`, the lockfiles, Node/npm
   versions, Astrid Python/tool lock, browser versions, and flag mapping are frozen.
@@ -620,7 +620,7 @@ not evidence.
 | --- | --- |
 | Reviewer / team | _Pending_ |
 | Independence statement | _Pending: work authored and conflicts disclosed_ |
-| Reigh commit / Astrid commit | _Pending_ |
+| Astrid App commit / Astrid commit | _Pending_ |
 | Verifier log, exit, UTC time, artifact index hash | _Pending_ |
 | Scope inspected | _Pending: gates, clean-machine reproduction, rollout, observability, rollback_ |
 | Findings and owner dispositions | _Pending_ |
@@ -632,7 +632,7 @@ not evidence.
 | --- | --- |
 | Reviewer / team | _Pending_ |
 | Independence statement | _Pending: work authored and conflicts disclosed_ |
-| Reigh commit / Astrid commit | _Pending_ |
+| Astrid App commit / Astrid commit | _Pending_ |
 | Recovery/migration and acceptance evidence hashes | _Pending_ |
 | Scope inspected | _Pending: persistence, corrupt data, migration, transcript policy, accessibility, render output_ |
 | Findings and owner dispositions | _Pending_ |

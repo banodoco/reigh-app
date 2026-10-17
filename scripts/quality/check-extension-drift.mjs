@@ -50,7 +50,7 @@ const repoRoot = resolve(moduleDir, '..', '..');
 
 const SDK_INDEX = resolve(repoRoot, 'src/sdk/index.ts');
 const SDK_MANIFEST = resolve(repoRoot, 'src/sdk/manifest.ts');
-const SCHEMA_PATH = resolve(repoRoot, 'config/contracts/reigh-extension.schema.json');
+const SCHEMA_PATH = resolve(repoRoot, 'config/contracts/astrid-extension.schema.json');
 const DOCS_PATH = resolve(
   repoRoot,
   'docs/video-editor/extension-platform-supported-deferred.md',
@@ -302,7 +302,7 @@ console.log(`${LABEL} Docs: ${docs.supportedRows.length} supported rows, ${docs.
 // ---------------------------------------------------------------------------
 
 /**
- * Walk the extensions directory and validate every reigh-extension.json.
+ * Walk the extensions directory and validate every astrid-extension.json.
  */
 function parseExtensionManifests() {
   if (!existsSync(EXTENSIONS_DIR)) {
@@ -325,7 +325,7 @@ function parseExtensionManifests() {
    */
   function discoverManifestPaths(directory, relativeDirectory = '') {
     const entries = readdirSync(directory, { withFileTypes: true });
-    const manifestPath = resolve(directory, 'reigh-extension.json');
+    const manifestPath = resolve(directory, 'astrid-extension.json');
     const directoryLabel = relativeDirectory || '.';
 
     if (existsSync(manifestPath)) {
@@ -348,7 +348,7 @@ function parseExtensionManifests() {
     // An index beside nested manifests is a collection barrel, not another
     // extension. Only leaf entrypoints require their own manifest.
     if (hasEntrypoint && nestedManifests.length === 0) {
-      R.warn(`Extension directory '${directoryLabel}' has no reigh-extension.json`);
+      R.warn(`Extension directory '${directoryLabel}' has no astrid-extension.json`);
     }
 
     return nestedManifests;

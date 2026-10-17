@@ -18,8 +18,8 @@ import type {
   FamilyConformanceReport,
   ExecutionMaturity,
   ContributionKind,
-} from '@reigh/editor-sdk';
-import { getVideoFamilyDefinition } from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
+import { getVideoFamilyDefinition } from '@astrid/editor-sdk';
 import { buildConformanceReport } from '@/sdk/core/families/conformance';
 
 export interface CompatibilityAdapterOptions {

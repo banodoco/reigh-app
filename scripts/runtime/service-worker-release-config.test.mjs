@@ -22,7 +22,7 @@ async function loadFetchHandler() {
       match: async () => new Response('{"stale":true}', { status: 200 }),
     },
     self: {
-      location: { origin: 'https://reigh.example' },
+      location: { origin: 'https://astrid-app.example' },
       clients: { claim: async () => {} },
       skipWaiting: () => {},
       addEventListener: (name, listener) => listeners.set(name, listener),
@@ -39,7 +39,7 @@ describe('service worker extension release boundary', () => {
     fetchHandler({
       request: {
         method: 'GET',
-        url: 'https://reigh.example/runtime-config/v1/extensions.json?cache-bust=1',
+        url: 'https://astrid-app.example/runtime-config/v1/extensions.json?cache-bust=1',
       },
       respondWith: (response) => { responsePromise = response; },
     });

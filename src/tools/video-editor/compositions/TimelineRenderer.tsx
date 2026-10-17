@@ -51,7 +51,7 @@ import {
   type TimelineLiveSourceSnapshot,
 } from '@/tools/video-editor/lib/timeline-domain.ts';
 import type { LiveDataRegistry, LiveDataRegistrySnapshot } from '@/tools/video-editor/runtime/liveDataRegistry.ts';
-import type { LiveChannelDescriptor, LiveChannelMetadata, LiveSample, LiveSource } from '@reigh/editor-sdk';
+import type { LiveChannelDescriptor, LiveChannelMetadata, LiveSample, LiveSource } from '@astrid/editor-sdk';
 import { PostprocessShaderPreviewCanvas } from '@/tools/video-editor/shaders/preview/PostprocessShaderPreviewCanvas.tsx';
 import { useShaderEffectRegistrySnapshot } from '@/tools/video-editor/shaders/registry/index.ts';
 import { boundCanonicalConfigClips } from '@/tools/video-editor/lib/canonicalRenderBounds.ts';
@@ -71,7 +71,7 @@ const resolveHostComponent = (host: AstridElementHost, ref: NonNullable<Resolved
 // `packages/timeline-composition/typescript/src/TimelineComposition.tsx`).
 // Lookup chain for a clipType:
 //
-//   1. Reigh-native built-ins (effect-layer, text, media, hold) — same as
+//   1. Astrid App-native built-ins (effect-layer, text, media, hold) — same as
 //      pre-Sprint-5 behavior.
 //   2. THEME_PACKAGE_REGISTRY (codegenned from installed
 //      @banodoco/timeline-theme-* packages) — render the theme component.

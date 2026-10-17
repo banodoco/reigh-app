@@ -44,7 +44,7 @@ describe('external admitted element build input',()=>{
   it('runs the normal receiving compiler on pre-CAS candidate and empty init, rejecting invalid TSX before any publication',()=>{
     const f=fixture();const args=[path.resolve('node_modules/tsx/dist/cli.mjs'),path.resolve('scripts/verify-element-admission.ts'),f.file];
     const receipt=JSON.parse(execFileSync(process.execPath,args,{encoding:'utf8'}));
-    expect(receipt).toMatchObject({schema:'reigh.element-build/v1',selectionDigest:'sha256:'+createHash('sha256').update(fs.readFileSync(f.file)).digest('hex'),elements:[{packId:'project_pack',id:'blocks',revision:'sha256:old'}]});
+    expect(receipt).toMatchObject({schema:'astrid.element-build/v1',selectionDigest:'sha256:'+createHash('sha256').update(fs.readFileSync(f.file)).digest('hex'),elements:[{packId:'project_pack',id:'blocks',revision:'sha256:old'}]});
     const validBytes=fs.readFileSync(f.file,'utf8');
     const bad='export default function Broken( {';fs.writeFileSync(path.join(f.snapshot,'component.tsx'),bad);f.entry.snapshot.files[0].sha256=createHash('sha256').update(bad).digest('hex');f.write();
     expect(()=>execFileSync(process.execPath,args,{encoding:'utf8',stdio:'pipe'})).toThrow();

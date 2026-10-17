@@ -13,19 +13,19 @@
  * manifest shape that extensions use to describe trusted local processes.
  *
  * This file must NOT import from editor internals (src/tools/video-editor/*).
- * It imports only from the public @reigh/editor-sdk package surface.
+ * It imports only from the public @astrid/editor-sdk package surface.
  *
  * @publicContract
  */
 
-import { defineExtension } from '@reigh/editor-sdk';
+import { defineExtension } from '@astrid/editor-sdk';
 import type {
-  ReighExtension,
+  AstridExtension,
   ExtensionContext,
   DisposeHandle,
   ProcessContribution,
   ProcessManifestEntry,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 
 export type ProcessSpawnConfig = ProcessManifestEntry['spawn'];
 export type ProcessEnvFieldSpec = NonNullable<ProcessManifestEntry['env']>[number];
@@ -116,9 +116,9 @@ const EXAMPLE_PROCESS_MANIFEST_ENTRY: ProcessManifestEntry = {
 // Extension
 // ---------------------------------------------------------------------------
 
-export const processExample: ReighExtension = defineExtension({
+export const processExample: AstridExtension = defineExtension({
   manifest: {
-    id: 'com.reigh.examples.process' as any,
+    id: 'haus.astrid.examples.process' as any,
     version: '1.0.0',
     label: 'Process Example',
     description:

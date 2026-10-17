@@ -34,7 +34,7 @@ export default defineConfig({
         ? realThemeApi
         : path.resolve(__dirname, 'stubs/timeline-composition/theme-api.tsx'),
       '@banodoco/timeline-composition': path.resolve(repoRoot, 'node_modules/@banodoco/timeline-composition'),
-      '@reigh/editor-sdk': path.resolve(repoRoot, 'src/sdk/index.ts'),
+      '@astrid/editor-sdk': path.resolve(repoRoot, 'src/sdk/index.ts'),
       '@workspace-effects': path.resolve(repoRoot, '../../banodoco-workspace/effects'),
       '@workspace-animations': path.resolve(repoRoot, '../../banodoco-workspace/animations'),
       '@workspace-transitions': path.resolve(repoRoot, '../../banodoco-workspace/transitions'),

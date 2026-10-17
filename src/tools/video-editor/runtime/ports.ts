@@ -7,7 +7,7 @@ import type {
   PreparedShotComposition,
   ShotCompositionAdapter,
 } from '@/tools/video-editor/data/shotCompositionAdapter.ts';
-import type { ReighAgentElementContext } from '@/tools/video-editor/runtime/element-contract.ts';
+import type { AstridAgentElementContext } from '@/tools/video-editor/runtime/element-contract.ts';
 import type { AstridElementOperationAdapter } from '@/tools/video-editor/runtime/element-adapter.ts';
 export type CanonicalShotTimelineScope = Readonly<{
   projectId: string;
@@ -106,7 +106,7 @@ export interface VideoEditorAgentChatHost {
       assetCount: number;
       duration: number;
     };
-    elementContext?: ReighAgentElementContext;
+    elementContext?: AstridAgentElementContext;
     elementOperationAdapter?: AstridElementOperationAdapter;
     liveSceneOperationPort?: import('./liveSceneOperationPort').LiveSceneOperationPort;
   }) => void | (() => void);

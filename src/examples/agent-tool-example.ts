@@ -15,14 +15,14 @@
  * export artifacts, process invocations, or enrichment search results.
  *
  * This file must NOT import from editor internals (src/tools/video-editor/*).
- * It imports exclusively from @reigh/editor-sdk, the public SDK entrypoint.
+ * It imports exclusively from @astrid/editor-sdk, the public SDK entrypoint.
  *
  * @publicContract
  */
 
-import { defineExtension } from '@reigh/editor-sdk';
+import { defineExtension } from '@astrid/editor-sdk';
 import type {
-  ReighExtension,
+  AstridExtension,
   ExtensionContext,
   DisposeHandle,
   AgentToolContribution,
@@ -32,7 +32,7 @@ import type {
   AgentToolRegistrationService,
   ToolResult,
   ToolUISummaryResult,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 
 // ---------------------------------------------------------------------------
 // Input schema — defines the shape of the tool's invocation payload
@@ -99,9 +99,9 @@ export const exampleToolHandler: AgentToolHandler = (
 // Extension
 // ---------------------------------------------------------------------------
 
-export const agentToolExample: ReighExtension = defineExtension({
+export const agentToolExample: AstridExtension = defineExtension({
   manifest: {
-    id: 'com.reigh.examples.agent-tool' as any,
+    id: 'haus.astrid.examples.agent-tool' as any,
     version: '1.0.0',
     label: 'Agent Tool Example',
     description:
@@ -111,7 +111,7 @@ export const agentToolExample: ReighExtension = defineExtension({
       {
         id: 'example-agent-tool' as any,
         kind: 'agentTool',
-        toolId: 'com.reigh.examples.agentTool.clipAnalyzer',
+        toolId: 'haus.astrid.examples.agentTool.clipAnalyzer',
         label: 'Clip Analyzer',
         description: 'Analyzes a clip and produces a labeled proposal.',
         inputSchema: EXAMPLE_TOOL_INPUT_SCHEMA,
@@ -129,7 +129,7 @@ export const agentToolExample: ReighExtension = defineExtension({
     const agentTools = ctx.agentTools as AgentToolRegistrationService;
 
     const handle = agentTools.registerTool(
-      'com.reigh.examples.agentTool.clipAnalyzer',
+      'haus.astrid.examples.agentTool.clipAnalyzer',
       exampleToolHandler,
     );
 

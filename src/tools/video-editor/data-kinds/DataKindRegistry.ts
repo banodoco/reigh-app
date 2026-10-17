@@ -17,7 +17,7 @@ import type {
   DiagnosticSeverity,
   DisposeHandle,
   ExtensionDiagnostic,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import type {
   ContributionRenderability,
 } from '@/tools/video-editor/runtime/renderability.ts';

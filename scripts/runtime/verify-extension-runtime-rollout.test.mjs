@@ -40,7 +40,7 @@ describe('production built artifact/runtime rollout matrix', () => {
     ]) {
       assert.doesNotMatch(javascript, new RegExp(retiredName));
     }
-    assert.doesNotMatch(javascript, /com\.reigh\.smoke\.extension-smoke/);
+    assert.doesNotMatch(javascript, /haus\.astrid\.smoke\.extension-smoke/);
     assert.doesNotMatch(javascript, /extension-smoke-status/);
 
     const before = await builtArtifactHashes();

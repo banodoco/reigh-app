@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { defineExtension } from '@reigh/editor-sdk';
+import { defineExtension } from '@astrid/editor-sdk';
 import { CONTEXT_DISPOSE_SYMBOL } from '@/sdk/context';
 import { createExtensionContext } from './extensionContextFactory';
 

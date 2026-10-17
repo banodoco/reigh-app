@@ -115,7 +115,7 @@ track, identify its owning child document as well as its track ID. Do not
 choose a track by a label match alone or infer its role from mute/volume.
 
 Use the existing [TimelinePatch operations](timeline-patch-operations.md) for
-Reigh edits. A role-only update uses merge semantics so unrelated settings are
+Astrid App edits. A role-only update uses merge semantics so unrelated settings are
 preserved:
 
 ```json
@@ -139,7 +139,7 @@ preserve unrelated fields, checkout baselines, and dependency identities.
 Validate the complete candidate, inspect its diff, and publish once against
 the captured head. Do not edit Runtime storage or invent a new role endpoint.
 If the connected schema or renderer does not support role, report the
-unsupported operation instead of disguising it as metadata. This Reigh guide
+unsupported operation instead of disguising it as metadata. This Astrid App guide
 does not change the separate Astrid skill or guarantee an installed version.
 
 Shared-child edits need the same scope care as any other child edit. Keep

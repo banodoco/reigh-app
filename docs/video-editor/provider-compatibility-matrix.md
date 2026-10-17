@@ -17,7 +17,7 @@ This matrix records the compatibility posture of each concrete `DataProvider` im
 | Provider | Class | Persistence | Environment | M3 support |
 |---|---|---|---|---|
 | **InMemory** | `InMemoryDataProvider` | Ephemeral (Map-backed) | Test / dev / demo | Full |
-| **Supabase** | `SupabaseDataProvider` | Durable (DB + append service) | Production (Reigh cloud) | Full |
+| **Supabase** | `SupabaseDataProvider` | Durable (DB + append service) | Production (Astrid App cloud) | Full |
 | **Astrid Bridge** | `AstridBridgeDataProvider` | Local filesystem + bridge API | Local dev (desktop bridge) | Partial |
 
 ---
@@ -28,11 +28,11 @@ This matrix records the compatibility posture of each concrete `DataProvider` im
 
 | Provider | Settings persistence | Per-extension localStorage scoping | Settings cleanup on dispose |
 |---|---|---|---|
-| **InMemory** | N/A — no persistent storage | Yes (`reigh.ext.<id>.*` prefix convention) | Yes (via `disposeHostServices`) |
+| **InMemory** | N/A — no persistent storage | Yes (`astrid.ext.<id>.*` prefix convention) | Yes (via `disposeHostServices`) |
 | **Supabase** | N/A — no persistent settings table | Yes | Yes |
 | **Astrid Bridge** | N/A — no persistent settings table | Yes | Yes |
 
-Settings are always scoped to browser `localStorage` under the `reigh.ext.<id>.` key prefix, regardless of provider. No provider currently offers a server-side settings store. Settings cleanup is provider-agnostic and handled by the extension lifecycle's `disposeHostServices()`.
+Settings are always scoped to browser `localStorage` under the `astrid.ext.<id>.` key prefix, regardless of provider. No provider currently offers a server-side settings store. Settings cleanup is provider-agnostic and handled by the extension lifecycle's `disposeHostServices()`.
 
 ### 3.2 Extension requirements
 
@@ -97,7 +97,7 @@ Missing extension references are detected at **export-guard time**, not at provi
 ### 4.2 SupabaseDataProvider
 
 - **Requires authentication.** `saveTimeline` and `syncTimeline` require a valid user JWT.
-- **Requires append service.** The `VITE_REIGH_APPEND_SERVICE_URL` environment variable must be set. Without it, the provider throws at construction time.
+- **Requires append service.** The `VITE_ASTRID_APP_APPEND_SERVICE_URL` environment variable must be set. Without it, the provider throws at construction time.
 - **Network-dependent.** All save/load operations are async and may fail due to network conditions.
 - **Sync complexity.** The `syncTimeline` method implements a full bookmark-based sync protocol with divergence recording (`keep-both` artifacts). This is transparent to M3 consumers but adds latency.
 
@@ -176,7 +176,7 @@ This section documents every provider compatibility test that **cannot run** in 
 
 | Requirement | Why it's needed | Unavailable in |
 |---|---|---|
-| `VITE_REIGH_APPEND_SERVICE_URL` env var | Constructs the append-service endpoint URL; provider throws at construction time without it | Local CI without service URL; dev environments without Supabase project |
+| `VITE_ASTRID_APP_APPEND_SERVICE_URL` env var | Constructs the append-service endpoint URL; provider throws at construction time without it | Local CI without service URL; dev environments without Supabase project |
 | Supabase auth JWT (`getSession` / `readAccessTokenFromStorage`) | `saveTimeline` and `syncTimeline` require authenticated user | Local CI without auth tokens; anonymous browser sessions |
 | Supabase database (`timelines`, `timeline_events`, `sync_bookmarks` tables) | Load/version/sync queries read from materialized DB rows | Local dev without Supabase project; environments without DB access |
 | IndexedDB (`syncLedgerIndexedDb`) | Sync bookmark and keep-both artifact persistence | Environments without IndexedDB (Node.js pre-21, some test runners) |
@@ -188,7 +188,7 @@ The `providerCompatibility.supabase.test.ts` suite (416 lines) does **not** use 
 
 - IndexedDB is mocked via `fake-indexeddb` and `vi.stubGlobal('indexedDB', ...)`.
 - Supabase client methods (`getSession`, `from`) are mocked with `vi.hoisted` mocks.
-- `VITE_REIGH_APPEND_SERVICE_URL` is stubbed via `vi.stubEnv`.
+- `VITE_ASTRID_APP_APPEND_SERVICE_URL` is stubbed via `vi.stubEnv`.
 - The append-service `fetch` is stubbed with `vi.stubGlobal('fetch', ...)`.
 - The shared suite's `versionConflictIsSoft=false` path is **delegated** to the InMemory compatibility test.
 

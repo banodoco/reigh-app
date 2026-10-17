@@ -248,7 +248,7 @@ function hostCanonical(value: unknown, seen: Set<unknown>): unknown {
   }
 }
 
-/** Independent implementation of the public reigh-fnv1a64-v1 contract. */
+/** Independent implementation of the public astrid-fnv1a64-v1 contract. */
 export function releaseHostFingerprint(value: unknown): string {
   const serialized = JSON.stringify(hostCanonical(value, new Set()));
   let hash = 0xcbf29ce484222325n;
@@ -256,7 +256,7 @@ export function releaseHostFingerprint(value: unknown): string {
     hash ^= BigInt(byte);
     hash = (hash * 0x100000001b3n) & 0xffffffffffffffffn;
   }
-  return `reigh-fnv1a64-v1:${hash.toString(16).padStart(16, '0')}`;
+  return `astrid-fnv1a64-v1:${hash.toString(16).padStart(16, '0')}`;
 }
 
 function invalid(reason: string): ValidationResult {
@@ -1342,32 +1342,32 @@ function arrayOutput(value: unknown, fields: Record<string, (entry: Record<strin
 export function validateExtensionOutput(extensionId: string, value: unknown, timeline: ProbeTimeline): ValidationResult {
   if (value === undefined || value === null) return invalid('persisted output is null or undefined');
   switch (extensionId) {
-    case 'com.reigh.scene-phase-markers': {
+    case 'haus.astrid.scene-phase-markers': {
       const result = entries(value, { id, time: (entry) => bounded(entry.time, 0, 9999.999) });
       if (!result.valid) return result;
       return result.count > 0 ? valid(value, result.count) : invalid('scene marker command produced no marker');
     }
-    case 'com.reigh.creative-lab.pulse-map':
+    case 'haus.astrid.creative-lab.pulse-map':
       return validatePulseMap(value, timeline);
-    case 'com.reigh.creative-lab.soundtrack-cartographer':
+    case 'haus.astrid.creative-lab.soundtrack-cartographer':
       return envelope(value, 1, { id, sourceClipId, edge: (e) => e.edge === 'start' || e.edge === 'release', kind: (e) => e.kind === 'rise' || e.kind === 'peak' || e.kind === 'release', time, offset, intensity, color: (e) => nonEmpty(e.color), label }, timeline, expectedTerrainBoundaryCount(timeline));
-    case 'com.reigh.creative-lab.caption-safe-zone-orchestra':
+    case 'haus.astrid.creative-lab.caption-safe-zone-orchestra':
       return arrayOutput(value, { id, sourceClipId, relatedClipId: (e) => e.relatedClipId === undefined || nonEmpty(e.relatedClipId), kind: (e) => ['negative-start', 'too-brief', 'non-visual-track', 'overlap'].includes(String(e.kind)), severity: (e) => e.severity === 'warning' || e.severity === 'error', time, label, color: (e) => nonEmpty(e.color) }, 0);
-    case 'com.reigh.creative-lab.emotional-weather-map':
+    case 'haus.astrid.creative-lab.emotional-weather-map':
       return arrayOutput(value, { id, sourceClipId, kind: (e) => ['breeze', 'fog', 'lightning', 'sunshine'].includes(String(e.kind)), time, intensity, color: (e) => nonEmpty(e.color), label }, Math.min(128, expectedVisualClips(timeline).length));
-    case 'com.reigh.creative-lab.timeline-faultline':
+    case 'haus.astrid.creative-lab.timeline-faultline':
       return validateFaultline(value, timeline);
-    case 'com.reigh.creative-lab.foley-constellation':
+    case 'haus.astrid.creative-lab.foley-constellation':
       return validateFoley(value, timeline);
-    case 'com.reigh.creative-lab.branching-cut':
+    case 'haus.astrid.creative-lab.branching-cut':
       return validateClipLinks(value, timeline);
-    case 'com.reigh.creative-lab.chromatic-constellation': {
+    case 'haus.astrid.creative-lab.chromatic-constellation': {
       return validateChromatic(value, timeline);
     }
-    case 'com.reigh.creative-lab.recall-pulse': {
+    case 'haus.astrid.creative-lab.recall-pulse': {
       return validateRecall(value, timeline);
     }
-    case 'com.reigh.creative-lab.lockline-inspector': {
+    case 'haus.astrid.creative-lab.lockline-inspector': {
       return validateLockline(value, timeline);
     }
     default:

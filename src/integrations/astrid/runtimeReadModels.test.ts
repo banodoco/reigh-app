@@ -85,7 +85,7 @@ describe('Runtime gallery read models', () => {
       schema_version: '1',
       input_object_ids: [],
       spec: {},
-      idempotency_key: 'reigh.render:test',
+      idempotency_key: 'astrid.render:test',
       created_at: '2026-09-10T20:00:00.000Z',
       updated_at: '2026-09-10T20:00:01.000Z',
       attempt_id: null,

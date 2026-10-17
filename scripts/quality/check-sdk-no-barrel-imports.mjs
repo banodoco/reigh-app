@@ -19,7 +19,7 @@
  *
  * Barrel paths that resolve to `src/sdk/index.ts`:
  *   - `@/sdk` / `@/sdk/index`
- *   - `@reigh/editor-sdk`
+ *   - `@astrid/editor-sdk`
  *   - Any relative path that resolves to `src/sdk/index.ts` (e.g. `./index`
  *     from files directly in `src/sdk/`, `../../index` from deeper modules)
  */

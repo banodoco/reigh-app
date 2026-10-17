@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 const PRODUCT_MODULES = [
   'src/tools/video-editor/data/shotCompositionAdapter.ts',
-  'src/tools/video-editor/adapters/reigh/useReighShotsHost.ts',
+  'src/tools/video-editor/adapters/app/useAstridShotsHost.ts',
   'src/tools/travel-between-images/pages/localTimelineShotModel.ts',
   'src/tools/travel-between-images/pages/LocalTimelineShotBrowser.tsx',
   'src/tools/travel-between-images/pages/ShotEditorView.tsx',
@@ -27,7 +27,7 @@ describe('canonical shot-composition architecture boundary', () => {
     expect(browser).toContain('ShotCompositionPort');
   });
 
-  it('keeps the normal Reigh host canonical-only', () => {
+  it('keeps the normal Astrid host canonical-only', () => {
     const host = readFileSync(PRODUCT_MODULES[1], 'utf8');
     expect(host).not.toMatch(/import[^;]*useShots/);
     expect(host).not.toMatch(/\buseShots\s*\(/);

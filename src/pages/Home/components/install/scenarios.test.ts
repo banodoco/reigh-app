@@ -12,7 +12,7 @@ describe('resolveInstallScenarioPresentation', () => {
       isAppInstalled: true,
     });
 
-    expect(result.title).toBe('Reigh is already installed!');
+    expect(result.title).toBe('Astrid is already installed!');
     expect(result.Visual).toBe(installVisuals.mobileHomeIcon);
   });
 
@@ -25,7 +25,7 @@ describe('resolveInstallScenarioPresentation', () => {
       isAppInstalled: false,
     });
 
-    expect(result.title).toBe('Add Reigh to your dock');
+    expect(result.title).toBe('Add Astrid to your dock');
     expect(result.Visual).toBe(installVisuals.safariFileMenu);
   });
 
@@ -38,7 +38,7 @@ describe('resolveInstallScenarioPresentation', () => {
       isAppInstalled: false,
     });
 
-    expect(result.title).toBe('Install Reigh');
+    expect(result.title).toBe('Install Astrid');
     expect(result.Visual).toBe(installVisuals.chromeInstall);
   });
 
@@ -51,7 +51,7 @@ describe('resolveInstallScenarioPresentation', () => {
       isAppInstalled: false,
     });
 
-    expect(result.title).toBe('Install Reigh');
+    expect(result.title).toBe('Install Astrid');
     expect(result.Visual).toBeNull();
   });
 });

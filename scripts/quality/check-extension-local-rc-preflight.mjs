@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Cheap, read-only readiness probe for the local Reigh/Astrid RC pair.
+ * Cheap, read-only readiness probe for the local Astrid/Astrid RC pair.
  *
  * This is intentionally a preflight, not a second verifier: it does not
  * install dependencies, create worktrees, fetch/tag commits, or run gates.
@@ -148,22 +148,22 @@ function checkAstridVolume({ astridCheckout, statfs = statfsSync } = {}) {
   return `Astrid volume floor satisfied at ${target} (${formatBytes(availableBytes)} free)`;
 }
 
-function checkReigh(manifest, ledger, repoRoot) {
+function checkApp(manifest, ledger, repoRoot) {
   const branch = gitOutput(repoRoot, ['branch', '--show-current']);
-  if (branch !== manifest?.reigh?.branch) throw new Error(`expected branch ${manifest?.reigh?.branch}, got ${branch || '<detached>'}`);
-  const head = resolveCommit(repoRoot, gitOutput(repoRoot, ['rev-parse', 'HEAD']), 'Reigh HEAD');
-  const base = resolveCommit(repoRoot, manifest?.reigh?.baseCommit, 'manifest reigh.baseCommit');
+  if (branch !== manifest?.app?.branch) throw new Error(`expected branch ${manifest?.app?.branch}, got ${branch || '<detached>'}`);
+  const head = resolveCommit(repoRoot, gitOutput(repoRoot, ['rev-parse', 'HEAD']), 'Astrid App HEAD');
+  const base = resolveCommit(repoRoot, manifest?.app?.baseCommit, 'manifest astrid.baseCommit');
   const ancestry = git(repoRoot, ['merge-base', '--is-ancestor', base, head], { allowFailure: true });
   if (ancestry.error || ancestry.status !== 0) throw new Error(`HEAD ${head} is not descended from manifest base ${base}`);
-  const candidate = ledger?.candidate?.reighCommit;
+  const candidate = ledger?.candidate?.appCommit;
   if (manifest.status === 'frozen') {
-    if (!FULL_COMMIT.test(candidate ?? '')) throw new Error('frozen ledger candidate.reighCommit must be a full commit');
-    const resolvedCandidate = resolveCommit(repoRoot, candidate, 'ledger candidate.reighCommit');
-    if (resolvedCandidate !== candidate) throw new Error('ledger candidate.reighCommit is not canonical');
+    if (!FULL_COMMIT.test(candidate ?? '')) throw new Error('frozen ledger candidate.appCommit must be a full commit');
+    const resolvedCandidate = resolveCommit(repoRoot, candidate, 'ledger candidate.appCommit');
+    if (resolvedCandidate !== candidate) throw new Error('ledger candidate.appCommit is not canonical');
     const candidateAncestor = git(repoRoot, ['merge-base', '--is-ancestor', candidate, head], { allowFailure: true });
     if (candidateAncestor.error || candidateAncestor.status !== 0) throw new Error(`frozen candidate ${candidate} is not an ancestor of HEAD ${head}`);
   } else if (candidate !== null) {
-    throw new Error('integration ledger candidate.reighCommit must remain null until the candidate is frozen');
+    throw new Error('integration ledger candidate.appCommit must remain null until the candidate is frozen');
   }
   return `branch ${branch}; HEAD ${head}; base ${base}`;
 }
@@ -192,15 +192,15 @@ function checkManifestLedgerPins(manifest, ledger) {
   if (ledger?.candidate?.astridCommit !== manifest?.astrid?.commit) {
     throw new Error(`Astrid pin mismatch: manifest ${manifest?.astrid?.commit ?? '<missing>'}, ledger ${ledger?.candidate?.astridCommit ?? '<missing>'}`);
   }
-  if (manifest.status === 'integration' && ledger?.candidate?.reighCommit !== null) {
-    throw new Error('integration ledger must not claim a Reigh candidate commit');
+  if (manifest.status === 'integration' && ledger?.candidate?.appCommit !== null) {
+    throw new Error('integration ledger must not claim a Astrid App candidate commit');
   }
   return `release ${manifest.release}; phase ${manifest.status}; Astrid pin agrees`;
 }
 
 export function checkTagState(manifest, ledger, repoRoot) {
-  const tag = manifest?.reigh?.releaseTag;
-  if (!safeTag(tag)) throw new Error('manifest reigh.releaseTag is not a safe tag name');
+  const tag = manifest?.app?.releaseTag;
+  if (!safeTag(tag)) throw new Error('manifest astrid.releaseTag is not a safe tag name');
   const ref = `refs/tags/${tag}`;
   const tagProbe = git(repoRoot, ['rev-parse', '--verify', '--end-of-options', `${ref}^{tag}`], { allowFailure: true });
   const anyProbe = git(repoRoot, ['rev-parse', '--verify', '--end-of-options', ref], { allowFailure: true });
@@ -212,7 +212,7 @@ export function checkTagState(manifest, ledger, repoRoot) {
   if (tagProbe.error || tagProbe.status !== 0) throw new Error(`frozen phase requires annotated tag ${tag}`);
   const taggedCommit = gitOutput(repoRoot, ['rev-parse', '--verify', '--end-of-options', `${ref}^{commit}`]);
   if (!FULL_COMMIT.test(taggedCommit)) throw new Error(`release tag ${tag} does not resolve to a full commit`);
-  if (taggedCommit !== ledger?.candidate?.reighCommit) throw new Error(`tag ${tag} resolves to ${taggedCommit}, not ledger candidate ${ledger?.candidate?.reighCommit ?? '<missing>'}`);
+  if (taggedCommit !== ledger?.candidate?.appCommit) throw new Error(`tag ${tag} resolves to ${taggedCommit}, not ledger candidate ${ledger?.candidate?.appCommit ?? '<missing>'}`);
   return `frozen phase: annotated tag ${tag} resolves to ${taggedCommit}`;
 }
 
@@ -259,8 +259,8 @@ function localChecks({ manifest, ledger, repoRoot = REPO_ROOT, astridCheckout, e
 
   add('disk-floor', () => checkDisk(dependencies));
   add('manifest-ledger-pins', () => checkManifestLedgerPins(manifest, ledger));
-  add('reigh-branch-commit', () => checkReigh(manifest, ledger, repoRoot));
-  add('reigh-worktree-clean', () => checkWorktree(repoRoot, 'Reigh'));
+  add('app-branch-commit', () => checkApp(manifest, ledger, repoRoot));
+  add('app-worktree-clean', () => checkWorktree(repoRoot, 'Astrid App'));
   add('astrid-branch-commit', () => checkAstrid(manifest, astridCheckout ?? env.ASTRID_CHECKOUT));
   add('astrid-worktree-clean', () => {
     const checkout = realpathSync(astridCheckout ?? env.ASTRID_CHECKOUT);

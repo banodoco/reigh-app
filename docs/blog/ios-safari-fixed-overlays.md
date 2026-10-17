@@ -146,4 +146,4 @@ For touch-heavy applications on iOS Safari, pay attention to what your component
 
 ![After: overlay stays locked in place, no shifting](/images/blog/ios-safari-after.png)
 
-You can see our full implementation in [this commit](https://github.com/banodoco/Reigh/commit/bc40f9d5).
+You can see our full implementation in [this commit](https://github.com/banodoco/astrid-app/commit/bc40f9d5).

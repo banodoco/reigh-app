@@ -20,8 +20,8 @@ a `WanGPSession`; `submit_task(settings)` returns a `SessionJob`; structured
 events and `GenerationResult.generated_files` are normalized; then the session
 closes. The persistent warm runner is a second implementation behind the same
 pack contract. Cold operation must remain sufficient if warmth is unavailable.
-The current Worker pin is `reigh-worker/Wan2GP @
-181bb71a21008032e4771e11663f33e4489c4512` on fork branch `reigh-sprint-3`.
+The current Worker pin is `astrid-worker/Wan2GP @
+181bb71a21008032e4771e11663f33e4489c4512` on fork branch `astrid-sprint-3`.
 That checkout contains `shared/api.py` with `init`, `WanGPSession`,
 `submit_task`, `SessionJob.cancel`, structured `SessionEvent` values, and
 `close`/`release_model`. Prove this pin first. An upstream update is a separate
@@ -40,7 +40,7 @@ arbitrary shared server, or pack-owned durable queue.
 | **Wan2GP engine** | `shared.api.init`; `WanGPSession`; model loading/inference; `submit_task`; native events/results; cooperative interrupt and `release_model` | Astrid task meaning, retries, runtime state, output publication, settlement |
 | **Astrid GenericPackHost (lane B)** | Loads this pack; claims/heartbeats; materializes authorized inputs; owns attempt directories; supervises pack command/runner; sends cancellation and escalates to process-group kill; validates host-level outputs; settles through runtime | Pack schemas, model defaults, native settings compilation, engine-specific result interpretation |
 | **Runtime contract (lane A)** | Durable task/attempt state, fences, cancellation state, CAS and attempt-bound staged upload, typed settlement | Engine loading, inference, pack discovery/implementation |
-| **Reigh Worker / integration (lanes E/F)** | Pinned GPU environment and resources; thin host launch/profile; integration harness; one route migration and deletion of the old direct WGP seam | Pack-owned routing, settings conversion, capability registry, queue/settlement authority |
+| **Astrid App Worker / integration (lanes E/F)** | Pinned GPU environment and resources; thin host launch/profile; integration harness; one route migration and deletion of the old direct WGP seam | Pack-owned routing, settings conversion, capability registry, queue/settlement authority |
 The pack must never open runtime storage, mutate workspace state, claim work,
 settle outputs, or create a second capability/queue system. Its manifest uses
 the promoted Astrid pack rules: schema version, qualified capability identity,
@@ -259,9 +259,9 @@ mitigated by refusing to call it accepted until A's staging contract passes.
 ## References
 
 - [GPU pack execution plan](04-gpu-pack-execution-plan.md)
-- Current native API: `reigh-worker/Wan2GP/shared/api.py`
-- Current Worker bridge: `reigh-worker/source/runtime/wgp_bridge.py`
-- Current direct seam inventory: `reigh-worker/source/models/wgp/orchestrator.py` and `source/task_handlers/tasks/task_execution.py`
-- Current pin/runbook: `reigh-worker/docs/wan2gp-rebase-runbook.md`
+- Current native API: `astrid-worker/Wan2GP/shared/api.py`
+- Current Worker bridge: `astrid-worker/source/runtime/wgp_bridge.py`
+- Current direct seam inventory: `astrid-worker/source/models/wgp/orchestrator.py` and `source/task_handlers/tasks/task_execution.py`
+- Current pin/runbook: `astrid-worker/docs/wan2gp-rebase-runbook.md`
 - Astrid pack contract: `Astrid/docs/packs/contract.md`
 - Pack authoring/disclosure: `Astrid/docs/packs/creating-packs.md`, `Astrid/docs/contracts/platform-contract.md`

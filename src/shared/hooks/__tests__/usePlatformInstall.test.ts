@@ -269,7 +269,7 @@ describe('usePlatformInstall', () => {
     expect(result.current.isWaitingForPrompt).toBe(true);
   });
 
-  it('shows "Open Reigh App" when prompt timed out on Chrome desktop', () => {
+  it('shows "Open Astrid App" when prompt timed out on Chrome desktop', () => {
     setUA('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36');
 
     const { result } = renderHook(() => usePlatformInstall());
@@ -279,7 +279,7 @@ describe('usePlatformInstall', () => {
     });
 
     expect(result.current.isAppInstalled).toBe(true);
-    expect(result.current.ctaText).toBe('Open Reigh App');
+    expect(result.current.ctaText).toBe('Open Astrid App');
     expect(result.current.ctaIcon).toBe('external');
   });
 });

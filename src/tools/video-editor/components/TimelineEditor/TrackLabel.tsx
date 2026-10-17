@@ -25,7 +25,7 @@ import {
   type TimelineDeviceClass,
 } from '@/tools/video-editor/lib/mobile-interaction-model.ts';
 import type { TrackBlendMode, TrackDefinition, TrackFit } from '@/tools/video-editor/types/index.ts';
-import type { TargetContextPayload } from '@reigh/editor-sdk';
+import type { TargetContextPayload } from '@astrid/editor-sdk';
 
 interface TrackLabelProps {
   id: string;

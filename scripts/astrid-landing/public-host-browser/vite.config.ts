@@ -18,7 +18,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.join(appRoot, 'src'),
-      '@reigh/editor-sdk': path.join(appRoot, 'src/sdk/index.ts'),
+      '@astrid/editor-sdk': path.join(appRoot, 'src/sdk/index.ts'),
       '@astrid-public': publicRoot,
       react: path.join(appRoot, 'node_modules/react'),
       'react-dom': path.join(appRoot, 'node_modules/react-dom'),

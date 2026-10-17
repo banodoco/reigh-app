@@ -8,7 +8,7 @@ import type {
   ShaderSourceDescriptor,
   ShaderTextureSchema,
   ShaderUniformSchema,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import type { ContributionRenderability } from '@/tools/video-editor/runtime/renderability.ts';
 
 export type ShaderEffectRegistryProvenance =

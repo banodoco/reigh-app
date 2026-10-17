@@ -1,6 +1,6 @@
 # Local Workspace Runtime Plan Set
 
-This folder is the canonical execution plan for replacing Astrid and REIGH's legacy local authorities with one neutral SQLite/CAS workspace runtime.
+This folder is the canonical execution plan for replacing Astrid and Astrid App's legacy local authorities with one neutral SQLite/CAS workspace runtime.
 
 > **Concurrency-first subagent execution:** stage and tranche numbers describe dependency and acceptance order, not an instruction to execute every task serially. As soon as a contract or fixture is stable enough to consume, independent work should fan out into separate subagent threads and worktrees. Serial execution is the exception and must name a concrete dependency, shared-state hazard, or integration gate. Parallel subagents use isolated realms, SQLite/CAS roots, ports, credentials, processes, fixtures, and evidence directories.
 
@@ -10,20 +10,20 @@ The execution workforce is **entirely subagents**. One root/coordinator agent ow
 
 The current-machine beta is developed and run from editable source checkouts. Astrid's packs and skills remain first-class, user-editable source systems; packaging, installers, and a dynamic pack marketplace are not prerequisites for the beta. Source code may be editable, but workspace authority remains strictly inside the neutral runtime's SQLite/CAS boundary.
 
-Stage 1 deliberately implements the smallest durable boundary: one current-Mac realm, one generic Astrid pack-executor host, typed worker settlement effects, minimal lease-bound resource reservations, and append-only CAS. REIGH-specific domain expansion moves to Stage 2; verified garbage collection, broader platform/lifecycle matrices, and advanced resource scheduling move to Stage 3 or later.
+Stage 1 deliberately implements the smallest durable boundary: one current-Mac realm, one generic Astrid pack-executor host, typed worker settlement effects, minimal lease-bound resource reservations, and append-only CAS. ASTRID-specific domain expansion moves to Stage 2; verified garbage collection, broader platform/lifecycle matrices, and advanced resource scheduling move to Stage 3 or later.
 
 ## Current planning state (2026-09-09)
 
-The plan set is a roadmap, not an implementation claim. Phase-C Reigh/Astrid bridge work and selected producer cutovers already exist in the source tree, but the Stage 1 and Stage 2 acceptance gates are not thereby complete. The remaining work is tracked as an audit-backed next-stage sequence in [2026-09-09 next-stage execution](./05-next-stage-execution-20260909.md).
+The plan set is a roadmap, not an implementation claim. Phase-C Astrid/Astrid bridge work and selected producer cutovers already exist in the source tree, but the Stage 1 and Stage 2 acceptance gates are not thereby complete. The remaining work is tracked as an audit-backed next-stage sequence in [2026-09-09 next-stage execution](./05-next-stage-execution-20260909.md).
 
-The accepted GPU direction is bounded and unchanged in authority: the Banodoco runtime owns tasks, leases, events, outputs, and settlement; Astrid's `GenericPackHost` is the sole claimant/settler; and the Reigh Worker codebase supplies GPU process/environment/telemetry substrate only. Wan2GP and VibeComfy remain engine libraries behind Astrid's typed pack adapters. This is a local producer proof, not a hosted GPU fleet or RunPod product.
+The accepted GPU direction is bounded and unchanged in authority: the Astrid Runtime owns tasks, leases, events, outputs, and settlement; Astrid's `GenericPackHost` is the sole claimant/settler; and the Astrid App Worker codebase supplies GPU process/environment/telemetry substrate only. Wan2GP and VibeComfy remain engine libraries behind Astrid's typed pack adapters. This is a local producer proof, not a hosted GPU fleet or RunPod product.
 
 Read in this order:
 
 1. [Long-term product and architecture vision](./vision.md)
 2. [Overall strategy and roadmap](./00-overall-strategy.md)
 3. [Stage 1 — Astrid beta](./01-astrid-beta.md)
-4. [Stage 2 — REIGH next](./02-reigh-plan.md)
+4. [Stage 2 — Astrid App next](./02-astrid-plan.md)
 5. [Stage 3 — hardening](./03-hardening.md)
 6. [Next-stage execution supplement (2026-09-09)](./05-next-stage-execution-20260909.md)
 

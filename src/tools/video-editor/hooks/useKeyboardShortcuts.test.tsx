@@ -13,9 +13,9 @@ import {
   createCommandRegistry,
   type CommandRegistry,
 } from '@/tools/video-editor/runtime/commandRegistry.ts';
-import type { ReighExtension } from '@reigh/editor-sdk';
+import type { AstridExtension } from '@astrid/editor-sdk';
 
-function makeExtension(id = 'shortcut.ext'): ReighExtension {
+function makeExtension(id = 'shortcut.ext'): AstridExtension {
   return {
     manifest: {
       id,
@@ -23,7 +23,7 @@ function makeExtension(id = 'shortcut.ext'): ReighExtension {
       label: 'Shortcut Extension',
       contributes: [],
     },
-  } as ReighExtension;
+  } as AstridExtension;
 }
 
 function makeOptions(overrides: Partial<Parameters<typeof useKeyboardShortcuts>[0]> = {}) {
@@ -54,7 +54,7 @@ function mountShortcuts({
   options = makeOptions(),
 }: {
   registry?: CommandRegistry;
-  extensions?: readonly ReighExtension[];
+  extensions?: readonly AstridExtension[];
   options?: Parameters<typeof useKeyboardShortcuts>[0];
 }) {
   const runtime = {

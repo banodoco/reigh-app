@@ -16,8 +16,8 @@
  */
 
 import type { StandardSchema, StandardSchemaProperty } from '@/tools/video-editor/components/SchemaForm/SchemaForm';
-import type { ExtensionManifest } from '@reigh/editor-sdk';
-import type { ExtensionDiagnostic } from '@reigh/editor-sdk';
+import type { ExtensionManifest } from '@astrid/editor-sdk';
+import type { ExtensionDiagnostic } from '@astrid/editor-sdk';
 
 // ---------------------------------------------------------------------------
 // Result type

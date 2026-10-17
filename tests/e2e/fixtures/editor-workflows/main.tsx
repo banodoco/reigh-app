@@ -117,7 +117,7 @@ function Editor({ name }: { name: string }) {
   const registry = useAgentChatRegistry(); const timelineId = `workflow-${name}`;
   const [owner] = useState(() => Symbol(name));
   const services = useMemo<VideoEditorScopedServices>(() => ({
-    contract: 'reigh.video-editor.scoped-services.v1', scope: { instanceId: name, projectId: 'demo-project', projectSlug: 'demo-project', timelineId },
+    contract: 'astrid.video-editor.scoped-services.v1', scope: { instanceId: name, projectId: 'demo-project', projectSlug: 'demo-project', timelineId },
     shots: { shots: [], isLoading: false, error: null, refetchShots() {}, finalVideoMap: new Map(), dismissFinalVideo() {} },
     mediaLightbox: { Lightbox: () => null, loadGenerationForLightbox: async id => id === 'generation-gallery' ? { id, generation_id: id, location: galleryUrl, type: 'image', media_id: galleryMediaId } : null },
     agentChat: { registerTimeline: (value) => registry.register({ timelineId: value.timelineId, editorContext: { ...value, tool: 'video-editor', projectSlug: value.projectSlug ?? null, timelineName: name } }, owner), unregisterTimeline: () => registry.unregister(owner), activateTimeline: () => registry.activate(owner) },

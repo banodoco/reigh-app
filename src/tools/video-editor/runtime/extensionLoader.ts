@@ -7,19 +7,19 @@
  * owning global state.
  *
  * The loader feeds the existing provider-scoped ExtensionLifecycleHost pipeline
- * (SD1): it validates/enriches ReighExtension[] before feeding it to the
+ * (SD1): it validates/enriches AstridExtension[] before feeding it to the
  * existing lifecycle host's synchronize() method.
  */
 
 import type {
-  ReighExtension,
+  AstridExtension,
   ExtensionManifest,
   ExtensionDiagnostic,
   InstalledExtensionPackage,
   ExtensionDependency,
   DependencyPosture,
-} from '@reigh/editor-sdk';
-import { defineExtension } from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
+import { defineExtension } from '@astrid/editor-sdk';
 import type {
   ExtensionPackRecord,
   ExtensionStateRepository,
@@ -529,7 +529,7 @@ export function resolveDependencies(
  */
 export interface DirectExtensionInput {
   readonly kind: 'direct';
-  readonly extension: ReighExtension;
+  readonly extension: AstridExtension;
 }
 
 /**
@@ -618,8 +618,8 @@ export interface PackageMetadata {
 export interface ExtensionLoadEntry {
   /** The extension ID. */
   readonly extensionId: string;
-  /** The loaded ReighExtension (null on failure). */
-  readonly extension: ReighExtension | null;
+  /** The loaded AstridExtension (null on failure). */
+  readonly extension: AstridExtension | null;
   /** True if loading succeeded. */
   readonly loaded: boolean;
   /** Errors encountered during loading. */
@@ -654,7 +654,7 @@ export interface ExtensionLoadEntry {
 /** Aggregate load result. */
 export interface ExtensionLoaderLoadResult {
   /** Successfully loaded extensions in input order. */
-  readonly loadedExtensions: readonly ReighExtension[];
+  readonly loadedExtensions: readonly AstridExtension[];
   /** Per-extension load entries (includes non-activated packages). */
   readonly entries: readonly ExtensionLoadEntry[];
   /** True when every extension loaded successfully. */
@@ -756,7 +756,7 @@ export interface ConflictResolutionConfig {
  *
  * Does NOT own global state. Instantiated per-use with an optional
  * repository for persisting lifecycle events.  The caller retains
- * ownership of the returned ReighExtension[] and feeds it into the
+ * ownership of the returned AstridExtension[] and feeds it into the
  * existing ExtensionLifecycleHost pipeline.
  */
 export interface ExtensionLoader {
@@ -775,16 +775,16 @@ export interface ExtensionLoader {
   validate(inputs: readonly ExtensionLoaderInput[]): ExtensionLoaderValidationResult;
 
   /**
-   * Load validated packages into ReighExtension[].
+   * Load validated packages into AstridExtension[].
    *
    * Performs dependency resolution before loading: required dependencies that
    * are missing, have version mismatches, or form cycles block activation.
    * Optional dependencies that are missing or have version mismatches allow
    * degraded activation with contribution-scoped diagnostics.
    *
-   * For workspace-source packages, the original ReighExtension is returned
+   * For workspace-source packages, the original AstridExtension is returned
    * as-is.  For installed-bundle packages, bundleContent integrity is
-   * verified against the pack record, and a synthetic ReighExtension is
+   * verified against the pack record, and a synthetic AstridExtension is
    * created from the manifest snapshot (no activate function — installed
    * bundles use module evaluation for their activate export).
    *
@@ -1207,7 +1207,7 @@ export function createExtensionLoader(
    */
   function makeActivatedEntry(
     extensionId: string,
-    extension: ReighExtension,
+    extension: AstridExtension,
     state: PackageState,
     reason: string,
     metadata: PackageMetadata | null,
@@ -1253,7 +1253,7 @@ export function createExtensionLoader(
   ): Promise<ExtensionLoaderLoadResult> {
     ensureNotDisposed();
     const entries: ExtensionLoadEntry[] = [];
-    const loadedExtensions: ReighExtension[] = [];
+    const loadedExtensions: AstridExtension[] = [];
     let allLoaded = true;
 
     // ---- Dependency resolution ----
@@ -1362,7 +1362,7 @@ export function createExtensionLoader(
         const wsPkg = pkg as WorkspaceSourcePackage;
         const lifecycleEvents: ExtensionLifecycleEvent[] = [];
 
-        // Synthesize a basic ReighExtension from the manifest.
+        // Synthesize a basic AstridExtension from the manifest.
         const syntheticExt = defineExtension({ manifest: wsPkg.manifest });
 
         const loadEvent = createLifecycleEvent(
@@ -1485,7 +1485,7 @@ export function createExtensionLoader(
         }
 
         if (errors.length === 0) {
-          // Create synthetic ReighExtension from manifest snapshot.
+          // Create synthetic AstridExtension from manifest snapshot.
           const syntheticExt = defineExtension({ manifest: ibPkg.pack.manifest });
 
           const loadEvent = createLifecycleEvent(

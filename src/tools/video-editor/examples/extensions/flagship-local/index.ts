@@ -1,7 +1,7 @@
 /**
  * flagship-local-extension — Flagship trusted-local extension example.
  *
- * Demonstrates the full M1 SDK surface using only the public @reigh/editor-sdk
+ * Demonstrates the full M1 SDK surface using only the public @astrid/editor-sdk
  * entrypoint:
  *
  *   - Activation / deactivation lifecycle with diagnostics
@@ -18,14 +18,14 @@
  *     in the manifest for forward-compatibility testing
  *
  * This file must NOT import from editor internals (src/tools/video-editor/*).
- * It imports exclusively from @reigh/editor-sdk, the public SDK entrypoint.
+ * It imports exclusively from @astrid/editor-sdk, the public SDK entrypoint.
  *
  * @publicContract
  */
 
-import { defineExtension } from '@reigh/editor-sdk';
+import { defineExtension } from '@astrid/editor-sdk';
 import type {
-  ReighExtension,
+  AstridExtension,
   ExtensionManifestContribution,
   ExtensionContext,
   DisposeHandle,
@@ -37,7 +37,7 @@ import type {
   TransitionContribution,
   TransitionParameterSchema,
   TransitionRegistrationOptions,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 
 import { FlagshipEffectComponent } from './FlagshipEffectComponent';
 
@@ -64,7 +64,7 @@ const flagshipEffectRegistration: EffectComponent = (...args: unknown[]): unknow
   });
 };
 
-const FLAGSHIP_EXTENSION_ID = 'com.reigh.examples.flagship-local';
+const FLAGSHIP_EXTENSION_ID = 'haus.astrid.examples.flagship-local';
 const FLAGSHIP_MARK_REVIEW_COMMAND =
   `${FLAGSHIP_EXTENSION_ID}.markClipReview`;
 
@@ -277,7 +277,7 @@ const commandContributions: readonly ExtensionManifestContribution[] = [
 // Extension definition
 // ---------------------------------------------------------------------------
 
-export const flagshipLocalExtension: ReighExtension = defineExtension({
+export const flagshipLocalExtension: AstridExtension = defineExtension({
   manifest: {
     id: FLAGSHIP_EXTENSION_ID as any,
     version: '1.0.0',
@@ -309,7 +309,7 @@ export const flagshipLocalExtension: ReighExtension = defineExtension({
         id: 'flagship-effect-glow' as any,
         kind: 'effect',
         label: 'Flagship Glow',
-        effectId: 'com.reigh.flagship.effect.glow',
+        effectId: 'haus.astrid.flagship.effect.glow',
         // Preview-only: browser and worker export are blocked until a
         // future milestone lifts the restriction (SD2).
         allowBrowserExport: false,
@@ -322,7 +322,7 @@ export const flagshipLocalExtension: ReighExtension = defineExtension({
         id: 'flagship-transition-wipe' as any,
         kind: 'transition',
         label: 'Flagship Wipe',
-        transitionId: 'com.reigh.flagship.transition.wipe',
+        transitionId: 'haus.astrid.flagship.transition.wipe',
         allowBrowserExport: false,
         allowWorkerExport: false,
         order: 10,
@@ -340,13 +340,13 @@ export const flagshipLocalExtension: ReighExtension = defineExtension({
         id: 'flagship-effect-second-future' as any,
         kind: 'effect',
         label: 'Flagship custom effect (reserved for M3)',
-        effectId: 'com.reigh.flagship.effect.second',
+        effectId: 'haus.astrid.flagship.effect.second',
       },
       {
         id: 'flagship-cliptype-future' as any,
         kind: 'clipType',
         label: 'Flagship custom clip type (reserved for M3)',
-        clipTypeId: 'com.reigh.flagship.cliptype.annotation',
+        clipTypeId: 'haus.astrid.flagship.cliptype.annotation',
       },
       {
         id: 'flagship-parser-future' as any,
@@ -456,7 +456,7 @@ export const flagshipLocalExtension: ReighExtension = defineExtension({
 
     // --- M7: Trusted component-effect registration ----------------------
     const effectHandle = ctx.effects.registerComponent(
-      'com.reigh.flagship.effect.glow',
+      'haus.astrid.flagship.effect.glow',
       flagshipEffectRegistration,
       {
         label: 'Flagship Glow',
@@ -472,7 +472,7 @@ export const flagshipLocalExtension: ReighExtension = defineExtension({
 
     // --- M8: Trusted component-transition registration ------------------
     const transitionHandle = ctx.transitions.registerRenderer(
-      'com.reigh.flagship.transition.wipe',
+      'haus.astrid.flagship.transition.wipe',
       flagshipWipeRenderer,
       {
         label: 'Flagship Wipe',

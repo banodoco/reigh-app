@@ -8,8 +8,8 @@ import {
   ASTRID_BRIDGE_PROTOCOL_VERSION,
 } from '@/tools/video-editor/data/astridBridgeWire.ts';
 
-export const RUNAWAY_SCHEMA_REF = 'reigh.runaway_transition/v1';
-export const RUNAWAY_KIND_ID = 'reigh.runaway.transitions';
+export const RUNAWAY_SCHEMA_REF = 'astrid.runaway_transition/v1';
+export const RUNAWAY_KIND_ID = 'astrid.runaway.transitions';
 export const RUNAWAY_PROJECT_PARAM = 'runawayTimelineProject';
 export const DEFAULT_RUNAWAY_PROJECT = 'runaway-piano-colour-demo';
 export const RUNAWAY_SOURCE_ARTIFACT_PREFIX = 'astrid:runaway-timing:';

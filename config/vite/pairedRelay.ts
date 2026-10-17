@@ -14,8 +14,8 @@ import { PairingError, PairingRegistry } from './pairedRegistry';
 import { objectCacheControl } from './objectCachePolicy.mjs';
 
 const CONNECTOR_PATH = '/api/pairing/connector';
-const SESSION_COOKIE = '__Host-reigh_pair';
-const LOOPBACK_SESSION_COOKIE = 'reigh_pair';
+const SESSION_COOKIE = '__Host-astrid_pair';
+const LOOPBACK_SESSION_COOKIE = 'astrid_pair';
 const CHUNK_BYTES = 40 * 1024;
 
 export interface PairedRelayConfig {
@@ -27,16 +27,16 @@ export interface PairedRelayConfig {
 }
 
 export function resolvePairedRelayConfig(env: Readonly<Record<string, string | undefined>>): PairedRelayConfig | null {
-  const raw = env.REIGH_PAIRED_RELAY_ORIGIN?.trim();
+  const raw = env.ASTRID_APP_PAIRED_RELAY_ORIGIN?.trim();
   if (!raw) return null;
   let parsed: URL;
-  try { parsed = new URL(raw); } catch { throw new Error('REIGH_PAIRED_RELAY_ORIGIN must be an absolute URL'); }
-  const loopbackTest = env.REIGH_PAIRED_RELAY_LOOPBACK_TEST === '1';
+  try { parsed = new URL(raw); } catch { throw new Error('ASTRID_APP_PAIRED_RELAY_ORIGIN must be an absolute URL'); }
+  const loopbackTest = env.ASTRID_APP_PAIRED_RELAY_LOOPBACK_TEST === '1';
   const loopback = ['127.0.0.1', 'localhost', '[::1]'].includes(parsed.hostname);
   if (!loopbackTest && parsed.protocol !== 'https:') throw new Error('paired relay origin must use HTTPS outside loopback test mode');
   if (loopbackTest && (!loopback || !['http:', 'https:'].includes(parsed.protocol))) throw new Error('loopback paired relay tests require a loopback HTTP(S) origin');
   if (!parsed.pathname || parsed.pathname !== '/') throw new Error('paired relay origin must not include a path');
-  return Object.freeze({ origin: parsed.origin, loopbackTest, enabled: env.REIGH_PAIRED_RELAY_ENABLED !== '0' });
+  return Object.freeze({ origin: parsed.origin, loopbackTest, enabled: env.ASTRID_APP_PAIRED_RELAY_ENABLED !== '0' });
 }
 
 function json(response: ServerResponse, status: number, body: Record<string, unknown>): void {
@@ -334,7 +334,7 @@ export function createPairedRelayPlugin(config: PairedRelayConfig | null): Plugi
     server.middlewares.use(relay.handler());
     if (server.httpServer) relay.installUpgrade(server.httpServer);
   };
-  return { name: 'reigh-paired-relay', configureServer: register, configurePreviewServer: register };
+  return { name: 'astrid-paired-relay', configureServer: register, configurePreviewServer: register };
 }
 
 export { CONNECTOR_PATH, SESSION_COOKIE };

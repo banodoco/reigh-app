@@ -119,8 +119,8 @@
   animation: shimmer 3s linear infinite;
 }
 
-.animate-reigh-color-cycle {
-  animation: reighColorCycle 20s ease-in-out infinite;
+.animate-astrid-color-cycle {
+  animation: astridColorCycle 20s ease-in-out infinite;
 }
 
 .animate-pulse-glow {

@@ -25,7 +25,7 @@ for (const section of ['dependencies', 'devDependencies', 'optionalDependencies'
     if (!absolute.startsWith(repoRoot + '/') && absolute !== repoRoot) {
       errors.push(
         `package.json ${section}["${name}"] = "${spec}" resolves to ${absolute}, ` +
-        `which is outside the repo. Vendor it under reigh-app/vendor/ instead — ` +
+        `which is outside the repo. Vendor it under astrid-app/vendor/ instead — ` +
         `Railway's build context is the repo root and cannot reach sibling dirs.`,
       );
       continue;

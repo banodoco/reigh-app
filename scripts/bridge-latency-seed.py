@@ -2,7 +2,7 @@
 """Seed a disposable N-event timeline fixture for the bridge latency reporter.
 
 Creates a throwaway project + timeline under a *temp* projects root (never the
-real ``Astrid/projects`` tree) and appends ``events`` realistic Reigh save
+real ``Astrid/projects`` tree) and appends ``events`` realistic Astrid App save
 events — config_replaced + asset_registry_replaced pairs with an advancing
 ``expected_version`` (CAS), exactly the shape the editor's save loop produces —
 via the Astrid ``LocalFsBackend``. Prints one JSON line with the fixture
@@ -43,11 +43,11 @@ def main() -> int:
 
     try:
         from astrid.core.foundation.project_paths import validate_project_slug
-        from astrid.core.integrations.reigh.local_bridge import REIGH_LOCAL_EDITOR_ACTOR
+        from astrid.core.integrations.astrid.local_bridge import ASTRID_APP_LOCAL_EDITOR_ACTOR
         from astrid.core.threads.ids import generate_ulid
         from astrid.core.timeline.banodoco_schema import canonical_empty_timeline
         from astrid.core.timeline.eventlog import LocalFsBackend
-        from astrid.core.timeline.eventlog.reigh_events import construct_reigh_timeline_events
+        from astrid.core.timeline.eventlog.astrid_events import construct_astrid_timeline_events
         from astrid.core.util.time import utc_now_iso
     except ImportError as exc:  # pragma: no cover - environment hint
         print(
@@ -112,11 +112,11 @@ def main() -> int:
     tail_hash = None
     pair_count = args.events // 2
     for index in range(pair_count):
-        batch = construct_reigh_timeline_events(
+        batch = construct_astrid_timeline_events(
             timeline_id=timeline_id,
             tail_hash=tail_hash,
             next_event_version=2 * index + 1,
-            actor=REIGH_LOCAL_EDITOR_ACTOR,
+            actor=ASTRID_APP_LOCAL_EDITOR_ACTOR,
             source="editor_save",
             config=config,
             asset_registry=registry,

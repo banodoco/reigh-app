@@ -7,8 +7,8 @@ import { useEffect } from 'react';
 import type { FC, ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
-import { defineExtension } from '@reigh/editor-sdk';
-import type { ReighExtension, ExtensionContext, DisposeHandle, ProjectObjectMetadata, ProjectObjectStorage, TimelineOps } from '@reigh/editor-sdk';
+import { defineExtension } from '@astrid/editor-sdk';
+import type { AstridExtension, ExtensionContext, DisposeHandle, ProjectObjectMetadata, ProjectObjectStorage, TimelineOps } from '@astrid/editor-sdk';
 import { LIVE_SCENE_CLIP_TYPE_ID, LIVE_SCENE_EXTENSION_ID, LIVE_SCENE_IMPORT_COMMAND_ID, liveSceneExtension } from '@astrid/packs/rendering/ui/live-scenes/extension';
 import { commandExtension } from '@/examples/command-extension';
 import { flagshipLocalExtension } from '@/tools/video-editor/examples/extensions/flagship-local/index';
@@ -797,7 +797,7 @@ describe('VideoEditorProvider', () => {
 
   it('supplies real scoped ports and routed agent/save behavior to the public runtime assembly', async () => {
     const services: VideoEditorScopedServices = {
-      contract: 'reigh.video-editor.scoped-services.v1',
+      contract: 'astrid.video-editor.scoped-services.v1',
       scope: { instanceId: 'editor-dialog', projectId: 'scoped-project', projectSlug: 'scoped-slug', timelineId: 'scoped-timeline' },
       shots: { shots: [], isLoading: false, error: null, refetchShots: vi.fn(), finalVideoMap: new Map(), dismissFinalVideo: vi.fn(), canonicalThumbnailUrls: new Map([['occurrence-1', 'thumbnail.png']]) },
       mediaLightbox: { Lightbox: () => null, loadGenerationForLightbox: vi.fn(async () => null) },
@@ -922,7 +922,7 @@ describe('VideoEditorProvider', () => {
     const toastError = vi.fn();
     const provider: DataProvider = { loadTimeline: vi.fn(), saveTimeline: vi.fn(), loadAssetRegistry: vi.fn(), resolveAssetUrl: vi.fn() };
     const services = (name: string, load: typeof fullLoad | typeof dialogLoad): VideoEditorScopedServices => ({
-      contract: 'reigh.video-editor.scoped-services.v1', scope: { instanceId: name, projectId: 'same-project', timelineId: name },
+      contract: 'astrid.video-editor.scoped-services.v1', scope: { instanceId: name, projectId: 'same-project', timelineId: name },
       shots: { shots: [], isLoading: false, error: null, refetchShots: vi.fn(), finalVideoMap: new Map(), dismissFinalVideo: vi.fn() },
       mediaLightbox: { Lightbox: () => null, loadGenerationForLightbox: load },
       agentChat: { registerTimeline: vi.fn(), unregisterTimeline: vi.fn() },
@@ -991,7 +991,7 @@ describe('VideoEditorProvider', () => {
       return null;
     }
 
-    const renderProvider = (extensions: readonly ReighExtension[]) => (
+    const renderProvider = (extensions: readonly AstridExtension[]) => (
       <MemoryRouter>
         <QueryClientProvider client={queryClient}>
           <AgentChatProvider>
@@ -1028,11 +1028,11 @@ describe('VideoEditorProvider', () => {
         capturedTimelineVersion: 1,
       };
       const requestBlock = (request: Record<string, unknown>) =>
-        `<reigh_live_scene_request>${JSON.stringify(request)}</reigh_live_scene_request>`;
+        `<astrid_live_scene_request>${JSON.stringify(request)}</astrid_live_scene_request>`;
       let followupCount = 0;
       let readCapture: Record<string, unknown> | null = null;
       const followup = vi.fn(async (prompt: string) => {
-        const serialized = prompt.match(/<reigh_live_scene_result>([\s\S]*?)<\/reigh_live_scene_result>/)?.[1];
+        const serialized = prompt.match(/<astrid_live_scene_result>([\s\S]*?)<\/astrid_live_scene_result>/)?.[1];
         expect(serialized).toBeDefined();
         const feedback = JSON.parse(serialized!) as {
           results: Array<{ ok: boolean; result?: { kind: string; capture?: Record<string, unknown> } }>;
@@ -1043,7 +1043,7 @@ describe('VideoEditorProvider', () => {
           readCapture = feedback.results[0].result?.capture ?? null;
           expect(readCapture).toBeTruthy();
           return requestBlock({
-            schema: 'reigh.live-scene-request/v1',
+            schema: 'astrid.live-scene-request/v1',
             requestId: 'provider-publish',
             scope,
             placementIds: ['scene-placement'],
@@ -1060,7 +1060,7 @@ describe('VideoEditorProvider', () => {
       await act(async () => {
         output = await runLiveSceneAcpRoundtrip({
           content: requestBlock({
-            schema: 'reigh.live-scene-request/v1',
+            schema: 'astrid.live-scene-request/v1',
             requestId: 'provider-read',
             scope,
             placementIds: ['scene-placement'],
@@ -1123,7 +1123,7 @@ describe('VideoEditorProvider', () => {
       });
       const removedExtensionOutput = await runLiveSceneAcpRoundtrip({
         content: requestBlock({
-          schema: 'reigh.live-scene-request/v1',
+          schema: 'astrid.live-scene-request/v1',
           requestId: 'after-extension-removal',
           scope,
           placementIds: ['scene-placement'],
@@ -1185,7 +1185,7 @@ describe('VideoEditorProvider', () => {
         expect(secondPort).not.toBe(firstPort);
         const oldProviderOutput = await runLiveSceneAcpRoundtrip({
           content: requestBlock({
-            schema: 'reigh.live-scene-request/v1',
+            schema: 'astrid.live-scene-request/v1',
             requestId: 'old-provider-after-replacement',
             scope,
             placementIds: ['scene-placement'],
@@ -1208,7 +1208,7 @@ describe('VideoEditorProvider', () => {
         };
         const secondOutput = await runLiveSceneAcpRoundtrip({
           content: requestBlock({
-            schema: 'reigh.live-scene-request/v1',
+            schema: 'astrid.live-scene-request/v1',
             requestId: 'second-provider-read',
             scope: secondScope,
             placementIds: ['scene-placement'],
@@ -1220,7 +1220,7 @@ describe('VideoEditorProvider', () => {
           port: secondPort,
           signal: new AbortController().signal,
           followup: async (prompt) => {
-            const serialized = prompt.match(/<reigh_live_scene_result>([\s\S]*?)<\/reigh_live_scene_result>/)?.[1];
+            const serialized = prompt.match(/<astrid_live_scene_result>([\s\S]*?)<\/astrid_live_scene_result>/)?.[1];
             expect(JSON.parse(serialized!).results[0]).toMatchObject({ ok: true, result: { kind: 'read' } });
             return 'second provider read acknowledged';
           },
@@ -1249,7 +1249,7 @@ describe('VideoEditorProvider', () => {
     const dispose = vi.fn();
     const extension = defineExtension({
       manifest: {
-        id: 'com.reigh.observability-fixture' as never,
+        id: 'haus.astrid.observability-fixture' as never,
         version: '1.0.0',
         apiVersion: 1,
         label: 'Observability fixture',
@@ -1258,14 +1258,14 @@ describe('VideoEditorProvider', () => {
     });
     const replacement = defineExtension({
       manifest: {
-        id: 'com.reigh.observability-fixture' as never,
+        id: 'haus.astrid.observability-fixture' as never,
         version: '2.0.0',
         apiVersion: 1,
         label: 'Observability fixture replacement',
       },
       activate: () => ({ dispose: vi.fn() }),
     });
-    const renderTree = (enabled: boolean, extensions: readonly ReighExtension[]) => (
+    const renderTree = (enabled: boolean, extensions: readonly AstridExtension[]) => (
       <MemoryRouter>
         <QueryClientProvider client={queryClient}>
           <AgentChatProvider>
@@ -1298,7 +1298,7 @@ describe('VideoEditorProvider', () => {
       }));
       expect(sink).toHaveBeenCalledWith(expect.objectContaining({
         event: 'extension.activation',
-        extensionId: 'com.reigh.observability-fixture',
+        extensionId: 'haus.astrid.observability-fixture',
         extensionVersion: '1.0.0',
       }));
     });
@@ -1309,12 +1309,12 @@ describe('VideoEditorProvider', () => {
     await waitFor(() => {
       expect(sink).toHaveBeenCalledWith(expect.objectContaining({
         event: 'extension.disposal',
-        extensionId: 'com.reigh.observability-fixture',
+        extensionId: 'haus.astrid.observability-fixture',
         extensionVersion: '1.0.0',
       }));
       expect(sink).toHaveBeenCalledWith(expect.objectContaining({
         event: 'extension.activation',
-        extensionId: 'com.reigh.observability-fixture',
+        extensionId: 'haus.astrid.observability-fixture',
         extensionVersion: '2.0.0',
       }));
     });
@@ -1323,7 +1323,7 @@ describe('VideoEditorProvider', () => {
     await waitFor(() => {
       expect(sink).toHaveBeenCalledWith(expect.objectContaining({
         event: 'extension.disposal',
-        extensionId: 'com.reigh.observability-fixture',
+        extensionId: 'haus.astrid.observability-fixture',
         extensionVersion: '2.0.0',
       }));
     });
@@ -1331,17 +1331,17 @@ describe('VideoEditorProvider', () => {
     await waitFor(() => {
       expect(sink.mock.calls.filter(([event]) => (
         event.event === 'extension.activation'
-        && event.extensionId === 'com.reigh.observability-fixture'
+        && event.extensionId === 'haus.astrid.observability-fixture'
       ))).toHaveLength(2);
     });
     const disposalsBeforeUnmount = sink.mock.calls.filter(([event]) => (
       event.event === 'extension.disposal'
-      && event.extensionId === 'com.reigh.observability-fixture'
+      && event.extensionId === 'haus.astrid.observability-fixture'
     )).length;
     view.unmount();
     expect(sink.mock.calls.filter(([event]) => (
       event.event === 'extension.disposal'
-      && event.extensionId === 'com.reigh.observability-fixture'
+      && event.extensionId === 'haus.astrid.observability-fixture'
     ))).toHaveLength(disposalsBeforeUnmount + 1);
     expect(sink).not.toHaveBeenCalledWith(expect.objectContaining({ extensionId: 'host' }));
   });
@@ -1708,7 +1708,7 @@ describe('VideoEditorProvider', () => {
       timelineId: 'timeline-command-manifest-replacement',
       userId: 'user-command-manifest-replacement',
     };
-    const tree = (extension: ReighExtension) => (
+    const tree = (extension: AstridExtension) => (
       <MemoryRouter>
         <QueryClientProvider client={queryClient}>
           <AgentChatProvider>
@@ -1764,7 +1764,7 @@ describe('VideoEditorProvider', () => {
     let latestCommandIds: readonly string[] = [];
     let latestEffectIds: readonly string[] = [];
 
-    const extension: ReighExtension = defineExtension({
+    const extension: AstridExtension = defineExtension({
       manifest: {
         id: extensionId as never,
         version: '1.0.0',
@@ -1893,7 +1893,7 @@ describe('VideoEditorProvider', () => {
       expect(rendered).toBe(true);
     });
     // The command-extension manifest ID must match the known constant
-    expect(commandExtension.manifest.id).toBe('com.reigh.examples.command-extension');
+    expect(commandExtension.manifest.id).toBe('haus.astrid.examples.command-extension');
   });
 
   it('loads the M1 flagship-local example manifest through the extensions prop without crashing', async () => {
@@ -1935,7 +1935,7 @@ describe('VideoEditorProvider', () => {
       expect(rendered).toBe(true);
     });
     // The flagship manifest ID must match the known constant
-    expect(flagshipLocalExtension.manifest.id).toBe('com.reigh.examples.flagship-local');
+    expect(flagshipLocalExtension.manifest.id).toBe('haus.astrid.examples.flagship-local');
   });
 
   it('lifts save status changes through the provider boundary', () => {
@@ -2449,7 +2449,7 @@ describe('VideoEditorProvider', () => {
     // This test verifies the hook's fast-path: when repository is null,
     // direct extensions pass through unchanged.
     const extensionId = 'com.t14.direct-only';
-    const extension: ReighExtension = defineExtension({
+    const extension: AstridExtension = defineExtension({
       manifest: {
         id: extensionId as never,
         version: '1.0.0',
@@ -2494,7 +2494,7 @@ describe('VideoEditorProvider', () => {
   // T9: No-repository fast path synthesizes truthful loaded package inventory entries
   it('synthesizes loaded packageStateEntries for direct host-supplied extensions', () => {
     const extensionId = 'com.t9.direct-inventory';
-    const extension: ReighExtension = defineExtension({
+    const extension: AstridExtension = defineExtension({
       manifest: {
         id: extensionId as never,
         version: '2.0.0',
@@ -2560,7 +2560,7 @@ describe('VideoEditorProvider', () => {
 
   it('synthesizes packageStateEntries with null contributionSummary when no contributions declared', () => {
     const extensionId = 'com.t9.no-contribs';
-    const extension: ReighExtension = defineExtension({
+    const extension: AstridExtension = defineExtension({
       manifest: {
         id: extensionId as never,
         version: '1.0.0',
@@ -2589,14 +2589,14 @@ describe('VideoEditorProvider', () => {
 
   it('handles extension with non-string manifest id gracefully', () => {
     // Use a manually constructed extension to bypass defineExtension validation
-    const extension: ReighExtension = {
+    const extension: AstridExtension = {
       manifest: {
         id: 12345 as unknown as string,
         version: '1.0.0',
         label: 'T9 Missing Id',
       },
       activate: vi.fn(),
-    } as unknown as ReighExtension;
+    } as unknown as AstridExtension;
 
     const { result } = renderHook(() => useExtensionLoaderWiring({
       directExtensions: [extension],
@@ -2615,7 +2615,7 @@ describe('VideoEditorProvider', () => {
   });
 
   it('synthesizes entries for multiple direct extensions in input order', () => {
-    const extA: ReighExtension = defineExtension({
+    const extA: AstridExtension = defineExtension({
       manifest: {
         id: 'com.t9.multi-a' as never,
         version: '1.0.0',
@@ -2625,7 +2625,7 @@ describe('VideoEditorProvider', () => {
         ],
       },
     });
-    const extB: ReighExtension = defineExtension({
+    const extB: AstridExtension = defineExtension({
       manifest: {
         id: 'com.t9.multi-b' as never,
         version: '2.0.0',
@@ -2667,7 +2667,7 @@ describe('VideoEditorProvider', () => {
   });
 
   it('packageStateEntries are frozen (immutable)', () => {
-    const extension: ReighExtension = defineExtension({
+    const extension: AstridExtension = defineExtension({
       manifest: {
         id: 'com.t9.frozen' as never,
         version: '1.0.0',
@@ -2702,7 +2702,7 @@ describe('VideoEditorProvider', () => {
         contributions: [],
       },
       activate: vi.fn(),
-    } as unknown as ReighExtension;
+    } as unknown as AstridExtension;
 
     const { result } = renderHook(() => useExtensionLoaderWiring({
       directExtensions: [invalidExtension],
@@ -2796,7 +2796,7 @@ describe('VideoEditorProvider', () => {
 
   it('surfaces settings snapshot schema failures in packageStateEntries', async () => {
     const extensionId = 'com.t14.settings-error';
-    const extension: ReighExtension = defineExtension({
+    const extension: AstridExtension = defineExtension({
       manifest: {
         id: extensionId as never,
         version: '1.0.0',
@@ -2879,7 +2879,7 @@ describe('VideoEditorProvider', () => {
     const extensionId = 'com.t14.hook-to-prop';
     const commandId = `${extensionId}.testCmd`;
 
-    const extension: ReighExtension = defineExtension({
+    const extension: AstridExtension = defineExtension({
       manifest: {
         id: extensionId as never,
         version: '1.0.0',
@@ -3162,9 +3162,9 @@ describe('VideoEditorProvider', () => {
     for (const gestureOnlyHook of INTERNAL_GESTURE_TIMELINE_MUTATIONS) {
       expect(checklist).toContain(gestureOnlyHook);
     }
-    expect(allowlist).toContain('src/tools/video-editor/adapters/reigh/generationLookup.ts');
-    expect(allowlist).toContain('src/tools/video-editor/adapters/reigh/useReighEffectsCatalog.ts');
-    expect(allowlist).toContain('src/tools/video-editor/adapters/reigh/variantPromotionLookup.ts');
+    expect(allowlist).toContain('src/tools/video-editor/adapters/app/generationLookup.ts');
+    expect(allowlist).toContain('src/tools/video-editor/adapters/app/useAstridEffectsCatalog.ts');
+    expect(allowlist).toContain('src/tools/video-editor/adapters/app/variantPromotionLookup.ts');
   });
 
   // -------------------------------------------------------------------------
@@ -3203,7 +3203,7 @@ describe('VideoEditorProvider', () => {
           {
             id: 'vp.diagnostics.command' as never,
             kind: 'command',
-            command: 'reigh.reserved',
+            command: 'astrid.reserved',
             label: 'VP Reserved command',
           },
         ],
@@ -3635,7 +3635,7 @@ describe('VideoEditorProvider', () => {
 
     beforeEach(() => {
       // Clean up localStorage for the settings extension
-      const prefix = `reigh.ext.${SETTINGS_EXTENSION_ID}.`;
+      const prefix = `astrid.ext.${SETTINGS_EXTENSION_ID}.`;
       const keysToRemove: string[] = [];
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
@@ -3785,7 +3785,7 @@ describe('VideoEditorProvider', () => {
       // Verify the value was persisted to localStorage
       await waitFor(() => {
         const raw = localStorage.getItem(
-          `reigh.ext.${SETTINGS_EXTENSION_ID}.apiKey`,
+          `astrid.ext.${SETTINGS_EXTENSION_ID}.apiKey`,
         );
         expect(raw).toBe('"my-secret-key"');
       });
@@ -3863,7 +3863,7 @@ describe('VideoEditorProvider', () => {
       // returns false, so no localStorage write should have occurred
       await waitFor(() => {
         const raw = localStorage.getItem(
-          `reigh.ext.${SETTINGS_EXTENSION_ID}.apiKey`,
+          `astrid.ext.${SETTINGS_EXTENSION_ID}.apiKey`,
         );
         // Should still be null (no save occurred)
         expect(raw).toBeNull();
@@ -3934,7 +3934,7 @@ describe('VideoEditorProvider', () => {
 
       await waitFor(() => {
         const raw = localStorage.getItem(
-          `reigh.ext.${SETTINGS_EXTENSION_ID}.apiKey`,
+          `astrid.ext.${SETTINGS_EXTENSION_ID}.apiKey`,
         );
         expect(raw).toBe('"some-key"');
       });
@@ -3948,7 +3948,7 @@ describe('VideoEditorProvider', () => {
       // Verify localStorage key was cleared and form reverted to default (empty)
       await waitFor(() => {
         const raw = localStorage.getItem(
-          `reigh.ext.${SETTINGS_EXTENSION_ID}.apiKey`,
+          `astrid.ext.${SETTINGS_EXTENSION_ID}.apiKey`,
         );
         expect(raw).toBeNull();
       });
@@ -4017,7 +4017,7 @@ describe('VideoEditorProvider', () => {
 
       await waitFor(() => {
         const raw = localStorage.getItem(
-          `reigh.ext.${SETTINGS_EXTENSION_ID}.apiKey`,
+          `astrid.ext.${SETTINGS_EXTENSION_ID}.apiKey`,
         );
         expect(raw).toBe('"saved-key"');
       });
@@ -4038,7 +4038,7 @@ describe('VideoEditorProvider', () => {
 
       // localStorage should still have the saved value (not the unsaved change)
       const raw = localStorage.getItem(
-        `reigh.ext.${SETTINGS_EXTENSION_ID}.apiKey`,
+        `astrid.ext.${SETTINGS_EXTENSION_ID}.apiKey`,
       );
       expect(raw).toBe('"saved-key"');
     });
@@ -4067,11 +4067,11 @@ describe('VideoEditorProvider', () => {
 
       // Pre-populate localStorage for both extensions
       localStorage.setItem(
-        `reigh.ext.${SETTINGS_EXTENSION_ID}.apiKey`,
+        `astrid.ext.${SETTINGS_EXTENSION_ID}.apiKey`,
         '"settings-key-vp"',
       );
       localStorage.setItem(
-        `reigh.ext.${OTHER_EXTENSION_ID}.otherKey`,
+        `astrid.ext.${OTHER_EXTENSION_ID}.otherKey`,
         '"other-key-vp"',
       );
 
@@ -4123,10 +4123,10 @@ describe('VideoEditorProvider', () => {
 
       // Both extensions' settings should be in localStorage
       expect(
-        localStorage.getItem(`reigh.ext.${SETTINGS_EXTENSION_ID}.apiKey`),
+        localStorage.getItem(`astrid.ext.${SETTINGS_EXTENSION_ID}.apiKey`),
       ).toBe('"settings-key-vp"');
       expect(
-        localStorage.getItem(`reigh.ext.${OTHER_EXTENSION_ID}.otherKey`),
+        localStorage.getItem(`astrid.ext.${OTHER_EXTENSION_ID}.otherKey`),
       ).toBe('"other-key-vp"');
 
       // Disable the settings extension (remove from props)
@@ -4135,13 +4135,13 @@ describe('VideoEditorProvider', () => {
       await waitFor(() => {
         // Targeted extension's settings localStorage must be cleared
         expect(
-          localStorage.getItem(`reigh.ext.${SETTINGS_EXTENSION_ID}.apiKey`),
+          localStorage.getItem(`astrid.ext.${SETTINGS_EXTENSION_ID}.apiKey`),
         ).toBeNull();
       });
 
       // Unrelated extension's settings localStorage must be preserved
       expect(
-        localStorage.getItem(`reigh.ext.${OTHER_EXTENSION_ID}.otherKey`),
+        localStorage.getItem(`astrid.ext.${OTHER_EXTENSION_ID}.otherKey`),
       ).toBe('"other-key-vp"');
 
       // Targeted extension's diagnostics must be cleared

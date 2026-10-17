@@ -122,7 +122,7 @@ export function projectElementAuthoring(projectId: string) {
 }
 if (import.meta.hot) import.meta.hot.on('astrid:elements-admitted', () => { void refreshAdmittedElements().catch(error => { console.error('Project pack activation failed; the previous verified build is retained.',error); }); });
 
-export function admittedCatalogEntries(projectId?: string): import('./element-contract').ReighElementCatalogEntry[] {
+export function admittedCatalogEntries(projectId?: string): import('./element-contract').AstridElementCatalogEntry[] {
   return current.elements.filter(entry => !projectId || entry.projectId === projectId).map(({descriptor: d, authoring}) => ({
     admitted:true,id: d.id, packId: d.packId, kind: d.kind, revision: d.revision, label: d.label,
     description: d.description, placement: d.kind === 'transition' ? 'between-clips' : 'overlay', publication: 'published',

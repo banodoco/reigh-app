@@ -25,7 +25,7 @@ function checkedManifestFiles(directory: string): string[] {
   for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
     const absolute = path.join(directory, entry.name);
     if (entry.isDirectory()) files.push(...checkedManifestFiles(absolute));
-    else if (entry.name === 'reigh-extension.json') files.push(absolute);
+    else if (entry.name === 'astrid-extension.json') files.push(absolute);
   }
   return files.sort();
 }

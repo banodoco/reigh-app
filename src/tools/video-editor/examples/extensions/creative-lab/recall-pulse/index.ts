@@ -10,24 +10,24 @@
  */
 
 import { createElement } from 'react';
-import { computeHostFingerprint, defineExtension } from '@reigh/editor-sdk';
+import { computeHostFingerprint, defineExtension } from '@astrid/editor-sdk';
 import type {
   CommandRunContext,
   ContributionId,
   DisposeHandle,
   ExtensionContext,
   ExtensionId,
-  ReighExtension,
+  AstridExtension,
   TimelineClipSummary,
   TimelineOverlayRenderProps,
   TimelinePatch,
   TimelineSnapshot,
   TimelineTrackSummary,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import { clusterTimelineMarkers } from '../timelineMarkerClusters';
 
 export const RECALL_PULSE_EXTENSION_ID =
-  'com.reigh.creative-lab.recall-pulse' as ExtensionId;
+  'haus.astrid.creative-lab.recall-pulse' as ExtensionId;
 export const BUILD_RECALL_PULSE_COMMAND =
   `${RECALL_PULSE_EXTENSION_ID}.buildRecallPulse`;
 export const RECALL_PULSE_DATA_KEY = 'recallPulses';
@@ -462,7 +462,7 @@ function disposeTogether(ctx: ExtensionContext, handles: readonly DisposeHandle[
   }
 }
 
-export const recallPulseExtension: ReighExtension = defineExtension({
+export const recallPulseExtension: AstridExtension = defineExtension({
   manifest: {
     id: RECALL_PULSE_EXTENSION_ID,
     version: '2.1.0',

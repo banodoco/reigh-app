@@ -14,15 +14,15 @@ describe('host-owned generated-object provenance', () => {
     expect(computeHostFingerprint({ b: 2, a: [1, 'x'] })).toBe(
       computeHostFingerprint({ a: [1, 'x'], b: 2 }),
     );
-    expect(computeHostFingerprint(source)).toMatch(/^reigh-fnv1a64-v1:[0-9a-f]{16}$/);
+    expect(computeHostFingerprint(source)).toMatch(/^astrid-fnv1a64-v1:[0-9a-f]{16}$/);
   });
 
   it('authors the complete versioned source/generator/output contract', () => {
     const meta = createHostGeneratedObjectMeta({
-      extensionId: 'com.reigh.transcript-lane',
+      extensionId: 'haus.astrid.transcript-lane',
       contributionId: 'caption-foundry',
       extensionVersion: '1.0.0',
-      sourceSchemaRef: 'reigh.transcript_segment/v1',
+      sourceSchemaRef: 'astrid.transcript_segment/v1',
       sourceItemId: 'segment-1',
       sourceRevision: 9,
       sourceValue: source,
@@ -32,7 +32,7 @@ describe('host-owned generated-object provenance', () => {
     expect(meta.generatedAt).toBe(123);
     expect(readHostGenerationProvenance(meta)).toEqual({
       contractVersion: 1,
-      sourceSchemaRef: 'reigh.transcript_segment/v1',
+      sourceSchemaRef: 'astrid.transcript_segment/v1',
       sourceItemId: 'segment-1',
       sourceFingerprint: computeHostFingerprint(source),
       sourceRevision: 9,
@@ -49,9 +49,9 @@ describe('host-owned generated-object provenance', () => {
     ['source-and-output-changed', { ...source, text: 'new source' }, { ...output, text: 'human edit' }],
   ] as const)('classifies %s without applying policy', (expected, currentSourceValue, currentOutputValue) => {
     const meta = createHostGeneratedObjectMeta({
-      extensionId: 'com.reigh.transcript-lane',
+      extensionId: 'haus.astrid.transcript-lane',
       extensionVersion: '1.0.0',
-      sourceSchemaRef: 'reigh.transcript_segment/v1',
+      sourceSchemaRef: 'astrid.transcript_segment/v1',
       sourceItemId: 'segment-1',
       sourceValue: source,
       outputValue: output,

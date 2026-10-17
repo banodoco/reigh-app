@@ -486,7 +486,7 @@ describe('timeline data sequence clip persistence', () => {
 
 describe('timeline data extension project data round trip', () => {
   it('preserves config.app, track.app, and clip.label through buildTimelineData and rowsToConfig', async () => {
-    const extensionId = 'com.reigh.scene-phase-markers';
+    const extensionId = 'haus.astrid.scene-phase-markers';
     const config: TimelineConfig = {
       output: { resolution: '1920x1080', fps: 30, file: 'out.mp4' },
       tracks: [
@@ -572,7 +572,7 @@ describe('timeline data lanes duration neutrality', () => {
     const views = assembleDataLanes({
       kinds: [{
         kindId: 'transcript-segment',
-        schemaRef: 'reigh.transcript_segment/v1',
+        schemaRef: 'astrid.transcript_segment/v1',
         shape: 'interval',
         domain: 'source_seconds',
       }],

@@ -50,7 +50,7 @@ const scopedAcp = vi.hoisted(() => ({
   }),
 }));
 vi.mock('@/integrations/astrid/client.ts', () => ({ AstridLocalClient: class { acp = scopedAcp; } }));
-afterAll(() => { if (process.env.ASTRID_REIGH_CONTEXT_EVIDENCE) writeFileSync(process.env.ASTRID_REIGH_CONTEXT_EVIDENCE, JSON.stringify(acp.promptSession.mock.calls, null, 2)); });
+afterAll(() => { if (process.env.ASTRID_APP_CONTEXT_EVIDENCE) writeFileSync(process.env.ASTRID_APP_CONTEXT_EVIDENCE, JSON.stringify(acp.promptSession.mock.calls, null, 2)); });
 function wrapper({ children }: { children: React.ReactNode }) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
@@ -75,7 +75,7 @@ function context(projectId: string): AgentChatEditorContext {
 }
 function snapshot(index: number) {
   const block = acp.promptSession.mock.calls[index][2][1].text as string;
-  return JSON.parse(block.split('<reigh_editor_context>\n')[1].split('\n</reigh_editor_context>')[0]);
+  return JSON.parse(block.split('<astrid_editor_context>\n')[1].split('\n</astrid_editor_context>')[0]);
 }
 
 function assistantNotification(sessionId: string, text: string) {
@@ -95,21 +95,21 @@ function sceneCapture(scope: LiveSceneScope): LiveSceneCapture {
 }
 
 function sceneRead(scope: LiveSceneScope, requestId: string): LiveSceneRequest {
-  return { schema: 'reigh.live-scene-request/v1', requestId, scope, placementIds: ['scene-a'], action: 'read', offset: 0, length: 100 };
+  return { schema: 'astrid.live-scene-request/v1', requestId, scope, placementIds: ['scene-a'], action: 'read', offset: 0, length: 100 };
 }
 
 function scenePublish(scope: LiveSceneScope, capture: LiveSceneCapture, requestId: string): LiveSceneRequest {
-  return { schema: 'reigh.live-scene-request/v1', requestId, scope, placementIds: ['scene-a'], action: 'publish', capture, replacements: [{ before: 'old', after: 'new' }] };
+  return { schema: 'astrid.live-scene-request/v1', requestId, scope, placementIds: ['scene-a'], action: 'publish', capture, replacements: [{ before: 'old', after: 'new' }] };
 }
 
 function sceneRequestText(request: LiveSceneRequest): string {
-  return `<reigh_live_scene_request>${JSON.stringify(request)}</reigh_live_scene_request>`;
+  return `<astrid_live_scene_request>${JSON.stringify(request)}</astrid_live_scene_request>`;
 }
 
 function sceneScopeFromPrompt(blocks: Array<{ type: string; text: string }>): LiveSceneScope {
-  const block = blocks.find(({ text }) => text.startsWith('<reigh_live_scene_context>'))?.text;
+  const block = blocks.find(({ text }) => text.startsWith('<astrid_live_scene_context>'))?.text;
   if (!block) throw new Error('No live-scene prompt contract was sent.');
-  return JSON.parse(block.slice('<reigh_live_scene_context>'.length, -'</reigh_live_scene_context>'.length)).scope as LiveSceneScope;
+  return JSON.parse(block.slice('<astrid_live_scene_context>'.length, -'</astrid_live_scene_context>'.length)).scope as LiveSceneScope;
 }
 
 function scenePort(projectId: string, timelineId: string, baseVersion: number, handler?: LiveSceneAuthoringHandler) {
@@ -132,7 +132,7 @@ function scenePort(projectId: string, timelineId: string, baseVersion: number, h
     acknowledgedTimelineVersion: baseVersion + 1,
     flushReceipt: { version: baseVersion + 1 },
   });
-  const binding = port.registration('com.reigh.astrid.live-scenes')!.register(operation);
+  const binding = port.registration('haus.astrid.live-scenes')!.register(operation);
   return { port, current, handler: operation, binding };
 }
 
@@ -258,7 +258,7 @@ describe('project-only ACP prompt boundary', () => {
 
     expect(acp.promptSession).toHaveBeenCalledOnce();
     expect(acp.promptSession.mock.calls[0][2]).toHaveLength(2);
-    expect(acp.promptSession.mock.calls[0][2].some(({ text }: { text: string }) => text.includes('reigh_live_scene_context'))).toBe(false);
+    expect(acp.promptSession.mock.calls[0][2].some(({ text }: { text: string }) => text.includes('astrid_live_scene_context'))).toBe(false);
     expect(snapshot(0).project).toEqual({ id: 'project-only', slug: 'project-only-slug' });
     expect(snapshot(0).timeline).toEqual({ id: null, name: null });
     expect(execute).not.toHaveBeenCalled();
@@ -289,7 +289,7 @@ describe('project-only ACP prompt boundary', () => {
 
     expect(acp.promptSession).toHaveBeenCalledOnce();
     expect(acp.promptSession.mock.calls[0][2]).toHaveLength(2);
-    expect(acp.promptSession.mock.calls[0][2].some(({ text }: { text: string }) => text.includes('reigh_live_scene_context'))).toBe(false);
+    expect(acp.promptSession.mock.calls[0][2].some(({ text }: { text: string }) => text.includes('astrid_live_scene_context'))).toBe(false);
     expect(snapshot(0).timeline.id).toBe(editorContext.timelineId);
     if (execute) expect(execute).not.toHaveBeenCalled();
     if (endTurn) expect(endTurn).not.toHaveBeenCalled();
@@ -346,7 +346,7 @@ describe('project-only ACP prompt boundary', () => {
           scope = sceneScopeFromPrompt(blocks);
           replies.push([
             'I will update the selected element.',
-            '<reigh_element_operation>{"name":"elements.update","id":"effect-a"}</reigh_element_operation>',
+            '<astrid_element_operation>{"name":"elements.update","id":"effect-a"}</astrid_element_operation>',
             sceneRequestText(sceneRead(scope, 'read-1')),
           ].join('\n'));
         } else if (followup++ === 0 && scope) {

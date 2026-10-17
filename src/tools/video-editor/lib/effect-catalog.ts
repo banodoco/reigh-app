@@ -1,4 +1,4 @@
-import type { ExtensionDiagnostic } from '@reigh/editor-sdk';
+import type { ExtensionDiagnostic } from '@astrid/editor-sdk';
 import type { EffectMetadata } from '@/features/resources/hooks/useResources.ts';
 import type {
   EffectRegistryProvenance,

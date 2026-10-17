@@ -3,8 +3,8 @@ import { act, fireEvent, render, renderHook, screen, waitFor } from '@testing-li
 import { StrictMode, useEffect } from 'react';
 import type { FC, ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { defineExtension } from '@reigh/editor-sdk';
-import type { Diagnostic, ExtensionContext, ExtensionContribution, ExtensionSettingsService } from '@reigh/editor-sdk';
+import { defineExtension } from '@astrid/editor-sdk';
+import type { Diagnostic, ExtensionContext, ExtensionContribution, ExtensionSettingsService } from '@astrid/editor-sdk';
 import type { DataProvider, ExtensionPersistenceService } from '@/tools/video-editor/data/DataProvider.ts';
 import type { TimelineHostServiceHooks } from '@/tools/video-editor/runtime/timelineHostServiceHooks.ts';
 import type { EffectRegistryRecord } from '@/tools/video-editor/effects/registry/types.ts';
@@ -322,7 +322,7 @@ function makeDeferredRuntimeSettingsRepository() {
 }
 
 function cleanupRuntimeSettingsLocalStorage(extensionId: string): void {
-  const prefix = `reigh.ext.${extensionId}.`;
+  const prefix = `astrid.ext.${extensionId}.`;
   const keysToRemove: string[] = [];
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i);
@@ -647,7 +647,7 @@ describe('EditorRuntimeProvider effect registry lifecycle', () => {
           {
             id: 'diagnostics.command' as never,
             kind: 'command',
-            command: 'reigh.reserved',
+            command: 'astrid.reserved',
             label: 'Reserved command',
           },
         ],
@@ -1421,7 +1421,7 @@ describe('EditorRuntimeProvider extension settings surface', () => {
 
   beforeEach(() => {
     // Clean up localStorage for the settings extension
-    const prefix = `reigh.ext.${SETTINGS_EXTENSION_ID}.`;
+    const prefix = `astrid.ext.${SETTINGS_EXTENSION_ID}.`;
     const keysToRemove: string[] = [];
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
@@ -1537,7 +1537,7 @@ describe('EditorRuntimeProvider extension settings surface', () => {
     // Verify the value was persisted to localStorage
     await waitFor(() => {
       const raw = localStorage.getItem(
-        `reigh.ext.${SETTINGS_EXTENSION_ID}.apiKey`,
+        `astrid.ext.${SETTINGS_EXTENSION_ID}.apiKey`,
       );
       expect(raw).toBe('"my-secret-key"');
     });
@@ -1614,7 +1614,7 @@ describe('EditorRuntimeProvider extension settings surface', () => {
     // returns false, so no localStorage write should have occurred
     await waitFor(() => {
       const raw = localStorage.getItem(
-        `reigh.ext.${SETTINGS_EXTENSION_ID}.apiKey`,
+        `astrid.ext.${SETTINGS_EXTENSION_ID}.apiKey`,
       );
       // Should still be null (no save occurred)
       expect(raw).toBeNull();
@@ -1673,7 +1673,7 @@ describe('EditorRuntimeProvider extension settings surface', () => {
 
     await waitFor(() => {
       const raw = localStorage.getItem(
-        `reigh.ext.${SETTINGS_EXTENSION_ID}.apiKey`,
+        `astrid.ext.${SETTINGS_EXTENSION_ID}.apiKey`,
       );
       expect(raw).toBe('"some-key"');
     });
@@ -1687,7 +1687,7 @@ describe('EditorRuntimeProvider extension settings surface', () => {
     // Verify localStorage key was cleared and form reverted to default (empty)
     await waitFor(() => {
       const raw = localStorage.getItem(
-        `reigh.ext.${SETTINGS_EXTENSION_ID}.apiKey`,
+        `astrid.ext.${SETTINGS_EXTENSION_ID}.apiKey`,
       );
       expect(raw).toBeNull();
     });
@@ -1744,7 +1744,7 @@ describe('EditorRuntimeProvider extension settings surface', () => {
 
     await waitFor(() => {
       const raw = localStorage.getItem(
-        `reigh.ext.${SETTINGS_EXTENSION_ID}.apiKey`,
+        `astrid.ext.${SETTINGS_EXTENSION_ID}.apiKey`,
       );
       expect(raw).toBe('"saved-key"');
     });
@@ -1765,7 +1765,7 @@ describe('EditorRuntimeProvider extension settings surface', () => {
 
     // localStorage should still have the saved value (not the unsaved change)
     const raw = localStorage.getItem(
-      `reigh.ext.${SETTINGS_EXTENSION_ID}.apiKey`,
+      `astrid.ext.${SETTINGS_EXTENSION_ID}.apiKey`,
     );
     expect(raw).toBe('"saved-key"');
   });
@@ -1794,11 +1794,11 @@ describe('EditorRuntimeProvider extension settings surface', () => {
 
     // Pre-populate localStorage for both extensions to simulate saved settings
     localStorage.setItem(
-      `reigh.ext.${SETTINGS_EXTENSION_ID}.apiKey`,
+      `astrid.ext.${SETTINGS_EXTENSION_ID}.apiKey`,
       '"settings-key"',
     );
     localStorage.setItem(
-      `reigh.ext.${OTHER_EXTENSION_ID}.otherKey`,
+      `astrid.ext.${OTHER_EXTENSION_ID}.otherKey`,
       '"other-key"',
     );
 
@@ -1841,10 +1841,10 @@ describe('EditorRuntimeProvider extension settings surface', () => {
 
     // Both extensions' settings should be in localStorage
     expect(
-      localStorage.getItem(`reigh.ext.${SETTINGS_EXTENSION_ID}.apiKey`),
+      localStorage.getItem(`astrid.ext.${SETTINGS_EXTENSION_ID}.apiKey`),
     ).toBe('"settings-key"');
     expect(
-      localStorage.getItem(`reigh.ext.${OTHER_EXTENSION_ID}.otherKey`),
+      localStorage.getItem(`astrid.ext.${OTHER_EXTENSION_ID}.otherKey`),
     ).toBe('"other-key"');
 
     // Disable the settings extension (remove from props)
@@ -1853,13 +1853,13 @@ describe('EditorRuntimeProvider extension settings surface', () => {
     await waitFor(() => {
       // Targeted extension's settings localStorage must be cleared
       expect(
-        localStorage.getItem(`reigh.ext.${SETTINGS_EXTENSION_ID}.apiKey`),
+        localStorage.getItem(`astrid.ext.${SETTINGS_EXTENSION_ID}.apiKey`),
       ).toBeNull();
     });
 
     // Unrelated extension's settings localStorage must be preserved
     expect(
-      localStorage.getItem(`reigh.ext.${OTHER_EXTENSION_ID}.otherKey`),
+      localStorage.getItem(`astrid.ext.${OTHER_EXTENSION_ID}.otherKey`),
     ).toBe('"other-key"');
 
     // Targeted extension's diagnostics must be cleared
@@ -2863,7 +2863,7 @@ describe('EditorRuntimeProvider browse-only assembly', () => {
 
 
 describe('EditorRuntimeProvider effect replay and Fast Refresh', () => {
-  const sceneId = 'com.reigh.astrid.liveScene';
+  const sceneId = 'haus.astrid.liveScene';
 
   it('keeps the real scene renderer, import command, and sibling services usable after StrictMode replay, selection and disable/re-enable', async () => {
     const { liveSceneExtension, LIVE_SCENE_IMPORT_COMMAND_ID } = await import('@astrid/packs/rendering/ui/live-scenes/extension');

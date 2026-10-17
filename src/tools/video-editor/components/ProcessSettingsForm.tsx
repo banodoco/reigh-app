@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import type { ProcessEnvFieldSpec, ProcessSpawnConfig } from '@reigh/editor-sdk';
+import type { ProcessEnvFieldSpec, ProcessSpawnConfig } from '@astrid/editor-sdk';
 import type { VideoEditorProcessDescriptor } from '@/tools/video-editor/runtime/extensionSurface.ts';
 
 export type ProcessSettingsPlatform = 'darwin' | 'linux' | 'win32';

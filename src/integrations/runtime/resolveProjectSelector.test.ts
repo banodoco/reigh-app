@@ -14,7 +14,7 @@ function runtimeTransport() {
   const ok = (body: unknown) => ({ status: 200, headers: {}, body: json(body) });
   return async (method: string, path: string) => {
     if (path === '/v1/health') return ok({ status: 'ok', protocol: 'workspace.v1', schema_digest: RUNTIME_SCHEMA_DIGEST, runtime_epoch: 1, runtime_instance_id: 'ri' });
-    if (path === '/v1/handshake') return ok({ protocol: 'workspace.v1', schema_digest: RUNTIME_SCHEMA_DIGEST, session_id: 's', actor_id: 'reigh-product-connector', realm_id: 'r', scopes: RUNTIME_CLIENT_SCOPES, capabilities: [RUNTIME_TARGETED_EXECUTION_CAPABILITY] });
+    if (path === '/v1/handshake') return ok({ protocol: 'workspace.v1', schema_digest: RUNTIME_SCHEMA_DIGEST, session_id: 's', actor_id: 'astrid-product-connector', realm_id: 'r', scopes: RUNTIME_CLIENT_SCOPES, capabilities: [RUNTIME_TARGETED_EXECUTION_CAPABILITY] });
     if (path === '/v1/realm') return ok({ realm_id: 'r', display_name: 'x', version: 1, created_at: '2026-09-11T00:00:00Z' });
     const project = /^\/v1\/projects\/([^/]+)$/.exec(path);
     if (method === 'GET' && project) {

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, useRef } from "react";
 import { assertNativeEditorConnection } from "@/integrations/astrid/nativeEditorConnection.ts";
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
-import { ReighRuntimeClient } from "@/integrations/runtime/client.ts";
+import { AstridRuntimeClient } from "@/integrations/runtime/client.ts";
 import type { Project } from "@/integrations/runtime/generated.ts";
 const timelineSchema = z.looseObject({
   timeline_id: z.string().min(1),
@@ -55,7 +55,7 @@ export function useRuntimeEditorDiscovery({
   /** Overridable so tests can observe an error without waiting out backoff. */
   retry?: number;
 }) {
-  const client = useMemo(() => new ReighRuntimeClient(), []);
+  const client = useMemo(() => new AstridRuntimeClient(), []);
   const queryClient = useQueryClient();
   const [session] = useState(() => crypto.randomUUID());
   const projectsQuery = useQuery({

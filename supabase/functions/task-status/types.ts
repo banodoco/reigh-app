@@ -1,5 +1,5 @@
 // Response shape for the GET task-status endpoint, matching what
-// reigh-app's banodoco poller (`pollBanodocoTaskStatus`) expects.
+// astrid-app's banodoco poller (`pollBanodocoTaskStatus`) expects.
 //
 // The poller surface is documented at
 // `supabase/functions/ai-timeline-agent/tools/delegateToBanodocoAgent.ts`

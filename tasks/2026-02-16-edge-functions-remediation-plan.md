@@ -1,7 +1,7 @@
 # Edge Functions Remediation Plan
 
 Date: 2026-02-16
-Scope: `/Users/peteromalley/Documents/reigh/supabase/functions`
+Scope: `/Users/peteromalley/Documents/astrid/supabase/functions`
 
 ## Baseline
 
@@ -21,7 +21,7 @@ Scope: `/Users/peteromalley/Documents/reigh/supabase/functions`
 ## Workstream A: Testing Harness (Day 1)
 
 1. Add an edge test suite directory:
-   - `/Users/peteromalley/Documents/reigh/supabase/functions/_tests/`
+   - `/Users/peteromalley/Documents/astrid/supabase/functions/_tests/`
 2. Add shared test utilities:
    - function URL builder
    - auth header helper (service role, PAT, missing auth)

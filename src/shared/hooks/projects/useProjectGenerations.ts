@@ -32,7 +32,7 @@ import { bridgeMediaUrl } from '@/shared/lib/media/bridgeMediaUrl';
 import { getProjectSelectionFallbackId } from '@/shared/contexts/projectSelectionStore';
 import { useAstridCapabilityCensus } from '@/integrations/astrid/capabilityCensus.ts';
 import { isAudioMedia, isImageMedia, isVideoMedia } from '@/shared/lib/media/mediaTypeFilters';
-import { ReighRuntimeClient } from '@/integrations/runtime/client';
+import { AstridRuntimeClient } from '@/integrations/runtime/client';
 import type { Generation, GenerationVariant } from '@/integrations/runtime/generated';
 import {
   runtimeThumbnailObjectId,
@@ -78,7 +78,7 @@ function toRawGeneration(row: BridgeGenerationSummary, projectSlug: string): Raw
 }
 
 const RUNTIME_GALLERY_PAGE_LIMIT = 50;
-type RuntimeGalleryClient = Pick<ReighRuntimeClient, 'listGenerations' | 'listVariants' | 'objectContentUrl'>;
+type RuntimeGalleryClient = Pick<AstridRuntimeClient, 'listGenerations' | 'listVariants' | 'objectContentUrl'>;
 
 function asRecord(value: unknown): Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
@@ -351,7 +351,7 @@ export function useProjectGenerations(
     ? { refetchInterval: false, staleTime: Infinity }
     : smartPollingConfig;
   const runtimeClient = useMemo(
-    () => runtimeMode ? new ReighRuntimeClient() : null,
+    () => runtimeMode ? new AstridRuntimeClient() : null,
     [runtimeMode],
   );
 

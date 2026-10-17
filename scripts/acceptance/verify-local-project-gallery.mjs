@@ -7,11 +7,11 @@ import { chromium } from 'playwright';
 const DEFAULT_PROJECT = 'desert-plant-growth';
 const DEFAULT_TIMELINE = '01KYPVKMW5STB4W6FE05ED8242';
 
-/** Checked-in examples for explicit matrix mode; override with REIGH_LOCAL_PROJECT_MATRIX. */
+/** Checked-in examples for explicit matrix mode; override with ASTRID_APP_LOCAL_PROJECT_MATRIX. */
 export const DEFAULT_MATRIX = [
   { project: 'desert-plant-growth', timeline: '01KYPVKMW5STB4W6FE05ED8242', expectedShots: 5, expectedGenerations: 35 },
   { project: 'music3-cybernetic', timeline: 'ygx6wd3ve4vfa3y6sh5sq7m8n9', expectedShots: 1, expectedGenerations: 9 },
-  { project: 'reigh-gallery-acceptance', timeline: '6efnn8cxnb6c0c7jr333dngdfx', expectedShots: 4, expectedGenerations: 12 },
+  { project: 'astrid-gallery-acceptance', timeline: '6efnn8cxnb6c0c7jr333dngdfx', expectedShots: 4, expectedGenerations: 12 },
 ];
 
 function rowFromValue(value, index) {
@@ -35,7 +35,7 @@ export function parseProjectMatrix(raw) {
   } catch {
     values = raw.split(',').map((row) => row.trim()).filter(Boolean);
   }
-  if (!Array.isArray(values) || values.length === 0) throw new Error('REIGH_LOCAL_PROJECT_MATRIX must be a non-empty JSON array or comma-separated matrix');
+  if (!Array.isArray(values) || values.length === 0) throw new Error('ASTRID_APP_LOCAL_PROJECT_MATRIX must be a non-empty JSON array or comma-separated matrix');
   const rows = values.map(rowFromValue);
   rows.forEach((row, index) => {
     if (!row.project || !row.timeline) throw new Error(`matrix row ${index + 1} needs project and timeline`);
@@ -211,9 +211,9 @@ function assertDiagnostics(diagnostics) {
   assert.deepEqual(unique(diagnostics.forbiddenRequests), [], 'local Astrid journey must not contact Supabase');
   assert.deepEqual(unique(diagnostics.pageErrors), [], 'local Astrid journey must not throw page errors');
   assert.deepEqual(unique(diagnostics.consoleErrors), [], `local Astrid journey must not emit browser console errors\n${diagnosticContext()}`);
-  const unexpectedResponses = diagnostics.failedResponses.filter((line) => !line.includes('/media/__reigh_capability_probe__/content'));
+  const unexpectedResponses = diagnostics.failedResponses.filter((line) => !line.includes('/media/__astrid_capability_probe__/content'));
   const unexpectedRequests = diagnostics.failedRequests.filter((line) => {
-    if (line.includes('/media/__reigh_capability_probe__/content')) return false;
+    if (line.includes('/media/__astrid_capability_probe__/content')) return false;
     // Route changes can cancel the capability census' non-user-visible HEAD
     // probe after the destination has already mounted. Keep every GET/POST
     // failure strict; only this exact abort is an expected navigation race.
@@ -221,7 +221,7 @@ function assertDiagnostics(diagnostics) {
   });
   assert.deepEqual(unique(unexpectedResponses), [], 'local Astrid journey must not receive unexpected HTTP failures');
   assert.deepEqual(unique(unexpectedRequests), [], 'local Astrid journey must not have failed network requests');
-  const probes = diagnostics.failedResponses.filter((line) => line.includes('/media/__reigh_capability_probe__/content'));
+  const probes = diagnostics.failedResponses.filter((line) => line.includes('/media/__astrid_capability_probe__/content'));
   assert.ok(probes.length <= 6, 'capability sentinel failures remain bounded');
 }
 
@@ -439,13 +439,13 @@ export async function runAcceptance({ origin, rows, evidenceDir, headed = false 
 }
 
 async function main() {
-  const origin = (process.env.REIGH_LIVE_ORIGIN || 'http://127.0.0.1:2222').replace(/\/$/, '');
-  const matrixRequested = process.env.REIGH_ACCEPTANCE_MATRIX === '1' || Boolean(process.env.REIGH_LOCAL_PROJECT_MATRIX);
-  const rows = process.env.REIGH_LOCAL_PROJECT_MATRIX
-    ? parseProjectMatrix(process.env.REIGH_LOCAL_PROJECT_MATRIX)
-    : matrixRequested ? DEFAULT_MATRIX : [{ project: process.env.REIGH_LOCAL_PROJECT || DEFAULT_PROJECT, timeline: process.env.REIGH_LOCAL_TIMELINE || DEFAULT_TIMELINE, expectedShots: Number(process.env.REIGH_EXPECTED_SHOTS || 5), expectedGenerations: Number(process.env.REIGH_EXPECTED_GENERATIONS || 35) }];
+  const origin = (process.env.ASTRID_APP_LIVE_ORIGIN || 'http://127.0.0.1:2222').replace(/\/$/, '');
+  const matrixRequested = process.env.ASTRID_APP_ACCEPTANCE_MATRIX === '1' || Boolean(process.env.ASTRID_APP_LOCAL_PROJECT_MATRIX);
+  const rows = process.env.ASTRID_APP_LOCAL_PROJECT_MATRIX
+    ? parseProjectMatrix(process.env.ASTRID_APP_LOCAL_PROJECT_MATRIX)
+    : matrixRequested ? DEFAULT_MATRIX : [{ project: process.env.ASTRID_APP_LOCAL_PROJECT || DEFAULT_PROJECT, timeline: process.env.ASTRID_APP_LOCAL_TIMELINE || DEFAULT_TIMELINE, expectedShots: Number(process.env.ASTRID_APP_EXPECTED_SHOTS || 5), expectedGenerations: Number(process.env.ASTRID_APP_EXPECTED_GENERATIONS || 35) }];
   if (matrixRequested) assert.ok(rows.length >= 3, 'matrix acceptance requires at least three configured projects');
-  const evidenceDir = resolve(process.env.REIGH_ACCEPTANCE_EVIDENCE || `/tmp/reigh-local-project-${process.pid}`);
+  const evidenceDir = resolve(process.env.ASTRID_APP_ACCEPTANCE_EVIDENCE || `/tmp/astrid-local-project-${process.pid}`);
   mkdirSync(evidenceDir, { recursive: true });
   const results = await runAcceptance({ origin, rows, evidenceDir, headed: process.env.HEADED === '1' });
   process.stdout.write(`${JSON.stringify({ ok: true, mode: matrixRequested ? 'matrix' : 'single-project', origin, rows: results, evidenceDir }, null, 2)}\n`);

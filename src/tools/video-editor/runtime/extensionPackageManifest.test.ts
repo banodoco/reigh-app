@@ -18,13 +18,13 @@ import type {
   ExtensionManifest,
   InstalledExtensionPackage,
   InstalledExtensionMetadata,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-/** Create a minimal valid workspace source (reigh-extension.json shape). */
+/** Create a minimal valid workspace source (astrid-extension.json shape). */
 function workspaceSource(overrides?: Partial<ExtensionManifest>): Record<string, unknown> {
   const manifest: ExtensionManifest = {
     id: 'com.test.example' as any,

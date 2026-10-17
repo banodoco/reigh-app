@@ -46,10 +46,10 @@ describe('production extension container gate', () => {
   });
 
   it('builds with fixed safe argv and no rollout build controls', () => {
-    const args = buildDockerArgv('reigh-extension-container-gate:test');
+    const args = buildDockerArgv('astrid-extension-container-gate:test');
     assert.deepEqual(args.slice(0, 7), [
       'build', '--file', 'Dockerfile', '--tag',
-      'reigh-extension-container-gate:test', '--pull=false', '--progress=plain',
+      'astrid-extension-container-gate:test', '--pull=false', '--progress=plain',
     ]);
     assert.equal(args.at(-1), '.');
     assert.ok(args.includes('VITE_APP_ENV=production'));

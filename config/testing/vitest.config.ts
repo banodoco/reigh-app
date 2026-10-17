@@ -35,7 +35,7 @@ export default defineConfig({
     alias: {
       '@': path.resolve(projectRoot, 'src'),
       '@test-react-refresh': path.resolve(projectRoot, 'node_modules/@vitejs/plugin-react-swc/refresh-runtime.js'),
-      '@reigh/editor-sdk': path.resolve(projectRoot, 'src/sdk/index.ts'),
+      '@astrid/editor-sdk': path.resolve(projectRoot, 'src/sdk/index.ts'),
       ...(astridSource ? { '@astrid': astridSource.sourceRoot } : {}),
       ...(astridPublicSource ? { '@astrid-public': astridPublicSource.sourceRoot } : {}),
       'fake-indexeddb': path.resolve(projectRoot, 'vendor/fake-indexeddb/index.js'),
@@ -56,7 +56,7 @@ export default defineConfig({
       '@banodoco/timeline-schema': path.resolve(projectRoot, 'src/test/shims/banodoco/timeline-schema.ts'),
       // Sprint 5: workspace-primitive aliases for the linked packages.
       // The composition package's animations.generated / transitions.generated
-      // / effects.generated import via these aliases. Reigh's bundler needs
+      // / effects.generated import via these aliases. Astrid App's bundler needs
       // them to resolve; Banodoco's webpack already does the same.
       '@workspace-effects': path.resolve(projectRoot, 'vendor/banodoco-effects'),
       '@workspace-animations': path.resolve(projectRoot, 'vendor/banodoco-animations'),

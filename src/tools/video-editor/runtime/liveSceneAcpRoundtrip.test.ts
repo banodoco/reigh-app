@@ -5,14 +5,14 @@ import { LiveSceneOperationPort } from './liveSceneOperationPort';
 import { executeLiveSceneRequest, liveScenePromptContract, runLiveSceneAcpRoundtrip } from './liveSceneAcpRoundtrip';
 import { validateLiveSceneRequest } from './liveSceneRequestValidation';
 import { createExtensionContext } from './extensionContextFactory';
-import { defineExtension, disposeExtensionContextServices } from '@reigh/editor-sdk';
+import { defineExtension, disposeExtensionContextServices } from '@astrid/editor-sdk';
 
 const scope: LiveSceneScope = { sessionId: 'session-a', turnId: 'turn-a', projectId: 'project-a', timelineId: 'timeline-a', capturedTimelineVersion: 7 };
 const capture: LiveSceneCapture = { projectId: scope.projectId, timelineId: scope.timelineId, capturedTimelineVersion: 7,
   packageRevision: `sha256:${'a'.repeat(64)}`, entryRevision: `sha256:${'b'.repeat(64)}`, packageObjectId: 'package-a', entryObjectId: 'entry-a' };
-const read = (requestId = 'read-a'): LiveSceneRequest => ({ schema: 'reigh.live-scene-request/v1', requestId, scope, placementIds: ['scene-a'], action: 'read', offset: 0, length: 100 });
-const publish = (requestId = 'publish-a'): LiveSceneRequest => ({ schema: 'reigh.live-scene-request/v1', requestId, scope, placementIds: ['scene-a'], action: 'publish', capture, replacements: [{ before: 'old', after: 'new' }] });
-const requestText = (request: unknown) => `<reigh_live_scene_request>${JSON.stringify(request)}</reigh_live_scene_request>`;
+const read = (requestId = 'read-a'): LiveSceneRequest => ({ schema: 'astrid.live-scene-request/v1', requestId, scope, placementIds: ['scene-a'], action: 'read', offset: 0, length: 100 });
+const publish = (requestId = 'publish-a'): LiveSceneRequest => ({ schema: 'astrid.live-scene-request/v1', requestId, scope, placementIds: ['scene-a'], action: 'publish', capture, replacements: [{ before: 'old', after: 'new' }] });
+const requestText = (request: unknown) => `<astrid_live_scene_request>${JSON.stringify(request)}</astrid_live_scene_request>`;
 const controller = () => new AbortController();
 function fixture() {
   const port = new LiveSceneOperationPort();
@@ -25,7 +25,7 @@ function fixture() {
     kind: 'published' as const, projectId: scope.projectId, timelineId: scope.timelineId, revision: `sha256:${'c'.repeat(64)}`,
     entryRevision: `sha256:${'d'.repeat(64)}`, affectedPlacements: ['scene-a'], acknowledgedTimelineVersion: 8, flushReceipt: { version: 8 },
   });
-  const binding = port.registration('com.reigh.astrid.live-scenes')!.register(handler);
+  const binding = port.registration('haus.astrid.live-scenes')!.register(handler);
   return { port, current, handler, binding };
 }
 
@@ -57,8 +57,8 @@ describe('bounded live-scene ACP request/result bridge', () => {
     expect(followup.mock.calls[1][0]).toContain('"flushReceipt":{"version":8}');
     expect(output).toContain('Scene published:');
     expect(output).toContain('Acknowledged the durable edit.');
-    expect(output).not.toContain('reigh_live_scene_request');
-    expect(liveScenePromptContract(scope)).toContain('reigh.live-scene-context/v1');
+    expect(output).not.toContain('astrid_live_scene_request');
+    expect(liveScenePromptContract(scope)).toContain('astrid.live-scene-context/v1');
   });
 
   it.each([
@@ -85,10 +85,10 @@ describe('bounded live-scene ACP request/result bridge', () => {
   it('disposes the callback through host context cleanup even if activation never returns a handle', async () => {
     const { port, binding, handler } = fixture();
     binding.dispose();
-    const extension = defineExtension({ manifest: { id: 'com.reigh.astrid.live-scenes' as never, version: '1.0.0', label: 'Scene', apiVersion: 1, contributions: [] },
+    const extension = defineExtension({ manifest: { id: 'haus.astrid.live-scenes' as never, version: '1.0.0', label: 'Scene', apiVersion: 1, contributions: [] },
       activate: () => ({ dispose() {} }) });
     const ctx = createExtensionContext(extension, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined,
-      port.registration('com.reigh.astrid.live-scenes'));
+      port.registration('haus.astrid.live-scenes'));
     ctx.liveSceneAuthoring!.register(handler);
     disposeExtensionContextServices(ctx);
     await expect(executeLiveSceneRequest(port, read(), scope, controller().signal)).rejects.toThrow('unavailable');
@@ -154,7 +154,7 @@ describe('bounded live-scene ACP request/result bridge', () => {
     handler.mockImplementation(async (request, execution) => { if (request.action === 'publish') throw new Error('durable timeline persistence unavailable'); return original(request, execution); });
     const followup = vi.fn().mockResolvedValueOnce(requestText({ ...read(), action: 'unknown' }))
       .mockResolvedValueOnce(requestText(read())).mockResolvedValueOnce(requestText(publish())).mockResolvedValueOnce('Failure acknowledged.');
-    const output = await runLiveSceneAcpRoundtrip({ content: '<reigh_live_scene_request>{bad}</reigh_live_scene_request>', scope, port, signal: controller().signal, followup });
+    const output = await runLiveSceneAcpRoundtrip({ content: '<astrid_live_scene_request>{bad}</astrid_live_scene_request>', scope, port, signal: controller().signal, followup });
     expect(followup.mock.calls[0][0]).toContain('"ok":false');
     expect(followup.mock.calls[1][0]).toContain('Unknown live-scene action');
     expect(followup.mock.calls[3][0]).toContain('durable timeline persistence unavailable');

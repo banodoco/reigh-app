@@ -23,7 +23,7 @@ test('real bridge provenance follows the checked-in release Astrid pin', () => {
 });
 
 test('real bridge provenance rejects missing and non-canonical Astrid pins', async () => {
-  const root = await mkdtemp(join(tmpdir(), 'reigh-release-pin-'));
+  const root = await mkdtemp(join(tmpdir(), 'astrid-release-pin-'));
   try {
     const manifestPath = join(root, 'release.json');
     for (const value of [undefined, 'abc', 'A'.repeat(40), '0'.repeat(39)]) {

@@ -36,7 +36,7 @@ import type {
   DisposeHandle,
   TimelineClipSummary,
   TimelineTrackSummary,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -942,7 +942,7 @@ describe('CompilerCanary', () => {
   // ── No Internal API Usage ─────────────────────────────────────────────
   describe('public contract purity', () => {
     it('canary does not import from video-editor internals', () => {
-      // The compiler-canary.ts imports only from @reigh/editor-sdk and itself.
+      // The compiler-canary.ts imports only from @astrid/editor-sdk and itself.
       // This is verified at the TypeScript level — no internal imports exist.
       // Runtime test: the canary should work with only mock services.
       const result = canary.processDsl(dslJson(makeDsl()));
@@ -1113,7 +1113,7 @@ describe('CompilerCanary', () => {
   // -- Canary Import/Call Boundary -------------------------------------------
   // ===========================================================================
   describe('canary import/call boundary', () => {
-    it('canary source file imports only from @reigh/editor-sdk (no internal modules)', () => {
+    it('canary source file imports only from @astrid/editor-sdk (no internal modules)', () => {
       const __filename = fileURLToPath(import.meta.url);
       const __dirname = dirname(__filename);
       const sourcePath = resolve(__dirname, 'compiler-canary.ts');
@@ -1127,8 +1127,8 @@ describe('CompilerCanary', () => {
           const modulePath = fromMatch[1];
           expect(
             modulePath,
-            `Canary import violation: imports from "${modulePath}" instead of @reigh/editor-sdk`,
-          ).toBe('@reigh/editor-sdk');
+            `Canary import violation: imports from "${modulePath}" instead of @astrid/editor-sdk`,
+          ).toBe('@astrid/editor-sdk');
         }
       }
 

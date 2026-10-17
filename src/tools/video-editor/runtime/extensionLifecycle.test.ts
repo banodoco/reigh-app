@@ -10,13 +10,13 @@ import type {
   ExtensionLifecycleHost,
   ExtensionLifecycleState,
 } from '@/tools/video-editor/runtime/extensionLifecycle';
-import { defineExtension } from '@reigh/editor-sdk';
+import { defineExtension } from '@astrid/editor-sdk';
 import {
   createCreativeContext,
   createCreativeContextStubs,
   ExtensionNotImplementedError,
   CREATIVE_MEMBER_MILESTONE,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import { createExtensionContext } from './extensionContextFactory';
 import { getInternalExtensionRenderSurface } from '@/sdk/internalExtensionRenderSurface';
 import type {
@@ -26,15 +26,15 @@ import type {
   TimelinePreviewResult,
   TimelineDiff,
   CreativeContext,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 
 import type {
-  ReighExtension,
+  AstridExtension,
   ExtensionContext,
   DisposeHandle,
   ExtensionDiagnostic,
   ContributionId,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import type { LiveDataRegistry } from '@/tools/video-editor/runtime/liveDataRegistry';
 
 // ---------------------------------------------------------------------------
@@ -48,7 +48,7 @@ function ext(
     activate?: (ctx: ExtensionContext) => DisposeHandle | void;
     contributions?: Array<{ id: string; kind: string; slot?: string; order?: number }>;
   },
-): ReighExtension {
+): AstridExtension {
   return defineExtension({
     manifest: {
       id: id as any,
@@ -953,7 +953,7 @@ describe('ExtensionLifecycleHost — multiple sync cycles', () => {
     let activateCount = 0;
     let disposeCount = 0;
 
-    function makeExt(id: string): ReighExtension {
+    function makeExt(id: string): AstridExtension {
       return ext(id, {
         activate: () => {
           activateCount++;
@@ -1422,7 +1422,7 @@ describe('ExtensionLifecycleHost — diagnostics cleanup', () => {
     const host = createExtensionLifecycleHost();
     let version = 0;
 
-    function makeVersionedExt(): ReighExtension {
+    function makeVersionedExt(): AstridExtension {
       version++;
       return ext(`com.example.cycle${version}`, {
         activate: () => ({ dispose: () => {} }),
@@ -2394,7 +2394,7 @@ describe('ExtensionLifecycle — contribution cleanup matrix (T16)', () => {
       kind: string;
       cleanup: ReturnType<typeof vi.fn>;
     }>,
-  ): ReighExtension {
+  ): AstridExtension {
     const cleanupFns = contributions.map((c) => c.cleanup);
     return ext(id, {
       contributions: contributions.map((c) => ({
@@ -3210,7 +3210,7 @@ describe('ExtensionLifecycle — cleanup without provider remount (T16)', () => 
     const host = createExtensionLifecycleHost();
     const cleanups: Array<ReturnType<typeof vi.fn>> = [];
 
-    function makeCleanableExt(id: string, kind: string): ReighExtension {
+    function makeCleanableExt(id: string, kind: string): AstridExtension {
       const fn = vi.fn();
       cleanups.push(fn);
       return ext(id, {

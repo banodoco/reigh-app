@@ -1,4 +1,4 @@
-import type { ShaderUniformSchema } from '@reigh/editor-sdk';
+import type { ShaderUniformSchema } from '@astrid/editor-sdk';
 import { canonicalizeShaderUniformPath } from '@/tools/video-editor/runtime/composition/graphProjector.ts';
 import type {
   TimelineShaderKeyframe,

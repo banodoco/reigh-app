@@ -8,7 +8,7 @@ import {
   Undo2,
   X,
 } from 'lucide-react';
-import type { ExtensionManifest } from '@reigh/editor-sdk';
+import type { ExtensionManifest } from '@astrid/editor-sdk';
 import type {
   ExtensionSettingsSnapshot,
   ExtensionStateRepository,

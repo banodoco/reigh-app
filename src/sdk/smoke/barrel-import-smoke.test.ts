@@ -109,7 +109,7 @@ import type {
   ExtensionContext,
   // lifecycle
   ExtensionActivateFn,
-  ReighExtension,
+  AstridExtension,
   DefineExtensionOptions,
   // capabilities
   CapabilityVersion,
@@ -322,7 +322,7 @@ import {
 
 import {
   type ExtensionActivateFn as ActivateFn_Direct,
-  type ReighExtension as ReighExt_Direct,
+  type AstridExtension as AstridExt_Direct,
   type DefineExtensionOptions as DefExtOpts_Direct,
   defineExtension as defExt_Direct,
 } from '../lifecycle';
@@ -912,7 +912,7 @@ describe('M2a barrel-import smoke — context', () => {
 // ── lifecycle ──────────────────────────────────────────────────────────────
 
 describe('M2a barrel-import smoke — lifecycle', () => {
-  it('defineExtension returns a frozen ReighExtension for a valid manifest', () => {
+  it('defineExtension returns a frozen AstridExtension for a valid manifest', () => {
     const ext = defineExtension({
       manifest: {
         id: 'smoke.lifecycle',

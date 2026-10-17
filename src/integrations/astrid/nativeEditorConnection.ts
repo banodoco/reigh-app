@@ -1,9 +1,9 @@
-import { ReighRuntimeClient } from "@/integrations/runtime/client.ts";
+import { AstridRuntimeClient } from "@/integrations/runtime/client.ts";
 
 /** Both editor transports must negotiate the same existing Runtime authority. */
 export async function assertNativeEditorConnection(): Promise<void> {
-  const persistence = new ReighRuntimeClient();
-  const discovery = new ReighRuntimeClient({ baseUrl: "/api/astrid" });
+  const persistence = new AstridRuntimeClient();
+  const discovery = new AstridRuntimeClient({ baseUrl: "/api/astrid" });
   const [runtime, workspace] = await Promise.all([
     persistence.ensureSession(),
     discovery.ensureSession(),

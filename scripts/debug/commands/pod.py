@@ -176,7 +176,7 @@ def _print_worker_commands(api_key: str, pod_id: str, options: dict):
    {ssh_cmd}
 
 2. Bootstrap / resync:
-   cd /workspace/Reigh-Worker 2>/dev/null || {{ git clone https://github.com/banodoco/Reigh-Worker.git /workspace/Reigh-Worker && cd /workspace/Reigh-Worker; }}
+   cd /workspace/Astrid-Worker 2>/dev/null || {{ git clone https://github.com/banodoco/astrid-app-Worker.git /workspace/Astrid-Worker && cd /workspace/Astrid-Worker; }}
    if [ ! -x "$HOME/.local/bin/uv" ]; then curl -LsSf https://astral.sh/uv/install.sh | sh; fi
    export PATH="$HOME/.local/bin:$PATH"
    if [ ! -f .uv-migrated ]; then
@@ -189,10 +189,10 @@ def _print_worker_commands(api_key: str, pod_id: str, options: dict):
    touch .uv-migrated
 
 3. Start worker:
-   cd /workspace/Reigh-Worker
+   cd /workspace/Astrid-Worker
    export PATH="$HOME/.local/bin:$PATH"
    nohup uv run --python 3.10 python run_worker.py \\
-     --reigh-access-token <PAT_TOKEN> \\
+     --astrid-access-token <PAT_TOKEN> \\
      --debug --wgp-profile 4 --idle-release-minutes 15 \\
      > /tmp/worker_test.log 2>&1 &
 
@@ -204,7 +204,7 @@ def _print_worker_commands(api_key: str, pod_id: str, options: dict):
    kill -9 $(pgrep -f 'python.*run_worker')
 
 6. Roll back a first-migration failure:
-   cd /workspace/Reigh-Worker
+   cd /workspace/Astrid-Worker
    rm -f .uv-migrated
    mv venv.pre-uv-<timestamp> venv        # or mv .venv.pre-uv-<timestamp> .venv
    # There is no runtime pip fallback on this branch.
@@ -212,8 +212,8 @@ def _print_worker_commands(api_key: str, pod_id: str, options: dict):
 
 === Quick run-path restart (existing setup) ===
    {ssh_cmd} "kill -9 $(pgrep -f 'python.*run_worker') 2>/dev/null; \\
-     export PATH=\\\"$HOME/.local/bin:$PATH\\\"; cd /workspace/Reigh-Worker && git pull --ff-only && \\
+     export PATH=\\\"$HOME/.local/bin:$PATH\\\"; cd /workspace/Astrid-Worker && git pull --ff-only && \\
      uv sync --locked --python 3.10 --extra cuda124 && \\
-     nohup uv run --python 3.10 python run_worker.py --reigh-access-token <PAT_TOKEN> --debug --wgp-profile 4 --idle-release-minutes 15 \\
+     nohup uv run --python 3.10 python run_worker.py --astrid-access-token <PAT_TOKEN> --debug --wgp-profile 4 --idle-release-minutes 15 \\
      > /tmp/worker_test.log 2>&1 &"
 """)

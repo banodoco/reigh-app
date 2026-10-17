@@ -17,7 +17,7 @@ import type {
   RenderArtifact,
   TimelineSnapshot,
   TimelineShaderSummary,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import type {
   CompositionGraphInput,
   CompositionGraphMediaTrackBinding,

@@ -8,7 +8,7 @@
 import React, { useState } from 'react';
 import { LayoutGrid } from 'lucide-react';
 import { GenerationRow } from '@/domains/generation/types';
-import { ReighLoading } from '@/shared/components/ReighLoading';
+import { AstridLoading } from '@/shared/components/AstridLoading';
 import { useProjectSelectionContext } from '@/shared/contexts/ProjectContext';
 import { useProjectGenerations, type GenerationsPaginatedResponse } from '@/shared/hooks/projects/useProjectGenerations';
 import { MediaGallery, DEFAULT_GALLERY_FILTERS, type GalleryFilterState } from '@/shared/components/MediaGallery';
@@ -70,7 +70,7 @@ export function MediaSelectionPanel({ onSelect, mediaType, label }: MediaSelecti
 
       <div className="flex-1 overflow-y-auto p-0 m-0 relative pt-4 px-4 md:px-6">
          {isGalleryLoading && !generationsData ? (
-            <ReighLoading />
+            <AstridLoading />
          ) : (
             <MediaGallery
                images={(generationsData as GenerationsPaginatedResponse | undefined)?.items || []}

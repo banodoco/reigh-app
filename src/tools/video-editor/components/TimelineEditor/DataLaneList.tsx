@@ -26,7 +26,7 @@ import { Button } from '@/shared/components/ui/button.tsx';
 import { useOptionalVideoEditorRuntime } from '@/tools/video-editor/contexts/VideoEditorRuntimeContext.tsx';
 import type { TimelineData } from '@/tools/video-editor/lib/timeline-data.ts';
 import { createEmptyTimelineViewSnapshot } from '@/tools/video-editor/lib/timeline-view-store.ts';
-import type { TimelineViewStore } from '@reigh/editor-sdk';
+import type { TimelineViewStore } from '@astrid/editor-sdk';
 import type {
   TimelineInteractionTarget,
   TimelineInspectorTarget,

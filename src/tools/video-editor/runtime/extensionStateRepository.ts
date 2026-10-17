@@ -21,7 +21,7 @@ import type {
   InstalledExtensionPackage,
   ExtensionManifest,
   ExtensionDiagnostic,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 
 // ---------------------------------------------------------------------------
 // Extension pack record (persisted)

@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "Reigh Extension Manifest (Manifest Placement Mismatch Fixture)",
+  "title": "Astrid Extension Manifest (Manifest Placement Mismatch Fixture)",
   "type": "object",
   "required": ["id", "version", "label"],
   "definitions": {

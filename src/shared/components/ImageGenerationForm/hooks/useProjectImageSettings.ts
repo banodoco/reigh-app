@@ -40,7 +40,7 @@ export function useProjectImageSettings(associatedShotId: string | null) {
   // Privacy defaults for new resources
   const { value: privacyDefaults } = useUserUIState('privacyDefaults', { resourcesPublic: true, generationsPublic: false });
 
-  // The current Reigh admission route is Astrid cloud generation only. Keep
+  // The current Astrid App admission route is Astrid cloud generation only. Keep
   // this compatibility value for form consumers that still use it to hide
   // legacy local-only controls.
   const isLocalGenerationEnabled = false;

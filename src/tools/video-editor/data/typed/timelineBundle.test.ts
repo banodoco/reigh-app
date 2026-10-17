@@ -18,30 +18,30 @@ const makeItem = (overrides: Record<string, unknown> = {}) => ({
   shape: 'interval',
   domain: 'source_seconds',
   extent: { start: 0, end: 1.5 },
-  schemaRef: 'reigh.transcript_segment/v1',
+  schemaRef: 'astrid.transcript_segment/v1',
   payload: { text: 'hello' },
   sourceArtifactRef: { assetId: 'assetA' },
-  provenance: { adapterId: 'reigh.adaptTranscript', adapterVersion: '1' },
+  provenance: { adapterId: 'astrid.adaptTranscript', adapterVersion: '1' },
   ...overrides,
 });
 
 const makeEnvelope = (overrides: Record<string, unknown> = {}) => ({
   schema_version: TIMELINE_BUNDLE_SCHEMA_VERSION,
   itemsBySchemaRef: {
-    'reigh.transcript_segment/v1': [makeItem()],
+    'astrid.transcript_segment/v1': [makeItem()],
   },
   ...overrides,
 });
 
 /** Envelope whose transcript items are exactly `items` (the common case). */
 const envelopeWithItems = (items: Record<string, unknown>[]) =>
-  makeEnvelope({ itemsBySchemaRef: { 'reigh.transcript_segment/v1': items } });
+  makeEnvelope({ itemsBySchemaRef: { 'astrid.transcript_segment/v1': items } });
 
 describe('parseTimelineBundle', () => {
   it('accepts a valid envelope and preserves unknown top-level fields (forward compat)', () => {
     const parsed = parseTimelineBundle(makeEnvelope({ futureField: { nested: true } }));
     expect(parsed.schema_version).toBe(1);
-    expect(parsed.itemsBySchemaRef['reigh.transcript_segment/v1']).toHaveLength(1);
+    expect(parsed.itemsBySchemaRef['astrid.transcript_segment/v1']).toHaveLength(1);
     expect((parsed as Record<string, unknown>).futureField).toEqual({ nested: true });
   });
 
@@ -121,7 +121,7 @@ describe('parseTimelineBundle', () => {
     const envelope = envelopeWithItems([makeItem({ payload })]);
     const serialized = JSON.parse(JSON.stringify(envelope)) as unknown; // provider transport
     const parsed = parseTimelineBundle(serialized);
-    expect(canonicalJsonStringify(parsed.itemsBySchemaRef['reigh.transcript_segment/v1'][0].payload)).toBe(
+    expect(canonicalJsonStringify(parsed.itemsBySchemaRef['astrid.transcript_segment/v1'][0].payload)).toBe(
       canonicalJsonStringify(payload),
     );
     // And determinism holds across key insertion order of an equal payload.
@@ -182,10 +182,10 @@ describe('computeTimelineBundleDigest', () => {
     const first = makeEnvelope();
     const second = {
       itemsBySchemaRef: {
-        'reigh.transcript_segment/v1': [
+        'astrid.transcript_segment/v1': [
           makeItem({
             payload: { text: 'hello' },
-            provenance: { adapterVersion: '1', adapterId: 'reigh.adaptTranscript' },
+            provenance: { adapterVersion: '1', adapterId: 'astrid.adaptTranscript' },
             extent: { end: 1.5, start: 0 },
           }),
         ],

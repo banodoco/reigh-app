@@ -105,12 +105,12 @@ describe('BrowserLocalFullSnapshotStore', () => {
     // Fresh IndexedDB for each test
     (globalThis as Record<string, unknown>).indexedDB = createFakeIndexedDB();
     // Clear localStorage keys used by tests
-    clearLocalStoragePrefix('reigh.ext-state.');
+    clearLocalStoragePrefix('astrid.ext-state.');
   });
 
   afterEach(async () => {
     resetFakeIndexedDB();
-    clearLocalStoragePrefix('reigh.ext-state.');
+    clearLocalStoragePrefix('astrid.ext-state.');
   });
 
   defineExtensionPersistenceConformanceSuite({
@@ -118,11 +118,11 @@ describe('BrowserLocalFullSnapshotStore', () => {
     scope: SCOPE_A,
     reset: () => {
       (globalThis as Record<string, unknown>).indexedDB = createFakeIndexedDB();
-      clearLocalStoragePrefix('reigh.ext-state.');
+      clearLocalStoragePrefix('astrid.ext-state.');
     },
     seedCorruptSnapshot: () => {
       localStorage.setItem(
-        `reigh.ext-state.${SCOPE_A.userId}.${SCOPE_A.timelineId}`,
+        `astrid.ext-state.${SCOPE_A.userId}.${SCOPE_A.timelineId}`,
         JSON.stringify(makeSnapshotBase({
           meta: {
             schemaVersion: CURRENT_SNAPSHOT_SCHEMA_VERSION + 100,
@@ -146,8 +146,8 @@ describe('BrowserLocalFullSnapshotStore', () => {
       const storeB = new BrowserLocalFullSnapshotStore(SCOPE_B);
 
       // Verify the keys differ
-      const keyA = 'reigh.ext-state.user-a.timeline-001';
-      const keyB = 'reigh.ext-state.user-b.timeline-002';
+      const keyA = 'astrid.ext-state.user-a.timeline-001';
+      const keyB = 'astrid.ext-state.user-b.timeline-002';
 
       // Write to A
       localStorage.setItem(keyA, JSON.stringify(makeSnapshotBase({ packs: { extA: { id: 'x' } } })));
@@ -587,7 +587,7 @@ describe('BrowserLocalFullSnapshotStore', () => {
       const store = new BrowserLocalFullSnapshotStore(SCOPE_A);
 
       // Directly write invalid JSON to localStorage
-      const key = 'reigh.ext-state.user-a.timeline-001';
+      const key = 'astrid.ext-state.user-a.timeline-001';
       localStorage.setItem(key, 'not-valid-json{{{');
 
       await expect(store.loadSnapshot()).rejects.toThrow(/malformed/i);
@@ -596,7 +596,7 @@ describe('BrowserLocalFullSnapshotStore', () => {
     it('throws when localStorage JSON root is an array', async () => {
       const store = new BrowserLocalFullSnapshotStore(SCOPE_A);
 
-      const key = 'reigh.ext-state.user-a.timeline-001';
+      const key = 'astrid.ext-state.user-a.timeline-001';
       localStorage.setItem(key, JSON.stringify([1, 2, 3]));
 
       await expect(store.loadSnapshot()).rejects.toThrow(/malformed|not a plain object/i);
@@ -605,7 +605,7 @@ describe('BrowserLocalFullSnapshotStore', () => {
     it('throws when localStorage JSON root is null', async () => {
       const store = new BrowserLocalFullSnapshotStore(SCOPE_A);
 
-      const key = 'reigh.ext-state.user-a.timeline-001';
+      const key = 'astrid.ext-state.user-a.timeline-001';
       localStorage.setItem(key, 'null');
 
       await expect(store.loadSnapshot()).rejects.toThrow(/malformed|not a plain object/i);
@@ -614,14 +614,14 @@ describe('BrowserLocalFullSnapshotStore', () => {
     it('throws when localStorage JSON root is a primitive', async () => {
       const store = new BrowserLocalFullSnapshotStore(SCOPE_A);
 
-      const key = 'reigh.ext-state.user-a.timeline-001';
+      const key = 'astrid.ext-state.user-a.timeline-001';
       localStorage.setItem(key, '"just a string"');
 
       await expect(store.loadSnapshot()).rejects.toThrow(/malformed|not a plain object/i);
     });
 
     it('emits hydration diagnostics and fails closed at the service level', async () => {
-      const key = 'reigh.ext-state.user-a.timeline-001';
+      const key = 'astrid.ext-state.user-a.timeline-001';
       localStorage.setItem(key, 'corrupt{{{');
 
       const diagnostics: Array<{ severity: string; code: string; message: string; milestone?: string }> = [];
@@ -650,7 +650,7 @@ describe('BrowserLocalFullSnapshotStore', () => {
       const store = new BrowserLocalFullSnapshotStore(SCOPE_A);
 
       // First, corrupt the localStorage
-      const key = 'reigh.ext-state.user-a.timeline-001';
+      const key = 'astrid.ext-state.user-a.timeline-001';
       localStorage.setItem(key, 'corrupt{{{');
 
       // Load should reject (fail-closed)
@@ -794,7 +794,7 @@ describe('BrowserLocalFullSnapshotStore', () => {
       await store.saveSnapshot(snapshot);
 
       // Verify localStorage directly — proposals must NOT be in localStorage
-      const key = 'reigh.ext-state.user-a.timeline-001';
+      const key = 'astrid.ext-state.user-a.timeline-001';
       const localData = localStorage.getItem(key);
       expect(localData).not.toBeNull();
 
@@ -824,12 +824,12 @@ describe('BrowserLocalFullSnapshotStore', () => {
 describe('createBrowserLocalExtensionPersistenceService', () => {
   beforeEach(() => {
     (globalThis as Record<string, unknown>).indexedDB = createFakeIndexedDB();
-    clearLocalStoragePrefix('reigh.ext-state.');
+    clearLocalStoragePrefix('astrid.ext-state.');
   });
 
   afterEach(() => {
     resetFakeIndexedDB();
-    clearLocalStoragePrefix('reigh.ext-state.');
+    clearLocalStoragePrefix('astrid.ext-state.');
   });
 
   it('returns a service with all capabilities advertised', () => {
@@ -944,7 +944,7 @@ describe('createBrowserLocalExtensionPersistenceService', () => {
       lastWrittenAt: '2026-06-22T00:00:00.000Z',
     });
 
-    // Write a pack record (use any cast to avoid unresolvable @reigh/editor-sdk types)
+    // Write a pack record (use any cast to avoid unresolvable @astrid/editor-sdk types)
     await repo.putPackRecord({
       extensionId: 'ext.reload',
       version: '1.0.0',
@@ -1038,7 +1038,7 @@ describe('createBrowserLocalExtensionPersistenceService', () => {
 
   it('future schema version in localStorage emits error diagnostics', async () => {
     // Write valid JSON to localStorage with a schema version far in the future
-    const key = 'reigh.ext-state.user-a.timeline-001';
+    const key = 'astrid.ext-state.user-a.timeline-001';
     const futureSnapshot = JSON.stringify({
       meta: {
         schemaVersion: CURRENT_SNAPSHOT_SCHEMA_VERSION + 100,
@@ -1076,7 +1076,7 @@ describe('createBrowserLocalExtensionPersistenceService', () => {
 
   it('future schema version exposes no partial state (all methods throw)', async () => {
     // Setup future-version snapshot
-    const key = 'reigh.ext-state.user-a.timeline-001';
+    const key = 'astrid.ext-state.user-a.timeline-001';
     const futureSnapshot = JSON.stringify({
       meta: {
         schemaVersion: CURRENT_SNAPSHOT_SCHEMA_VERSION + 50,
@@ -1145,7 +1145,7 @@ describe('createBrowserLocalExtensionPersistenceService', () => {
   });
 
   it('service recovers after corrupt data is overwritten with valid data', async () => {
-    const key = 'reigh.ext-state.user-a.timeline-001';
+    const key = 'astrid.ext-state.user-a.timeline-001';
 
     // Phase 1: write future-version corrupt data
     localStorage.setItem(

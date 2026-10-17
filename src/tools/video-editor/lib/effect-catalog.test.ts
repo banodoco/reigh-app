@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { FC } from 'react';
-import type { ExtensionDiagnostic } from '@reigh/editor-sdk';
+import type { ExtensionDiagnostic } from '@astrid/editor-sdk';
 import type { EffectComponentProps } from '@/tools/video-editor/effects/entrances';
 import type { EffectRegistryProvenance, EffectRegistryRecord, EffectRegistryRecordStatus } from '@/tools/video-editor/effects/registry/types';
 import type { ContributionRenderability, RenderCapability, RenderRoute } from '@/tools/video-editor/runtime/renderability';

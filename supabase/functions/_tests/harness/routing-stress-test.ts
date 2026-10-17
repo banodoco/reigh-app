@@ -9,7 +9,7 @@
  *   - Ambiguous / edge cases (verify graceful handling)
  *
  * Run:
- *   cd reigh-app && npx tsx supabase/functions/_tests/harness/routing-stress-test.ts
+ *   cd astrid-app && npx tsx supabase/functions/_tests/harness/routing-stress-test.ts
  */
 
 import { writeFileSync, mkdirSync } from "node:fs";

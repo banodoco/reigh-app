@@ -1,5 +1,5 @@
-import type { ExtensionDiagnostic, RenderRoute } from '@reigh/editor-sdk';
-import { RENDER_ROUTES } from '@reigh/editor-sdk';
+import type { ExtensionDiagnostic, RenderRoute } from '@astrid/editor-sdk';
+import { RENDER_ROUTES } from '@astrid/editor-sdk';
 import {
   buildUnknownRouteDiagnostic,
   buildUnsupportedRouteDiagnostic,

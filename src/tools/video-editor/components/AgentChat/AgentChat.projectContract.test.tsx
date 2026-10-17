@@ -152,8 +152,8 @@ afterEach(async () => {
 
 describe('real panel → real hooks → owned ACP transport', () => {
   function receipt(id: string, project = 'p1') {
-    return '<reigh_editor_context>' + JSON.stringify({ schema: 'reigh.editor-context/v1', request_id: id,
-      context_revision: 'snapshot', captured_at: '2026-10-15T12:00:00Z', project: { id: project }, editor: { tool: 'video-editor' } }) + '</reigh_editor_context>';
+    return '<astrid_editor_context>' + JSON.stringify({ schema: 'astrid.editor-context/v1', request_id: id,
+      context_revision: 'snapshot', captured_at: '2026-10-15T12:00:00Z', project: { id: project }, editor: { tool: 'video-editor' } }) + '</astrid_editor_context>';
   }
   it('reconciles only exact durable IDs assembled across replay chunks, preserving draft and pausing other queued messages', async () => {
     const id = fixture.seed('p1');
@@ -172,7 +172,7 @@ describe('real panel → real hooks → owned ACP transport', () => {
     expect(screen.getByRole('textbox')).toHaveValue('Keep my draft');
     expect(screen.getByText(/Delivery not confirmed/)).toBeInTheDocument();
     expect(fixture.calls.filter(call => call.route.endsWith('/prompt'))).toHaveLength(0);
-    expect(screen.queryByText(/reigh.editor-context/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/astrid.editor-context/)).not.toBeInTheDocument();
   });
   it('recovers accepted delivery after a lost response and fresh module reload without resending', async () => {
     fixture.seed('p1');
@@ -182,7 +182,7 @@ describe('real panel → real hooks → owned ACP transport', () => {
     await screen.findByRole('button', { name: 'Retry saved message' });
     const savedId = fixture.chat('p1').draft.queued_messages[0].id;
     const prompt = fixture.calls.find(call => call.route.endsWith('/prompt'))!;
-    const captured = JSON.parse(prompt.body.prompt[1].text.replace('<reigh_editor_context>', '').replace('</reigh_editor_context>', ''));
+    const captured = JSON.parse(prompt.body.prompt[1].text.replace('<astrid_editor_context>', '').replace('</astrid_editor_context>', ''));
     expect(captured.request_id).toBe(savedId);
     first.unmount();
     await freshModules();
@@ -303,7 +303,7 @@ describe('real panel → real hooks → owned ACP transport', () => {
       connection_id: 'connection-1', session_id: fixture.chat('p1').selected_session_id,
       prompt: [{ type: 'text', text: 'Change only the cube color to teal.' }, { type: 'text', text: expect.any(String) }],
     } });
-    const captured = JSON.parse(prompt[0].body.prompt[1].text.replace('<reigh_editor_context>', '').replace('</reigh_editor_context>', ''));
+    const captured = JSON.parse(prompt[0].body.prompt[1].text.replace('<astrid_editor_context>', '').replace('</astrid_editor_context>', ''));
     expect(captured).toMatchObject({ project: { id: 'p1' }, timeline: { id: 'timeline-p1', summary: { config_version: 7 } },
       selection: { clip_ids: ['clip-1'], assets: [{ clip_id: 'clip-1', track_id: 'track', at: 2, duration: 3 }] } });
     expect(fixture.calls.findIndex(c => c.route.endsWith('/draft'))).toBeLessThan(fixture.calls.findIndex(c => c.route.endsWith('/prompt')));
@@ -406,7 +406,7 @@ describe('real panel → real hooks → owned ACP transport', () => {
     const newAdapter = { execute: vi.fn() };
     host.context = { ...context('p1'), elementOperationAdapter: oldAdapter as never };
     const gate = deferred(); fixture.onPrompt = () => gate.promise;
-    fixture.assistant = '<reigh_element_operation>{"name":"elements.list"}</reigh_element_operation>';
+    fixture.assistant = '<astrid_element_operation>{"name":"elements.list"}</astrid_element_operation>';
     const view = mount();
     await send('Old operation');
     await waitFor(() => expect(fixture.calls.some(c => c.route.endsWith('/prompt'))).toBe(true));
@@ -451,7 +451,7 @@ describe('real panel → real hooks → owned ACP transport', () => {
     const execute = vi.fn();
     host.context = { ...context('p1'), elementOperationAdapter: { execute } as never };
     const gate = deferred(); fixture.onPrompt = () => gate.promise;
-    fixture.assistant = '<reigh_element_operation>{"name":"elements.list"}</reigh_element_operation>';
+    fixture.assistant = '<astrid_element_operation>{"name":"elements.list"}</astrid_element_operation>';
     mount();
     await send('Old session operation');
     await waitFor(() => expect(fixture.calls.some(c => c.route.endsWith('/prompt'))).toBe(true));
@@ -509,7 +509,7 @@ describe('real panel → real hooks → owned ACP transport', () => {
     const prompts = fixture.calls.filter(call => call.route.endsWith('/prompt'));
     expect(prompts).toHaveLength(2);
     expect(prompts[1].body.prompt[0]).toEqual(original[0]);
-    const snapshot = (blocks: Array<{ text: string }>) => JSON.parse(blocks[1].text.split('<reigh_editor_context>\n')[1].split('\n</reigh_editor_context>')[0]);
+    const snapshot = (blocks: Array<{ text: string }>) => JSON.parse(blocks[1].text.split('<astrid_editor_context>\n')[1].split('\n</astrid_editor_context>')[0]);
     const captured = snapshot(original);
     const retried = snapshot(prompts[1].body.prompt);
     // Delivery retains its logical identity; host admission uses a separate fresh turn.

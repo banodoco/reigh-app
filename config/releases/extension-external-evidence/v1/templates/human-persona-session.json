@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "evidenceType": "human-persona-session",
   "release": "",
-  "candidate": { "reighCommit": "", "astridCommit": "" },
+  "candidate": { "appCommit": "", "astridCommit": "" },
   "capturedAt": "",
   "environment": { "id": "", "toolVersions": {} },
   "record": {

@@ -21,7 +21,7 @@ import {
   VideoEditorRuntimeContext,
   type VideoEditorRuntimeContextValue,
 } from '@/tools/video-editor/contexts/VideoEditorRuntimeContext';
-import { createDiagnosticCollection } from '@reigh/editor-sdk';
+import { createDiagnosticCollection } from '@astrid/editor-sdk';
 
 const mocks = vi.hoisted(() => ({
   startClientRender: vi.fn(),
@@ -29,7 +29,7 @@ const mocks = vi.hoisted(() => ({
 
 const renderRouterMocks = vi.hoisted(() => ({
   buildRenderTimelinePayload: vi.fn(),
-  enqueueBanodocoRenderTimeline: vi.fn(),
+  enqueueAstridRuntimeRenderTimeline: vi.fn(),
   cancelAstridRenderTask: vi.fn(),
   decideRenderRoute: vi.fn((timeline: ResolvedTimelineConfig | null | undefined) => {
     const clip = timeline?.clips?.[0];
@@ -44,7 +44,7 @@ const renderRouterMocks = vi.hoisted(() => ({
 
     if (clip?.clipType === 'generated-module') {
       return {
-        route: 'worker-banodoco',
+        route: 'worker-astrid-runtime',
         hasThemedClip: false,
         hasMediaClip: false,
         reason: 'generated_remotion_module',
@@ -66,7 +66,7 @@ vi.mock('@/tools/video-editor/hooks/useClientRender', () => ({
 
 vi.mock('@/tools/video-editor/lib/renderRouter', () => ({
   buildRenderTimelinePayload: renderRouterMocks.buildRenderTimelinePayload,
-  enqueueBanodocoRenderTimeline: renderRouterMocks.enqueueBanodocoRenderTimeline,
+  enqueueAstridRuntimeRenderTimeline: renderRouterMocks.enqueueAstridRuntimeRenderTimeline,
   cancelAstridRenderTask: renderRouterMocks.cancelAstridRenderTask,
   decideRenderRoute: renderRouterMocks.decideRenderRoute,
 }));
@@ -129,7 +129,7 @@ function renderTaskDetail(
         output_policy: { create_generation: false },
       },
     },
-    idempotency_key: 'reigh.render:test',
+    idempotency_key: 'astrid.render:test',
     created_at: '2026-08-22T12:00:00Z',
     updated_at: '2026-08-22T12:00:01Z',
     attempt_id: null,
@@ -478,7 +478,7 @@ describe('useRenderState render routing', () => {
         correlation_id: 'render-correlation',
       },
     });
-    renderRouterMocks.enqueueBanodocoRenderTimeline.mockResolvedValue({
+    renderRouterMocks.enqueueAstridRuntimeRenderTimeline.mockResolvedValue({
       status: 'queued',
       task_id: 'render-task-1',
       message: 'queued',
@@ -697,7 +697,7 @@ describe('useRenderState render routing', () => {
 
     await act(async () => { await result.current.startRender(); });
     expect(flushPendingSave).toHaveBeenCalledTimes(1);
-    expect(renderRouterMocks.enqueueBanodocoRenderTimeline).toHaveBeenCalledWith(
+    expect(renderRouterMocks.enqueueAstridRuntimeRenderTimeline).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({ expectedVersion: 7, destination: 'download' }),
     );
@@ -815,7 +815,7 @@ describe('useRenderState render routing', () => {
     vi.useFakeTimers();
     const fetchMock = vi.fn(async () => new Response(JSON.stringify(renderTaskDetail('failed')), { status: 200 }));
     vi.stubGlobal('fetch', fetchMock);
-    renderRouterMocks.enqueueBanodocoRenderTimeline
+    renderRouterMocks.enqueueAstridRuntimeRenderTimeline
       .mockResolvedValueOnce({ status: 'error', message: 'temporary admission failure' })
       .mockResolvedValue({ status: 'queued', task_id: 'render-task-1', message: 'queued' });
     const runtimeValue = {
@@ -836,19 +836,19 @@ describe('useRenderState render routing', () => {
     ), { wrapper });
 
     await act(async () => { await result.current.startRender(); });
-    const firstOperationId = renderRouterMocks.enqueueBanodocoRenderTimeline.mock.calls[0][1].operationId;
+    const firstOperationId = renderRouterMocks.enqueueAstridRuntimeRenderTimeline.mock.calls[0][1].operationId;
     expect(firstOperationId).toEqual(expect.any(String));
     expect(result.current.renderStatus).toBe('error');
 
     await act(async () => { await result.current.startRender(); });
-    const secondOperationId = renderRouterMocks.enqueueBanodocoRenderTimeline.mock.calls[1][1].operationId;
+    const secondOperationId = renderRouterMocks.enqueueAstridRuntimeRenderTimeline.mock.calls[1][1].operationId;
     expect(secondOperationId).toBe(firstOperationId);
     await act(async () => { await vi.advanceTimersByTimeAsync(1); });
     await act(async () => { await vi.advanceTimersByTimeAsync(2_000); });
     expect(result.current.renderStatus).toBe('error');
 
     await act(async () => { await result.current.startRender(); });
-    const thirdOperationId = renderRouterMocks.enqueueBanodocoRenderTimeline.mock.calls[2][1].operationId;
+    const thirdOperationId = renderRouterMocks.enqueueAstridRuntimeRenderTimeline.mock.calls[2][1].operationId;
     expect(thirdOperationId).not.toBe(firstOperationId);
 
     unmount();
@@ -878,7 +878,7 @@ describe('useRenderState render routing', () => {
               `password=${password}`,
               accessKey,
               'input=/Users/alice/project/output.mp4',
-              'cache=/tmp/reigh-render/frame-001.png',
+              'cache=/tmp/astrid-render/frame-001.png',
               'staging=C:\\Users\\alice\\AppData\\Local\\Temp\\render.mp4',
               'staging-forward=C:/Users/alice/AppData/Local/Temp/render.mp4',
             ].join(' '),
@@ -906,7 +906,7 @@ describe('useRenderState render routing', () => {
     expect(diagnostic).not.toContain(password);
     expect(diagnostic).not.toContain(accessKey);
     expect(diagnostic).not.toContain('/Users/alice/project');
-    expect(diagnostic).not.toContain('/tmp/reigh-render');
+    expect(diagnostic).not.toContain('/tmp/astrid-render');
     expect(diagnostic).not.toContain('C:\\Users\\alice');
     expect(diagnostic).not.toContain('C:/Users/alice');
     expect(diagnostic.length).toBeLessThanOrEqual(4_000);
@@ -917,7 +917,7 @@ describe('useRenderState render routing', () => {
     let resolveCancel!: () => void;
     const cancelPending = new Promise<void>((resolve) => { resolveCancel = resolve; });
     renderRouterMocks.cancelAstridRenderTask.mockReturnValueOnce(cancelPending);
-    renderRouterMocks.enqueueBanodocoRenderTimeline
+    renderRouterMocks.enqueueAstridRuntimeRenderTimeline
       .mockResolvedValueOnce({ status: 'queued', task_id: 'render-task-1', message: 'queued' })
       .mockResolvedValueOnce({ status: 'queued', task_id: 'render-task-2', message: 'queued' });
     const runtimeValue = {
@@ -938,7 +938,7 @@ describe('useRenderState render routing', () => {
     ), { wrapper });
 
     await act(async () => { await result.current.startRender(); });
-    const firstOperationId = renderRouterMocks.enqueueBanodocoRenderTimeline.mock.calls[0][1].operationId;
+    const firstOperationId = renderRouterMocks.enqueueAstridRuntimeRenderTimeline.mock.calls[0][1].operationId;
     let cancellation!: Promise<void>;
     await act(async () => {
       cancellation = result.current.cancelRender();
@@ -947,7 +947,7 @@ describe('useRenderState render routing', () => {
     expect(renderRouterMocks.cancelAstridRenderTask).toHaveBeenCalledWith(expect.anything(), 'render-task-1');
 
     await act(async () => { await result.current.startRender(); });
-    const secondOperationId = renderRouterMocks.enqueueBanodocoRenderTimeline.mock.calls[1][1].operationId;
+    const secondOperationId = renderRouterMocks.enqueueAstridRuntimeRenderTimeline.mock.calls[1][1].operationId;
     expect(secondOperationId).not.toBe(firstOperationId);
     expect(result.current.activeRenderTaskId).toBe('render-task-2');
     expect(result.current.renderStatus).toBe('rendering');
@@ -981,7 +981,7 @@ describe('useRenderState render routing', () => {
     ), { wrapper });
 
     await act(async () => { await result.current.startRender(); });
-    const firstOperationId = renderRouterMocks.enqueueBanodocoRenderTimeline.mock.calls[0][1].operationId;
+    const firstOperationId = renderRouterMocks.enqueueAstridRuntimeRenderTimeline.mock.calls[0][1].operationId;
     await act(async () => { await result.current.cancelRender(); });
     expect(renderRouterMocks.cancelAstridRenderTask).toHaveBeenCalledWith(expect.anything(), 'render-task-1');
     expect(result.current.renderStatus).toBe('idle');
@@ -989,7 +989,7 @@ describe('useRenderState render routing', () => {
     expect(result.current.renderLog).toBe('Render cancelled.');
 
     await act(async () => { await result.current.startRender(); });
-    const secondOperationId = renderRouterMocks.enqueueBanodocoRenderTimeline.mock.calls[1][1].operationId;
+    const secondOperationId = renderRouterMocks.enqueueAstridRuntimeRenderTimeline.mock.calls[1][1].operationId;
     expect(secondOperationId).not.toBe(firstOperationId);
 
     unmount();
@@ -1016,7 +1016,7 @@ describe('useRenderState render routing', () => {
 
     await act(async () => { await result.current.startRender(); });
 
-    expect(renderRouterMocks.enqueueBanodocoRenderTimeline).not.toHaveBeenCalled();
+    expect(renderRouterMocks.enqueueAstridRuntimeRenderTimeline).not.toHaveBeenCalled();
     expect(result.current.renderStatus).toBe('error');
     expect(result.current.renderLog).toContain('CAS conflict');
   });
@@ -2400,7 +2400,7 @@ describe('useRenderState — M6 export behavior', () => {
     expect(result.current.renderStatus).toBe('error');
     expect(result.current.renderLog).toBe('Render is unavailable in this read-only preview.');
     expect(renderRouterMocks.decideRenderRoute).not.toHaveBeenCalled();
-    expect(renderRouterMocks.enqueueBanodocoRenderTimeline).not.toHaveBeenCalled();
+    expect(renderRouterMocks.enqueueAstridRuntimeRenderTimeline).not.toHaveBeenCalled();
     expect(mocks.startClientRender).not.toHaveBeenCalled();
   });
 

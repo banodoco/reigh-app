@@ -159,7 +159,7 @@ Wave 5c: [remaining]                ← 3 parallel
 ## Agent Prompt Template
 
 Each agent gets:
-1. **Context:** "You are refactoring the Reigh codebase. Your specific task is [X]."
+1. **Context:** "You are refactoring the Astrid codebase. Your specific task is [X]."
 2. **Files to modify:** Exact paths and line numbers
 3. **What to do:** Step-by-step instructions
 4. **What NOT to do:** Don't touch files outside your scope. Don't refactor beyond the task.

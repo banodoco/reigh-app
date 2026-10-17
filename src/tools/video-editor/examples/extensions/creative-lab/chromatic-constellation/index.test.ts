@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { TimelineOverlayRenderProps, TimelinePatch } from '@reigh/editor-sdk';
+import type { TimelineOverlayRenderProps, TimelinePatch } from '@astrid/editor-sdk';
 import {
   BUILD_CHROMATIC_CONSTELLATION_COMMAND,
   CHROMATIC_CONSTELLATION_DATA_KEY,
@@ -27,7 +27,7 @@ const tracks = [
 
 describe('Structural Pacing Palette extension', () => {
   it('keeps the JSON manifest aligned with the public extension manifest', async () => {
-    const manifestModule = await import('./reigh-extension.json');
+    const manifestModule = await import('./astrid-extension.json');
     expect(manifestModule.default.manifest).toEqual(chromaticConstellationExtension.manifest);
   });
 

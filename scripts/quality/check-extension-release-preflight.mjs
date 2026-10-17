@@ -122,7 +122,7 @@ function externalDetail(number, workstream, receiptMissing) {
 }
 
 function initCommand({ type, output, extra = '' }, release) {
-  return `npm run extension:evidence -- init --type ${type} --output ${output} --release ${release} --reigh-commit "$REIGH_CANDIDATE" --astrid-commit "$ASTRID_COMMIT" --environment "REPLACE_WITH_ENVIRONMENT_ID" --tool "node=20.19.4"${extra}`;
+  return `npm run extension:evidence -- init --type ${type} --output ${output} --release ${release} --app-commit "$ASTRID_APP_CANDIDATE" --astrid-commit "$ASTRID_COMMIT" --environment "REPLACE_WITH_ENVIRONMENT_ID" --tool "node=20.19.4"${extra}`;
 }
 
 export function buildOperatorCommands({ release, astridCommit }) {
@@ -134,27 +134,27 @@ export function buildOperatorCommands({ release, astridCommit }) {
     : PLACEHOLDER_ASTRID;
   return [
     '# Set these only after resolving the exact frozen pair; this preflight never invents candidate pins.',
-    `export REIGH_CANDIDATE=${PLACEHOLDER_CANDIDATE}`,
+    `export ASTRID_APP_CANDIDATE=${PLACEHOLDER_CANDIDATE}`,
     `export ASTRID_COMMIT=${safeAstridCommit}`,
     ...REQUIRED_HUMAN_PERSONAS.map((persona) => `npm run extension:evidence -- register-key --principal REPLACE_WITH_${persona.toUpperCase().replaceAll('-', '_')}_PRINCIPAL --kind human --persona ${persona} --public-key /absolute/path/to/public-key`),
     'npm run extension:evidence -- register-key --principal REPLACE_WITH_REVIEWER_A_PRINCIPAL --kind review --public-key /absolute/path/to/public-key',
     'npm run extension:evidence -- register-key --principal REPLACE_WITH_REVIEWER_B_PRINCIPAL --kind review --public-key /absolute/path/to/public-key',
-    initCommand({ type: 'transcript-owner-acknowledgement', output: '/tmp/reigh-transcript-owner.json' }, safeRelease),
-    initCommand({ type: 'rollout-stage', output: '/tmp/reigh-rollout-stage.json' }, safeRelease),
-    initCommand({ type: 'production-observability', output: '/tmp/reigh-production-observability.json' }, safeRelease),
+    initCommand({ type: 'transcript-owner-acknowledgement', output: '/tmp/astrid-transcript-owner.json' }, safeRelease),
+    initCommand({ type: 'rollout-stage', output: '/tmp/astrid-rollout-stage.json' }, safeRelease),
+    initCommand({ type: 'production-observability', output: '/tmp/astrid-production-observability.json' }, safeRelease),
     ...REQUIRED_RECOVERY_DRILLS.map((drillType) => initCommand({
       type: 'recovery-drill',
-      output: `/tmp/reigh-recovery-${drillType}.json`,
+      output: `/tmp/astrid-recovery-${drillType}.json`,
       extra: ` --drill-type ${drillType}`,
     }, safeRelease)),
     ...REQUIRED_HUMAN_PERSONAS.map((persona) => initCommand({
       type: 'human-persona-session',
-      output: `/tmp/reigh-human-${persona}.json`,
+      output: `/tmp/astrid-human-${persona}.json`,
       extra: ` --persona ${persona}`,
     }, safeRelease)),
     ...['A', 'B'].map((slot) => initCommand({
       type: 'independent-review',
-      output: `/tmp/reigh-review-${slot}.json`,
+      output: `/tmp/astrid-review-${slot}.json`,
       extra: ` --slot ${slot}`,
     }, safeRelease)),
     'npm run extension:evidence -- validate --artifact /tmp/REPLACE_WITH_COMPLETED_DRAFT.json',

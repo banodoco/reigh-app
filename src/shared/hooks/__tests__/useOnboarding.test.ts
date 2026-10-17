@@ -20,7 +20,7 @@ const {
 }));
 
 vi.mock("@/integrations/runtime/client.ts", () => ({
-  ReighRuntimeClient: class {
+  AstridRuntimeClient: class {
     ensureSession = runtimeSessionMock;
     listProjects = async () => [];
   },

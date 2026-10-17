@@ -19,9 +19,9 @@ import { normalizeExtensionRuntime } from '@/tools/video-editor/runtime/extensio
 import { createLiveDataRegistry } from '@/tools/video-editor/runtime/liveDataRegistry.ts';
 import { planRender } from '@/tools/video-editor/runtime/renderPlanner.ts';
 
-const FLAGSHIP_EXTENSION_ID = 'com.reigh.examples.flagship-local';
+const FLAGSHIP_EXTENSION_ID = 'haus.astrid.examples.flagship-local';
 const FLAGSHIP_GLOW_CONTRIBUTION_ID = 'flagship-effect-glow';
-const FLAGSHIP_GLOW_EFFECT_ID = 'com.reigh.flagship.effect.glow';
+const FLAGSHIP_GLOW_EFFECT_ID = 'haus.astrid.flagship.effect.glow';
 const CLIP_ID = 'clip-flagship-glow-live';
 const SOURCE_ID = 'source-flagship-glow-live';
 const BINDING_ID = 'binding-flagship-glow-intensity';

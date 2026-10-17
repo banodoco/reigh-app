@@ -9,8 +9,8 @@
  * @module families/familyAdapterRegistry
  */
 
-import { FamilyAdapterRegistryImpl } from '@reigh/editor-sdk';
-import type { FamilyAdapterRegistry } from '@reigh/editor-sdk';
+import { FamilyAdapterRegistryImpl } from '@astrid/editor-sdk';
+import type { FamilyAdapterRegistry } from '@astrid/editor-sdk';
 
 import { metadataFacetAdapter } from './metadataFacetAdapter';
 import { slotAdapter } from './slotAdapter';

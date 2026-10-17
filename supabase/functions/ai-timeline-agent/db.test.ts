@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { loadTimelineState, saveTimelineConfigVersioned } from "./db.ts";
-import { appendTimelineConfigViaService } from "../_shared/reighAppendService.ts";
+import { appendTimelineConfigViaService } from "../_shared/astridAppendService.ts";
 import type { SupabaseAdmin, TimelineState } from "./types.ts";
 
 describe("saveTimelineConfigVersioned", () => {
@@ -12,8 +12,8 @@ describe("saveTimelineConfigVersioned", () => {
     vi.stubGlobal("Deno", {
       env: {
         get: vi.fn((key: string) => {
-          if (key === "REIGH_APPEND_SERVICE_URL") return "https://append-service.example";
-          if (key === "REIGH_APPEND_SERVICE_INTERNAL_TOKEN") return "internal-token";
+          if (key === "ASTRID_APP_APPEND_SERVICE_URL") return "https://append-service.example";
+          if (key === "ASTRID_APP_APPEND_SERVICE_INTERNAL_TOKEN") return "internal-token";
           return undefined;
         }),
       },
@@ -172,8 +172,8 @@ describe("appendTimelineConfigViaService", () => {
     vi.stubGlobal("Deno", {
       env: {
         get: vi.fn((key: string) => {
-          if (key === "REIGH_APPEND_SERVICE_URL") return "https://append-service.example";
-          if (key === "REIGH_APPEND_SERVICE_INTERNAL_TOKEN") return "internal-token";
+          if (key === "ASTRID_APP_APPEND_SERVICE_URL") return "https://append-service.example";
+          if (key === "ASTRID_APP_APPEND_SERVICE_INTERNAL_TOKEN") return "internal-token";
           return undefined;
         }),
       },
@@ -237,7 +237,7 @@ describe("appendTimelineConfigViaService", () => {
     }
   });
 
-  it("maps append-service version conflicts to a thrown ReighAppendServiceError", async () => {
+  it("maps append-service version conflicts to a thrown AstridAppendServiceError", async () => {
     globalThis.fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({
       error: "version_conflict",
       detail: "timeline config_version mismatch: expected 4, found 6",
@@ -271,7 +271,7 @@ describe("appendTimelineConfigViaService", () => {
  * blocking automated test, because it requires a live Supabase project,
  * an active WebSocket connection, and a non-trivial timing window for
  * delivery confirmation.  The procedure:
- *   1. Open the Reigh video editor (browser).
+ *   1. Open the Astrid video editor (browser).
  *   2. Save a timeline change.
  *   3. Confirm the timeline list re-renders with the updated config_version.
  *   4. Open a second browser tab — confirm it receives the update via

@@ -41,7 +41,7 @@ import type {
   ExportDiagnostic,
   RenderBlocker,
   RenderBlockerReason,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 
 export type RenderStatus = 'idle' | 'rendering' | 'done' | 'error';
 
@@ -246,7 +246,7 @@ function getFastRenderRouteDecision(resolvedConfig: ResolvedTimelineConfig | nul
 
   if (hasGeneratedModuleClip) {
     return {
-      route: 'worker-banodoco' as const,
+      route: 'worker-astrid-runtime' as const,
       reason: hasOtherClip ? 'mixed_generated_module_and_other' : 'generated_remotion_module',
     };
   }
@@ -890,7 +890,7 @@ export function useRenderState(
       renderOperationIdRef.current = null;
     }
     const operationId = renderOperationIdRef.current ??= newRenderOperationId();
-    const admission = await renderRouter.enqueueBanodocoRenderTimeline(built.payload, {
+    const admission = await renderRouter.enqueueAstridRuntimeRenderTimeline(built.payload, {
       client,
       destination: renderDestination,
       expectedVersion,
@@ -1029,7 +1029,7 @@ export function useRenderState(
     // Only Astrid admission knows a revision; clear any previous one.
     renderRevisionRef.current = null;
 
-    if (decision.route === 'worker-banodoco') {
+    if (decision.route === 'worker-astrid-runtime') {
       if (await startAstridRender()) return;
       setRenderStatus('error');
       setRenderProgress(null);

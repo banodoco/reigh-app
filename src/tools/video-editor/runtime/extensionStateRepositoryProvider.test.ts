@@ -36,7 +36,7 @@ import type {
   InstalledExtensionMetadata,
   ExtensionManifest,
   IntegrityHash,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -391,7 +391,7 @@ runTests(
     const keysToClean: string[] = [];
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
-      if (key && key.startsWith('reigh.ext.state.')) {
+      if (key && key.startsWith('astrid.ext.state.')) {
         keysToClean.push(key);
       }
     }
@@ -402,7 +402,7 @@ runTests(
       cleanup: () => {
         for (let i = 0; i < localStorage.length; i++) {
           const key = localStorage.key(i);
-          if (key && key.startsWith('reigh.ext.state.')) {
+          if (key && key.startsWith('astrid.ext.state.')) {
             localStorage.removeItem(key);
           }
         }
@@ -427,8 +427,8 @@ describe('Provider-backed store reserved key usage', () => {
 
     // Verify keys are the reserved ones
     const rawKeys = Array.from(store.raw.keys()).sort();
-    expect(rawKeys).toContain('reigh.ext.state.packs');
-    expect(rawKeys).toContain('reigh.ext.state.enablement');
+    expect(rawKeys).toContain('astrid.ext.state.packs');
+    expect(rawKeys).toContain('astrid.ext.state.enablement');
 
     // Verify no bundle bytes are stored in provider-backed keys
     for (const key of rawKeys) {
@@ -450,8 +450,8 @@ describe('Provider-backed store corruption handling', () => {
   it('recovers from corrupted JSON with empty fallback', async () => {
     const store = new InMemoryProviderStore();
     // Pre-populate with corrupted data
-    await store.set('reigh.ext.state.packs', 'not-valid-json{{{');
-    await store.set('reigh.ext.state.enablement', '{corrupt}');
+    await store.set('astrid.ext.state.packs', 'not-valid-json{{{');
+    await store.set('astrid.ext.state.enablement', '{corrupt}');
 
     const repo = createProviderBackedExtensionStateRepository(store);
     await repo.initialize();

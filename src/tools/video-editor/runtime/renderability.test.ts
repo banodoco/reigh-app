@@ -5,7 +5,7 @@ import {
   DETERMINISM_STATUSES,
   RENDER_BLOCKER_REASONS,
   RENDER_ROUTES,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import type {
   ArtifactBoundary,
   BakeContract,
@@ -16,7 +16,7 @@ import type {
   RenderCapability,
   RenderMaterial,
   RenderRoute,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import type {
   CapabilityFinding,
   RenderArtifactSidecarDescriptor,

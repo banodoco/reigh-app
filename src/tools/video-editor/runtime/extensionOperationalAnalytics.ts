@@ -40,7 +40,7 @@ const COUNT_BUCKETS = new Set(['0', '1-10', '11-100', '101-1000', '1001-10000', 
 const BROWSERS = new Set(['chrome', 'edge', 'firefox', 'safari', 'other']);
 const VERSION_TOKEN = /^(?:0|[1-9]\d*)(?:\.(?:0|[1-9]\d*)){0,2}(?:-[0-9A-Za-z.-]{1,32})?$/;
 const REVISION_TOKEN = /^[A-Za-z0-9._-]{1,64}$/;
-const EXTENSION_ID_TOKEN = /^com\.reigh\.[a-z0-9.-]{1,100}$/;
+const EXTENSION_ID_TOKEN = /^haus\.astrid\.[a-z0-9.-]{1,100}$/;
 const REVIEWED_EXTENSION_IDS = new Set<string>(REVIEWED_PRODUCTION_EXTENSION_IDS);
 
 function isOperationalEventName(value: unknown): value is ExtensionOperationalEvent['event'] {

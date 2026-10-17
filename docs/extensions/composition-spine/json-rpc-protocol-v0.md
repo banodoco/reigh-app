@@ -16,7 +16,7 @@ milestones (M12 and beyond) will implement.
 Source of record: `src/sdk/video/families/processes.ts` lines 67–129
 (`ProcessSpec`, `ProcessLifecycleState`); `src/examples/process-example.ts`
 lines 94–113 (canonical `stdio-jsonrpc` spec shape); M0 brief
-(`.megaplan/initiatives/reigh-extension-composition-spine-epic/m0-decisions-fixtures.md`);
+(`.megaplan/initiatives/astrid-extension-composition-spine-epic/m0-decisions-fixtures.md`);
 fixture matrix rows `PL-01` through `PL-08`
 (`docs/extensions/composition-spine/m0-fixture-matrices.md` lines 147–154).
 

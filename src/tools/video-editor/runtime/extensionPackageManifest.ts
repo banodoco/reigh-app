@@ -2,8 +2,8 @@
  * Package manifest validation for extension loading and installation.
  *
  * Distinguishes two accepted package forms:
- *   1. Workspace source package: a local `reigh-extension.json` consumed as a
- *      `ReighExtension` object during development.
+ *   1. Workspace source package: a local `astrid-extension.json` consumed as a
+ *      `AstridExtension` object during development.
  *   2. Installed trusted bundle: an installed pack with `manifest.json` +
  *      `bundle.mjs` and integrity-tracked `InstalledExtensionMetadata`.
  *
@@ -17,7 +17,7 @@ import {
   validateInstalledPackage,
   validateExtensionId,
   validateContributionId,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import type {
   ExtensionManifest,
   ManifestValidationResult,
@@ -25,7 +25,7 @@ import type {
   InstalledExtensionPackage,
   ExtensionDiagnostic,
   IntegrityHash,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 
 // ---------------------------------------------------------------------------
 // Package form discrimination
@@ -40,7 +40,7 @@ export type PackageForm = 'workspace-source' | 'installed-bundle';
 
 /**
  * A workspace source package: a local extension loaded from a
- * `reigh-extension.json` file during development.
+ * `astrid-extension.json` file during development.
  *
  * These are not installed and are not integrity-tracked. The only required
  * field is a `manifest` property, matching the shape accepted by
@@ -48,7 +48,7 @@ export type PackageForm = 'workspace-source' | 'installed-bundle';
  */
 export interface WorkspaceSourcePackage {
   readonly form: 'workspace-source';
-  /** The manifest extracted from `reigh-extension.json`. */
+  /** The manifest extracted from `astrid-extension.json`. */
   readonly manifest: ExtensionManifest;
   /** Informational: path to the source directory. */
   readonly sourcePath?: string;
@@ -119,7 +119,7 @@ function isInstalledPackageShape(
 }
 
 /**
- * Heuristic: is `input` shaped like a reigh-extension.json workspace source?
+ * Heuristic: is `input` shaped like a astrid-extension.json workspace source?
  *
  * Workspace source packages have a top-level `manifest` property without the
  * `metadata`/`bundleContent` fields of an installed pack.
@@ -206,7 +206,7 @@ function info(
 // ---------------------------------------------------------------------------
 
 /**
- * Validate a workspace source package (reigh-extension.json format).
+ * Validate a workspace source package (astrid-extension.json format).
  *
  * Workspace source packages use `validateManifest` in `'dev'` mode:
  * - Missing installed-only fields (publisher, license, settingsSchema) produce
@@ -367,7 +367,7 @@ export function validatePackage(
       block(
         '(unknown)',
         'package/unrecognised-shape',
-        'Package input is neither a workspace source (reigh-extension.json) nor an installed bundle (metadata + manifest + bundleContent)',
+        'Package input is neither a workspace source (astrid-extension.json) nor an installed bundle (metadata + manifest + bundleContent)',
       ),
     ]),
     warnings: Object.freeze([]),

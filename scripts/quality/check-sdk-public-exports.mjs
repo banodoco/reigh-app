@@ -76,11 +76,11 @@ function resolveSpecifier(specifier, fromDir) {
   }
 
   // Named path alias: @/ → src/
-  if (specifier.startsWith('@/') || specifier.startsWith('@reigh/')) {
+  if (specifier.startsWith('@/') || specifier.startsWith('@astrid/')) {
     let mapped = specifier;
     if (specifier.startsWith('@/')) {
       mapped = path.join('src', specifier.slice(2));
-    } else if (specifier === '@reigh/editor-sdk') {
+    } else if (specifier === '@astrid/editor-sdk') {
       mapped = path.join('src', 'sdk', 'index.ts');
     }
     const resolved = resolveCandidate(path.join(REPO_ROOT, mapped));
@@ -496,7 +496,7 @@ const compilerOptions = {
   baseUrl: REPO_ROOT,
   paths: {
     '@/*': ['./src/*'],
-    '@reigh/editor-sdk': ['./src/sdk/index.ts'],
+    '@astrid/editor-sdk': ['./src/sdk/index.ts'],
   },
   skipLibCheck: true,
 };

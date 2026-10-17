@@ -15,9 +15,9 @@ import type {
   FamilyNormalizeResult,
   FamilyConformanceReport,
   ExecutionMaturity,
-} from '@reigh/editor-sdk';
-import type { MetadataFacetContribution } from '@reigh/editor-sdk';
-import { getVideoFamilyDefinition } from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
+import type { MetadataFacetContribution } from '@astrid/editor-sdk';
+import { getVideoFamilyDefinition } from '@astrid/editor-sdk';
 import type { VideoEditorMetadataFacetDescriptor } from '../extensionSurface';
 import { buildConformanceReport } from '@/sdk/core/families/conformance';
 

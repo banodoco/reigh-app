@@ -5,7 +5,7 @@ import type {
 import type { TimelineHostServiceHooks } from '../runtime/timelineHostServiceHooks.ts';
 
 /** Concrete editor-host compatibility identity; this is not a generic Widget SDK. */
-export const VIDEO_EDITOR_SCOPED_SERVICES_CONTRACT = 'reigh.video-editor.scoped-services.v1' as const;
+export const VIDEO_EDITOR_SCOPED_SERVICES_CONTRACT = 'astrid.video-editor.scoped-services.v1' as const;
 
 /** Identity captured by this editor's provider, commands and host callbacks. */
 export interface VideoEditorInstanceScope {

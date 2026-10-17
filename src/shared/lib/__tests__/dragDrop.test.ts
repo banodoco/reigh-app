@@ -105,7 +105,7 @@ describe('setGenerationDragData / getGenerationDropData round-trip', () => {
 
     // Verify data was stored
     expect(storedData['application/x-generation']).toBeTruthy();
-    expect(storedData['text/plain']).toContain('__reigh_generation__:');
+    expect(storedData['text/plain']).toContain('__astrid_generation__:');
 
     const getEvent = createMockDragEvent({
       types: ['application/x-generation'],
@@ -142,7 +142,7 @@ describe('setGenerationDragData / getGenerationDropData round-trip', () => {
     };
 
     const event = createMockDragEvent({
-      data: { 'text/plain': `__reigh_generation__:${JSON.stringify(data)}` },
+      data: { 'text/plain': `__astrid_generation__:${JSON.stringify(data)}` },
     });
     const result = getGenerationDropData(event);
     expect(result).toEqual(data);
@@ -184,7 +184,7 @@ describe('setGenerationDragData / getGenerationDropData round-trip', () => {
     const event = createMockDragEvent({
       types: ['text/plain'],
       data: {
-        'text/plain': '__reigh_generation__:{"generationId":"gen-789","imageUrl":"https://example.com/video.mp4"}',
+        'text/plain': '__astrid_generation__:{"generationId":"gen-789","imageUrl":"https://example.com/video.mp4"}',
       },
     });
 
@@ -212,7 +212,7 @@ describe('setMultiGenerationDragData / getMultiGenerationDropData round-trip', (
     setMultiGenerationDragData(setEvent, data);
 
     expect(storedData[GENERATION_MULTI_DRAG_TYPE]).toBeTruthy();
-    expect(storedData['text/plain']).toContain('__reigh_generation_multi__:');
+    expect(storedData['text/plain']).toContain('__astrid_generation_multi__:');
 
     const getEvent = createMockDragEvent({
       types: [GENERATION_MULTI_DRAG_TYPE],
@@ -251,7 +251,7 @@ describe('setShotDragData / getShotDropData round-trip', () => {
     setShotDragData(setEvent, data);
 
     expect(storedData['application/x-shot']).toBeTruthy();
-    expect(storedData['text/plain']).toContain('__reigh_shot__:');
+    expect(storedData['text/plain']).toContain('__astrid_shot__:');
 
     const getEvent = createMockDragEvent({
       types: ['application/x-shot'],

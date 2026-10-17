@@ -2,7 +2,7 @@ import { act, renderHook } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ReighRuntimeClient } from '@/integrations/runtime/client.ts';
+import { AstridRuntimeClient } from '@/integrations/runtime/client.ts';
 import type { Event as RuntimeEvent, Task as RuntimeTask } from '@/integrations/runtime/generated.ts';
 import { runtimeTaskQueryKey, useRuntimeTaskEvents } from './useRuntimeTaskEvents';
 
@@ -42,11 +42,11 @@ describe('useRuntimeTaskEvents', () => {
   });
 
   it('shares one cursor, starts from latest, and upserts an external task within a visible tick', async () => {
-    const listEvents = vi.spyOn(ReighRuntimeClient.prototype, 'listEvents')
+    const listEvents = vi.spyOn(AstridRuntimeClient.prototype, 'listEvents')
       .mockResolvedValueOnce(page([], 'cursor-0'))
       .mockResolvedValueOnce(page([event('external')], 'cursor-1'))
       .mockResolvedValue(page([], 'cursor-1'));
-    const getTask = vi.spyOn(ReighRuntimeClient.prototype, 'getTask')
+    const getTask = vi.spyOn(AstridRuntimeClient.prototype, 'getTask')
       .mockResolvedValue(task('external'));
     const queryClient = new QueryClient();
     queryClient.setQueryData(runtimeTaskQueryKey('project-a'), []);
@@ -72,7 +72,7 @@ describe('useRuntimeTaskEvents', () => {
 
   it('drains event pages, deduplicates progress, and filters fetched tasks by project', async () => {
     const fullPage = Array.from({ length: 50 }, () => event('current'));
-    const listEvents = vi.spyOn(ReighRuntimeClient.prototype, 'listEvents')
+    const listEvents = vi.spyOn(AstridRuntimeClient.prototype, 'listEvents')
       .mockResolvedValueOnce(page([], 'cursor-0'))
       .mockResolvedValueOnce(page(fullPage, 'cursor-50'))
       .mockResolvedValueOnce(page([event('foreign'), {
@@ -82,7 +82,7 @@ describe('useRuntimeTaskEvents', () => {
       ...task('current', 'project-a', 2),
       progress: { phase: 'Generating', percent: 80 },
     };
-    const getTask = vi.spyOn(ReighRuntimeClient.prototype, 'getTask')
+    const getTask = vi.spyOn(AstridRuntimeClient.prototype, 'getTask')
       .mockImplementation(async (id) => id === 'foreign' ? task(id, 'project-b') : progressed);
     const queryClient = new QueryClient();
     queryClient.setQueryData(runtimeTaskQueryKey('project-a'), [task('current')]);
@@ -102,7 +102,7 @@ describe('useRuntimeTaskEvents', () => {
   it('uses a fifteen-second event cadence while hidden', async () => {
     let visibility: DocumentVisibilityState = 'visible';
     vi.spyOn(document, 'visibilityState', 'get').mockImplementation(() => visibility);
-    const listEvents = vi.spyOn(ReighRuntimeClient.prototype, 'listEvents')
+    const listEvents = vi.spyOn(AstridRuntimeClient.prototype, 'listEvents')
       .mockResolvedValue(page([], 'cursor-0'));
     const queryClient = new QueryClient();
     const hook = renderHook(() => useRuntimeTaskEvents('project-a'), { wrapper: wrapper(queryClient) });

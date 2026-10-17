@@ -1,5 +1,5 @@
 import { ApiError } from './generated.ts';
-import { ReighRuntimeClient } from './client.ts';
+import { AstridRuntimeClient } from './client.ts';
 import type { Transport } from './generated.ts';
 
 /**
@@ -11,7 +11,7 @@ export async function resolveRuntimeProjectId(
   selector: string,
   options: { baseUrl?: string; token?: string; transport?: Transport } = {},
 ): Promise<string> {
-  const client = new ReighRuntimeClient(options);
+  const client = new AstridRuntimeClient(options);
   try {
     const project = await client.getProject(selector);
     if (typeof project.project_id !== 'string' || project.project_id.length === 0) {

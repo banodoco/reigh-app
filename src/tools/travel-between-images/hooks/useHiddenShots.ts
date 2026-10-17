@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-const STORAGE_KEY_PREFIX = 'reigh-hidden-shots:';
+const STORAGE_KEY_PREFIX = 'astrid-hidden-shots:';
 
 function getStorageKey(projectId: string | undefined): string | null {
   if (!projectId) {

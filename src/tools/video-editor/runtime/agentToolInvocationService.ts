@@ -21,7 +21,7 @@ import type {
   ToolUISummaryResult,
   ToolResultDiagnostic,
   ProposalRuntime,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import type { AgentToolRegistry } from '@/tools/video-editor/runtime/agentToolRegistry';
 import type {
   ToolArtifactMeta,

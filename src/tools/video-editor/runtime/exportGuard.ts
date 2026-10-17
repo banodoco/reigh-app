@@ -15,11 +15,11 @@ import type {
   CompositionGraph,
   ContributionKind,
   ExtensionContribution,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import {
   getVideoFamilyDefinition,
   getVideoFamilyLegacyBridgeStatus,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import { BUILTIN_CLIP_TYPES } from '@/sdk/video/timeline/clipTypes.ts';
 import type { ResolvedTimelineClip, ResolvedTimelineConfig, TimelineConfig } from '@/tools/video-editor/types/index.ts';
 import {

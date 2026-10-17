@@ -16,7 +16,7 @@ import type {
   TimelineShaderUniformValues,
 } from '@/tools/video-editor/types/index.ts';
 import type { ShaderEffectRegistrySnapshot } from '@/tools/video-editor/shaders/registry/types.ts';
-import type { ExtensionDiagnostic, ShaderSourceDescriptor, ShaderUniformDefinition } from '@reigh/editor-sdk';
+import type { ExtensionDiagnostic, ShaderSourceDescriptor, ShaderUniformDefinition } from '@astrid/editor-sdk';
 
 type ShaderInspectorCompareMode = 'shader' | 'bypass';
 

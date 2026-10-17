@@ -22,7 +22,7 @@ describe('Astrid editor catalog build/import boundary', () => {
   it('loads only generated pack entries and includes the Live Three.js scene', () => {
     const scene = ASTRID_EDITOR_EXTENSION_CATALOG.find(({ packId }) => packId === 'rendering');
     expect(scene).toBeDefined();
-    expect(scene!.extension.manifest.id).toBe('com.reigh.astrid.live-scenes');
+    expect(scene!.extension.manifest.id).toBe('haus.astrid.live-scenes');
     expect(scene!.extension.manifest.label).toBe('Three.js Live Editor');
     expect(scene!.extension.manifest.contributions).toContainEqual(
       expect.objectContaining({

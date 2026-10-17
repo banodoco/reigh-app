@@ -13,7 +13,7 @@
  *   ASTRID_REMOTION_PROJECT_DIR
  *                      Remotion project for an explicit binary override
  *   ASTRID_TIMELINE_SCHEMA_PYTHONPATH
- *                      timeline-schema Python package root (default: Reigh vendor)
+ *                      timeline-schema Python package root (default: Astrid App vendor)
  *   ASTRID_BRIDGE_PORT port to listen on (default 17334)
  *   ASTRID_SEED_ROOT   reuse a pre-seeded projects root (default: temp dir)
  *   ASTRID_BRIDGE_METADATA_FILE provenance receipt path (default: /tmp)

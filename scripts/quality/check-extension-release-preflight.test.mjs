@@ -21,7 +21,7 @@ function fixtureLedger(overrides = {}) {
     schemaVersion: 1,
     release: manifest.release,
     status: 'integration',
-    candidate: { reighCommit: null, astridCommit: manifest.astrid.commit },
+    candidate: { appCommit: null, astridCommit: manifest.astrid.commit },
     workstreams: Array.from({ length: 23 }, (_, index) => ({
       id: `${index + 1}-fixture`,
       title: `Fixture ${index + 1}`,
@@ -52,7 +52,7 @@ describe('extension release operational preflight', () => {
     const result = buildPreflight({
       ledger: JSON.parse(readFileSync(new URL('../../config/releases/extension-ship-evidence.json', import.meta.url), 'utf8')),
       manifest,
-      trust: { schemaVersion: 1, release: manifest.release, namespace: 'reigh-extension-ship-evidence-v1', identities: [] },
+      trust: { schemaVersion: 1, release: manifest.release, namespace: 'astrid-extension-ship-evidence-v1', identities: [] },
       checklistMarkdown,
     });
 
@@ -76,7 +76,7 @@ describe('extension release operational preflight', () => {
     const result = buildPreflight({
       ledger: fixtureLedger({ status: 'frozen', workstreams }),
       manifest: { ...manifest, status: 'frozen' },
-      trust: { schemaVersion: 1, release: manifest.release, namespace: 'reigh-extension-ship-evidence-v1', identities: [] },
+      trust: { schemaVersion: 1, release: manifest.release, namespace: 'astrid-extension-ship-evidence-v1', identities: [] },
       checklistMarkdown,
     });
 
@@ -88,7 +88,7 @@ describe('extension release operational preflight', () => {
 
   it('prints commands with explicit candidate placeholders and no claim of completed gates', () => {
     const commands = buildOperatorCommands({ release: 'extension-ship-quality-rc45' });
-    assert.ok(commands.some((command) => command === 'export REIGH_CANDIDATE=REPLACE_WITH_40_CHAR_CANDIDATE'));
+    assert.ok(commands.some((command) => command === 'export ASTRID_APP_CANDIDATE=REPLACE_WITH_40_CHAR_CANDIDATE'));
     assert.ok(commands.some((command) => command.includes('human-persona-session')));
     assert.ok(commands.some((command) => command.includes('production-observability')));
     assert.ok(commands.some((command) => command === 'export ASTRID_COMMIT=REPLACE_WITH_40_CHAR_ASTRID_PIN'));

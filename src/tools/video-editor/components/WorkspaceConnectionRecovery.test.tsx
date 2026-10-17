@@ -64,10 +64,10 @@ describe('WorkspaceConnectionRecovery', () => {
 
   it('reveals manual restart steps that preserve the existing installation and Runtime data', () => {
     render(<WorkspaceConnectionRecovery retrying={false} error="Runtime is offline." onRetry={vi.fn()} />);
-    expect(screen.queryByText(/Return to the same Reigh checkout/)).toBeNull();
+    expect(screen.queryByText(/Return to the same Astrid App checkout/)).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: /restart it myself/i }));
 
-    expect(screen.getByText(/Return to the same Reigh checkout/)).toBeInTheDocument();
+    expect(screen.getByText(/Return to the same Astrid App checkout/)).toBeInTheDocument();
     expect(screen.getByText('npm run dev:local')).toBeInTheDocument();
     expect(screen.getByText(/restart that same Runtime with its current command, profile, and data-root configuration/)).toBeInTheDocument();
     expect(screen.getByText(/Do not reset or reinstall the workspace/)).toBeInTheDocument();

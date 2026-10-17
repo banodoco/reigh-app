@@ -15,7 +15,7 @@ import type {
   LiveSessionsService,
   LiveSource,
   LiveSourceDiagnostic,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 
 export type LiveMappingStatus =
   | 'idle'

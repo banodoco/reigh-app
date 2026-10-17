@@ -207,7 +207,7 @@ ${JSON.stringify([...allowedAssetKeys])}`
     themeId ? `Theme id: ${themeId}` : null,
   ].filter(Boolean).join('\n');
 
-  const systemMsg = `You are an AI assistant that generates Reigh sequence components.
+  const systemMsg = `You are an AI assistant that generates Astrid sequence components.
 
 A sequence component is a React component that renders inside a Remotion timeline clip. The host
 compiles your code at runtime via Sucrase + new Function and renders it for the duration of the clip.

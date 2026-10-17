@@ -370,7 +370,7 @@ describe('video-editor serialization', () => {
           track: 'V1',
           clipType: 'hold',
           hold: 1,
-          app: { 'x-reigh': { pinned: true } },
+          app: { 'x-astrid': { pinned: true } },
         },
       ],
     };
@@ -378,9 +378,9 @@ describe('video-editor serialization', () => {
     expect(validateTimelineConfigSnapshot(config).ok).toBe(true);
 
     const serialized = serializeTimelineConfigSnapshot(config).config;
-    expect(serialized.clips[0].app).toEqual({ 'x-reigh': { pinned: true } });
+    expect(serialized.clips[0].app).toEqual({ 'x-astrid': { pinned: true } });
     expect(serialized.clips[0].app).not.toBe(config.clips[0].app);
-    expect(serialized.clips[0].app?.['x-reigh']).not.toBe(config.clips[0].app?.['x-reigh']);
+    expect(serialized.clips[0].app?.['x-astrid']).not.toBe(config.clips[0].app?.['x-astrid']);
   });
 
   it('round-trips track-level app extension data through validation and serialization', () => {
@@ -421,13 +421,13 @@ describe('video-editor serialization', () => {
     ]);
   });
 
-  it('preserves nested app x-reigh pinnedShotGroups data for the migration target', () => {
+  it('preserves nested app x-astrid pinnedShotGroups data for the migration target', () => {
     const config: TimelineConfig = {
       output: { resolution: '1280x720', fps: 30, file: 'output.mp4' },
       tracks: [{ id: 'V1', kind: 'visual', label: 'V1' }],
       clips: [{ id: 'clip-1', at: 0, track: 'V1', clipType: 'hold', hold: 1 }],
       app: {
-        'x-reigh': {
+        'x-astrid': {
           pinnedShotGroups: [
             {
               shotId: 'shot-1',
@@ -442,7 +442,7 @@ describe('video-editor serialization', () => {
     expect(validateTimelineConfigSnapshot(config).ok).toBe(true);
 
     const serialized = serializeTimelineConfigSnapshot(config).config;
-    expect(serialized.app?.['x-reigh']).toEqual({
+    expect(serialized.app?.['x-astrid']).toEqual({
       pinnedShotGroups: [
         {
           shotId: 'shot-1',
@@ -451,7 +451,7 @@ describe('video-editor serialization', () => {
         },
       ],
     });
-    expect(serialized.app?.['x-reigh']).not.toBe(config.app?.['x-reigh']);
+    expect(serialized.app?.['x-astrid']).not.toBe(config.app?.['x-astrid']);
   });
 
   // ── M8: Transition params snapshot and round-trip ─────────────────────

@@ -21,8 +21,8 @@ import type {
   ExtensionDiagnostic,
   CompositionGraph,
   CompositionGraphNode,
-} from '@reigh/editor-sdk';
-import { contributionRefKey } from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
+import { contributionRefKey } from '@astrid/editor-sdk';
 import type { VideoEditorShaderDescriptor } from '../../extensionSurface';
 import type { CollectedContribution } from '../FamilyContributionSequence';
 import { sortFamilyContributions, freezeDescriptor } from '../familyAdapterUtils';

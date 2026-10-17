@@ -7,7 +7,7 @@
  * @module families/projectors/parserProjector
  */
 
-import type { ParserContribution } from '@reigh/editor-sdk';
+import type { ParserContribution } from '@astrid/editor-sdk';
 import type { VideoEditorAssetParserDescriptor } from '../../extensionSurface';
 import type { CollectedContribution } from '../FamilyContributionSequence';
 import { sortFamilyContributions, freezeDescriptor, freezeDescriptors } from '../familyAdapterUtils';

@@ -6,10 +6,10 @@ import {
   appendAcpAssistantDraft,
   appendAcpTextTurn,
   AstridAgentSessionStore,
-  extractReighElementOperations,
+  extractAstridElementOperations,
   isTimelineAgentSessionsAvailable,
   projectChatQueryKey,
-  stripReighEditorContext,
+  stripAstridEditorContext,
   useCancelSession,
   useCreateSession,
   useProjectChat,
@@ -320,18 +320,18 @@ describe('timeline agent ACP chat', () => {
   });
 
   it('hides the model-only editor context from the rendered transcript', () => {
-    expect(stripReighEditorContext('make the first clip start later\n\n<reigh_editor_context>\n{}\n</reigh_editor_context>'))
+    expect(stripAstridEditorContext('make the first clip start later\n\n<astrid_editor_context>\n{}\n</astrid_editor_context>'))
       .toBe('make the first clip start later');
-    expect(stripReighEditorContext('<reigh_editor_context>\n{}\n</reigh_editor_context>')).toBe('');
-    expect(stripReighEditorContext('make the first clip start later\n\nReigh editor context:\nTimeline ID: timeline-1'))
+    expect(stripAstridEditorContext('<astrid_editor_context>\n{}\n</astrid_editor_context>')).toBe('');
+    expect(stripAstridEditorContext('make the first clip start later\n\nAstrid editor context:\nTimeline ID: timeline-1'))
       .toBe('make the first clip start later');
   });
 
   it('extracts host-executable element operations without leaking markers into chat', () => {
-    const result = extractReighElementOperations([
+    const result = extractAstridElementOperations([
       'I will apply the effect.',
-      '<reigh_element_operation>{"name":"elements.list"}</reigh_element_operation>',
-      '<reigh_element_operation>{"name":"elements.validate","draft_id":"draft-glow"}</reigh_element_operation>',
+      '<astrid_element_operation>{"name":"elements.list"}</astrid_element_operation>',
+      '<astrid_element_operation>{"name":"elements.validate","draft_id":"draft-glow"}</astrid_element_operation>',
     ].join('\n'));
     expect(result.visibleContent).toBe('I will apply the effect.');
     expect(result.operations).toEqual([
@@ -342,8 +342,8 @@ describe('timeline agent ACP chat', () => {
   });
 
   it('reports malformed operation markers while preserving surrounding narration', () => {
-    const result = extractReighElementOperations(
-      'Done. <reigh_element_operation>{not json}</reigh_element_operation>',
+    const result = extractAstridElementOperations(
+      'Done. <astrid_element_operation>{not json}</astrid_element_operation>',
     );
     expect(result.visibleContent).toBe('Done.');
     expect(result.operations).toEqual([]);

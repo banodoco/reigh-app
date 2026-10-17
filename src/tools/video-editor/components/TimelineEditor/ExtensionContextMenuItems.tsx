@@ -3,13 +3,13 @@ import { Sparkles } from 'lucide-react';
 import { cn } from '@/shared/components/ui/contracts/cn.ts';
 import { evaluatePredicate, type PredicateContext } from '@/tools/video-editor/runtime/commandPredicates.ts';
 import type { CommandRegistry, ContextMenuItemEntry } from '@/tools/video-editor/runtime/commandRegistry.ts';
-import type { ReighExtension, TargetContextPayload } from '@reigh/editor-sdk';
+import type { AstridExtension, TargetContextPayload } from '@astrid/editor-sdk';
 
 const menuItemClassName = 'relative flex w-full cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground';
 
 export function buildExtensionPredicateContext(
   extensionId: string,
-  extensions: readonly ReighExtension[],
+  extensions: readonly AstridExtension[],
   target: TargetContextPayload,
 ): PredicateContext | null {
   const ext = extensions.find((candidate) => candidate.manifest.id === extensionId);
@@ -33,7 +33,7 @@ export function getEligibleExtensionContextMenuItems({
   items,
 }: {
   commandRegistry?: CommandRegistry;
-  extensions: readonly ReighExtension[];
+  extensions: readonly AstridExtension[];
   target: TargetContextPayload;
   items?: readonly ContextMenuItemEntry[];
 }): Array<{ item: ContextMenuItemEntry; label: string }> {
@@ -62,7 +62,7 @@ export function getEligibleExtensionContextMenuItems({
 
 export function hasEligibleExtensionContextMenuItems(
   commandRegistry: CommandRegistry | undefined,
-  extensions: readonly ReighExtension[],
+  extensions: readonly AstridExtension[],
   target: TargetContextPayload,
 ): boolean {
   return getEligibleExtensionContextMenuItems({ commandRegistry, extensions, target }).length > 0;
@@ -78,7 +78,7 @@ export function ExtensionContextMenuItems({
 }: {
   items: readonly ContextMenuItemEntry[];
   target: TargetContextPayload;
-  extensions: readonly ReighExtension[];
+  extensions: readonly AstridExtension[];
   commandRegistry?: CommandRegistry;
   closeMenu: () => void;
   validateTarget: (target: TargetContextPayload) => string | null;

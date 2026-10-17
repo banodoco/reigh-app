@@ -36,7 +36,7 @@ export const ProfitSplitBar: React.FC<ProfitSplitBarProps> = ({ className }) => 
                 />
               </TooltipTrigger>
               <TooltipContent side="bottom" align="center" className="px-2 py-1 text-center text-[11px] leading-tight max-w-[240px]">
-                supporting developers whose LoRAs/workflows are used in Reigh, and funding open source projects (model training, extensions, etc.).
+                supporting developers whose LoRAs/workflows are used in Astrid, and funding open source projects (model training, extensions, etc.).
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
@@ -54,7 +54,7 @@ export const ProfitSplitBar: React.FC<ProfitSplitBarProps> = ({ className }) => 
                 />
               </TooltipTrigger>
               <TooltipContent side="bottom" align="center" className="px-2 py-1 text-center text-[11px] leading-tight max-w-[240px]">
-                supporting artists who refer others to Reigh, and funding art competitions and arts support.
+                supporting artists who refer others to Astrid, and funding art competitions and arts support.
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
@@ -72,7 +72,7 @@ export const ProfitSplitBar: React.FC<ProfitSplitBarProps> = ({ className }) => 
                 />
               </TooltipTrigger>
               <TooltipContent side="bottom" align="center" className="px-2 py-1 text-center text-[11px] leading-tight max-w-[240px]">
-                funding Reigh and future projects.
+                funding Astrid and future projects.
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>

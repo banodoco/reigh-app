@@ -1,11 +1,11 @@
-import { defineExtension } from '@reigh/editor-sdk';
-import type { ContributionId, ExtensionId, ReighExtension } from '@reigh/editor-sdk';
+import { defineExtension } from '@astrid/editor-sdk';
+import type { ContributionId, ExtensionId, AstridExtension } from '@astrid/editor-sdk';
 import { renderRunawayTimelineLane, renderRunawayTransitionInspector } from './RunawayTimelineLaneView';
 import { RUNAWAY_KIND_ID, RUNAWAY_SCHEMA_REF } from './runawayTimelineData';
 
-export const RUNAWAY_TIMELINE_EXTENSION_ID = 'com.reigh.astrid-runaway-timeline' as ExtensionId;
+export const RUNAWAY_TIMELINE_EXTENSION_ID = 'haus.astrid-runaway-timeline' as ExtensionId;
 
-export const runawayTimelineExtension: ReighExtension = defineExtension({
+export const runawayTimelineExtension: AstridExtension = defineExtension({
   manifest: {
     id: RUNAWAY_TIMELINE_EXTENSION_ID,
     version: '1.0.0',

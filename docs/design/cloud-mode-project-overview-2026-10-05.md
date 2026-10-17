@@ -1,6 +1,6 @@
-# Reigh and Astrid Cloud Mode: Project Overview
+# Astrid App and Astrid Cloud Mode: Project Overview
 
-**Shared metaplan:** [Reigh Cloud — coordinated projects and execution schedule](/Users/peteromalley/Documents/reigh-workspace/reigh-app/docs/design/cloud-mode-megado-projects-2026-10-05.md).
+**Shared metaplan:** [Astrid App Cloud — coordinated projects and execution schedule](/Users/peteromalley/Documents/astrid-app-workspace/astrid-app/docs/design/cloud-mode-megado-projects-2026-10-05.md).
 
 **Status: architecture overview reviewed by Astra High; implementation and validation pending — 2026-10-05**
 
@@ -18,21 +18,21 @@ For detailed evidence and engineering contracts, see the [Cloud mode integration
 
 ## The product we are aiming for
 
-A person can use Reigh and Astrid on their computer in **Local** mode, where the workspace lives in local SQLite and local files, or choose **Cloud** mode, where their workspace is available after signing in. Their projects, conversations, tasks, and results belong to their account and can be opened on another device by signing into that same account.
+A person can use Astrid App and Astrid on their computer in **Local** mode, where the workspace lives in local SQLite and local files, or choose **Cloud** mode, where their workspace is available after signing in. Their projects, conversations, tasks, and results belong to their account and can be opened on another device by signing into that same account.
 
 The mode chooses which workspace Astrid reads and writes. It does not choose where the agent process runs. A native Astrid client can connect to the user’s Cloud workspace, and a hosted Astrid client can do the same. Local mode continues to use the local Runtime. Changing modes selects a different workspace; it does not silently copy, merge, or synchronize data, and it does not move a task that has already been admitted.
 
-For the first cloud release, Astrid agents submit tasks. Reigh provides sign-in, project and conversation views, account and credit information, task status, and results. An agent can request image or video generation and can ask Astrid to render a timeline. The agent process can stop and later resume because the conversation and workspace are stored independently of its machine.
+For the first cloud release, Astrid agents submit tasks. Astrid App provides sign-in, project and conversation views, account and credit information, task status, and results. An agent can request image or video generation and can ask Astrid to render a timeline. The agent process can stop and later resume because the conversation and workspace are stored independently of its machine.
 
 ## Cloud sign-in and using another device
 
-**Yes, Cloud mode requires an account sign-in.** The intended first sign-in option is the existing Supabase Auth integration with Discord OAuth. Selecting Cloud should take a signed-out user through that sign-in flow. Once Supabase confirms the login, Reigh receives the authenticated Supabase user UUID and asks the trusted server side to open that user’s cloud workspace.
+**Yes, Cloud mode requires an account sign-in.** The intended first sign-in option is the existing Supabase Auth integration with Discord OAuth. Selecting Cloud should take a signed-out user through that sign-in flow. Once Supabase confirms the login, Astrid App receives the authenticated Supabase user UUID and asks the trusted server side to open that user’s cloud workspace.
 
 Discord is the sign-in provider; the Supabase Auth user UUID is the stable application identity. The database mapping must use that UUID, not a Discord username, display name, or provider-specific ID. That gives the account one stable Turso realm mapping even if the person changes Discord profile details or uses a different device. Discord is not the database key.
 
 On a second device, the user signs into the same Supabase account through Discord. The server resolves the same Supabase user UUID and opens the same personal Turso realm. The user then sees the same cloud projects, conversations, task history, and results. Each device may have its own temporary login session and local cache; neither is the owner of the cloud data.
 
-The current source contains Discord OAuth and billing-related integration, but the current Reigh auth context was found in a local/sessionless bridge state. Therefore the sign-in path is a **reuse-and-reconnect task**, not a verified functioning Cloud flow. Restore the correct AuthProvider/session behavior, confirm the deployed Discord provider and callback URLs, and test refresh, logout, expired sessions, account switching, and login on a second device. On logout, clear that device’s local session and revoke its applicable grants; distinguish device logout from account-wide revocation and task cancellation. Already-admitted tasks remain associated with the account. Whether a hosted turn continues after browser logout is an explicit product decision. On account switch, close the old Cloud workspace before resolving the new account. A local profile must never be treated as an authenticated billable Cloud identity.
+The current source contains Discord OAuth and billing-related integration, but the current Astrid App auth context was found in a local/sessionless bridge state. Therefore the sign-in path is a **reuse-and-reconnect task**, not a verified functioning Cloud flow. Restore the correct AuthProvider/session behavior, confirm the deployed Discord provider and callback URLs, and test refresh, logout, expired sessions, account switching, and login on a second device. On logout, clear that device’s local session and revoke its applicable grants; distinguish device logout from account-wide revocation and task cancellation. Already-admitted tasks remain associated with the account. Whether a hosted turn continues after browser logout is an explicit product decision. On account switch, close the old Cloud workspace before resolving the new account. A local profile must never be treated as an authenticated billable Cloud identity.
 
 The Local/Cloud selection should be remembered as a device preference, while the account identity and personal Cloud realm are resolved from the current sign-in. Signing in on another device should open Cloud data, but it should not import that device’s Local projects. Local-to-Cloud movement is a separate, explicit, resumable import operation.
 
@@ -44,10 +44,10 @@ Native Astrid needs its own browser-based authentication handoff, such as a supp
 
 ```mermaid
 flowchart TD
-  PERSON[User] --> REIGH[Reigh app on any device]
-  REIGH -->|Choose Cloud and sign in| AUTH[Supabase Auth / Discord OAuth]
+  PERSON[User] --> Astrid App[Astrid App app on any device]
+  Astrid App -->|Choose Cloud and sign in| AUTH[Supabase Auth / Discord OAuth]
   AUTH -->|Supabase user UUID| GATEWAY[Trusted Cloud gateway]
-  REIGH -->|Project and conversation reads| GATEWAY
+  Astrid App -->|Project and conversation reads| GATEWAY
   NATIVE[Native Astrid client] -->|Scoped Cloud profile| GATEWAY
   HOSTED[Hosted OMP / Astrid session] -->|Short-lived scoped grant| GATEWAY
 
@@ -60,26 +60,26 @@ flowchart TD
   APIWORKER -->|verified output| RUNTIME
   RENDERER -->|verified output| RUNTIME
   RUNTIME -->|idempotent settlement| BILLING[Supabase credit ledger]
-  RUNTIME --> REIGH
+  RUNTIME --> Astrid App
 ```
 
 The Runtime is the authority for the creative workspace and canonical task lifecycle. Supabase is the authority for sign-in, account identity, billing and the separate execution-delivery records. Workers receive delivery instructions but report task progress and completion back through Runtime’s lease and fencing rules. Supabase job status is transport/operations state; it is not another copy of the workspace task.
 
-In Local mode, Reigh and Astrid use the existing local Runtime, SQLite database and local content-addressed media. In Cloud mode, they use the hosted Runtime backed by the user’s Turso database and private media storage. Do not put Turso credentials in the browser or agent process; use authenticated, scoped Runtime APIs.
+In Local mode, Astrid App and Astrid use the existing local Runtime, SQLite database and local content-addressed media. In Cloud mode, they use the hosted Runtime backed by the user’s Turso database and private media storage. Do not put Turso credentials in the browser or agent process; use authenticated, scoped Runtime APIs.
 
 ## Projects and reuse
 
 | Project | What it already contributes | What Cloud mode adds |
 |---|---|---|
-| **`reigh-app`** | React/Vite interface, local Runtime connection, ACP chat bridge, project/timeline UI, Supabase Auth/Discord and Stripe-related code, historical account/credit migrations, typed task-admission client | User-selectable mode, restored Cloud auth behavior, cloud workspace client/views, hosted chat transport, and updated billing/execution integration. The existing deferred Supabase data provider is a build-time switch, not the desired user-facing cloud workspace. |
+| **`astrid-app`** | React/Vite interface, local Runtime connection, ACP chat bridge, project/timeline UI, Supabase Auth/Discord and Stripe-related code, historical account/credit migrations, typed task-admission client | User-selectable mode, restored Cloud auth behavior, cloud workspace client/views, hosted chat transport, and updated billing/execution integration. The existing deferred Supabase data provider is a build-time switch, not the desired user-facing cloud workspace. |
 | **`Astrid`** | CLI/SDK, capability definitions, generation and creative tools, task admission, rendering adapters | A profile-aware authenticated Cloud Runtime client, bounded permissions for Cloud agents, and shared behavior for hosted and native Cloud-connected agents. |
-| **`banodoco-workspace-runtime`** | Canonical SQLite-backed projects, media records, timelines, tasks, attempts, events, leases and settlement rules | Turso-compatible storage, authenticated network service, private BlobStore, and durable dispatch/outbox integration. Its current implementation relies on local SQLite and filesystem assumptions, so this is significant adaptation. |
+| **`astrid-runtime`** | Canonical SQLite-backed projects, media records, timelines, tasks, attempts, events, leases and settlement rules | Turso-compatible storage, authenticated network service, private BlobStore, and durable dispatch/outbox integration. Its current implementation relies on local SQLite and filesystem assumptions, so this is significant adaptation. |
 | **`oh-my-pi` (OMP)** | Agent conversations and native session record format; a pluggable session-storage seam, including another storage backend as a precedent | A Runtime-backed session-storage implementation wired into CLI, TUI and ACP so local and hosted Astrid sessions persist and resume through the selected workspace. |
-| **`reigh-worker-orchestrator`** | Existing API provider handlers, especially fal/Wavespeed submission, polling and output retrieval | An adapter to the new Runtime task envelope and separate delivery jobs. Its legacy Supabase queue and combined completion path cannot remain task authority. |
+| **`astrid-worker-orchestrator`** | Existing API provider handlers, especially fal/Wavespeed submission, polling and output retrieval | An adapter to the new Runtime task envelope and separate delivery jobs. Its legacy Supabase queue and combined completion path cannot remain task authority. |
 | **New CPU render worker** | Astrid’s `rendering.render` / `render_export` task adapter, FFmpeg and Remotion paths | A pinned, isolated worker package with resource limits, cancellation, progress and verified output publication. |
 | **Managed sandbox service** | No complete hosted conversation controller was found | A thin host controller to start and stop agent sandboxes, inject short-lived grants, stream/replay chat events and reopen durable OMP sessions. E2B is a leading candidate; it still needs a prototype and selection. |
 
-The separate `reigh-worker` GPU/local worker is not required for the API-only first phase. Start by adapting the existing API worker code. Add GPU worker hosting when a supported capability requires it.
+The separate `astrid-worker` GPU/local worker is not required for the API-only first phase. Start by adapting the existing API worker code. Add GPU worker hosting when a supported capability requires it.
 
 ## Clean replacement policy
 
@@ -103,12 +103,12 @@ Turso stores structured workspace data and OMP’s native session records. Objec
 ## A task from conversation to result
 
 1. The user signs into Cloud mode. Supabase Auth identifies the account; trusted server code maps the Supabase user UUID to its personal Runtime realm.
-2. Reigh opens a conversation. OMP loads or creates its native session through Astrid Runtime storage. The agent receives a scoped grant for allowed projects and capabilities.
+2. Astrid App opens a conversation. OMP loads or creates its native session through Astrid Runtime storage. The agent receives a scoped grant for allowed projects and capabilities.
 3. The agent submits a typed task with a stable intent/idempotency key. The server checks ownership and capability bounds, estimates the usage hold against the prepaid balance, and records the canonical task plus durable dispatch intent.
 4. A dispatcher obtains the actual Runtime task/attempt claim, then creates the corresponding Supabase execution job and credit hold idempotently. Do not assume the existing Runtime supports claiming an arbitrary task by ID; the dispatcher must respect its actual claim order and verify which task it received.
 5. An API worker or render worker processes the delivery. It uses provider request IDs and reconciliation so an ambiguous timeout does not blindly submit duplicate paid work. The worker has no authority to rewrite workspace task state directly.
 6. The worker uploads output privately. Runtime verifies digest, size and media type, publishes the object reference, and completes the task using the current lease/fence. Billing settles through an idempotent ledger event. Unknown provider outcomes remain held for reconciliation rather than being charged twice or prematurely refunded.
-7. Reigh and the agent read the same result and task status. The conversation links to the task/result so it can be resumed on another device.
+7. Astrid App and the agent read the same result and task status. The conversation links to the task/result so it can be resumed on another device.
 
 The first supported task set should be deliberately narrow: agent-submitted external API generation, followed by a separate CPU render path. Direct UI task submission can be added after the agent contract is stable.
 
@@ -122,7 +122,7 @@ Legacy Supabase tasks and their billing foreign keys must not be used to mirror 
 
 ## Hosted conversations and rendering
 
-OMP’s native session-storage interface is the best place to add persistence. Implement the interface against Astrid Runtime so session creation, append, title changes, truncation, branch/fork operations and flush/drain behavior survive process loss. Wire that backend into all branded Astrid entry points, not just Reigh’s browser chat. Reigh should display a projection of the native conversation records and event stream instead of maintaining a separately editable transcript.
+OMP’s native session-storage interface is the best place to add persistence. Implement the interface against Astrid Runtime so session creation, append, title changes, truncation, branch/fork operations and flush/drain behavior survive process loss. Wire that backend into all branded Astrid entry points, not just Astrid App’s browser chat. Astrid App should display a projection of the native conversation records and event stream instead of maintaining a separately editable transcript.
 
 Cloud OMP runs inside an isolated sandbox supplied by the selected compute host; E2B is the first candidate, pending smoke and recovery proof. The current estimate uses E2B published compute rates ($0.000014/vCPU-second and $0.0000045/GiB-second): 1 vCPU/1 GiB is about $0.0666/hour and 2 vCPU/4 GiB about $0.1656/hour. At 100 users × 0.5 active hours/day × 30 days, the larger profile is 1,500 hours or $248.40 in sandbox compute; adding E2B Pro's published $150/month shared platform fee gives $398.40 total E2B cost, before storage, model inference, bandwidth or taxes. Treat these as planning inputs to recheck at implementation. Start the prototype at 2 vCPU/4 GiB; right-size to 1/1 only if OMP/skills pass measured memory and latency needs. Reuse a pinned sandbox template; do not build an image per conversation.
 
@@ -138,7 +138,7 @@ Video rendering runs as an asynchronous CPU worker, apart from the interactive a
 4. **Add private media storage.** Implement BlobStore, resumable uploads, integrity checks, tenant authorization, signed delivery URLs and orphan cleanup. Verify large files and interruption/retry behavior.
 5. **Build task dispatch and billing recovery.** Define the task envelope, execution job, usage estimate/reservation, provider request, result receipt and settlement idempotency. Exercise duplicate delivery and crashes with a fake provider before paid calls.
 6. **Persist OMP sessions through Runtime.** Implement and wire the native storage backend; prove a session can be resumed after the agent process and sandbox are destroyed. Add one-writer-per-conversation coordination and event replay.
-7. **Connect Reigh and the host controller.** Add the Local/Cloud selection, sign-in/account views, hosted chat lifecycle and shared conversation/task/result views. Prototype E2B first; settle provider, image pinning, egress and sandbox limits using actual recovery and security tests.
+7. **Connect Astrid App and the host controller.** Add the Local/Cloud selection, sign-in/account views, hosted chat lifecycle and shared conversation/task/result views. Prototype E2B first; settle provider, image pinning, egress and sandbox limits using actual recovery and security tests.
 8. **Add the first API and rendering workers.** Adapt one bounded API capability first. Then package the CPU render worker and measure resource envelopes and provider limits.
 9. **Add explicit Local-to-Cloud import and staged rollout.** Copy media, verify hashes, import a consistent project manifest with stable ID mapping, report parity and let the user choose cutover. Roll out behind a small staged cohort with recovery and spend limits.
 

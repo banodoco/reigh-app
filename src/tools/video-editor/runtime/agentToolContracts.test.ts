@@ -34,7 +34,7 @@ import type {
   ToolResultFamily,
   ToolResultDiagnostic,
   TimelinePatch,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 
 // ---------------------------------------------------------------------------
 // Helpers

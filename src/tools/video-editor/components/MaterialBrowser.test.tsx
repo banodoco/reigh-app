@@ -1,7 +1,7 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { MaterialBrowser } from './MaterialBrowser';
-import type { RenderMaterialRef } from '@reigh/editor-sdk';
+import type { RenderMaterialRef } from '@astrid/editor-sdk';
 
 function material(id: string, overrides: Partial<RenderMaterialRef> & Record<string, unknown> = {}): RenderMaterialRef {
   return {

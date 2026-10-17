@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import type {
   TimelineOverlayRenderProps,
   TimelineSnapshot,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import { createCreativeLabExtensionHarness } from '../testing/createCreativeLabHarness';
 import {
   BUILD_PULSE_MAP_COMMAND,
@@ -31,7 +31,7 @@ function snapshot(overrides: Partial<TimelineSnapshot> = {}): TimelineSnapshot {
 
 describe('Pulse Map extension', () => {
   it('keeps the JSON manifest fully aligned with the public manifest', () => {
-    const packageManifest = JSON.parse(readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), 'reigh-extension.json'), 'utf8')).manifest;
+    const packageManifest = JSON.parse(readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), 'astrid-extension.json'), 'utf8')).manifest;
     expect(packageManifest).toEqual(pulseMapExtension.manifest);
   });
 

@@ -10,14 +10,14 @@
  *      would render transitions between clips in the browser preview.
  *
  * This file must NOT import from editor internals (src/tools/video-editor/*).
- * It imports exclusively from @reigh/editor-sdk, the public SDK entrypoint.
+ * It imports exclusively from @astrid/editor-sdk, the public SDK entrypoint.
  *
  * @publicContract
  */
 
-import { defineExtension } from '@reigh/editor-sdk';
+import { defineExtension } from '@astrid/editor-sdk';
 import type {
-  ReighExtension,
+  AstridExtension,
   ExtensionContext,
   DisposeHandle,
   TransitionContribution,
@@ -26,7 +26,7 @@ import type {
   TransitionParameterSchema,
   TransitionRegistrationOptions,
   TransitionRegistrationService,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 
 // ---------------------------------------------------------------------------
 // Parameter schema — these params are surfaced in the transition inspector
@@ -97,9 +97,9 @@ const exampleTransitionRenderer: TransitionRenderer = {
 // Extension
 // ---------------------------------------------------------------------------
 
-export const transitionExample: ReighExtension = defineExtension({
+export const transitionExample: AstridExtension = defineExtension({
   manifest: {
-    id: 'com.reigh.examples.transition' as any,
+    id: 'haus.astrid.examples.transition' as any,
     version: '1.0.0',
     label: 'Transition Example',
     description:
@@ -109,7 +109,7 @@ export const transitionExample: ReighExtension = defineExtension({
       {
         id: 'example-transition' as any,
         kind: 'transition',
-        transitionId: 'com.reigh.examples.transition.exampleSwipe',
+        transitionId: 'haus.astrid.examples.transition.exampleSwipe',
         label: 'Example Swipe Transition',
         allowBrowserExport: false,
         allowWorkerExport: false,
@@ -131,7 +131,7 @@ export const transitionExample: ReighExtension = defineExtension({
     };
 
     const handle = transitions.registerRenderer(
-      'com.reigh.examples.transition.exampleSwipe',
+      'haus.astrid.examples.transition.exampleSwipe',
       exampleTransitionRenderer,
       options,
     );

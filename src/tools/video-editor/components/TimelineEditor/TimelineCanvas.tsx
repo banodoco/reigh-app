@@ -76,7 +76,7 @@ import {
   clampTimelineScaleWidth,
   computeTimelineExtent,
 } from '@/tools/video-editor/lib/timeline-scale.ts';
-import { createTimelineOverlayGeometry } from '@reigh/editor-sdk';
+import { createTimelineOverlayGeometry } from '@astrid/editor-sdk';
 import { createTimelineOverlayStores } from '@/tools/video-editor/lib/timeline-overlay-stores.ts';
 import {
   type ResizeDir,
@@ -96,7 +96,7 @@ import type { TimelineAction, TimelineCanvasHandle, TimelineRow } from '@/tools/
 import type { DragSession } from '@/tools/video-editor/hooks/useClipDrag.ts';
 import type { ClipEdgeResizeEndTarget } from '@/tools/video-editor/hooks/useClipResize.ts';
 import type { MarqueeRect } from '@/tools/video-editor/hooks/useMarqueeSelect.ts';
-import type { TargetContextPayload } from '@reigh/editor-sdk';
+import type { TargetContextPayload } from '@astrid/editor-sdk';
 import { TimelineExtensionOverlayHost } from './TimelineExtensionOverlayHost.tsx';
 import {
   ACTION_VERTICAL_MARGIN,
@@ -415,7 +415,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
   const legacyTranscriptLaneVisible = mountedEditorData?.preferences?.showTranscriptLane ?? true;
   const kindVisibility = mountedEditorData?.preferences?.showDataLanesByKind;
   const showDataLanesByKind = useMemo<Record<string, boolean>>(() => ({
-    'reigh.transcript': legacyTranscriptLaneVisible,
+    'astrid.transcript': legacyTranscriptLaneVisible,
     ...kindVisibility,
   }), [legacyTranscriptLaneVisible, kindVisibility]);
   const laneDataForDisplay = useMemo(() => laneData ? {
@@ -929,7 +929,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
       }
       // Dispatch event for source-panel listeners
       window.dispatchEvent(
-        new CustomEvent('reigh:source-navigate-to-timeline-handled', {
+        new CustomEvent('astrid:source-navigate-to-timeline-handled', {
           detail: { ...detail, handled: true },
         }),
       );

@@ -3,7 +3,7 @@
 Date: 2026-08-23
 
 This catalog records the ideation pass for ten test extensions. Ten distinct
-GPT-5.6 Luna agents inspected the public Reigh editor SDK and proposed five
+GPT-5.6 Luna agents inspected the public Astrid editor SDK and proposed five
 concepts apiece from different editorial personas. The selected V1 from each
 persona optimizes for a recognizable creative idea, public-SDK-only
 implementation, deterministic tests, and no external media-analysis service.
@@ -93,7 +93,7 @@ deliberately limited to facts exposed by `TimelineSnapshot`.
 
 ## Shared V1 constraints
 
-- Import only from `@reigh/editor-sdk`.
+- Import only from `@astrid/editor-sdk`.
 - Use one independent extension ID and package manifest per concept.
 - Keep algorithms pure, bounded, deterministic, and fixture-testable.
 - Persist only namespaced extension-owned data through `project-data.write`.

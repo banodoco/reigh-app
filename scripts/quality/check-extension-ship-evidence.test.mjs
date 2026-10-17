@@ -37,7 +37,7 @@ const signerDirectory = resolve(fixtureRepo, 'signers');
 mkdirSync(signerDirectory, { recursive: true });
 const evidencePath = `docs/extensions/ship-evidence/releases/${release}/receipt.txt`;
 const largeCommittedEvidencePath = `docs/extensions/ship-evidence/releases/${release}/large.bin`;
-const reighCommit = 'a'.repeat(40);
+const appCommit = 'a'.repeat(40);
 const astridCommit = 'b'.repeat(40);
 const controllerCommit = 'c'.repeat(40);
 mkdirSync(resolve(fixtureRepo, evidencePath, '..'), { recursive: true });
@@ -90,7 +90,7 @@ function commonDocument(evidenceType, record) {
     schemaVersion: 1,
     evidenceType,
     release,
-    candidate: { reighCommit, astridCommit },
+    candidate: { appCommit, astridCommit },
     capturedAt,
     environment,
     record,
@@ -144,12 +144,12 @@ writeTypedEvidence('rollout', commonDocument('rollout-stage', {
     expected: 'all flags off', observed: 'all flags off', outcome: 'pass',
     evidence: { path: evidencePath, sha256: evidenceHash },
   },
-  owners: ['release-dri', 'reigh-on-call', 'astrid-on-call', 'observability-on-call'],
+  owners: ['release-dri', 'app-on-call', 'astrid-on-call', 'observability-on-call'],
   outcome: 'pass',
 }));
 writeTypedEvidence('observability', commonDocument('production-observability', {
   deployment: 'production',
-  releaseRevision: reighCommit,
+  releaseRevision: appCommit,
   syntheticProbe: {
     id: 'probe-1', capturedAt,
     eventFamilies: [
@@ -159,7 +159,7 @@ writeTypedEvidence('observability', commonDocument('production-observability', {
     outcome: 'pass', evidence: { path: evidencePath, sha256: evidenceHash },
   },
   dashboard: {
-    id: 'extension-health', revisionFilter: reighCommit, inspectedAt: capturedAt,
+    id: 'extension-health', revisionFilter: appCommit, inspectedAt: capturedAt,
     targetRevisionStatus: 'healthy', evidence: { path: evidencePath, sha256: evidenceHash },
   },
   rateLimit: {
@@ -289,8 +289,8 @@ function makeReceipt(kind, id, extra = {}) {
   return {
     id,
     kind,
-    repository: 'reigh',
-    commit: reighCommit,
+    repository: 'app',
+    commit: appCommit,
     capturedAt,
     action: manual ? 'Signed manual acceptance protocol' : 'npm run release:test',
     environment,
@@ -307,7 +307,7 @@ function makeFrozenLedger() {
     schemaVersion: 1,
     release,
     status: 'frozen',
-    candidate: { reighCommit, astridCommit },
+    candidate: { appCommit, astridCommit },
     workstreams: expected.map((workstream) => {
       let receipts;
       if (workstream.number === 10) {
@@ -438,7 +438,7 @@ describe('extension ship evidence gate', () => {
   });
 
   it('keeps the checked-in integration ledger structurally honest', () => {
-    assert.equal(checkedInLedger.candidate.reighCommit, null);
+    assert.equal(checkedInLedger.candidate.appCommit, null);
     assert.equal(checkedInLedger.candidate.astridCommit, checkedInManifest.astrid.commit);
     const result = validateLedger({
       ledger: checkedInLedger,
@@ -465,7 +465,7 @@ describe('extension ship evidence gate', () => {
       attestationTrust: testTrust,
       repoRoot: fixtureRepo,
       mode: 'release',
-      candidateCommit: reighCommit,
+      candidateCommit: appCommit,
       headCommit: controllerCommit,
       provenanceChangedPaths: allEvidencePaths,
     });
@@ -481,7 +481,7 @@ describe('extension ship evidence gate', () => {
       attestationTrust: checkedInTrust,
       repoRoot: fixtureRepo,
       mode: 'release',
-      candidateCommit: reighCommit,
+      candidateCommit: appCommit,
       headCommit: controllerCommit,
       provenanceChangedPaths: allEvidencePaths,
     });
@@ -507,7 +507,7 @@ describe('extension ship evidence gate', () => {
       attestationTrust: testTrust,
       repoRoot: fixtureRepo,
       mode: 'release',
-      candidateCommit: reighCommit,
+      candidateCommit: appCommit,
       headCommit: controllerCommit,
       provenanceChangedPaths: allEvidencePaths,
       verifyCommittedArtifacts: true,
@@ -530,7 +530,7 @@ describe('extension ship evidence gate', () => {
       attestationTrust: testTrust,
       repoRoot: fixtureRepo,
       mode: 'release',
-      candidateCommit: reighCommit,
+      candidateCommit: appCommit,
       headCommit: controllerCommit,
       provenanceChangedPaths: allEvidencePaths,
     });
@@ -554,7 +554,7 @@ describe('extension ship evidence gate', () => {
       attestationTrust: testTrust,
       repoRoot: fixtureRepo,
       mode: 'release',
-      candidateCommit: reighCommit,
+      candidateCommit: appCommit,
       headCommit: controllerCommit,
       provenanceChangedPaths: allEvidencePaths,
     });
@@ -576,7 +576,7 @@ describe('extension ship evidence gate', () => {
       attestationTrust: testTrust,
       repoRoot: fixtureRepo,
       mode: 'release',
-      candidateCommit: reighCommit,
+      candidateCommit: appCommit,
       headCommit: controllerCommit,
       provenanceChangedPaths: allEvidencePaths,
     });
@@ -596,7 +596,7 @@ describe('extension ship evidence gate', () => {
       attestationTrust: testTrust,
       repoRoot: fixtureRepo,
       mode: 'release',
-      candidateCommit: reighCommit,
+      candidateCommit: appCommit,
       headCommit: controllerCommit,
       provenanceChangedPaths: allEvidencePaths,
     });
@@ -621,7 +621,7 @@ describe('extension ship evidence gate', () => {
       attestationTrust: testTrust,
       repoRoot: fixtureRepo,
       mode: 'release',
-      candidateCommit: reighCommit,
+      candidateCommit: appCommit,
       headCommit: controllerCommit,
       provenanceChangedPaths: allEvidencePaths,
     });
@@ -644,7 +644,7 @@ describe('extension ship evidence gate', () => {
       attestationTrust: replayTrust,
       repoRoot: fixtureRepo,
       mode: 'release',
-      candidateCommit: reighCommit,
+      candidateCommit: appCommit,
       headCommit: controllerCommit,
       provenanceChangedPaths: allEvidencePaths,
     });
@@ -662,11 +662,11 @@ describe('extension ship evidence gate', () => {
       attestationTrust: testTrust,
       repoRoot: fixtureRepo,
       mode: 'release',
-      candidateCommit: reighCommit,
+      candidateCommit: appCommit,
       headCommit: controllerCommit,
       provenanceChangedPaths: allEvidencePaths,
     });
-    assert.match(result.errors.join('\n'), /commit does not match the frozen Reigh candidate/);
+    assert.match(result.errors.join('\n'), /commit does not match the frozen Astrid candidate/);
   });
 
   it('rejects the impossible same-commit controller and propagated provenance failures', () => {
@@ -677,8 +677,8 @@ describe('extension ship evidence gate', () => {
       attestationTrust: testTrust,
       repoRoot: fixtureRepo,
       mode: 'release',
-      candidateCommit: reighCommit,
-      headCommit: reighCommit,
+      candidateCommit: appCommit,
+      headCommit: appCommit,
       provenanceErrors: ['candidate..HEAD contains non-evidence path changes: src/app.ts'],
       provenanceChangedPaths: allEvidencePaths,
     });
@@ -696,7 +696,7 @@ describe('extension ship evidence gate', () => {
       attestationTrust: testTrust,
       repoRoot: fixtureRepo,
       mode: 'release',
-      candidateCommit: reighCommit,
+      candidateCommit: appCommit,
       headCommit: controllerCommit,
       provenanceChangedPaths: [evidencePath],
     });
@@ -709,7 +709,7 @@ describe('extension ship evidence gate', () => {
       attestationTrust: testTrust,
       repoRoot: fixtureRepo,
       mode: 'release',
-      candidateCommit: reighCommit,
+      candidateCommit: appCommit,
       headCommit: controllerCommit,
       provenanceChangedPaths: [],
     });

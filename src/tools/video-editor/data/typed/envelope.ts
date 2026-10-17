@@ -1,7 +1,7 @@
-// [CONVERGE-WITH-M1] Provisional envelope for the Reigh data-lane plane.
+// [CONVERGE-WITH-M1] Provisional envelope for the Astrid App data-lane plane.
 // These types mirror the typed-timeline-data epic's M1 kernel envelope
 // (design: Astrid/.megaplan/initiatives/typed-timeline-data-automation/
-// decisions/reigh-editor-data-lanes.md §Envelope types); when the M1 kernel
+// decisions/astrid-editor-data-lanes.md §Envelope types); when the M1 kernel
 // lands, these definitions converge onto it. Pure data + one freeze helper:
 // no IO, no async.
 

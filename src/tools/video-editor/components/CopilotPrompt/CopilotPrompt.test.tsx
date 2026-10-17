@@ -23,7 +23,7 @@ import type {
   AgentToolInvocationRequest,
   ToolResult,
   ToolUISummaryResult,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 
 // ---------------------------------------------------------------------------
 // Helpers

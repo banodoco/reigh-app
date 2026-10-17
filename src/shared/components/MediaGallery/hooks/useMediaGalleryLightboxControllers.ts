@@ -6,7 +6,7 @@ import { normalizeAndPresentError } from "@/shared/lib/errorHandling/runtimeErro
 import { expandShotData } from '@/shared/lib/shots/shotData';
 import { fetchGenerationRecordById } from '@/integrations/supabase/repositories/generationRepository';
 import { useRuntimeAuthority } from '@/app/runtime/runtimeAuthority';
-import { ReighRuntimeClient } from '@/integrations/runtime/client';
+import { AstridRuntimeClient } from '@/integrations/runtime/client';
 import {
   fetchRuntimeGenerationSnapshot,
   runtimeGenerationToGalleryItem,
@@ -217,7 +217,7 @@ export function useGenerationNavigationController({
           toast.error('Astrid Runtime is still resolving this project.');
           return;
         }
-        const runtimeClient = new ReighRuntimeClient();
+        const runtimeClient = new AstridRuntimeClient();
         const snapshot = await fetchRuntimeGenerationSnapshot(generationId, runtimeClient);
         if (!snapshot || snapshot.generation.project_id !== runtimeProjectId) {
           toast.error("Generation not found");

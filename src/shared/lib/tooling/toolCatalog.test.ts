@@ -8,7 +8,7 @@ describe('canonical Tool catalog binding', () => {
     expect(entry).toMatchObject({
       canonical_id: 'video_editing.video-editor',
       pack_id: 'video_editing',
-      target: 'reigh',
+      target: 'astrid',
       compatibility: { host: '1' },
       entry: { host_entry: 'video-editor', path: 'ui/video-editor/entry.json' },
     });

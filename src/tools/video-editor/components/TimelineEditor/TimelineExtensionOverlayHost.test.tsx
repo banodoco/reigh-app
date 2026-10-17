@@ -5,8 +5,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type {
   ResolvedTimelineOverlayDescriptor,
   TimelineOverlayRenderProps,
-} from '@reigh/editor-sdk';
-import { createTimelineOverlayGeometry } from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
+import { createTimelineOverlayGeometry } from '@astrid/editor-sdk';
 import {
   VideoEditorRuntimeProvider,
   type VideoEditorRuntimeContextValue,

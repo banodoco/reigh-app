@@ -14,7 +14,7 @@ function collectIssues(page: Page): string[] {
   const expectedCapabilityProbe = (url: string, status: number) => {
     const parsed = new URL(url);
     return status === 404
-      && /^\/api\/astrid\/projects\/[^/]+\/media\/__reigh_capability_probe__\/content$/.test(parsed.pathname);
+      && /^\/api\/astrid\/projects\/[^/]+\/media\/__astrid_capability_probe__\/content$/.test(parsed.pathname);
   };
   page.on('pageerror', (error) => issues.push(`[pageerror] ${error.message}`));
   page.on('console', (message) => {
@@ -47,11 +47,11 @@ function evidencePath(testInfo: TestInfo, fileName: string): string {
 async function openCombinedEditor(page: Page): Promise<string[]> {
   const issues = collectIssues(page);
   expect(await resetBridgeBaseline()).toBeNull();
-  await page.addInitScript(() => localStorage.removeItem('reigh.dev-extensions.disabled'));
+  await page.addInitScript(() => localStorage.removeItem('astrid.dev-extensions.disabled'));
   const response = await page.goto(EDITOR_URL, { waitUntil: 'domcontentloaded', timeout: 45_000 });
   expect(response?.ok()).toBe(true);
-  await expect(page.locator('[data-lane-kind="reigh.transcript"]')).toBeVisible({ timeout: 20_000 });
-  await expect(page.locator('[data-lane-kind="reigh.runaway.transitions"]')).toBeVisible();
+  await expect(page.locator('[data-lane-kind="astrid.transcript"]')).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator('[data-lane-kind="astrid.runaway.transitions"]')).toBeVisible();
   // The lane is virtualized: the exact mounted count depends on viewport and
   // engine layout. Assert that data arrived and the host stays within its
   // documented 128-item mount budget instead of baking in one raster count.
@@ -132,7 +132,7 @@ test('combined extension surfaces compose and expose keyboard semantics', async 
   await expect(transcriptActions).toBeFocused();
 
   const accessibleItems = page.locator(
-    '[data-lane-kind="reigh.transcript"] [aria-label], [data-lane-kind="reigh.runaway.transitions"] [aria-label]',
+    '[data-lane-kind="astrid.transcript"] [aria-label], [data-lane-kind="astrid.runaway.transitions"] [aria-label]',
   );
   expect(await accessibleItems.count()).toBeGreaterThanOrEqual(4);
   expect(issues).toEqual([]);

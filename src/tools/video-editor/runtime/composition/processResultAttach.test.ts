@@ -5,12 +5,12 @@ import type {
   RenderArtifactSidecarDescriptor,
   RenderMaterial,
   TimelineSnapshot,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import type { ProcessRoundtripResult } from '@/sdk/capabilities';
 import {
   RENDER_MATERIAL_STATUSES,
   TIMELINE_PATCH_ALL_OP_FAMILIES,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import type {
   ContributionIndex,
   ContributionIndexEntry,

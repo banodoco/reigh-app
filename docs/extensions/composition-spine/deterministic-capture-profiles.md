@@ -3,7 +3,7 @@
 **Status:** Active (M3b)
 **Last updated:** 2026-07-04
 **Scope:** Frozen V1 deterministic capture profiles, table shapes, validation rules, and graph-owned keyframe operation placement.
-**Extension boundary:** Concrete table bodies are **host/editor-owned**. Only the `deterministic-capture` bake-target discriminant is exposed through the public SDK (`LiveBakeTargetKind` in `@reigh/editor-sdk`).
+**Extension boundary:** Concrete table bodies are **host/editor-owned**. Only the `deterministic-capture` bake-target discriminant is exposed through the public SDK (`LiveBakeTargetKind` in `@astrid/editor-sdk`).
 
 ---
 
@@ -242,7 +242,7 @@ Malformed refs are surfaced through `liveBindingHasMalformedAuthoritativeRef` an
 
 ## 7. Public SDK boundary
 
-The public SDK (`@reigh/editor-sdk`) exposes **only** the `deterministic-capture` discriminant on `LiveBakeTargetKind`:
+The public SDK (`@astrid/editor-sdk`) exposes **only** the `deterministic-capture` discriminant on `LiveBakeTargetKind`:
 
 ```typescript
 export type LiveBakeTargetKind =

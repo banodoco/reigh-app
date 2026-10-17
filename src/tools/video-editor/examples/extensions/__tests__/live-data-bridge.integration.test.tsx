@@ -10,7 +10,7 @@ import {
   type LiveBakeResult,
   type LiveChannelDescriptor,
   type LiveSessionsService,
-  type ReighExtension,
+  type AstridExtension,
   type ToolGenerationSessionResult,
 } from '@/sdk/index';
 import { createExtensionContext } from '@/tools/video-editor/runtime/extensionContextFactory';
@@ -51,9 +51,9 @@ import type {
   ClipTypeRegistrySnapshot,
 } from '@/tools/video-editor/clip-types/ClipTypeRegistry';
 
-const WEBCAM_EXTENSION_ID = 'com.reigh.examples.live-webcam-canary';
+const WEBCAM_EXTENSION_ID = 'haus.astrid.examples.live-webcam-canary';
 const WEBCAM_SOURCE_ID = `${WEBCAM_EXTENSION_ID}:webcam`;
-const GENERATED_EXTENSION_ID = 'com.reigh.examples.live-generated-frame-canary';
+const GENERATED_EXTENSION_ID = 'haus.astrid.examples.live-generated-frame-canary';
 const GENERATED_TOOL_ID = 'generated-frame.session';
 
 vi.mock('remotion', async () => ({
@@ -193,7 +193,7 @@ function makeSessions(registry: LiveDataRegistry, extensionId = WEBCAM_EXTENSION
 }
 
 function makeHostContextFactory(registry: LiveDataRegistry) {
-  return (extension: ReighExtension): ExtensionContext => createExtensionContext(extension, {
+  return (extension: AstridExtension): ExtensionContext => createExtensionContext(extension, {
     sessions: makeSessions(registry, extension.manifest.id as string),
   } as Partial<CreativeContext>);
 }
@@ -217,7 +217,7 @@ function makeAgentTools(registry: AgentToolRegistry, extensionId = GENERATED_EXT
 }
 
 function makeGeneratedContext(
-  extension: ReighExtension,
+  extension: AstridExtension,
   liveRegistry: LiveDataRegistry,
   agentRegistry: AgentToolRegistry,
 ): ExtensionContext {

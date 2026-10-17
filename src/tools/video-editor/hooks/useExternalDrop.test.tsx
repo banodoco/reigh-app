@@ -194,7 +194,7 @@ describe('useExternalDrop', () => {
         generationId: 'gen-1',
         imageUrl: 'https://example.com/image.png',
       }]),
-      'text/plain': '__reigh_generation_multi__:[{"generationId":"gen-1","imageUrl":"https://example.com/image.png"}]',
+      'text/plain': '__astrid_generation_multi__:[{"generationId":"gen-1","imageUrl":"https://example.com/image.png"}]',
     });
 
     const coordinator = {

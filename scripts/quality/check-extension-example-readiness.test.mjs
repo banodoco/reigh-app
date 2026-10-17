@@ -84,9 +84,9 @@ function baselineReleaseExamplesDoc() {
 }
 
 function baselineExampleFile(name) {
-  return `import type { ReighExtension } from '@reigh/editor-sdk';
+  return `import type { AstridExtension } from '@astrid/editor-sdk';
 
-export const ${name.replace(/-/g, '_')} = {} as ReighExtension;
+export const ${name.replace(/-/g, '_')} = {} as AstridExtension;
 `;
 }
 

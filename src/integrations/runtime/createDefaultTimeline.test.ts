@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { ReighRuntimeClient, RUNTIME_CLIENT_SCOPES } from './client.ts';
+import { AstridRuntimeClient, RUNTIME_CLIENT_SCOPES } from './client.ts';
 import { ApiError, type Transport } from './generated.ts';
 import {
   RUNTIME_SCHEMA_DIGEST,
@@ -13,7 +13,7 @@ function runtimeClient(timelines: Record<string, unknown>[]) {
     updateProject: vi.fn(async (_id, _key, _version, _name, metadata) => ({ project_id: 'project-id', version: 2, metadata })),
     listTimelines: vi.fn(async () => timelines),
     publishParentComposition: vi.fn(async () => ({ revision_id: 'parent-head' })),
-  } as unknown as ReighRuntimeClient;
+  } as unknown as AstridRuntimeClient;
 }
 
 describe('ensureProjectHasTimeline', () => {
@@ -53,7 +53,7 @@ describe('ensureProjectHasTimeline', () => {
         shot_revisions: [],
         internal_timeline_revisions: [],
       }),
-      'reigh-first-timeline-project-id',
+      'astrid-first-timeline-project-id',
     );
   });
 
@@ -106,7 +106,7 @@ describe('ensureProjectHasTimeline', () => {
         expected_head: null,
         parent_composition: expect.objectContaining({ slug: 'timeline-2', name: 'Timeline 2' }),
       }),
-      'reigh-timeline-create-project-id-project-timeline-2',
+      'astrid-timeline-create-project-id-project-timeline-2',
     );
   });
 
@@ -146,7 +146,7 @@ describe('ensureProjectHasTimeline', () => {
             protocol: 'workspace.v1',
             schema_digest: RUNTIME_SCHEMA_DIGEST,
             session_id: 'session-fixture',
-            actor_id: 'reigh-product-connector',
+            actor_id: 'astrid-product-connector',
             realm_id: 'realm-fixture',
             scopes: RUNTIME_CLIENT_SCOPES,
             capabilities: [RUNTIME_TARGETED_EXECUTION_CAPABILITY],
@@ -178,16 +178,16 @@ describe('ensureProjectHasTimeline', () => {
           headers: {},
           body: json({
             data: { project_id: 'project-id', timeline_id: timelineId, revision_id: parsedBody?.parent_revision_id },
-            receipt: { receipt_id: 'composition.publish:reigh-first-timeline-project-id' },
+            receipt: { receipt_id: 'composition.publish:astrid-first-timeline-project-id' },
           }),
         };
       }
       throw new Error(`unexpected ${method} ${path}`);
     };
-    const client = new ReighRuntimeClient({
+    const client = new AstridRuntimeClient({
       baseUrl: 'http://runtime.test',
       expectedIdentity: {
-        actorId: 'reigh-product-connector',
+        actorId: 'astrid-product-connector',
         realmId: 'realm-fixture',
         runtimeInstanceId: 'runtime-instance-fixture',
       },
@@ -207,7 +207,7 @@ describe('ensureProjectHasTimeline', () => {
       path: `/v1/projects/project-id/timelines/${timelineId}/composition-revisions`,
       headers: {
         'Content-Type': 'application/json',
-        'Idempotency-Key': 'reigh-first-timeline-project-id',
+        'Idempotency-Key': 'astrid-first-timeline-project-id',
       },
       body: {
         project_id: 'project-id',

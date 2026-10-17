@@ -17,5 +17,5 @@ export function readGeneratedSchemaDigest(metadataPath) {
 
 export function schemaDigestMismatch(actual, expected) {
   if (actual === expected) return null;
-  return `runtime schema digest ${String(actual)} does not match Reigh generated contract ${expected}; sync src/integrations/runtime/generated-contract-metadata.ts from the Runtime checkout`;
+  return `runtime schema digest ${String(actual)} does not match Astrid generated contract ${expected}; sync src/integrations/runtime/generated-contract-metadata.ts from the Runtime checkout`;
 }

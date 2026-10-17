@@ -19,7 +19,7 @@ describe('Astrid existing composition scene boundary',()=>{
     expect(screen.queryByTestId('scene-surface')).not.toBeInTheDocument();
   });
   it('uses only the authored surface and exact source offset for a live scene',()=>{
-    render(<ThreeTimelineComposition {...props([{id:'scene',clipType:'com.reigh.astrid.liveScene',at:0,from:59.0666666667,to:59.5666666667,track:'v',app:{liveScene:{revision:'pinned'}}}])} />);
+    render(<ThreeTimelineComposition {...props([{id:'scene',clipType:'haus.astrid.liveScene',at:0,from:59.0666666667,to:59.5666666667,track:'v',app:{liveScene:{revision:'pinned'}}}])} />);
     expect(screen.queryByTestId('text-canvas')).not.toBeInTheDocument();
     expect(screen.getByTestId('scene-surface')).toHaveAttribute('data-source-time','59.0666666667');
   });

@@ -48,16 +48,16 @@ declare module '@astrid/*' {
 }
 
 declare module '@astrid/packs/rendering/editor/catalog' {
-  import type { ReighExtension } from '@reigh/editor-sdk';
+  import type { AstridExtension } from '@astrid/editor-sdk';
 
   export type AstridEditorExtensionDescriptor = {
     readonly packId: string;
     readonly entryPath: string;
-    readonly extension: ReighExtension;
+    readonly extension: AstridExtension;
   };
 
   export const ASTRID_EDITOR_EXTENSION_CATALOG: readonly AstridEditorExtensionDescriptor[];
-  export const ASTRID_EDITOR_EXTENSIONS: readonly ReighExtension[];
+  export const ASTRID_EDITOR_EXTENSIONS: readonly AstridExtension[];
 }
 
 declare module '@astrid/packs/rendering/shared/readiness-image' {

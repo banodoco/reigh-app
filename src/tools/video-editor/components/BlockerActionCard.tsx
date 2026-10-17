@@ -9,7 +9,7 @@
  * @hostOwned — NOT exported through public SDK contracts.
  */
 
-import type { DiagnosticSeverity } from '@reigh/editor-sdk';
+import type { DiagnosticSeverity } from '@astrid/editor-sdk';
 
 // ---------------------------------------------------------------------------
 // Public props

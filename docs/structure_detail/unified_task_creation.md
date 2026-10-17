@@ -2,13 +2,13 @@
 
 Status: post-cutover CPU boundary, 2026-09-10.
 
-Reigh is the client/editor and timeline consumer. Browser generation producers use the canonical task-creation client in `src/shared/lib/taskCreation/createTask.ts`, which admits a typed request through `src/integrations/astrid/client.ts`. Astrid Runtime owns task, run, receipt, event-history, and settlement authority. The Worker executes the admitted work through Runtime's `GenericPackHost`; Runtime settlement publishes output and provenance to CAS, and Reigh reads the result through the canonical gallery or timeline readback path.
+Astrid App is the client/editor and timeline consumer. Browser generation producers use the canonical task-creation client in `src/shared/lib/taskCreation/createTask.ts`, which admits a typed request through `src/integrations/astrid/client.ts`. Astrid Runtime owns task, run, receipt, event-history, and settlement authority. The Worker executes the admitted work through Runtime's `GenericPackHost`; Runtime settlement publishes output and provenance to CAS, and Astrid App reads the result through the canonical gallery or timeline readback path.
 
 ## Supported execution path
 
 ```text
 UI producer
-  -> Reigh createTask
+  -> Astrid App createTask
   -> Astrid Runtime admission (family, project, CAS/input refs, idempotency)
   -> Worker Runtime/GenericPackHost execution
   -> Runtime-owned settlement and receipts
@@ -27,13 +27,13 @@ The agent's historical `create_task`, `get_tasks`, and `delegateToBanodocoAgent`
 
 ## Worker and route boundary
 
-The retained Worker route catalog and Stage1 substrate describe execution capability only. They are not an admission authority and do not justify a browser producer or a direct task-table write. Supported claim, progress, and settlement operations use the Runtime edge contract. Older Reigh status/retry helpers that still resolve Supabase function URLs are retained only as unreachable compatibility residue; they are not a supported Runtime path and remain covered by the residual reachability scan. The supported Worker has no direct database fallback for task lifecycle writes.
+The retained Worker route catalog and Stage1 substrate describe execution capability only. They are not an admission authority and do not justify a browser producer or a direct task-table write. Supported claim, progress, and settlement operations use the Runtime edge contract. Older Astrid App status/retry helpers that still resolve Supabase function URLs are retained only as unreachable compatibility residue; they are not a supported Runtime path and remain covered by the residual reachability scan. The supported Worker has no direct database fallback for task lifecycle writes.
 
 ## Acceptance evidence
 
-- Reigh source boundary: commit `87a98d3`.
+- Astrid App source boundary: commit `87a98d3`.
 - Worker retry boundary: commit `50c6bf1`; supported launcher lineage remains `41df4b0`.
-- Affected Reigh edge suite: 190 tests passed.
+- Affected Astrid App edge suite: 190 tests passed.
 - Canonical producer regression suite: 39 tests passed.
 - Strict island typecheck and targeted lint passed.
 - Worker focused residual suite: 30 tests passed.

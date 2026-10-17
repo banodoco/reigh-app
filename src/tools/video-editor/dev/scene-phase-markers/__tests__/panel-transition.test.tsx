@@ -16,7 +16,7 @@ import type {
   TimelinePatch,
   TimelineReader,
   TimelineSnapshot,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import { createExtensionContext } from '@/tools/video-editor/runtime/extensionContextFactory';
 import { ScenePhaseMarkersPanel } from '../ScenePhaseMarkersPanel';
 import {

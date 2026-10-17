@@ -1,4 +1,4 @@
-const CACHE_NAME = 'reigh-v3';
+const CACHE_NAME = 'astrid-app-v3';
 const EXTENSION_RELEASE_CONFIG_PATH = '/runtime-config/v1/extensions.json';
 
 // Only cache essential static assets, not dynamic content

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import type { CapabilityFinding, RenderMaterialRef, RenderRoute } from '@reigh/editor-sdk';
+import type { CapabilityFinding, RenderMaterialRef, RenderRoute } from '@astrid/editor-sdk';
 import {
   BlockerActionCard,
   normalizeBlockerActionCardNextAction,

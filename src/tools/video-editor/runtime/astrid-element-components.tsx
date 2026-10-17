@@ -41,7 +41,7 @@ const ASTRID_PREVIEW_COMPONENT_OVERRIDES: Record<
 };
 
 // Astrid owns the element implementations. Vite resolves this glob through
-// the configured @astrid source alias, so Reigh previews the same checked-out
+// the configured @astrid source alias, so Astrid App previews the same checked-out
 // Remotion component that Astrid's worker bundles. The catalog supplies the
 // stable componentPath; this glob is only the host-side module bridge.
 const ASTRID_ELEMENT_MODULES = import.meta.glob(

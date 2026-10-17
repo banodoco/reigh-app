@@ -6,7 +6,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const DISABLED_KEY = 'reigh.dev-extensions.disabled';
+const DISABLED_KEY = 'astrid.dev-extensions.disabled';
 
 // Each test gets a fresh module instance (cache + listeners) so snapshot
 // identity and notification counts are fully isolated.

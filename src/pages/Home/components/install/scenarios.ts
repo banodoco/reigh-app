@@ -15,15 +15,15 @@ function getInstallModalTitle({
   isAppInstalled,
 }: Pick<InstallScenarioInput, 'platform' | 'browser' | 'isAppInstalled'>): string {
   if (isAppInstalled) {
-    return 'Reigh is already installed!';
+    return 'Astrid is already installed!';
   }
   if (platform === 'ios') {
-    return 'Add Reigh to home screen';
+    return 'Add Astrid to home screen';
   }
   if (platform === 'mac' && browser === 'safari') {
-    return 'Add Reigh to your dock';
+    return 'Add Astrid to your dock';
   }
-  return 'Install Reigh';
+  return 'Install Astrid';
 }
 
 type InstallVisual = (typeof installVisuals)[keyof typeof installVisuals];

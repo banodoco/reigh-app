@@ -235,7 +235,7 @@ serve(async (req) => {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              text: `[reigh sentinel] ${state} sustained for ${PAGE_AFTER_CONSECUTIVE} consecutive ticks — ${summary}`,
+              text: `[astrid sentinel] ${state} sustained for ${PAGE_AFTER_CONSECUTIVE} consecutive ticks — ${summary}`,
               state,
               detail,
             }),

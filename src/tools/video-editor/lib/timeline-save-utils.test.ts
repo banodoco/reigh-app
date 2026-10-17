@@ -236,9 +236,9 @@ describe('timeline save utils regression coverage', () => {
     const original = buildCommandTestData();
     original.head = { projectId: 'project-1', timelineId: 'timeline-1', headRevisionId: 'head-1' };
     const sourceItemsBySchemaRef = {
-      'reigh.transcript_segment/v1': [{
+      'astrid.transcript_segment/v1': [{
         id: 'source-1:segment-1', shape: 'interval' as const, domain: 'source_seconds' as const,
-        extent: { start: 0, end: 1 }, schemaRef: 'reigh.transcript_segment/v1',
+        extent: { start: 0, end: 1 }, schemaRef: 'astrid.transcript_segment/v1',
         sourceArtifactRef: { assetId: 'asset-1' },
         provenance: { adapterId: 'transcript', adapterVersion: '1' },
         payload: { sourceId: 'source-1', segmentId: 'segment-1', text: 'Correction' },

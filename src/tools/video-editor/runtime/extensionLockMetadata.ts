@@ -14,7 +14,7 @@
  * etc. — these live in their own storage).
  */
 
-import type { ExtensionManifest, ExtensionContribution } from '@reigh/editor-sdk';
+import type { ExtensionManifest, ExtensionContribution } from '@astrid/editor-sdk';
 import type {
   ExtensionPackRecord,
   ExtensionStateRepository,

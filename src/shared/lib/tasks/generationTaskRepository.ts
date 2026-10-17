@@ -3,7 +3,7 @@ import { BridgeRouteError } from '@/integrations/astrid/transport';
 import { getProjectSelectionFallbackId } from '@/shared/contexts/projectSelectionStore';
 import { isUuid } from '@/shared/lib/uuid';
 import { getRuntimeDocumentProjectId } from '@/app/runtime/runtimeDocument';
-import { ReighRuntimeClient } from '@/integrations/runtime/client';
+import { AstridRuntimeClient } from '@/integrations/runtime/client';
 import type { RuntimeAuthority } from '@/app/runtime/runtimeAuthority';
 
 export type GenerationTaskMappingStatus =
@@ -79,7 +79,7 @@ export async function resolveGenerationProjectScope(
   const runtimeProjectId = getRuntimeDocumentProjectId();
   if (runtimeProjectId) {
     try {
-      const generation = await new ReighRuntimeClient().getGeneration(generationId);
+      const generation = await new AstridRuntimeClient().getGeneration(generationId);
       if (generation.project_id !== runtimeProjectId) {
         return { generationId, projectId: generation.project_id, status: 'scope_mismatch' };
       }
@@ -169,7 +169,7 @@ export async function resolveGenerationTaskMappings(
       }
       return mappings;
     }
-    const client = new ReighRuntimeClient();
+    const client = new AstridRuntimeClient();
     for (const generationId of requestedIds) {
       try {
         const generation = await client.getGeneration(generationId);

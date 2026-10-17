@@ -42,7 +42,7 @@ interface VideoShotDisplayProps {
   finalVideo?: ShotFinalVideo;
 }
 
-const SKIP_DELETE_CONFIRMATION_KEY = 'reigh-skip-delete-shot-confirmation';
+const SKIP_DELETE_CONFIRMATION_KEY = 'astrid-skip-delete-shot-confirmation';
 
 export const VideoShotDisplay: React.FC<VideoShotDisplayProps> = ({
   readOnly = false,

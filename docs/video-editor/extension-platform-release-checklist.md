@@ -35,10 +35,10 @@ warnings but not fail.
 
 | # | Domain | Check | Evidence | Release? |
 |---|---|---|---|---|
-| 1 | SDK | `@reigh/editor-sdk` is the only public import path | `src/sdk/__tests__/sdk-boundary.test.ts`; `scripts/quality/check-sdk-public-exports.mjs` | yes |
+| 1 | SDK | `@astrid/editor-sdk` is the only public import path | `src/sdk/__tests__/sdk-boundary.test.ts`; `scripts/quality/check-sdk-public-exports.mjs` | yes |
 | 2 | SDK | SDK boundary test passes without importing editor internals | `src/sdk/__tests__/sdk-boundary.test.ts`; `config/governance/sdk-public-export-allowlist.json` | yes |
 | 3 | SDK | All SDK public exports are in the allowlist | `scripts/quality/check-sdk-public-exports.mjs`; `config/governance/sdk-public-export-allowlist.json` | yes |
-| 4 | SDK | No internal re-exports leak through `@reigh/editor-sdk` | `config/governance/sdk-public-export-allowlist.json`; `src/sdk/index.ts` | yes |
+| 4 | SDK | No internal re-exports leak through `@astrid/editor-sdk` | `config/governance/sdk-public-export-allowlist.json`; `src/sdk/index.ts` | yes |
 | 5 | SDK | `src/sdk/index.ts` compiles under `tsc --noEmit` | `tsconfig.json`; `npm run typecheck:strict-probe` | yes |
 
 ### 2.2 Contract-Recheck Matrix

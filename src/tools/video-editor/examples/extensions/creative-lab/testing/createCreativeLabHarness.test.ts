@@ -1,16 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { defineExtension } from '@reigh/editor-sdk';
+import { defineExtension } from '@astrid/editor-sdk';
 import type {
   ContributionId,
   ExtensionId,
   TimelineOverlayRenderProps,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import {
   createCreativeLabExtensionHarness,
   createCreativeLabSnapshot,
 } from './createCreativeLabHarness';
 
-const extensionId = 'com.reigh.creative-lab.harness-fixture' as ExtensionId;
+const extensionId = 'haus.astrid.creative-lab.harness-fixture' as ExtensionId;
 const commandId = `${extensionId}.run`;
 const renderId = 'creative-lab-harness/overlay';
 const extension = defineExtension({

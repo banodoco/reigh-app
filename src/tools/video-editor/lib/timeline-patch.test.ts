@@ -5616,7 +5616,7 @@ describe('compileTimelinePatch — extension-authored clip label and hold', () =
     const compiled = compileTimelinePatch(
       makePatch({
         operations: [
-          makeOp('clip.add', 'maple-2', { track: 'V1', at: 2, clipType: 'com.reigh.astrid.liveScene' }, 0),
+          makeOp('clip.add', 'maple-2', { track: 'V1', at: 2, clipType: 'haus.astrid.liveScene' }, 0),
           makeOp('clip.update', 'maple-2', {
             mode: 'merge',
             from: 55,
@@ -5633,7 +5633,7 @@ describe('compileTimelinePatch — extension-authored clip label and hold', () =
     );
     expect(compiled.valid).toBe(true);
     const clip = compiled.nextData!.config.clips.find((candidate: { id: string }) => candidate.id === 'maple-2');
-    expect(clip).toMatchObject({ track: 'V1', at: 2, clipType: 'com.reigh.astrid.liveScene', from: 55, to: 75, speed: 1 });
+    expect(clip).toMatchObject({ track: 'V1', at: 2, clipType: 'haus.astrid.liveScene', from: 55, to: 75, speed: 1 });
     expect(clip?.app).toEqual({ unrelated: { sentinel: 'keep' }, liveScene: { revision: 'sha256:abc' } });
   });
 

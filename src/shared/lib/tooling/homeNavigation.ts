@@ -41,6 +41,6 @@ export function resolveHomeToolPath(input: ResolveHomeToolPathInput): string {
 }
 
 export function isHomeToolPathActive(pathname: string, targetPath: string): boolean {
-  const targetUrl = new URL(targetPath, 'https://reigh.local');
+  const targetUrl = new URL(targetPath, 'https://astrid.local');
   return pathname === targetUrl.pathname;
 }

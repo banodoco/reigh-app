@@ -16,13 +16,13 @@ import type {
   TimelineSnapshot,
   ExtensionManifestContribution,
   ExtensionDiagnostic,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import type {
   HostFamilyAdapter,
   FamilyAdapterRegistry,
   NormalizeFamilyInput,
   FamilyNormalizeResult,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import type { FamilyContributionSequence, CollectedContribution } from './FamilyContributionSequence';
 import { contributionScopedKey } from './FamilyContributionSequence';
 import { VIDEO_EDITOR_FAMILY_ADAPTER_REGISTRY } from './familyAdapterRegistry';

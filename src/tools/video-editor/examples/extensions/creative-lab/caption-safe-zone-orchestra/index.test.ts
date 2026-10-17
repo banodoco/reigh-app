@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import type {
   TimelineOverlayRenderProps,
   TimelineSnapshot,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import { createCreativeLabExtensionHarness } from '../testing/createCreativeLabHarness';
 import {
   BUILD_CAPTION_FINDINGS_COMMAND,
@@ -39,7 +39,7 @@ function snapshot(overrides: Partial<TimelineSnapshot> = {}): TimelineSnapshot {
 describe('Caption Safe-Zone Orchestra extension', () => {
   it('keeps the checked-in package manifest aligned with the SDK manifest', () => {
     const packageManifest = JSON.parse(
-      readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), 'reigh-extension.json'), 'utf8'),
+      readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), 'astrid-extension.json'), 'utf8'),
     ).manifest;
     expect(packageManifest).toEqual(captionSafeZoneOrchestraExtension.manifest);
   });

@@ -11,7 +11,7 @@ import type { ReactElement } from 'react';
 import { SchemaForm } from '@/tools/video-editor/components/SchemaForm/SchemaForm';
 import type { StandardSchema } from '@/tools/video-editor/components/SchemaForm/SchemaForm';
 import type { AgentToolSessionEntry } from '@/tools/video-editor/runtime/agentToolRegistry';
-import type { DiagnosticSeverity } from '@reigh/editor-sdk';
+import type { DiagnosticSeverity } from '@astrid/editor-sdk';
 
 export interface GenerationSessionPanelProps {
   sessions: readonly AgentToolSessionEntry[];

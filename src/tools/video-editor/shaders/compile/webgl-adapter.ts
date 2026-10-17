@@ -1,4 +1,4 @@
-import type { Diagnostic } from '@reigh/editor-sdk';
+import type { Diagnostic } from '@astrid/editor-sdk';
 import {
   SHADER_DIAGNOSTIC_CODES,
   parseWebGLInfoLog,

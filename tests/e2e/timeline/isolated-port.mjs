@@ -16,7 +16,7 @@ import { join } from 'node:path';
 
 const MIN_PORT = 20_000;
 const MAX_PORT = 55_000;
-const RESERVATION_DIR = join(tmpdir(), 'reigh-playwright-port-reservations');
+const RESERVATION_DIR = join(tmpdir(), 'astrid-playwright-port-reservations');
 const reservations = new Map();
 
 function parsePort(value, name) {

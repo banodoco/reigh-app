@@ -1,4 +1,4 @@
-import type { DiagnosticSeverity, DisposeHandle, ExtensionDiagnostic } from '@reigh/editor-sdk';
+import type { DiagnosticSeverity, DisposeHandle, ExtensionDiagnostic } from '@astrid/editor-sdk';
 import type {
   ShaderEffectRegistry,
   ShaderEffectRegistryLookup,

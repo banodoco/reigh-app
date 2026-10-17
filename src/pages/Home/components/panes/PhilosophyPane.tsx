@@ -101,7 +101,7 @@ export const PhilosophyPane: React.FC<PhilosophyPaneProps> = ({
 
       <div className="mt-8 sm:mt-10 mb-6 relative z-10">
         <h2 className="text-2xl sm:text-3xl font-theme-heading text-primary leading-tight mb-5">
-          reigh is a tool made just for travelling between images
+          astrid is a tool made just for travelling between images
         </h2>
         <div className="w-20 h-1.5 bg-gradient-to-r from-wes-vintage-gold to-wes-vintage-gold/50 rounded-full animate-pulse-breathe opacity-90" />
       </div>
@@ -112,7 +112,7 @@ export const PhilosophyPane: React.FC<PhilosophyPaneProps> = ({
             There are many tools that aim to be a 'one-stop-shop' for creating with AI - a kind of 'Amazon for art'.
           </p>
           <p className="text-sm leading-7">
-            <span className="font-theme-heading">Reigh</span> is not one of them.
+            <span className="font-theme-heading">Astrid</span> is not one of them.
           </p>
           <p className="text-sm leading-7">
             It's a tool <span className="text-wes-vintage-gold">just for travelling between images</span>:

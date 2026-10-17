@@ -113,7 +113,7 @@ describe('Runtime media import adapter', () => {
         variantId: 'variant-import',
       },
     });
-    expect(localStorage.getItem(`reigh.runtime.media-import.v1:${PROJECT_ID}:${prepared.importOperationId}`)).toContain(prepared.importOperationId);
+    expect(localStorage.getItem(`astrid.runtime.media-import.v1:${PROJECT_ID}:${prepared.importOperationId}`)).toContain(prepared.importOperationId);
     expect(fixture.requests.filter((request) => request.path.includes('/generations') || request.path.includes('/variants'))).toHaveLength(0);
   });
 

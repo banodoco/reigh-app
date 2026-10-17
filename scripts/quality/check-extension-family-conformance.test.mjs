@@ -119,8 +119,8 @@ function setupTempRepoForSidecarChecks() {
   const root = mkdtempSync(join(os.tmpdir(), 'family-conformance-'));
 
   // Copy the schema from the real repo
-  const schemaSrc = join(repoRoot, 'config/contracts/reigh-extension.schema.json');
-  writeRepoFile(root, 'config/contracts/reigh-extension.schema.json', readFileSync(schemaSrc, 'utf8'));
+  const schemaSrc = join(repoRoot, 'config/contracts/astrid-extension.schema.json');
+  writeRepoFile(root, 'config/contracts/astrid-extension.schema.json', readFileSync(schemaSrc, 'utf8'));
 
   // Copy family-maturity.json
   const maturitySrc = join(repoRoot, 'config/extensions/family-maturity.json');
@@ -246,7 +246,7 @@ function setupEvidenceRepo({ family, files = {} }) {
 
   writeRepoFile(
     root,
-    'config/contracts/reigh-extension.schema.json',
+    'config/contracts/astrid-extension.schema.json',
     JSON.stringify(EVIDENCE_SCHEMA, null, 2) + '\n',
   );
   writeRepoFile(

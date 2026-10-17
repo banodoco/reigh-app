@@ -13,7 +13,7 @@
  */
 
 import { describe, expect, it, beforeEach } from 'vitest';
-import type { ExtensionManifest, IntegrityHash } from '@reigh/editor-sdk';
+import type { ExtensionManifest, IntegrityHash } from '@astrid/editor-sdk';
 import type {
   ExtensionPackRecord,
   ExtensionLockEntry,

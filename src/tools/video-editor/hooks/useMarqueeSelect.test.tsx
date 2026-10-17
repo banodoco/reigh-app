@@ -290,7 +290,7 @@ describe('typed timeline selection clearing', () => {
     const onClearSelection = vi.fn();
     const { result } = renderHook(() => useMarqueeSelect({ editAreaRef: { current: editArea }, deviceClass: 'desktop', interactionMode: 'select',
       gestureOwner: 'none', setGestureOwner: vi.fn(), setInputModalityFromPointerType: () => 'mouse', onClearSelection }));
-    const lane = document.createElement('div'); lane.dataset.laneId = 'reigh.transcript'; editArea.append(lane);
+    const lane = document.createElement('div'); lane.dataset.laneId = 'astrid.transcript'; editArea.append(lane);
     const item = document.createElement('button'); lane.append(item);
     const header = document.createElement('div'); header.dataset.laneHeader = 'true'; lane.append(header);
     for (const target of [header, item]) {

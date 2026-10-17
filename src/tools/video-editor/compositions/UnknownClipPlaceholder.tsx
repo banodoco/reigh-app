@@ -36,7 +36,7 @@ const STYLES: Record<UnknownClipReason, CSSProperties> = {
 const messageFor = (reason: UnknownClipReason, clipType: string): string => {
   switch (reason) {
     case 'unsupported':
-      return `clipType '${clipType}' renderer unavailable in this Reigh build`;
+      return `clipType '${clipType}' renderer unavailable in this Astrid build`;
     case 'missing-asset':
       return `clipType '${clipType}' missing asset — clip will not appear in render`;
   }

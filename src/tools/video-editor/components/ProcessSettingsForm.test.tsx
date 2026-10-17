@@ -24,7 +24,7 @@ function processDescriptor(): VideoEditorProcessDescriptor {
           defaultValue: '/usr/bin/ffmpeg',
           platformDefaults: { darwin: '/opt/homebrew/bin/ffmpeg' },
         },
-        { key: 'CACHE_DIR', label: 'Cache directory', defaultValue: '$TMPDIR/reigh-cache' },
+        { key: 'CACHE_DIR', label: 'Cache directory', defaultValue: '$TMPDIR/astrid-cache' },
       ],
       operations: [],
     },
@@ -44,7 +44,7 @@ describe('ProcessSettingsForm', () => {
     expect(screen.getByLabelText('Command')).toHaveValue('ffmpeg');
     expect(screen.getByLabelText('FFmpeg path')).toHaveValue('/opt/homebrew/bin/ffmpeg');
     expect(screen.getByText('Use CACHE_DIR from the process environment when left blank.')).toBeInTheDocument();
-    expect(screen.getByLabelText('Cache directory')).toHaveAttribute('placeholder', '$TMPDIR/reigh-cache');
+    expect(screen.getByLabelText('Cache directory')).toHaveAttribute('placeholder', '$TMPDIR/astrid-cache');
   });
 
   it('validates required settings and propagates saved settings into spawn config', () => {
@@ -56,7 +56,7 @@ describe('ProcessSettingsForm', () => {
       env: {
         BASE: '1',
         FFMPEG_PATH: '/custom/ffmpeg',
-        CACHE_DIR: '$TMPDIR/reigh-cache',
+        CACHE_DIR: '$TMPDIR/astrid-cache',
       },
     });
   });

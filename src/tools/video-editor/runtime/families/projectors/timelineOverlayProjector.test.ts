@@ -14,7 +14,7 @@ import { describe, it, expect } from 'vitest';
 
 import { buildTimelineOverlayDescriptors } from './timelineOverlayProjector';
 import type { CollectedContribution } from '../FamilyContributionSequence';
-import type { TimelineOverlayDescriptor } from '@reigh/editor-sdk';
+import type { TimelineOverlayDescriptor } from '@astrid/editor-sdk';
 
 // ---------------------------------------------------------------------------
 // Helpers

@@ -5,16 +5,16 @@ import type {
   RenderMaterialRef,
   TimelineSnapshot,
   ToolMaterialArtifactResult,
-} from '@reigh/editor-sdk';
+} from '@astrid/editor-sdk';
 import { flagshipLocalExtension } from '@/tools/video-editor/examples/extensions/flagship-local';
 import { projectHostMaterialRuntime } from '@/tools/video-editor/runtime/composition/materialRuntime.ts';
 import { applyGraphPreviewOperations } from '@/tools/video-editor/runtime/composition/patchPreview.ts';
 import { normalizeExtensionRuntime } from '@/tools/video-editor/runtime/extensionSurface.ts';
 import { createAgentToolInvocationService } from '@/tools/video-editor/runtime/agentToolInvocationService';
 
-const FLAGSHIP_EXTENSION_ID = 'com.reigh.examples.flagship-local';
+const FLAGSHIP_EXTENSION_ID = 'haus.astrid.examples.flagship-local';
 const FLAGSHIP_WIPE_CONTRIBUTION_ID = 'flagship-transition-wipe';
-const FLAGSHIP_WIPE_TRANSITION_ID = 'com.reigh.flagship.transition.wipe';
+const FLAGSHIP_WIPE_TRANSITION_ID = 'haus.astrid.flagship.transition.wipe';
 const FLAGSHIP_WIPE_REF_KEY = `transition:${FLAGSHIP_EXTENSION_ID}:${FLAGSHIP_WIPE_CONTRIBUTION_ID}`;
 const FLAGSHIP_WIPE_NODE_ID = `contribution:${FLAGSHIP_WIPE_REF_KEY}`;
 const CLIP_ID = 'clip-flagship-wipe-mask';

@@ -15,7 +15,7 @@ import { findContributionOwnerId } from '@/tools/video-editor/runtime/extensionS
 import { ExtensionPanelHost, getPanelKey } from '@/tools/video-editor/runtime/ExtensionPanelHost';
 import { bindTranscriptPanelVideo } from '@/tools/video-editor/lib/transcript-panel-binding.ts';
 import { playedAssetRegistry, playedShotComposition } from '@/tools/video-editor/lib/timeline-shot-summaries.ts';
-import type { PanelRenderProps, PanelVideoAdapter } from '@reigh/editor-sdk';
+import type { PanelRenderProps, PanelVideoAdapter } from '@astrid/editor-sdk';
 
 export interface VideoEditorAssetPanelSurfaceProps {
   includeBuiltIn?: boolean;
